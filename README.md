@@ -1,0 +1,2 @@
+# Botrading
+Bot para trading.
