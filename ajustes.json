@@ -2,7 +2,7 @@
   "vigilante_min": 30,
   "bt_max": 200,
   "cfg": {
-    "slots": 6,
+    "slots": 3,
     "mrisk": 0.005,
     "dloss": 0.01,
     "ddstop": 0.06,
