@@ -1,4 +1,14 @@
 {
   "vigilante_min": 30,
-  "bt_max": 300
+  "bt_max": 200,
+  "cfg": {
+    "slots": 6,
+    "mrisk": 0.005,
+    "dloss": 0.01,
+    "ddstop": 0.06,
+    "fee": 0.15,
+    "slip": 0.0015,
+    "minpos": 25,
+    "sweep": 0
+  }
 }
