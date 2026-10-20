@@ -257,12 +257,15 @@ async function sendMail(page, subject, text) {
   return { ok: false, txt: "NO enviado el correo (" + why + ")" };
 }
 // Envía móvil + correo y deja constancia en el propio informe individual.
-async function avisar(page, rep, { title, short, subject }) {
+async function avisar(page, rep, { title, short, subject, silent = false }) {
   const body = [short, "", SITE ? "Web: " + SITE : ""].join("\n").trim();
   const mailTxt = ["BOT TRADING PRO · simulación, sin dinero real", title, "", rep && rep.md ? rep.md : short, "", SITE ? "Web: " + SITE : ""].join("\n");
-  const [n, m] = [await sendNtfy(title, body), await sendMail(page, subject, mailTxt)];
+  // silent: el turno del vigilante deja su informe en la web pero NO manda móvil ni correo (serían demasiados). Los errores sí avisan.
+  const off = { ok: false, txt: "no enviado a propósito (los turnos del vigilante no avisan; solo los errores)" };
+  const [n, m] = silent ? [off, off] : [await sendNtfy(title, body), await sendMail(page, subject, mailTxt)];
   log("Aviso móvil:", n.txt); log("Aviso correo:", m.txt);
-  const bloque = `\n\n## Avisos de esta ejecución\n- Móvil (ntfy): ${n.ok ? "✔ " : "✖ "}${n.txt}\n- Correo: ${m.ok ? "✔ " : "✖ "}${m.txt}\n`;
+  const bloque = silent ? `\n\n## Avisos de esta ejecución\n- Sin aviso al móvil ni correo (turno del vigilante: solo se avisa si hay un error).\n`
+    : `\n\n## Avisos de esta ejecución\n- Móvil (ntfy): ${n.ok ? "✔ " : "✖ "}${n.txt}\n- Correo: ${m.ok ? "✔ " : "✖ "}${m.txt}\n`;
   if (rep && rep.id) { try { await page.evaluate(([id, t]) => __API.appendToReport(id, t), [rep.id, bloque]); } catch (e) { log("No se pudo anotar el aviso en el informe:", String(e.message).slice(0, 120)); } }
   try { if (env("GITHUB_STEP_SUMMARY")) appendFileSync(env("GITHUB_STEP_SUMMARY"), `\n### ${title}\n${rep && rep.md ? rep.md.slice(0, 60000) : short}${bloque}\n`); } catch {}
   return { n, m };
@@ -292,7 +295,8 @@ async function boot() {
   await ctx.addInitScript(() => {
     window.__RUNNER = true;
     // el aviso de fin de actualización / prueba histórica lo envía el runner (con el informe); aquí se silencia el duplicado
-    window.__NOTIFY_QUIET = /actualización terminada|error en la actualización|prueba histórica terminada|error en la prueba histórica/i;
+    // También se silencian los avisos propios de la página (p. ej. «posible entrada en X» del vigilante, uno por consulta): el único que avisa es el runner.
+    window.__NOTIFY_QUIET = /./;
     try { localStorage.setItem("pbt", String(Date.now())); } catch {}   // evita el arranque automático de "Actualizar" al abrir
   });
   const page = await ctx.newPage();
@@ -400,9 +404,11 @@ async function main() {
         VGC.on = true; vgSave(); VG.next = 0; vgRefresh();
       }, interval);
       const iv = await page.evaluate(() => +VGC.min || 30);
-      log(`Vigilante activo · intervalo elegido en el desplegable: cada ${iv} min`);
+      log(`Vigilante activo (runner v3) · intervalo elegido en el desplegable: cada ${iv} min`);
+      // deja constancia inmediata en la Bitácora del vigilante (aunque el mercado esté cerrado)
+      await page.evaluate(([m, hm]) => { try { vgSay("Turno del vigilante en la nube iniciado a las " + hm + " (hora de España). Consulta cada " + m + " min mientras Wall Street esté abierto.", "info"); } catch {} }, [iv, new Date().toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" })]);
       const MAX = Math.min((+env("TURN_MAX_MIN") || 55) * 60e3, Math.max(60e3, DEADLINE - Date.now()));
-      let lastPub = Date.now();
+      let lastPub = Date.now() - 8.5 * 60e3;   // primera publicación a los ~90 s (para ver datos enseguida en la web); después cada 10 min
       for (;;) {
         await sleep(30000);
         await page.evaluate(() => { try { localStorage.setItem("pbt", String(Date.now())); } catch {} }).catch(() => {});
@@ -434,7 +440,7 @@ async function main() {
       shortTxt = "Si lees esto en el móvil, las notificaciones funcionan.\n" + sec.filter((k) => !env(k)).map((k) => "Falta " + k).join("\n");
     } else throw new Error("Modo desconocido: " + MODE);
 
-    await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj });
+    await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj, silent: MODE === "vigilante" });
   } catch (e) {
     // cualquier fallo queda registrado en un informe y avisado
     const msg = `Fallo del proceso automático (${MODE}): ${String(e && e.message || e).slice(0, 400)}`;
