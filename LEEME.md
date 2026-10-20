@@ -6,7 +6,7 @@ Qué hace este paquete:
 - **Actualización diaria a las 23:00 (hora de España)**: GitHub ejecuta el botón «Actualizar precios y que el bot decida» por ti, lunes a viernes. Cambia sola entre horario de verano e invierno.
 - **Prueba histórica diaria**: justo después de la actualización, con un número **aleatorio de acciones entre 200 y el máximo** (por defecto 300) elegidas al azar.
 - **Vigilante**: GitHub lo mantiene encendido en turnos de 55 minutos mientras Wall Street está abierto (lunes a viernes). Consulta **cada X minutos según el desplegable** (10, 15, 30 o 60).
-- **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Informe → Registro) y manda **un aviso al móvil (ntfy) y un correo**.
+- **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Informe → Registro). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
 ## Puesta en marcha (unos 15 minutos)
