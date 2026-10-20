@@ -1,7 +1,8 @@
 name: Ajustes de la nube
 
-# Guarda en el repositorio (ajustes.json) lo que elijas aquí o desde la web con «Aplicar en la nube».
-# El vigilante y la prueba histórica diaria lo leen al empezar cada turno.
+# Guarda en el repositorio (ajustes.json) lo que elijas aquí o desde la web (pestaña Ajustes → «Aplicar en la nube»).
+# El vigilante y la prueba histórica diaria lo leen al empezar cada turno; la actualización diaria y el vigilante
+# aplican además los parámetros del bot (comisión, riesgo, frenos…) antes de ejecutarse.
 on:
   workflow_dispatch:
     inputs:
@@ -14,6 +15,10 @@ on:
         description: "Prueba histórica diaria: MÁXIMO de acciones (200-500). Cada día se usa un número aleatorio entre 200 y este máximo"
         type: string
         default: "300"
+      cfg:
+        description: "Parámetros del bot en JSON (lo rellena la web; déjalo en {} si lo lanzas a mano)"
+        type: string
+        default: "{}"
 
 permissions:
   contents: write
@@ -32,14 +37,31 @@ jobs:
         env:
           VM: ${{ inputs.vigilante_min }}
           BM: ${{ inputs.bt_max }}
+          CFGJ: ${{ inputs.cfg }}
         run: |
-          case "$VM" in 10|15|30|60) ;; *) echo "Intervalo no válido: $VM"; exit 1;; esac
-          case "$BM" in ''|*[!0-9]*) echo "El máximo debe ser un número: $BM"; exit 1;; esac
-          if [ "$BM" -lt 200 ]; then BM=200; fi
-          if [ "$BM" -gt 500 ]; then BM=500; fi
-          printf '{\n  "vigilante_min": %s,\n  "bt_max": %s\n}\n' "$VM" "$BM" > ajustes.json
+          node -e '
+          const fs = require("fs");
+          let a = {}; try { a = JSON.parse(fs.readFileSync("ajustes.json", "utf8")); } catch {}
+          const vm = +process.env.VM;
+          if (![10, 15, 30, 60].includes(vm)) { console.error("Intervalo no válido: " + process.env.VM); process.exit(1); }
+          let bm = Math.round(+process.env.BM);
+          if (!Number.isFinite(bm)) { console.error("El máximo debe ser un número"); process.exit(1); }
+          bm = Math.max(200, Math.min(500, bm));
+          // mismos rangos seguros que la app (LIM): lo que se salga se rechaza
+          const LIM = { slots: [1, 6], mrisk: [0.001, 0.03], dloss: [0.005, 0.1], ddstop: [0.02, 0.3], fee: [0, 5], slip: [0, 0.02], minpos: [10, 200], sweep: [0, 1] };
+          let inCfg = {}; try { inCfg = JSON.parse(process.env.CFGJ || "{}"); } catch { console.error("cfg no es JSON válido"); process.exit(1); }
+          const cfg = Object.assign({}, a.cfg || {});
+          for (const k of Object.keys(inCfg)) {
+            const v = +inCfg[k];
+            if (!LIM[k] || !Number.isFinite(v) || v < LIM[k][0] || v > LIM[k][1]) { console.error("Parámetro rechazado: " + k + " = " + inCfg[k]); process.exit(1); }
+            cfg[k] = v;
+          }
+          const out = { vigilante_min: vm, bt_max: bm };
+          if (Object.keys(cfg).length) out.cfg = cfg;
+          fs.writeFileSync("ajustes.json", JSON.stringify(out, null, 2) + "\n");
+          '
           cat ajustes.json
           git config user.name "bot-trading"
           git config user.email "bot-trading@users.noreply.github.com"
           git add ajustes.json
-          if git diff --cached --quiet; then echo "Sin cambios"; else git commit -m "Ajustes de la nube: vigilante cada $VM min, histórico hasta $BM acciones" && git push; fi
+          if git diff --cached --quiet; then echo "Sin cambios"; else git commit -m "Ajustes de la nube actualizados" && git push; fi

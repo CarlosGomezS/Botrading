@@ -53,6 +53,8 @@ jobs:
           FMP_KEY: ${{ secrets.FMP_KEY }}
           EMAIL: ${{ secrets.EMAIL }}
           WEB3FORMS_KEY: ${{ secrets.WEB3FORMS_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: node runner.mjs daily
       - name: Prueba histórica diaria (nº aleatorio de acciones, entre 200 y el máximo de ajustes.json)
@@ -67,5 +69,7 @@ jobs:
           FMP_KEY: ${{ secrets.FMP_KEY }}
           EMAIL: ${{ secrets.EMAIL }}
           WEB3FORMS_KEY: ${{ secrets.WEB3FORMS_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: node runner.mjs backtest

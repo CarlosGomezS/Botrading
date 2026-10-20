@@ -37,5 +37,7 @@ jobs:
           FMP_KEY: ${{ secrets.FMP_KEY }}
           EMAIL: ${{ secrets.EMAIL }}
           WEB3FORMS_KEY: ${{ secrets.WEB3FORMS_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: node runner.mjs test
