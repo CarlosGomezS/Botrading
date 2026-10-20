@@ -1,0 +1,45 @@
+name: Ajustes de la nube
+
+# Guarda en el repositorio (ajustes.json) lo que elijas aquí o desde la web con «Aplicar en la nube».
+# El vigilante y la prueba histórica diaria lo leen al empezar cada turno.
+on:
+  workflow_dispatch:
+    inputs:
+      vigilante_min:
+        description: "Vigilante: consultar cada (minutos)"
+        type: choice
+        options: ["10", "15", "30", "60"]
+        default: "30"
+      bt_max:
+        description: "Prueba histórica diaria: MÁXIMO de acciones (200-500). Cada día se usa un número aleatorio entre 200 y este máximo"
+        type: string
+        default: "300"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ajustes
+  cancel-in-progress: false
+
+jobs:
+  guardar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guardar ajustes.json
+        env:
+          VM: ${{ inputs.vigilante_min }}
+          BM: ${{ inputs.bt_max }}
+        run: |
+          case "$VM" in 10|15|30|60) ;; *) echo "Intervalo no válido: $VM"; exit 1;; esac
+          case "$BM" in ''|*[!0-9]*) echo "El máximo debe ser un número: $BM"; exit 1;; esac
+          if [ "$BM" -lt 200 ]; then BM=200; fi
+          if [ "$BM" -gt 500 ]; then BM=500; fi
+          printf '{\n  "vigilante_min": %s,\n  "bt_max": %s\n}\n' "$VM" "$BM" > ajustes.json
+          cat ajustes.json
+          git config user.name "bot-trading"
+          git config user.email "bot-trading@users.noreply.github.com"
+          git add ajustes.json
+          if git diff --cached --quiet; then echo "Sin cambios"; else git commit -m "Ajustes de la nube: vigilante cada $VM min, histórico hasta $BM acciones" && git push; fi
