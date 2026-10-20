@@ -1,0 +1,56 @@
+name: Actualización diaria (23:00 hora de España)
+
+on:
+  schedule:
+    - cron: "0 21 * * 1-5"   # 23:00 con horario de verano en España (CEST)
+    - cron: "0 22 * * 1-5"   # 23:00 con horario de invierno en España (CET)
+  workflow_dispatch:          # botón "Run workflow" para lanzarlo a mano
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bot-estado
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    steps:
+      - name: ¿Son las 23:00 en España?
+        id: hora
+        run: |
+          H=$(TZ=Europe/Madrid date +%H)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$H" = "23" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "Ahora son las $H h en España: este disparo no toca (se usa el otro horario)."
+          fi
+      - uses: actions/checkout@v4
+        if: steps.hora.outputs.go == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.hora.outputs.go == 'true'
+        with:
+          node-version: 22
+      - name: Instalar navegador
+        if: steps.hora.outputs.go == 'true'
+        working-directory: runner
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Actualizar precios y que el bot decida
+        if: steps.hora.outputs.go == 'true'
+        working-directory: runner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
+          POLYGON_KEY: ${{ secrets.POLYGON_KEY }}
+          ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE_KEY }}
+          FMP_KEY: ${{ secrets.FMP_KEY }}
+          EMAIL: ${{ secrets.EMAIL }}
+          WEB3FORMS_KEY: ${{ secrets.WEB3FORMS_KEY }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: node runner.mjs daily
