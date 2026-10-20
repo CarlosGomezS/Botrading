@@ -17,7 +17,8 @@ Qué hace este paquete:
 3. **Settings → Secrets and variables → Actions → New repository secret**. Crea los que tengas (son tus claves de la pestaña Ajustes del bot; no se ven nunca en la web):
    - `ALPACA_KEY` → en formato `ID:SECRETO`. **Recomendada:** el vigilante necesita Alpaca o Twelve Data para consultar cotizaciones.
    - `TWELVEDATA_KEY`, `POLYGON_KEY`, `ALPHAVANTAGE_KEY`, `FMP_KEY` (opcionales).
-   - `WEB3FORMS_KEY` (clave de web3forms.com; es la que hace llegar los **correos**) y `EMAIL` (tu correo, solo de recordatorio).
+   - **Correo (recomendado: Gmail por SMTP):** `SMTP_USER` (tu dirección de Gmail), `SMTP_PASS` (una **contraseña de aplicación** de 16 letras: myaccount.google.com/apppasswords, requiere tener la verificación en dos pasos) y `EMAIL` (dónde quieres recibirlo; si lo dejas vacío se envía a `SMTP_USER`). Para otro proveedor añade `SMTP_HOST` y `SMTP_PORT`.
+   - `WEB3FORMS_KEY` (opcional, solo como respaldo): la versión gratuita de Web3Forms suele rechazar los envíos que no salen de un navegador normal, por eso en la nube puede fallar.
    - `NTFY_TOPIC` → el nombre del tema de la app **ntfy** del móvil (instala «ntfy», suscríbete a un tema largo y secreto, p. ej. `botrade-x7k29qpl4m`, y pon aquí exactamente ese nombre). **Sin este secreto no llega ninguna notificación al móvil.**
    - Para la prueba histórica diaria hace falta `ALPACA_KEY` (o `TWELVEDATA_KEY`, que con su cuota gratuita no llega a 200+ acciones al día).
 4. **Settings → Actions → General → Workflow permissions → Read and write permissions → Save.**
@@ -29,12 +30,20 @@ Qué hace este paquete:
 
 **Actions → «Probar avisos (móvil y correo)» → Run workflow.** En un par de minutos debe sonar el móvil y llegar un correo. Además deja un informe «prueba-de-avisos» que indica qué secretos faltan (✖ FALTA). Cada informe real termina con un apartado «Avisos de esta ejecución» que dice si el móvil y el correo se enviaron (✔) o por qué no (✖).
 
-## Cambiar el intervalo del vigilante y el máximo del histórico
+## Cambiar los ajustes desde la web (con clave)
 
-El desplegable «Cada … min» (pestaña Vigilante) y el máximo de acciones (pestaña Informe) de la web son de solo lectura para la nube; para que cambien lo que hace GitHub:
+En la pestaña **Ajustes** de la web aparece el recuadro **«☁️ Ajustes de la nube»**. Desde ahí puedes editar: nº de ETFs, riesgo por operación, frenos de pérdida, **comisión por operación (€)**, deslizamiento, orden mínima, % de ahorro, intervalo del vigilante y máximo de la prueba histórica. Cada valor tiene su rango seguro; si te pasas, lo rechaza.
 
-- **Sin token (lo más simple):** Actions → «Ajustes de la nube» → Run workflow → elige el intervalo y el máximo. Se guarda en `ajustes.json` y se aplica desde el siguiente turno.
-- **Desde la web (opcional):** crea en GitHub un token «fine-grained» limitado a este repositorio con permiso **Actions: Read and write**, pégalo en el recuadro «☁️ Ajustes de la nube» (pestaña Vigilante; solo se guarda en ese navegador) y pulsa «Aplicar en la nube» después de cambiar el desplegable o el máximo.
+**Primera vez en cada navegador:**
+1. En GitHub: Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate. Limítalo a **este repositorio** y dale el permiso **Actions: Read and write**.
+2. Pega el token en el recuadro y **elige una clave** (mínimo 8 caracteres). El token se guarda **cifrado** con tu clave en ese navegador; la clave no se guarda en ningún sitio.
+3. Pulsa «Guardar y desbloquear».
+
+**Después:** solo escribes tu clave, cambias lo que quieras y pulsas **«Aplicar en la nube»**. En 1-2 minutos queda guardado en `ajustes.json` y el bot lo usa desde su siguiente ejecución. Se vuelve a bloquear a los 10 minutos.
+
+Importante: la web sigue siendo pública y solo de lectura para los demás. Lo que impide que otra persona cambie tus ajustes no es la clave en sí, sino que hace falta tu token de GitHub, que solo está cifrado en tus navegadores. Elige una clave larga. El **capital inicial** no se edita aquí porque implicaría reiniciar las cuentas.
+
+Sin token (alternativa): Actions → «Ajustes de la nube» → Run workflow.
 
 ## Qué queda registrado
 
@@ -56,7 +65,7 @@ Si no lo subes, el bot empieza de cero con 500 €.
 - El repositorio es público, así que cualquiera con el enlace puede ver tu cartera ficticia. Las claves no se publican nunca.
 - Las fuentes sin clave (Yahoo y Stooq) pasan por proxies públicos que pueden bloquear a GitHub. Con una clave de Alpaca funciona mejor.
 - Si el repositorio no tiene actividad durante 60 días, GitHub pausa las tareas programadas. Las publicaciones del bot cuentan como actividad; si un día aparecen pausadas, pulsa **Enable workflow** en la pestaña Actions.
-- **Límite de correos:** Web3Forms gratis admite 250 envíos al mes. Con un correo por actualización (~22), por prueba histórica (~22) y por turno del vigilante (~8 al día, ~175) salen unos 220 al mes: muy justo. Si te quedas sin cupo, el informe lo anota (✖) y el aviso al móvil sigue funcionando.
+- **Límite de correos:** con SMTP/Gmail no hay el límite mensual de abajo. Web3Forms gratis admite 250 envíos al mes. Con un correo por actualización (~22), por prueba histórica (~22) y por turno del vigilante (~8 al día, ~175) salen unos 220 al mes: muy justo. Si te quedas sin cupo, el informe lo anota (✖) y el aviso al móvil sigue funcionando.
 - Los correos se envían desde el navegador de la nube igual que hace la app; si Web3Forms rechazara ese origen, el informe lo dirá en «Avisos de esta ejecución».
 - Para parar el bot, desactiva los workflows en la pestaña Actions.
 

@@ -204,7 +204,9 @@ function loadAjustes() {
   let bmax = Math.round(+a.bt_max);
   if (!(bmax >= 10)) bmax = 300;
   bmax = Math.min(500, bmax);
-  return { vigilante_min: vm, bt_max: bmax };
+  const cfg = {};
+  if (a.cfg && typeof a.cfg === "object") for (const k of Object.keys(a.cfg)) if (Number.isFinite(+a.cfg[k])) cfg[k] = +a.cfg[k];
+  return { vigilante_min: vm, bt_max: bmax, cfg };
 }
 // número aleatorio de acciones: entre 200 y el máximo (si el máximo es menor de 200, se usa el máximo)
 function btCount(max) { const lo = Math.min(200, max); return lo + Math.floor(Math.random() * (max - lo + 1)); }
@@ -229,9 +231,23 @@ async function sendNtfy(title, message) {
     return { ok: true, txt: `enviado al móvil (tema ntfy «${topic.slice(0, 4)}…»)` };
   } catch (e) { return { ok: false, txt: "NO enviado al móvil: " + String(e.message).slice(0, 200) }; }
 }
+// Correo por SMTP (p. ej. Gmail con «contraseña de aplicación»): funciona desde servidores, a diferencia de Web3Forms gratis.
+async function sendMailSmtp(subject, text) {
+  const user = env("SMTP_USER"), pass = env("SMTP_PASS");
+  if (!user || !pass) return null;
+  const to = env("EMAIL") || user, port = +env("SMTP_PORT") || 465;
+  try {
+    const { default: nodemailer } = await import("nodemailer");
+    const tr = nodemailer.createTransport({ host: env("SMTP_HOST") || "smtp.gmail.com", port, secure: port === 465, auth: { user, pass } });
+    await twice(() => tr.sendMail({ from: `"Bot Trading Pro" <${user}>`, to, subject, text: String(text).slice(0, MAIL_MAX) }));
+    return { ok: true, txt: "correo enviado por SMTP" };
+  } catch (e) { return { ok: false, txt: "SMTP falló: " + String(e.message).slice(0, 160) }; }
+}
 async function sendMail(page, subject, text) {
+  const smtp = await sendMailSmtp(subject, text);
+  if (smtp && smtp.ok) return smtp;
   const key = env("WEB3FORMS_KEY");
-  if (!key) return { ok: false, txt: "NO enviado el correo: falta el secreto WEB3FORMS_KEY en GitHub (Settings → Secrets and variables → Actions)." };
+  if (!key) return smtp || { ok: false, txt: "NO enviado el correo: faltan los secretos SMTP_USER y SMTP_PASS (recomendado) o WEB3FORMS_KEY en GitHub (Settings → Secrets and variables → Actions)." };
   let msg = String(text);
   if (msg.length > MAIL_MAX) msg = msg.slice(0, MAIL_MAX) + "\n\n[… recortado: el informe completo está en la web → Informe → Registro]";
   const body = { access_key: key, subject, from_name: "Bot Trading Pro", message: msg };
@@ -254,7 +270,7 @@ async function sendMail(page, subject, text) {
     if (okRes(r.status, d)) return { ok: true, txt: "correo enviado (Web3Forms, vía servidor: " + String(d.message || "ok").slice(0, 80) + ")" };
     why += ` · desde el servidor: HTTP ${r.status} ${String(d.message || "").slice(0, 120)}`;
   } catch (e) { why += " · desde el servidor: " + String(e.message).slice(0, 120); }
-  return { ok: false, txt: "NO enviado el correo (" + why + ")" };
+  return { ok: false, txt: "NO enviado el correo (" + (smtp ? smtp.txt + " · " : "") + why + ")" };
 }
 // Envía móvil + correo y deja constancia en el propio informe individual.
 async function avisar(page, rep, { title, short, subject, silent = false }) {
@@ -316,6 +332,23 @@ async function boot() {
     await page.waitForFunction(() => window.__loaded === true, null, { timeout: 120000 });
     await sleep(4000);
   }
+  // ajustes editados desde la web (ajustes.json → cfg): se aplican a los parámetros del bot antes de cada ejecución
+  try {
+    const cfg = loadAjustes().cfg || {};
+    if (Object.keys(cfg).length) {
+      const r = await page.evaluate(async (c) => {
+        const okK = FIELDS.map((f) => f[0]), done = [], bad = [];
+        for (const k of Object.keys(c)) {
+          const v = +c[k], lim = LIM[k];
+          if (!okK.includes(k) || !Number.isFinite(v) || (lim && (v < lim[0] || v > lim[1]))) { bad.push(k + "=" + c[k]); continue; }
+          if (CFG[k] !== v) { CFG[k] = v; done.push(k + "=" + v); }
+        }
+        if (done.length) { S.cfg = { ...CFG }; await save(); }
+        return { done, bad };
+      }, cfg);
+      log("Ajustes de la web aplicados:", r.done.join(", ") || "sin cambios", r.bad.length ? "· rechazados (fuera de rango): " + r.bad.join(", ") : "");
+    }
+  } catch (e) { log("No se pudieron aplicar los ajustes de la web:", String(e.message).slice(0, 160)); }
   await page.evaluate(() => {
     try { localStorage.setItem("pbt", String(Date.now())); } catch {}
     // seguimiento de reintentos automáticos de "Actualizar"
@@ -429,7 +462,7 @@ async function main() {
       subj = `Bot Trading · Vigilante · turno ${new Date(t0).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" })} · ${res.nScans} consultas`;
       shortTxt = res.summary;
     } else if (MODE === "test") {
-      const sec = ["ALPACA_KEY", "TWELVEDATA_KEY", "POLYGON_KEY", "ALPHAVANTAGE_KEY", "FMP_KEY", "EMAIL", "WEB3FORMS_KEY", "NTFY_TOPIC"];
+      const sec = ["ALPACA_KEY", "TWELVEDATA_KEY", "POLYGON_KEY", "ALPHAVANTAGE_KEY", "FMP_KEY", "EMAIL", "SMTP_USER", "SMTP_PASS", "WEB3FORMS_KEY", "NTFY_TOPIC"];
       const L = ["# Prueba de avisos", "", `Fecha: ${new Date().toISOString()}`, "", "## Secretos configurados en GitHub (solo si existen o no; nunca su valor)", ""];
       sec.forEach((k) => L.push(`- ${k}: ${env(k) ? "✔ configurado" : "✖ FALTA"}`));
       L.push("", "## Ajustes de la nube", "", `- Vigilante: cada ${AJ.vigilante_min || "(el que tenga guardado la app)"} min`, `- Prueba histórica diaria: entre 200 y ${AJ.bt_max} acciones al azar`);

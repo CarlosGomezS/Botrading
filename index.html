@@ -2347,26 +2347,62 @@ window.__API={
   }catch(e){}}
  setTimeout(function(){try{var h=document.querySelector('#nav button[data-t="hoy"]');if(h&&!window.__userNav)h.click()}catch(e){}},2200);
  document.addEventListener("click",function(e){if(e.isTrusted)window.__userNav=true},true);
- /* ---- ajustes de la nube: el desplegable del vigilante y el máximo del histórico llegan al proceso automático ---- */
- var CL={};
+ /* ---- ajustes de la nube: editar desde la web, protegido con clave ----
+    La clave NO se guarda: solo sirve para descifrar (AES-GCM) el token de GitHub que queda cifrado en este navegador.
+    Sin la clave no se puede cambiar nada; el token (permiso Actions: Read and write, solo este repositorio) es lo que de verdad autoriza los cambios. */
+ var CL={},TOK=null,lockT=null,ENC="ghtok_enc";
  function repoInfo(){var m=location.hostname.match(/^([^.]+)\.github\.io$/),r=location.pathname.split("/")[1];return(m&&r)?{o:m[1],r:r}:null}
- function cloudPanel(){var host=document.querySelector("#t-vigia .fb")||document.querySelector("#t-vigia .p")||document.querySelector("#t-vigia");if(!host||document.getElementById("cloudset"))return;
-  var d=document.createElement("div");d.id="cloudset";d.className="m";d.style.cssText="border:1px solid #4b5563;border-radius:10px;padding:10px;margin:10px 0";
-  d.innerHTML='<b>☁️ Ajustes de la nube</b><div id="cloudtxt"></div><div style="margin-top:6px">Token de GitHub (opcional, solo se guarda en este navegador): <input id="cloudtok" type="password" placeholder="github_pat_…" style="width:100%"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button id="cloudgo">Aplicar en la nube</button></div><div id="cloudst" style="margin-top:6px"></div>';
-  host.appendChild(d);var t=document.getElementById("cloudtok");try{t.value=localStorage.getItem("ghtok")||""}catch(e){}
-  document.getElementById("cloudgo").onclick=cloudApply;cloudTxt()}
- function cloudTxt(){var el=document.getElementById("cloudtxt");if(!el)return;el.innerHTML="El vigilante de la nube consulta <b>cada "+(CL.vigilante_min||"—")+" min</b> y la prueba histórica diaria usa un número aleatorio de acciones <b>entre 200 y "+(CL.bt_max||"—")+"</b>. Cambia el desplegable «Cada … min» y/o el máximo del histórico (pestaña Informe) y pulsa «Aplicar en la nube»; se aplica en el siguiente turno."}
- function cloudApply(){var ri=repoInfo(),st=document.getElementById("cloudst"),v=document.querySelector("#vgi"),b=document.querySelector("#btn"),tok=(document.getElementById("cloudtok").value||"").trim();
-  if(!ri){st.textContent="Solo funciona desde la web publicada en GitHub Pages.";return}
-  var vm=String(v?v.value:CL.vigilante_min||30),bm=String(Math.max(200,Math.min(500,+(b?b.value:CL.bt_max||300)||300)));
-  var url="https://github.com/"+ri.o+"/"+ri.r+"/actions/workflows/ajustes.yml";
-  if(!tok){st.innerHTML='Sin token no puedo avisar a GitHub desde aquí. Abre <a href="'+url+'" target="_blank" rel="noopener" style="color:#93c5fd">Actions → «Ajustes de la nube»</a>, pulsa <b>Run workflow</b> y elige vigilante = <b>'+vm+' min</b> y máximo = <b>'+bm+'</b>.';return}
-  try{localStorage.setItem("ghtok",tok)}catch(e){}st.textContent="Enviando…";
-  fetch("https://api.github.com/repos/"+ri.o+"/"+ri.r+"/actions/workflows/ajustes.yml/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+tok,"Accept":"application/vnd.github+json","Content-Type":"application/json","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs:{vigilante_min:vm,bt_max:bm}})})
-   .then(function(r){st.textContent=r.status===204?"✔ Enviado. En 1-2 minutos quedará guardado y se usará desde el siguiente turno.":"No se pudo aplicar (HTTP "+r.status+"). Revisa que el token tenga permiso «Actions: Read and write» en este repositorio."})
+ function b64(u){var s="";u=new Uint8Array(u);for(var i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);return btoa(s)}
+ function unb64(t){var s=atob(t),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}
+ async function kdf(pw,salt){var k=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt:salt,iterations:250000,hash:"SHA-256"},k,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])}
+ async function encTok(tok,pw){var salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await kdf(pw,salt);
+  var ct=await crypto.subtle.encrypt({name:"AES-GCM",iv:iv},key,new TextEncoder().encode(tok));return JSON.stringify({s:b64(salt),i:b64(iv),c:b64(ct)})}
+ async function decTok(raw,pw){var o=JSON.parse(raw),key=await kdf(pw,unb64(o.s));var pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(o.i)},key,unb64(o.c));return new TextDecoder().decode(pt)}
+ function lockNow(){TOK=null;clearTimeout(lockT);cloudRender()}
+ function touch(){clearTimeout(lockT);if(TOK)lockT=setTimeout(lockNow,10*60*1000)}
+ function fields(){try{return FIELDS}catch(e){return[]}}
+ function curVal(k,m){var v=(CL.cfg&&CL.cfg[k]!=null)?CL.cfg[k]:(window.CFG?CFG[k]:null);return v==null?"":+(v*m).toFixed(4)}
+ function cloudPanel(){var host=document.querySelector("#t-ajustes");if(!host||document.getElementById("cloudset"))return;
+  var d=document.createElement("div");d.id="cloudset";d.className="p";d.style.cssText="border:1px solid #4b5563;border-radius:10px;padding:10px;margin:10px 0";host.insertBefore(d,host.firstChild);cloudRender()}
+ function cloudRender(){var d=document.getElementById("cloudset");if(!d)return;var ri=repoInfo(),has=false;try{has=!!localStorage.getItem(ENC)}catch(e){}
+  var h='<h2>☁️ Ajustes de la nube (protegidos con clave)</h2>';
+  if(!ri){d.innerHTML=h+'<div class="m">Solo funciona desde la web publicada en GitHub Pages.</div>';return}
+  if(!TOK){
+   if(!has){h+='<div class="m">Primera vez en este navegador: pega un <b>token de GitHub</b> («fine-grained», solo este repositorio, permiso <b>Actions: Read and write</b>) y elige una <b>clave</b> (mínimo 8 caracteres). El token se guarda <b>cifrado</b> con tu clave; la clave no se guarda en ningún sitio. A partir de ahora solo necesitarás la clave.</div>'+
+     '<input id="cs_tok" type="password" placeholder="github_pat_…" style="width:100%;margin-top:6px" autocomplete="off"><input id="cs_pw" type="password" placeholder="Elige tu clave (mín. 8)" style="width:100%;margin-top:6px" autocomplete="new-password"><div style="margin-top:6px"><button id="cs_go">Guardar y desbloquear</button></div>'}
+   else{h+='<div class="m">🔒 Bloqueado. Escribe tu clave para editar los ajustes (se vuelve a bloquear a los 10 minutos).</div><input id="cs_pw" type="password" placeholder="Tu clave" style="width:100%;margin-top:6px" autocomplete="current-password"><div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button id="cs_go">Desbloquear</button><button id="cs_forget">Olvidar token de este navegador</button></div>'}
+   h+='<div id="cs_st" class="m" style="margin-top:6px"></div>';d.innerHTML=h;
+   var go=document.getElementById("cs_go"),pw=document.getElementById("cs_pw");go.onclick=cloudUnlock;pw.onkeydown=function(e){if(e.key==="Enter")cloudUnlock()};
+   var fg=document.getElementById("cs_forget");if(fg)fg.onclick=function(){if(confirm("¿Borrar el token cifrado de este navegador?")){try{localStorage.removeItem(ENC)}catch(e){}cloudRender()}};return}
+  var F=fields();
+  h+='<div class="m">🔓 Desbloqueado. Cambia lo que quieras y pulsa «Aplicar en la nube»: se guarda en el repositorio y el bot lo usa desde la siguiente ejecución. El capital inicial no se cambia aquí (reiniciaría las cuentas).</div><div class="kv">'+
+   F.map(function(f){return'<div>'+f[1]+'<input data-ck="'+f[0]+'" data-cm="'+f[2]+'" type="number" step="any" value="'+curVal(f[0],f[2])+'" style="width:100%"></div>'}).join("")+
+   '<div>Vigilante: consultar cada (min)<select id="cs_vm" style="width:100%">'+[10,15,30,60].map(function(x){return'<option'+(+CL.vigilante_min===x?' selected':'')+'>'+x+'</option>'}).join("")+'</select></div>'+
+   '<div>Prueba histórica: máximo de acciones (200-500)<input id="cs_bm" type="number" min="200" max="500" value="'+(CL.bt_max||300)+'" style="width:100%"></div></div>'+
+   '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button id="cs_apply">Aplicar en la nube</button><button id="cs_lock">Bloquear ahora</button></div><div id="cs_st" class="m" style="margin-top:6px"></div>';
+  d.innerHTML=h;d.oninput=touch;document.getElementById("cs_apply").onclick=cloudApply;document.getElementById("cs_lock").onclick=lockNow}
+ async function cloudUnlock(){var st=document.getElementById("cs_st"),pw=(document.getElementById("cs_pw").value||""),t=document.getElementById("cs_tok");
+  try{
+   if(!crypto||!crypto.subtle)throw new Error("este navegador no permite cifrar (necesita https)");
+   if(t){var tok=(t.value||"").trim();if(!/^(github_pat_|ghp_)/.test(tok)){st.textContent="Eso no parece un token de GitHub (empieza por github_pat_).";return}
+    if(pw.length<8){st.textContent="La clave debe tener al menos 8 caracteres.";return}
+    st.textContent="Cifrando…";localStorage.setItem(ENC,await encTok(tok,pw));try{localStorage.removeItem("ghtok")}catch(e){}TOK=tok}
+   else{st.textContent="Comprobando…";TOK=await decTok(localStorage.getItem(ENC),pw)}
+   touch();cloudRender()}catch(e){TOK=null;st.textContent=t?("No se pudo guardar: "+e.message):"Clave incorrecta."}}
+ async function cloudApply(){var ri=repoInfo(),st=document.getElementById("cs_st");if(!ri||!TOK)return;touch();
+  var cfg={},bad=null,F=fields();
+  document.querySelectorAll("#cloudset [data-ck]").forEach(function(el){var k=el.dataset.ck,m=+el.dataset.cm,v=(+el.value)/m;
+   if(el.value===""||!isFinite(v)){bad=k;return}var lim=null;try{lim=LIM[k]}catch(e){}
+   if(lim&&(v<lim[0]-1e-12||v>lim[1]+1e-12)){bad=(F.filter(function(f){return f[0]===k})[0]||[k,k])[1];return}cfg[k]=+v.toFixed(6)});
+  if(bad){st.textContent="Valor fuera del rango seguro o vacío: "+bad;return}
+  var vm=document.getElementById("cs_vm").value,bm=String(Math.max(200,Math.min(500,Math.round(+document.getElementById("cs_bm").value||300))));
+  st.textContent="Enviando…";
+  fetch("https://api.github.com/repos/"+ri.o+"/"+ri.r+"/actions/workflows/ajustes.yml/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+TOK,"Accept":"application/vnd.github+json","Content-Type":"application/json","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs:{vigilante_min:vm,bt_max:bm,cfg:JSON.stringify(cfg)}})})
+   .then(function(r){st.textContent=r.status===204?"✔ Enviado. En 1-2 minutos queda guardado y el bot lo usa desde su siguiente ejecución.":(r.status===401||r.status===403||r.status===404?"GitHub rechazó el token (HTTP "+r.status+"). Comprueba que sea de este repositorio, con permiso «Actions: Read and write» y que no haya caducado.":"No se pudo aplicar (HTTP "+r.status+").")})
    .catch(function(e){st.textContent="No se pudo aplicar: "+e})}
- function cloudSync(){try{var v=document.querySelector("#vgi"),b=document.querySelector("#btn");if(CL.vigilante_min&&v)v.value=String(CL.vigilante_min);if(CL.bt_max&&b)b.value=CL.bt_max;cloudPanel();cloudTxt()}catch(e){}}
- try{fetch("ajustes.json?t="+Date.now()).then(function(r){return r.ok?r.json():null}).then(function(a){if(a){CL=a;cloudSync()}}).catch(function(){})}catch(e){}
+ function cloudSync(){try{var v=document.querySelector("#vgi"),b=document.querySelector("#btn");if(CL.vigilante_min&&v)v.value=String(CL.vigilante_min);if(CL.bt_max&&b)b.value=CL.bt_max;cloudPanel()}catch(e){}}
+ try{fetch("ajustes.json?t="+Date.now()).then(function(r){return r.ok?r.json():null}).then(function(a){if(a){CL=a;cloudSync();if(!TOK)cloudRender()}}).catch(function(){})}catch(e){}
  setTimeout(cloudSync,2600);setTimeout(cloudSync,8000);
  setTimeout(function(){lock();paint()},2500);setTimeout(function(){lock();paint()},8000);
 })();
