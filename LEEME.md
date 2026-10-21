@@ -83,7 +83,34 @@ Solo estos: la nueva función de informes individuales y la prueba histórica di
 
 Actions → «Actualización de precios…» (o «Prueba histórica diaria…») → abre las ejecuciones de esa noche. En el paso «¿Toca… en este disparo?» el registro dice la decisión y el motivo (por ejemplo «actualización ya hecha hoy» o «aún no ha pasado una hora desde el cierre»). Si no hay ninguna ejecución esa noche, es que GitHub descartó los 5 disparos: lanza «Run workflow» a mano y avísame para revisarlo.
 
-## Cambios de esta versión (v14) · un solo «Guardar todo» en la cartera real
+## Cambios de esta versión (v15) · cartera real revisada al milímetro
+
+### El bot tiene su propia «subcuenta» dentro de tu cuenta de Trading 212
+- **Capital del bot** = el ajuste **«Dinero que trabaja el bot»** (antes «Dinero máximo»). El bot solo usa eso más lo que vaya ganando, que **se reinvierte**. Antes, tras una rotación, las ganancias se quedaban paradas en efectivo.
+- **Lleva la cuenta de las participaciones que ha comprado ÉL**, con su coste. Si tú tienes por tu cuenta el mismo ETF, nunca te lo vende. Antes podía vender cualquier ETF de la lista de equivalentes que tuvieras en la cuenta, aunque fuera tuyo.
+- **Si ingresas dinero** en Trading 212, el bot no lo toca y te avisa. Para que lo use, sube «Dinero que trabaja el bot».
+- **Subir o bajar ese ajuste** cuenta como aportación o retirada, nunca como ganancia o pérdida. Al bajarlo, vende lo necesario.
+- **Si vendes tú a mano** participaciones del bot, lo detecta y las descuenta.
+- **Ganancia realizada de cada venta** (precio de venta menos su coste): es la que se declara en la renta.
+- **Rentabilidad «ponderada en el tiempo»**: tus aportaciones y retiradas no la alteran. El freno de pérdidas también se calcula sobre el dinero del bot, no sobre toda tu cuenta.
+
+### Órdenes
+- **Con la bolsa europea cerrada** (fuera de 9:05-17:20) no se envían órdenes a mercado: quedan «aplazadas». Si las habías aprobado, se ejecutan solas en la siguiente revisión con la bolsa abierta, sin volver a preguntarte (salvo que cambien los activos).
+- **Órdenes que Trading 212 deja pendientes**: cada ejecución mira cómo terminaron y apunta precio, cantidad y resultado.
+- **Rechazadas o canceladas** por Trading 212: cuentan como error y avisan.
+
+### Todo registrado
+- **Informes agrupados por día** (del más nuevo al más antiguo) y, dentro, por hora. Descarga por informe, por día o todos.
+- **Historial de órdenes por día**, con hora, cantidad, precio, importe, coste, resultado, quién la aprobó y el efectivo del bot después.
+- **Nuevo «📒 Movimientos del bot»**: su libro de cuentas (capital, compras, ventas, aportaciones, retiradas y ajustes) y tus ingresos y retiradas en Trading 212.
+- **Descargas .csv** de órdenes, movimientos y valor diario (con la rentabilidad acumulada). Se conservan hasta 5.000 informes.
+- **Si un día GitHub no deja guardar el historial**, te llega el informe completo por correo.
+
+Probado contra un Trading 212 simulado con 10 escenarios seguidos: primer día con 100 € (y 0,5 participaciones tuyas del mismo ETF), rotación de sectores, ingreso de 200 €, subida a 150 €, aprobación por la noche (ejecutada sola a la mañana siguiente), órdenes pendientes, una rechazada, una venta tuya a mano, el día siguiente sin cambios y bajada a 80 €. Sigue sin estar probado contra tu cuenta real: la primera vez usa «Probar conexión».
+
+Archivos que cambian respecto a v14: `index.html` y `runner/real.mjs`.
+
+## Cambios de la versión v14 · un solo «Guardar todo» en la cartera real
 
 - En 💶 Real → «Ajustes de la cartera real» hay **un único botón al final, «💾 Guardar todos los ajustes y enviarlos a GitHub»**. Guarda de una vez: activación, entorno, modo, cuándo reajusta, método, importes y frenos, divisa, avisos, informe semanal, sustituciones y las claves escritas (contraseña de la cartera, clave y secreto de Trading 212). Se cifra en el navegador y se envía a GitHub.
 - Si está bloqueado, el campo para tu clave de ⚙️ Ajustes aparece **justo encima del botón**: ya no hace falta subir arriba para desbloquear.

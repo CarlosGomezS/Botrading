@@ -1,1 +1,21 @@
-{"enc":1,"v":1,"s":"iYpUPEwUdqzn4jbYC6cn0Q==","i":"2ftfnJcErZH7m+1P","c":"sXU7sdICOiJp65OfLmGEVvP6GwyI3i9w76KzH1fjfhON7xJUoRMurCkcQ4LVSKFjZRTN7Dulvu6cjt56ZJV/JvS558j2u9GwrSC1jEDwInZ7L2qXQy3ImR4IpKOlbP1Zk4+WIkx491XhCCJYhQUDb1bHB5VxHfbtq6iSwEMrdID1s0bsXDOwOKDLxKBUq+26yiSb3u+2V6kR93e7Df7rKRxnELxu5XH9c2pXGsrm73QKjP3mPvtI2xy3EigQRFnQM5GeW5VMY9SPvYRKaKIv6oXR3Q7BMkI8kNZGJ9itMcHfdzMszYzrn/v1DbvaQ3YDCGgjBTiuYfh0p410fjumz1W7/S+vN+aj/dYNBmdode0i/Xhcl0CNAzeWt5HehbEBaTTrOMjCxSAbwca2+fVEyvmkITrdgCa5a7Y="}
+{
+  "on": 0,
+  "env": "live",
+  "modo": "confirmar",
+  "metodo": "sect",
+  "limite": 100,
+  "minOrden": 5,
+  "umbral": 5,
+  "reserva": 2,
+  "maxOrdenes": 8,
+  "maxPerdida": 25,
+  "divisa": "eur",
+  "acciones": 1,
+  "movil": 1,
+  "correo": 1,
+  "avisos": "todo",
+  "aceptoReal": 0,
+  "reajuste": "revision",
+  "semanal": 1,
+  "mapa": {}
+}
