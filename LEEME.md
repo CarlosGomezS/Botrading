@@ -83,7 +83,17 @@ Solo estos: la nueva función de informes individuales y la prueba histórica di
 
 Actions → «Actualización de precios…» (o «Prueba histórica diaria…») → abre las ejecuciones de esa noche. En el paso «¿Toca… en este disparo?» el registro dice la decisión y el motivo (por ejemplo «actualización ya hecha hoy» o «aún no ha pasado una hora desde el cierre»). Si no hay ninguna ejecución esa noche, es que GitHub descartó los 5 disparos: lanza «Run workflow» a mano y avísame para revisarlo.
 
-## Cambios de esta versión (v13)
+## Cambios de esta versión (v14) · un solo «Guardar todo» en la cartera real
+
+- En 💶 Real → «Ajustes de la cartera real» hay **un único botón al final, «💾 Guardar todos los ajustes y enviarlos a GitHub»**. Guarda de una vez: activación, entorno, modo, cuándo reajusta, método, importes y frenos, divisa, avisos, informe semanal, sustituciones y las claves escritas (contraseña de la cartera, clave y secreto de Trading 212). Se cifra en el navegador y se envía a GitHub.
+- Si está bloqueado, el campo para tu clave de ⚙️ Ajustes aparece **justo encima del botón**: ya no hace falta subir arriba para desbloquear.
+- Elegir un método en «🧭 Elige el método» ya no guarda nada por separado: lo deja marcado en el formulario y el botón «Ir a guardar» te lleva al final.
+- Aviso «✏️ Tienes cambios sin guardar», y lo que estás escribiendo ya no se pierde si la pantalla se refresca sola.
+- Los mensajes de guardado se ven también junto al botón.
+
+Archivo que cambia respecto a v13: `index.html`.
+
+## Cambios de la versión v13
 
 ### Arreglado: «No se pudo cargar la librería de cifrado»
 Para guardar claves en GitHub Secrets la web tiene que cifrarlas antes, y hasta ahora descargaba esa librería (libsodium) de un CDN; en algunos navegadores o en la APK no cargaba y no se podía guardar ninguna clave. Ahora el cifrado va **dentro de la propia web** (tweetnacl, de dominio público, + BLAKE2b), sin descargar nada. Verificado: la libsodium real (la que usa GitHub) abre todos los secretos que cifra la web. Arregla también el guardado de claves de ⚙️ Ajustes.
