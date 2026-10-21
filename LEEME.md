@@ -83,7 +83,29 @@ Solo estos: la nueva función de informes individuales y la prueba histórica di
 
 Actions → «Actualización de precios…» (o «Prueba histórica diaria…») → abre las ejecuciones de esa noche. En el paso «¿Toca… en este disparo?» el registro dice la decisión y el motivo (por ejemplo «actualización ya hecha hoy» o «aún no ha pasado una hora desde el cierre»). Si no hay ninguna ejecución esa noche, es que GitHub descartó los 5 disparos: lanza «Run workflow» a mano y avísame para revisarlo.
 
-## Cambios de esta versión (v15) · cartera real revisada al milímetro
+## Cambios de esta versión (v16) · seguridad reforzada y motor blindado
+
+### Seguridad (para que nadie más vea ni toque tu cartera real)
+- **Cifrado más fuerte:** AES-256-GCM con la clave derivada por PBKDF2-SHA256 de **600.000 iteraciones** (recomendación OWASP), para los datos, los ajustes y el token de GitHub. Lo cifrado con versiones anteriores se sigue leyendo y se actualiza solo.
+- **«Recordarla en este dispositivo»** ya no guarda la contraseña en claro: la cifra con una clave propia del navegador que no se puede exportar.
+- **Contraseña de la cartera obligatoria y fuerte:** 12 caracteres o más, mezclando al menos 3 tipos (o una frase de 20 caracteres o más), y distinta de tus claves de Trading 212. La clave de ⚙️ Ajustes nueva, también de 12 o más.
+- **Avisos al móvil «discretos»** (por defecto): sin importes ni posiciones. El correo sigue llevando el informe completo.
+- **Panel «🛡️ Seguridad»** en la pestaña Real: explica las capas de protección y tiene «Bloquear ahora», «Olvidar la contraseña en este dispositivo» y «Olvidar el token».
+- **Las direcciones de prueba quedan bloqueadas en el motor:** solo se aceptan con REAL_TEST=1 y en 127.0.0.1. En GitHub el bot solo habla con el Trading 212 oficial.
+
+### Motor más robusto
+- **Festivos de la bolsa de Fráncfort** (1 ene, Viernes Santo, Lunes de Pascua, 1 may, 24, 25, 26 y 31 dic): no envía órdenes.
+- **Desdoblamientos (splits)** detectados: ajusta las participaciones del bot sin confundirlo con una venta.
+- **Guardas duras antes de cada orden:** nunca vende más participaciones de las que compró el bot, nunca compra por encima de su dinero y bloquea compras con un precio que se aleje más de un 15 % del último conocido.
+- **Pesos de la señal que sumen más del 100 %:** se reducen.
+- **Corregido:** al bajar «Dinero que trabaja el bot» después de pérdidas, salía dinero negativo y una pausa falsa. Ahora el bot pasa a trabajar exactamente con esa cantidad.
+- **Corregido:** el sobrante invertido se vende aunque esté repartido entre varias posiciones.
+- **Corregido:** el freno de pérdidas se mide con la rentabilidad del bot, así que tus aportaciones o retiradas no lo disparan.
+- **Pruebas automáticas del motor** en `tests/` (`node --test tests/`): 33 pruebas, incluido un año simulado de uso. Todas pasan.
+
+Archivos que cambian respecto a v15: `index.html`, `runner/real.mjs`, `runner/real-cfg.mjs`, `real-ajustes.json` y la carpeta nueva `tests/`.
+
+## Cambios de la versión v15 · cartera real revisada al milímetro
 
 ### El bot tiene su propia «subcuenta» dentro de tu cuenta de Trading 212
 - **Capital del bot** = el ajuste **«Dinero que trabaja el bot»** (antes «Dinero máximo»). El bot solo usa eso más lo que vaya ganando, que **se reinvierte**. Antes, tras una rotación, las ganancias se quedaban paradas en efectivo.
