@@ -39,6 +39,11 @@ on:
         description: "Otros ajustes en JSON: mon, mc, mv, nt (1/0) y fx (cambio €/$) (lo rellena la web; déjalo en {} si lo lanzas a mano)"
         type: string
         default: "{}"
+      recalcular:
+        description: "Recalcular la cartera ya hecha con la comisión de los parámetros (una sola vez: corrige comisión, efectivo, coste y resultados de las órdenes pasadas)"
+        type: choice
+        options: ["no", "si"]
+        default: "no"
       avisos:
         description: "Avisos en JSON: movil y correo (1 = enviar, 0 = no enviar; lo rellena la web; déjalo en {} si lo lanzas a mano)"
         type: string
@@ -68,6 +73,7 @@ jobs:
           AVJ: ${{ inputs.avisos }}
           CAP: ${{ inputs.capital }}
           EXJ: ${{ inputs.extra }}
+          RC: ${{ inputs.recalcular }}
         run: |
           node -e '
           const fs = require("fs");
@@ -129,6 +135,9 @@ jobs:
             ex[k] = v;
           }
           if (Object.keys(ex).length) out.extra = ex;
+          // recálculo de comisiones: un identificador nuevo en cada petición; el bot lo aplica una sola vez
+          if (process.env.RC === "si") out.recalc = { id: new Date().toISOString() };
+          else if (a.recalc) out.recalc = a.recalc;
           fs.writeFileSync("ajustes.json", JSON.stringify(out, null, 2) + "\n");
           '
           cat ajustes.json
