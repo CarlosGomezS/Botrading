@@ -83,7 +83,14 @@ Solo estos: la nueva función de informes individuales y la prueba histórica di
 
 Actions → «Actualización diaria…» → abre las ejecuciones de esa noche. En el paso «¿Toca ejecutar algo en este disparo?» el registro dice la decisión y el motivo (por ejemplo «actualización ya hecha hoy» o «aún no ha pasado una hora desde el cierre»). Si no hay ninguna ejecución esa noche, es que GitHub descartó los 5 disparos: lanza «Run workflow» a mano y avísame para revisarlo.
 
-## Cambios de esta versión (v6)
+## Cambios de esta versión (v7)
+
+- Pestaña Ajustes de la web: arriba del todo el campo de la **clave** y el botón **Editar**. Al pulsarlo aparecen debajo **todos** los ajustes (claves de datos, avisos y correo, parámetros del bot, método principal, vigilante, prueba histórica, capital y cambio €/$). **Guardar edición** los envía a la nube y avisa cuando GitHub ha terminado de guardarlos. Cada clave puesta tiene casilla «quitar esta clave». Los cuadros antiguos de Ajustes (que solo cambiaban el navegador) se ocultan en la web pública.
+- **Reiniciar todo**: borra todos los datos (cuentas, operaciones, informes, pruebas históricas, vigilante, precios) y los ajustes guardados; la web queda vacía como el primer día. Opcionalmente borra también las claves. Usa el flujo nuevo `.github/workflows/reiniciar.yml` (**hay que subirlo al repositorio**) y para las ejecuciones en marcha antes de borrar. Pide escribir REINICIAR.
+- La web pública ahora elimina los datos locales antiguos del navegador cuando la copia publicada está vacía.
+- El token necesita **Actions: Read and write** y, para claves, **Secrets: Read and write**.
+
+## Cambios de la versión v6
 
 - Limpieza de Ajustes: se quitan los 13 parámetros del motor antiguo de notas que ningún método usa y la casilla de segundo plano.
 - Ajustes de la nube: ahora también se editan las **claves y secretos** (con permiso extra «Secrets: Read and write» en el token) y los **avisos** al móvil y por correo.

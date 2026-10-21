@@ -782,8 +782,10 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
   if(x.status===200)snap=JSON.parse(x.responseText)}catch(e){}
  window.__SNAP=snap;
  if(!snap||!snap.ls){window.__VIEWER_ERR="No se pudo cargar la copia de datos ("+src+"). Si acabas de desplegar, espera a la primera ejecución automática.";return}
+ try{Object.keys(localStorage).forEach(function(k){if((k==="pb19"||k==="pbh3"||k==="pbi1"||k==="vgidx"||k==="pbReportsFallback"||k.indexOf("vgd:")===0)&&!(k in snap.ls))localStorage.removeItem(k)})}catch(e){}
  try{for(var k in snap.ls)localStorage.setItem(k,snap.ls[k])}catch(e){}
  window.__SNAPREADY=(async function(){
+  try{if(indexedDB.databases){var ds=await indexedDB.databases();for(var q=0;q<ds.length;q++){if(ds[q].name&&!(snap.idb&&ds[q].name in snap.idb))await new Promise(function(r){var d=indexedDB.deleteDatabase(ds[q].name);d.onsuccess=d.onerror=d.onblocked=function(){r()}})}}}catch(e){}
   try{for(var name in (snap.idb||{})){var db=snap.idb[name];
    await new Promise(function(r){var d=indexedDB.deleteDatabase(name);d.onsuccess=d.onerror=d.onblocked=function(){r()}});
    var conn=await new Promise(function(ok,no){var o=indexedDB.open(name,db.version||1);
@@ -2346,10 +2348,12 @@ window.__API={
   }catch(e){}}
  setTimeout(function(){try{var h=document.querySelector('#nav button[data-t="hoy"]');if(h&&!window.__userNav)h.click()}catch(e){}},2200);
  document.addEventListener("click",function(e){if(e.isTrusted)window.__userNav=true},true);
- /* ---- ajustes de la nube: editar desde la web, protegido con clave ----
-    La clave NO se guarda: solo sirve para descifrar (AES-GCM) el token de GitHub que queda cifrado en este navegador.
-    Sin la clave no se puede cambiar nada; el token (permiso Actions: Read and write, solo este repositorio) es lo que de verdad autoriza los cambios. */
- var CL={},TOK=null,lockT=null,ENC="ghtok_enc";
+ /* ---- Ajustes de la nube (v7): TODA la pantalla de Ajustes se edita desde aquí, protegida con clave ----
+    Arriba del todo está el campo de la clave. Al pulsar «Editar» aparecen debajo todos los ajustes; «Guardar edición» los envía a la nube
+    y «Reiniciar todo» borra todos los datos. La clave NO se guarda: solo sirve para descifrar (AES-GCM) el token de GitHub que queda
+    cifrado en este navegador. Sin la clave no se puede cambiar nada; el token (solo este repositorio) es lo que de verdad autoriza los cambios. */
+ var CL={},TOK=null,lockT=null,ENC="ghtok_enc",BUSY=false,SEC={};
+ function sleep2(ms){return new Promise(function(r){setTimeout(r,ms)})}
  function repoInfo(){var m=location.hostname.match(/^([^.]+)\.github\.io$/),r=location.pathname.split("/")[1];return(m&&r)?{o:m[1],r:r}:null}
  function b64(u){var s="";u=new Uint8Array(u);for(var i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);return btoa(s)}
  function unb64(t){var s=atob(t),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}
@@ -2358,61 +2362,70 @@ window.__API={
  async function encTok(tok,pw){var salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await kdf(pw,salt);
   var ct=await crypto.subtle.encrypt({name:"AES-GCM",iv:iv},key,new TextEncoder().encode(tok));return JSON.stringify({s:b64(salt),i:b64(iv),c:b64(ct)})}
  async function decTok(raw,pw){var o=JSON.parse(raw),key=await kdf(pw,unb64(o.s));var pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(o.i)},key,unb64(o.c));return new TextDecoder().decode(pt)}
+ function ghH(){return{"Authorization":"Bearer "+TOK,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"}}
+ function apiU(ri,p){return"https://api.github.com/repos/"+ri.o+"/"+ri.r+"/"+p}
  function lockNow(){TOK=null;clearTimeout(lockT);cloudRender()}
  function touch(){clearTimeout(lockT);if(TOK)lockT=setTimeout(lockNow,10*60*1000)}
+ function stSet(t){var e=document.getElementById("cs_st");if(e)e.textContent=t}
+ function setBusy(b){BUSY=b;["cs_apply","cs_reset","cs_bk","cs_lock"].forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=b})}
  function fields(){try{return FIELDS}catch(e){return[]}}
  function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{v=CFG[k]}catch(e){}}return v==null?"":+(v*m).toFixed(4)}
+ function esc2(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 
  var SECRETS=[["ALPACA_KEY","Alpaca (formato ID:SECRETO) · recomendada"],["TWELVEDATA_KEY","Twelve Data"],["POLYGON_KEY","Polygon"],["ALPHAVANTAGE_KEY","Alpha Vantage"],["FMP_KEY","Financial Modeling Prep"],["SMTP_USER","Correo: usuario SMTP (tu Gmail)"],["SMTP_PASS","Correo: contraseña de aplicación"],["EMAIL","Correo: dónde recibir los avisos"],["NTFY_TOPIC","Móvil: tema de ntfy"],["WEB3FORMS_KEY","Correo: clave Web3Forms (respaldo)"],["SMTP_HOST","Correo: servidor SMTP (opcional; por defecto smtp.gmail.com)"],["SMTP_PORT","Correo: puerto SMTP (opcional; por defecto 465)"]];
- function esc2(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
- function extraHtml(){var h="",V=CL.vgc||{},ST=null;try{ST=STR}catch(e){}
-  if(ST){var cur=CL.main||"sect",cats={};if(!CL.main){try{cur=S.main||"sect"}catch(e){}}Object.keys(ST).forEach(function(k){var c=ST[k].cat||"Otros";(cats[c]=cats[c]||[]).push(k)});
-   h+='<div style="grid-column:1/-1">Método principal (el de «Hoy», «Cartera» y la gráfica)<select id="cs_main" style="width:100%">'+Object.keys(cats).map(function(c){return'<optgroup label="'+esc2(c)+'">'+cats[c].map(function(k){return'<option value="'+esc2(k)+'"'+(k===cur?' selected':'')+'>'+esc2(ST[k].n)+'</option>'}).join("")+'</optgroup>'}).join("")+'</select></div>'}
-  h+='<div>Vigilante: subida mínima hoy (%)<input id="cs_vthr" type="number" step="0.5" min="0.5" max="50" value="'+(V.thr!=null?V.thr:3)+'" style="width:100%"></div>';
-  h+='<div>Vigilante: nº de acciones extra a vigilar (0 a 300)<input id="cs_vtop" type="number" step="1" min="0" max="300" value="'+(V.top!=null?V.top:0)+'" style="width:100%"></div>';
-  h+='<div>Vigilante: operar en simulación<select id="cs_vtr" style="width:100%"><option value="1"'+(V.trade===0?'':' selected')+'>Sí</option><option value="0"'+(V.trade===0?' selected':'')+'>No (solo mirar)</option></select></div>';
-  var EX=CL.extra||{},cp0=(function(){var c=CL.capital;if(c==null){try{c=START}catch(e){}}return c==null?500:c})();
-  h+='<div style="grid-column:1/-1"><b>Capital inicial (€)</b> · si lo cambias, el bot REINICIA todas las cuentas con ese capital en su próxima ejecución (archiva antes una copia; conserva ajustes, claves, reglas e informes)<input id="cs_cap" data-orig="'+cp0+'" type="number" min="100" max="1000000" step="50" value="'+cp0+'" style="width:100%"></div>';
-  h+='<div>Cambio €/$ (0,3 a 3; el bot lo vuelve a actualizar con tu proveedor)<input id="cs_fx" type="number" step="0.01" min="0.3" max="3" placeholder="'+(EX.fx!=null?EX.fx:"auto")+'" value="'+(EX.fx!=null?EX.fx:"")+'" style="width:100%"></div>';
-  function yn(id,t,v,d){return'<div>'+t+'<select id="'+id+'" style="width:100%"><option value="1"'+((v==null?d:v)===0?'':' selected')+'>Sí</option><option value="0"'+((v==null?d:v)===0?' selected':'')+'>No</option></select></div>'}
-  h+=yn("cs_nt","Notificaciones de la app (casilla «Avisarme…»)",EX.nt,1)+yn("cs_mon","Correo automático de la app: activar",EX.mon,0)+yn("cs_mc","Correo automático: incluir métodos de la cartera",EX.mc,1)+yn("cs_mv","Correo automático: incluir métodos del vigilante",EX.mv,1);
-  var AV=CL.avisos||{};
-  h+='<div>Avisos al móvil (ntfy) de la actualización y la prueba histórica<select id="cs_avm" style="width:100%"><option value="1"'+(AV.movil===0?'':' selected')+'>Sí</option><option value="0"'+(AV.movil===0?' selected':'')+'>No</option></select></div>';
-  h+='<div>Avisos por correo de la actualización y la prueba histórica<select id="cs_avc" style="width:100%"><option value="1"'+(AV.correo===0?'':' selected')+'>Sí</option><option value="0"'+(AV.correo===0?' selected':'')+'>No</option></select></div>';
-  h+='<div>Tiempo máximo por actualización (min, 2 a 60)<input id="cs_mins" type="number" step="1" min="2" max="60" value="'+(CL.mins!=null?CL.mins:8)+'" style="width:100%"></div>';
-  return h}
- function secretsHtml(){var ri=repoInfo(),M=(window.__SNAP&&__SNAP.meta&&__SNAP.meta.secrets)||null,url=ri?("https://github.com/"+ri.o+"/"+ri.r+"/settings/secrets/actions"):"#";
-  return'<div class="m" style="margin-top:10px"><b>Claves y avisos</b> (se guardan cifradas en GitHub Secrets; esta web pública nunca las guarda ni las muestra). Deja en blanco lo que no quieras cambiar; lo que escribas se guarda al pulsar «Aplicar en la nube».</div><div class="kv">'+
-   SECRETS.map(function(s){var ok=M?M[s[0]]:null;return'<div>'+(ok===true?"✔ ":ok===false?"✖ ":"· ")+esc2(s[1])+' <span style="opacity:.6">('+s[0]+')</span><input data-sk="'+s[0]+'" type="password" autocomplete="off" placeholder="'+(ok===true?"puesta · escribe para cambiarla":"vacía")+'" style="width:100%"></div>'}).join("")+
-   '</div><div class="m">Para guardar claves el token necesita además el permiso <b>Secrets: Read and write</b> (en el mismo repositorio). Si no lo tiene, los parámetros se guardan igual y las claves se rechazan con un aviso. <a href="'+url+'" target="_blank" rel="noopener">Abrir Secrets en GitHub</a></div>'}
- var SODIUM=null;
- function loadSodium(){if(SODIUM)return SODIUM;SODIUM=new Promise(function(res,rej){var urls=["https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js","https://cdnjs.cloudflare.com/ajax/libs/libsodium-wrappers/0.7.13/sodium.min.js"],k=0;
-  function next(){if(window.sodium&&window.sodium.ready){window.sodium.ready.then(function(){res(window.sodium)},rej);return}if(k>=urls.length){rej(new Error("no se pudo cargar la librería de cifrado"));return}var sc=document.createElement("script");sc.src=urls[k++];sc.onload=next;sc.onerror=next;document.head.appendChild(sc)}next()});SODIUM.catch(function(){SODIUM=null});return SODIUM}
- async function ghSecret(ri,name,val){var H={"Authorization":"Bearer "+TOK,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"},base="https://api.github.com/repos/"+ri.o+"/"+ri.r+"/actions/secrets/";
-  var so=await loadSodium(),r=await fetch(base+"public-key",{headers:H});if(!r.ok)throw new Error("HTTP "+r.status+" al pedir la clave pública (¿falta el permiso Secrets: Read and write?)");
-  var pk=await r.json(),enc=so.crypto_box_seal(so.from_string(val),so.from_base64(pk.key,so.base64_variants.ORIGINAL)),
-   w=await fetch(base+name,{method:"PUT",headers:Object.assign({"Content-Type":"application/json"},H),body:JSON.stringify({encrypted_value:so.to_base64(enc,so.base64_variants.ORIGINAL),key_id:pk.key_id})});
-  if(w.status!==201&&w.status!==204)throw new Error("HTTP "+w.status);}
+ function secOk(k){if(SEC[k]!==undefined)return SEC[k];var M=(window.__SNAP&&__SNAP.meta&&__SNAP.meta.secrets)||null;return M?M[k]:null}
+ function secField(s){var ok=secOk(s[0]);return'<div>'+(ok===true?"✔ ":ok===false?"✖ ":"· ")+esc2(s[1])+' <span style="opacity:.6">('+s[0]+')</span><input data-sk="'+s[0]+'" type="password" autocomplete="off" placeholder="'+(ok===true?"puesta · escribe para cambiarla":"vacía")+'" style="width:100%">'+(ok===true?'<label style="display:block;font-size:12px;opacity:.8;margin-top:4px"><input type="checkbox" data-sd="'+s[0]+'" style="width:auto"> quitar esta clave</label>':'')+'</div>'}
+ function yn(id,t,v,d){return'<div>'+t+'<select id="'+id+'" style="width:100%"><option value="1"'+((v==null?d:v)===0?'':' selected')+'>Sí</option><option value="0"'+((v==null?d:v)===0?' selected':'')+'>No</option></select></div>'}
+ function h3(t){return'<h3 style="margin:16px 0 6px;font-size:15px">'+t+'</h3>'}
  function secretBad(k,v){if(k==="ALPACA_KEY"&&v.indexOf(":")<1)return"Alpaca debe tener el formato ID:SECRETO";if(k==="EMAIL"&&!/^[^@\s]+@[^@\s]+$/.test(v))return"el correo no parece válido";if(k==="SMTP_PORT"&&!(/^\d+$/.test(v)&&+v>=1&&+v<=65535))return"el puerto debe ser un número entre 1 y 65535";if(/[\r\n]/.test(v))return"no puede tener saltos de línea";return null}
+
+ /* cuerpo editable: todo lo que había en la pantalla de Ajustes de la app */
+ function bodyHtml(){var V=CL.vgc||{},EX=CL.extra||{},AV=CL.avisos||{},ST=null,F=fields(),h="";try{ST=STR}catch(e){}
+  var cp0=(function(){var c=CL.capital;if(c==null){try{c=START}catch(e){}}return c==null?500:c})();
+  h+='<div class="m">🔓 Estás editando. Cambia lo que quieras y pulsa <b>«Guardar edición»</b> (abajo del todo): se guarda en la nube y el bot lo usa desde su siguiente ejecución. Lo que dejes en blanco en las claves no se toca.</div>';
+  h+=h3("Conexión de datos (claves de precios)")+'<div class="kv">'+SECRETS.slice(0,5).map(secField).join("")+'<div>Tiempo máximo por actualización (min, 2 a 60)<input id="cs_mins" type="number" step="1" min="2" max="60" value="'+(CL.mins!=null?CL.mins:8)+'" style="width:100%"></div></div>';
+  h+=h3("Avisos al móvil y por correo")+'<div class="kv">'+SECRETS.slice(5).map(secField).join("")+
+   yn("cs_nt","Notificaciones de la app (casilla «Avisarme…»)",EX.nt,1)+
+   yn("cs_avm","Avisos al móvil (ntfy) de la actualización y la prueba histórica",AV.movil,1)+
+   yn("cs_avc","Avisos por correo de la actualización y la prueba histórica",AV.correo,1)+
+   yn("cs_mon","Correo automático de la app: activar",EX.mon,0)+yn("cs_mc","Correo automático: incluir métodos de la cartera",EX.mc,1)+yn("cs_mv","Correo automático: incluir métodos del vigilante",EX.mv,1)+'</div>';
+  h+=h3("Parámetros del bot")+'<div class="kv">';
+  if(ST){var cur=CL.main||"",cats={};if(!cur){try{cur=S.main||"sect"}catch(e){cur="sect"}}Object.keys(ST).forEach(function(k){var c=ST[k].cat||"Otros";(cats[c]=cats[c]||[]).push(k)});
+   h+='<div style="grid-column:1/-1">Método principal (el de «Hoy», «Cartera» y la gráfica; el que invierte el dinero ficticio)<select id="cs_main" style="width:100%">'+Object.keys(cats).map(function(c){return'<optgroup label="'+esc2(c)+'">'+cats[c].map(function(k){return'<option value="'+esc2(k)+'"'+(k===cur?' selected':'')+'>'+esc2(ST[k].n)+'</option>'}).join("")+'</optgroup>'}).join("")+'</select></div>'}
+  h+=F.map(function(f){return'<div>'+f[1]+'<input data-ck="'+f[0]+'" data-cm="'+f[2]+'" type="number" step="any" value="'+curVal(f[0],f[2])+'" style="width:100%"></div>'}).join("")+'</div>';
+  h+=h3("Vigilante")+'<div class="kv"><div>Consultar cada (min)<select id="cs_vm" style="width:100%">'+[10,15,30,60].map(function(x){return'<option'+(+CL.vigilante_min===x||(!CL.vigilante_min&&x===30)?' selected':'')+'>'+x+'</option>'}).join("")+'</select></div>'+
+   '<div>Subida mínima hoy (%)<input id="cs_vthr" type="number" step="0.5" min="0.5" max="50" value="'+(V.thr!=null?V.thr:3)+'" style="width:100%"></div>'+
+   '<div>Nº de acciones extra a vigilar (0 a 300)<input id="cs_vtop" type="number" step="1" min="0" max="300" value="'+(V.top!=null?V.top:0)+'" style="width:100%"></div>'+
+   '<div>Operar en simulación<select id="cs_vtr" style="width:100%"><option value="1"'+(V.trade===0?'':' selected')+'>Sí</option><option value="0"'+(V.trade===0?' selected':'')+'>No (solo mirar)</option></select></div></div>';
+  h+=h3("Prueba histórica")+'<div class="kv"><div>Máximo de acciones por prueba (200-500)<input id="cs_bm" type="number" min="200" max="500" value="'+(CL.bt_max||300)+'" style="width:100%"></div></div>';
+  h+=h3("Cuenta")+'<div class="kv"><div style="grid-column:1/-1"><span style="font-weight:700">Capital inicial (€)</span> · si lo cambias, el bot REINICIA todas las cuentas con ese capital en su próxima ejecución (archiva antes una copia; conserva ajustes, claves, reglas e informes)<input id="cs_cap" data-orig="'+cp0+'" type="number" min="100" max="1000000" step="50" value="'+cp0+'" style="width:100%"></div>'+
+   '<div>Cambio €/$ (0,3 a 3; vacío = automático)<input id="cs_fx" type="number" step="0.01" min="0.3" max="3" placeholder="'+(EX.fx!=null?EX.fx:"auto")+'" value="'+(EX.fx!=null?EX.fx:"")+'" style="width:100%"></div></div>';
+  var ri=repoInfo(),url=ri?("https://github.com/"+ri.o+"/"+ri.r+"/settings/secrets/actions"):"#";
+  h+='<div class="m" style="margin-top:8px">Las claves se guardan cifradas en GitHub Secrets; esta web pública nunca las guarda ni las muestra (solo ves ✔/✖). Para guardar o quitar claves el token necesita el permiso <b>Secrets: Read and write</b>. <a href="'+url+'" target="_blank" rel="noopener">Abrir Secrets en GitHub</a></div>';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="cs_apply" style="font-weight:700">💾 Guardar edición</button><button id="cs_bk">Descargar copia de los datos (.json)</button></div>';
+  h+='<div style="border:1px solid #b91c1c;border-radius:10px;padding:10px;margin-top:18px"><b>⚠️ Reiniciar todo</b><div class="m">Borra TODOS los datos de la web: cuentas y carteras, operaciones, informes, pruebas históricas, vigilante, precios descargados y los ajustes guardados. Queda como si nunca hubiera hecho nada (capital inicial 500 €). No se puede deshacer.</div>'+
+   '<label class="m" style="display:block"><input type="checkbox" id="cs_rkeys" style="width:auto"> Borrar también las claves guardadas (Alpaca, correo, ntfy…)</label>'+
+   '<button id="cs_reset" style="margin-top:6px;background:#b91c1c;color:#fff;border-color:#b91c1c">Reiniciar todo</button></div>';
+  return h}
+
+ function hideLegacy(){/* en la web pública, los cuadros antiguos de Ajustes no guardan nada en la nube: todo se edita en el panel de arriba */
+  var keep=/^(Auditor|Diagn)/i;document.querySelectorAll("#t-ajustes > details.fold").forEach(function(f){var s=f.querySelector(":scope>summary");if(s&&!keep.test(s.textContent.trim()))f.style.setProperty("display","none","important")})}
  function cloudPanel(){var host=document.querySelector("#t-ajustes");if(!host||document.getElementById("cloudset"))return;
-  var d=document.createElement("div");d.id="cloudset";d.className="p";d.style.cssText="border:1px solid #4b5563;border-radius:10px;padding:10px;margin:10px 0";host.insertBefore(d,host.firstChild);cloudRender()}
- function cloudRender(){var d=document.getElementById("cloudset");if(!d)return;var ri=repoInfo(),has=false;try{has=!!localStorage.getItem(ENC)}catch(e){}
-  var h='<h2>☁️ Ajustes de la nube (protegidos con clave)</h2>';
-  if(!ri){d.innerHTML=h+'<div class="m">Solo funciona desde la web publicada en GitHub Pages.</div>';return}
-  if(!TOK){
-   if(!has){h+='<div class="m">Primera vez en este navegador: pega un <b>token de GitHub</b> («fine-grained», solo este repositorio, permiso <b>Actions: Read and write</b>) y elige una <b>clave</b> (mínimo 8 caracteres). El token se guarda <b>cifrado</b> con tu clave; la clave no se guarda en ningún sitio. A partir de ahora solo necesitarás la clave.</div>'+
-     '<input id="cs_tok" type="password" placeholder="github_pat_…" style="width:100%;margin-top:6px" autocomplete="off"><input id="cs_pw" type="password" placeholder="Elige tu clave (mín. 8)" style="width:100%;margin-top:6px" autocomplete="new-password"><div style="margin-top:6px"><button id="cs_go">Guardar y desbloquear</button></div>'}
-   else{h+='<div class="m">🔒 Bloqueado. Escribe tu clave para editar los ajustes (se vuelve a bloquear a los 10 minutos).</div><input id="cs_pw" type="password" placeholder="Tu clave" style="width:100%;margin-top:6px" autocomplete="current-password"><div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button id="cs_go">Desbloquear</button><button id="cs_forget">Olvidar token de este navegador</button></div>'}
-   h+='<div id="cs_st" class="m" style="margin-top:6px"></div>';d.innerHTML=h;
-   var go=document.getElementById("cs_go"),pw=document.getElementById("cs_pw");go.onclick=cloudUnlock;pw.onkeydown=function(e){if(e.key==="Enter")cloudUnlock()};
-   var fg=document.getElementById("cs_forget");if(fg)fg.onclick=function(){if(confirm("¿Borrar el token cifrado de este navegador?")){try{localStorage.removeItem(ENC)}catch(e){}cloudRender()}};return}
-  var F=fields();
-  h+='<div class="m">🔓 Desbloqueado. Cambia lo que quieras y pulsa «Aplicar en la nube»: se guarda en el repositorio y el bot lo usa desde la siguiente ejecución. El capital inicial no se cambia aquí (reiniciaría las cuentas).</div><div class="kv">'+
-   F.map(function(f){return'<div>'+f[1]+'<input data-ck="'+f[0]+'" data-cm="'+f[2]+'" type="number" step="any" value="'+curVal(f[0],f[2])+'" style="width:100%"></div>'}).join("")+
-   '<div>Vigilante: consultar cada (min)<select id="cs_vm" style="width:100%">'+[10,15,30,60].map(function(x){return'<option'+(+CL.vigilante_min===x?' selected':'')+'>'+x+'</option>'}).join("")+'</select></div>'+
-   '<div>Prueba histórica: máximo de acciones (200-500)<input id="cs_bm" type="number" min="200" max="500" value="'+(CL.bt_max||300)+'" style="width:100%"></div>'+extraHtml()+'</div>'+secretsHtml()+
-   '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button id="cs_apply">Aplicar en la nube</button><button id="cs_lock">Bloquear ahora</button></div><div id="cs_st" class="m" style="margin-top:6px"></div>';
-  d.innerHTML=h;d.oninput=touch;document.getElementById("cs_apply").onclick=cloudApply;document.getElementById("cs_lock").onclick=lockNow}
+  var d=document.createElement("div");d.id="cloudset";d.className="p";d.style.cssText="border:1px solid #4b5563;border-radius:10px;padding:10px;margin:10px 0";
+  d.innerHTML='<h2>☁️ Ajustes (protegidos con clave)</h2><div id="cs_head"></div><div id="cs_body"></div>';host.insertBefore(d,host.firstChild);hideLegacy();cloudRender()}
+ function cloudRender(){var d=document.getElementById("cloudset"),hd=document.getElementById("cs_head"),bd=document.getElementById("cs_body");if(!d||!hd||!bd)return;var ri=repoInfo(),has=false;try{has=!!localStorage.getItem(ENC)}catch(e){}
+  if(!ri){hd.innerHTML='<div class="m">Solo funciona desde la web publicada en GitHub Pages.</div>';bd.innerHTML="";return}
+  var st='<div id="cs_st" class="m" style="margin-top:6px"></div>';
+  if(TOK){hd.innerHTML='<div class="m">🔓 Clave correcta · editando (se vuelve a bloquear a los 10 minutos).</div><div style="margin-top:6px"><button id="cs_lock">Bloquear ahora</button></div>'+st;
+   bd.innerHTML=bodyHtml();bd.oninput=touch;
+   document.getElementById("cs_lock").onclick=lockNow;document.getElementById("cs_apply").onclick=cloudApply;document.getElementById("cs_reset").onclick=cloudReset;document.getElementById("cs_bk").onclick=cloudBackup;return}
+  bd.innerHTML="";
+  if(!has){hd.innerHTML='<div class="m">Primera vez en este navegador: pega un <b>token de GitHub</b> («fine-grained», solo este repositorio, permisos <b>Actions: Read and write</b> y <b>Secrets: Read and write</b>) y elige una <b>clave</b> (mínimo 8 caracteres). El token se guarda <b>cifrado</b> con tu clave; la clave no se guarda en ningún sitio. A partir de ahora solo necesitarás la clave.</div>'+
+    '<input id="cs_tok" type="password" placeholder="github_pat_…" style="width:100%;margin-top:6px" autocomplete="off"><input id="cs_pw" type="password" placeholder="Elige tu clave (mín. 8)" style="width:100%;margin-top:6px" autocomplete="new-password"><div style="margin-top:6px"><button id="cs_go">Guardar y editar</button></div>'+st}
+  else{hd.innerHTML='<div class="m">🔒 Escribe tu clave y pulsa <b>Editar</b> para cambiar los ajustes.</div><input id="cs_pw" type="password" placeholder="Tu clave" style="width:100%;margin-top:6px" autocomplete="current-password"><div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button id="cs_go">Editar</button><button id="cs_forget">Olvidar token de este navegador</button></div>'+st}
+  var go=document.getElementById("cs_go"),pw=document.getElementById("cs_pw");go.onclick=cloudUnlock;pw.onkeydown=function(e){if(e.key==="Enter")cloudUnlock()};
+  var fg=document.getElementById("cs_forget");if(fg)fg.onclick=function(){if(confirm("¿Borrar el token cifrado de este navegador?")){try{localStorage.removeItem(ENC)}catch(e){}cloudRender()}}}
+ async function freshCL(ri){try{var r=await fetch(apiU(ri,"contents/ajustes.json?ref=main&t="+Date.now()),{headers:Object.assign({},ghH(),{"Accept":"application/vnd.github.raw+json"}),cache:"no-store"});if(r.ok){var a=await r.json();if(a&&typeof a==="object"){CL=a;return true}}}catch(e){}return false}
  async function cloudUnlock(){var st=document.getElementById("cs_st"),pw=(document.getElementById("cs_pw").value||""),t=document.getElementById("cs_tok");
   try{
    if(!crypto||!crypto.subtle)throw new Error("este navegador no permite cifrar (necesita https)");
@@ -2420,37 +2433,85 @@ window.__API={
     if(pw.length<8){st.textContent="La clave debe tener al menos 8 caracteres.";return}
     st.textContent="Cifrando…";localStorage.setItem(ENC,await encTok(tok,pw));try{localStorage.removeItem("ghtok")}catch(e){}TOK=tok}
    else{st.textContent="Comprobando…";TOK=await decTok(localStorage.getItem(ENC),pw)}
+   var ri=repoInfo();if(ri)await freshCL(ri);   /* valores reales de la nube, sin esperar a que GitHub Pages se republique */
    touch();cloudRender()}catch(e){TOK=null;st.textContent=t?("No se pudo guardar: "+e.message):"Clave incorrecta."}}
- async function cloudApply(){var ri=repoInfo(),st=document.getElementById("cs_st");if(!ri||!TOK)return;touch();
+
+ var SODIUM=null;
+ function loadSodium(){if(SODIUM)return SODIUM;SODIUM=new Promise(function(res,rej){var urls=["https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js","https://cdnjs.cloudflare.com/ajax/libs/libsodium-wrappers/0.7.13/sodium.min.js"],k=0;
+  function next(){if(window.sodium&&window.sodium.ready){window.sodium.ready.then(function(){res(window.sodium)},rej);return}if(k>=urls.length){rej(new Error("no se pudo cargar la librería de cifrado"));return}var sc=document.createElement("script");sc.src=urls[k++];sc.onload=next;sc.onerror=next;document.head.appendChild(sc)}next()});SODIUM.catch(function(){SODIUM=null});return SODIUM}
+ async function ghSecret(ri,name,val){var H=ghH(),base=apiU(ri,"actions/secrets/");
+  var so=await loadSodium(),r=await fetch(base+"public-key",{headers:H});if(!r.ok)throw new Error("HTTP "+r.status+" al pedir la clave pública (¿falta el permiso Secrets: Read and write?)");
+  var pk=await r.json(),enc=so.crypto_box_seal(so.from_string(val),so.from_base64(pk.key,so.base64_variants.ORIGINAL)),
+   w=await fetch(base+name,{method:"PUT",headers:Object.assign({"Content-Type":"application/json"},H),body:JSON.stringify({encrypted_value:so.to_base64(enc,so.base64_variants.ORIGINAL),key_id:pk.key_id})});
+  if(w.status!==201&&w.status!==204)throw new Error("HTTP "+w.status);}
+ async function ghSecretDel(ri,name){var w=await fetch(apiU(ri,"actions/secrets/"+name),{method:"DELETE",headers:ghH()});if(w.status!==204&&w.status!==404)throw new Error("HTTP "+w.status+(w.status===403||w.status===401?" (¿falta el permiso Secrets: Read and write?)":""))}
+ /* espera a que termine la ejecución del flujo lanzado a mano y devuelve su resultado (success / failure / …) o null si tarda demasiado */
+ async function waitRun(ri,wf,since,maxS){var t0=Date.now();while(Date.now()-t0<maxS*1000){await sleep2(5000);
+  try{var r=await fetch(apiU(ri,"actions/workflows/"+wf+"/runs?event=workflow_dispatch&per_page=5&t="+Date.now()),{headers:ghH(),cache:"no-store"});if(!r.ok)continue;var j=await r.json();
+   var run=(j.workflow_runs||[]).filter(function(x){return Date.parse(x.created_at)>=since-20000})[0];if(run&&run.status==="completed")return run.conclusion}catch(e){}}
+  return null}
+ async function dispatch(ri,wf,inputs){return fetch(apiU(ri,"actions/workflows/"+wf+"/dispatches"),{method:"POST",headers:Object.assign({"Content-Type":"application/json"},ghH()),body:JSON.stringify({ref:"main",inputs:inputs})})}
+ function rejectMsg(r,wf){return r.status===401||r.status===403?"GitHub rechazó el token (HTTP "+r.status+"). Comprueba que sea de este repositorio, con permiso «Actions: Read and write» y que no haya caducado.":r.status===404?"No existe el flujo «"+wf+"» en el repositorio (HTTP 404): sube a GitHub todos los archivos de la versión v7.":"No se pudo enviar (HTTP "+r.status+")."}
+
+ async function cloudApply(){var ri=repoInfo();if(!ri||!TOK||BUSY)return;touch();
   var cfg={},bad=null,F=fields();
   document.querySelectorAll("#cloudset [data-ck]").forEach(function(el){var k=el.dataset.ck,m=+el.dataset.cm,v=(+el.value)/m;
-   if(el.value===""||!isFinite(v)){bad=k;return}var lim=null;try{lim=LIM[k]}catch(e){}
+   if(el.value===""||!isFinite(v)){bad=(F.filter(function(f){return f[0]===k})[0]||[k,k])[1];return}var lim=null;try{lim=LIM[k]}catch(e){}
    if(lim&&(v<lim[0]-1e-12||v>lim[1]+1e-12)){bad=(F.filter(function(f){return f[0]===k})[0]||[k,k])[1];return}cfg[k]=+v.toFixed(6)});
-  if(bad){st.textContent="Valor fuera del rango seguro o vacío: "+bad;return}
+  if(bad){stSet("Valor fuera del rango seguro o vacío: "+bad);return}
   var mainEl=document.getElementById("cs_main"),main=mainEl?mainEl.value:"",vgc={thr:+document.getElementById("cs_vthr").value,top:Math.round(+document.getElementById("cs_vtop").value),trade:+document.getElementById("cs_vtr").value},mins=Math.round(+document.getElementById("cs_mins").value);
-  if(!(vgc.thr>=0.5&&vgc.thr<=50)){st.textContent="Vigilante: la subida mínima debe estar entre 0,5 y 50.";return}
-  if(!(vgc.top>=0&&vgc.top<=300)){st.textContent="Vigilante: el nº de acciones extra debe estar entre 0 y 300.";return}
-  if(!(mins>=2&&mins<=60)){st.textContent="El tiempo máximo por actualización debe estar entre 2 y 60 minutos.";return}
+  if(!(vgc.thr>=0.5&&vgc.thr<=50)){stSet("Vigilante: la subida mínima debe estar entre 0,5 y 50.");return}
+  if(!(vgc.top>=0&&vgc.top<=300)){stSet("Vigilante: el nº de acciones extra debe estar entre 0 y 300.");return}
+  if(!(mins>=2&&mins<=60)){stSet("El tiempo máximo por actualización debe estar entre 2 y 60 minutos.");return}
   var vm=document.getElementById("cs_vm").value,bm=String(Math.max(200,Math.min(500,Math.round(+document.getElementById("cs_bm").value||300))));
   var capEl=document.getElementById("cs_cap"),capV=Math.round(+capEl.value),capS="";
-  if(!(capV>=100&&capV<=1000000)){st.textContent="El capital debe estar entre 100 y 1.000.000 €.";return}
+  if(!(capV>=100&&capV<=1000000)){stSet("El capital debe estar entre 100 y 1.000.000 €.");return}
   if(String(capV)!==String(Math.round(+capEl.dataset.orig))){if(!confirm("¿Cambiar el capital a "+capV+" € y reiniciar TODAS las cuentas?\n\nLa cartera, los métodos y el vigilante empezarán de cero en la próxima ejecución del bot. Antes se archiva una copia. Se conservan ajustes, claves, reglas e informes."))return;capS=String(capV)}
   var fxV=document.getElementById("cs_fx").value.trim(),ex={nt:+document.getElementById("cs_nt").value,mon:+document.getElementById("cs_mon").value,mc:+document.getElementById("cs_mc").value,mv:+document.getElementById("cs_mv").value};
-  if(fxV!==""){if(!(+fxV>=0.3&&+fxV<=3)){st.textContent="El cambio €/$ debe estar entre 0,3 y 3.";return}ex.fx=+fxV}
-  var av={movil:+document.getElementById("cs_avm").value,correo:+document.getElementById("cs_avc").value},secs=[],badS=null;
+  if(fxV!==""){if(!(+fxV>=0.3&&+fxV<=3)){stSet("El cambio €/$ debe estar entre 0,3 y 3.");return}ex.fx=+fxV}
+  var av={movil:+document.getElementById("cs_avm").value,correo:+document.getElementById("cs_avc").value},secs=[],dels=[],badS=null;
   document.querySelectorAll("#cloudset [data-sk]").forEach(function(el){var v=(el.value||"").trim();if(!v)return;var e=secretBad(el.dataset.sk,v);if(e&&!badS)badS=el.dataset.sk+": "+e;secs.push([el.dataset.sk,v,el])});
-  if(badS){st.textContent="Clave no válida · "+badS;return}
-  st.textContent="Enviando…";
-  var msg1;
-  fetch("https://api.github.com/repos/"+ri.o+"/"+ri.r+"/actions/workflows/ajustes.yml/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+TOK,"Accept":"application/vnd.github+json","Content-Type":"application/json","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs:{vigilante_min:vm,bt_max:bm,cfg:JSON.stringify(cfg),main:main,vgc:JSON.stringify(vgc),mins:String(mins),avisos:JSON.stringify(av),capital:capS,extra:JSON.stringify(ex)}})})
-   .then(function(r){msg1=r.status===204?"✔ Parámetros enviados: en 1-2 minutos quedan guardados y el bot los usa desde su siguiente ejecución.":(r.status===401||r.status===403||r.status===404?"GitHub rechazó el token (HTTP "+r.status+"). Comprueba que sea de este repositorio, con permiso «Actions: Read and write» y que no haya caducado.":"No se pudieron aplicar los parámetros (HTTP "+r.status+").");st.textContent=msg1;return secs.length?saveSecrets(ri,secs,st,msg1):null})
-   .catch(function(e){st.textContent=(msg1?msg1+" · ":"")+"No se pudo aplicar: "+e})}
- async function saveSecrets(ri,secs,st,msg1){var ok=[],ko=[];
-  for(var i=0;i<secs.length;i++){st.textContent=msg1+" · Guardando clave "+(i+1)+" de "+secs.length+"…";
-   try{await ghSecret(ri,secs[i][0],secs[i][1]);ok.push(secs[i][0]);secs[i][2].value=""}catch(e){ko.push(secs[i][0]+" ("+(e&&e.message||e)+")")}}
-  st.textContent=msg1+(ok.length?" · ✔ Claves guardadas en GitHub Secrets: "+ok.join(", ")+". Las usa el bot desde su siguiente ejecución (el ✔/✖ de arriba se actualiza tras la próxima).":"")+(ko.length?" · ✖ No guardadas: "+ko.join("; "):"")}
- function cloudSync(){try{var v=document.querySelector("#vgi"),b=document.querySelector("#btn");if(CL.vigilante_min&&v)v.value=String(CL.vigilante_min);if(CL.bt_max&&b)b.value=CL.bt_max;cloudPanel()}catch(e){}}
- try{fetch("ajustes.json?t="+Date.now()).then(function(r){return r.ok?r.json():null}).then(function(a){if(a){CL=a;cloudSync();if(!TOK)cloudRender()}}).catch(function(){})}catch(e){}
+  document.querySelectorAll("#cloudset [data-sd]").forEach(function(el){if(el.checked&&!secs.some(function(s){return s[0]===el.dataset.sd}))dels.push(el.dataset.sd)});
+  if(badS){stSet("Clave no válida · "+badS);return}
+  if(dels.length&&!confirm("Vas a QUITAR estas claves guardadas:\n"+dels.join(", ")+"\n\n¿Continuar?"))return;
+  setBusy(true);stSet("Enviando…");var since=Date.now(),msg1="";
+  try{
+   var r=await dispatch(ri,"ajustes.yml",{vigilante_min:vm,bt_max:bm,cfg:JSON.stringify(cfg),main:main,vgc:JSON.stringify(vgc),mins:String(mins),avisos:JSON.stringify(av),capital:capS,extra:JSON.stringify(ex)});
+   if(r.status!==204){stSet(rejectMsg(r,"ajustes.yml"));setBusy(false);return}
+   var ok=[],ko=[];
+   for(var i=0;i<secs.length;i++){stSet("Parámetros enviados · guardando clave "+(i+1)+" de "+(secs.length+dels.length)+"…");
+    try{await ghSecret(ri,secs[i][0],secs[i][1]);ok.push(secs[i][0]);SEC[secs[i][0]]=true}catch(e){ko.push(secs[i][0]+" ("+(e&&e.message||e)+")")}}
+   for(var j=0;j<dels.length;j++){stSet("Parámetros enviados · quitando clave "+(secs.length+j+1)+" de "+(secs.length+dels.length)+"…");
+    try{await ghSecretDel(ri,dels[j]);ok.push(dels[j]+" (quitada)");SEC[dels[j]]=false}catch(e){ko.push(dels[j]+" ("+(e&&e.message||e)+")")}}
+   stSet("Parámetros enviados · esperando a que GitHub los guarde (1-2 minutos)…");
+   var res=await waitRun(ri,"ajustes.yml",since,240);
+   if(res==="success"){await freshCL(ri);msg1="✔ Guardado en la nube. El bot usará estos ajustes desde su siguiente ejecución."+(capS?" Con el capital nuevo reiniciará todas las cuentas en esa ejecución.":"")}
+   else if(res===null)msg1="Enviado, pero GitHub aún no confirma que haya terminado. Mira en unos minutos (pestaña Actions → «Ajustes de la nube»).";
+   else msg1="✖ GitHub no pudo guardar los ajustes (resultado: "+res+"). Mira Actions → «Ajustes de la nube» para ver el motivo.";
+   msg1+=(ok.length?" · ✔ Claves: "+ok.join(", ")+" (las usa el bot desde su siguiente ejecución).":"")+(ko.length?" · ✖ No guardadas: "+ko.join("; "):"");
+  }catch(e){msg1="No se pudo aplicar: "+(e&&e.message||e)}
+  var keepMsg=msg1;if(TOK){cloudRender();stSet(keepMsg)}setBusy(false)}
+
+ async function cloudReset(){var ri=repoInfo();if(!ri||!TOK||BUSY)return;touch();
+  var t=prompt("⚠️ REINICIAR TODO\n\nSe borra TODO: cuentas y carteras, operaciones, informes, pruebas históricas, vigilante, precios descargados y los ajustes guardados. La web queda vacía, como el primer día. No se puede deshacer.\n\nEscribe REINICIAR para confirmar:");
+  if(t===null)return;if(String(t).trim().toUpperCase()!=="REINICIAR"){stSet("Reinicio cancelado: no escribiste REINICIAR.");return}
+  var rk=document.getElementById("cs_rkeys"),delKeys=!!(rk&&rk.checked);
+  setBusy(true);var since=Date.now();
+  try{
+   if(delKeys){var ko=[];for(var i=0;i<SECRETS.length;i++){stSet("Quitando claves ("+(i+1)+" de "+SECRETS.length+")…");try{await ghSecretDel(ri,SECRETS[i][0]);SEC[SECRETS[i][0]]=false}catch(e){ko.push(SECRETS[i][0])}}
+    if(ko.length){stSet("No se pudieron quitar estas claves: "+ko.join(", ")+". Reinicio cancelado (¿falta el permiso Secrets: Read and write?).");setBusy(false);return}}
+   stSet("Enviando el reinicio…");since=Date.now();
+   var r=await dispatch(ri,"reiniciar.yml",{confirmar:"REINICIAR"});
+   if(r.status!==204){stSet(rejectMsg(r,"reiniciar.yml"));setBusy(false);return}
+   stSet("Reiniciando: parando lo que esté en marcha y borrando los datos (1-3 minutos)…");
+   var res=await waitRun(ri,"reiniciar.yml",since,420);
+   if(res==="success"){stSet("✔ Todo borrado. Recargando la web vacía…");await sleep2(2500);location.reload();return}
+   stSet(res===null?"Reinicio enviado, pero GitHub aún no confirma que haya terminado. Recarga la web en unos minutos.":"✖ El reinicio falló (resultado: "+res+"). Mira Actions → «Reiniciar todo» para ver el motivo.");
+  }catch(e){stSet("No se pudo reiniciar: "+(e&&e.message||e))}
+  setBusy(false)}
+ function cloudBackup(){try{var o=backupObj(false);dl("copia-bot-"+T0()+".json",JSON.stringify(o));stSet("Copia descargada (sin claves).")}catch(e){stSet("No se pudo crear la copia: "+(e&&e.message||e))}}
+ function cloudSync(){try{var v=document.querySelector("#vgi"),b=document.querySelector("#btn");if(CL.vigilante_min&&v)v.value=String(CL.vigilante_min);if(CL.bt_max&&b)b.value=CL.bt_max;cloudPanel();hideLegacy()}catch(e){}}
+ try{fetch("ajustes.json?t="+Date.now()).then(function(r){return r.ok?r.json():null}).then(function(a){if(a&&!TOK){CL=a;cloudSync();cloudRender()}else if(a&&!document.getElementById("cloudset")){CL=a;cloudSync()}}).catch(function(){})}catch(e){}
  setTimeout(cloudSync,2600);setTimeout(cloudSync,8000);
 
  /* ---- el visor se mantiene al día solo: cada 5 min mira si el bot publicó datos nuevos ---- */
