@@ -19,6 +19,18 @@ on:
         description: "Parámetros del bot en JSON (lo rellena la web; déjalo en {} si lo lanzas a mano)"
         type: string
         default: "{}"
+      main:
+        description: "Método principal (clave interna; lo rellena la web; vacío = no cambiar)"
+        type: string
+        default: ""
+      vgc:
+        description: "Vigilante en JSON: thr, top, trade (lo rellena la web; déjalo en {} si lo lanzas a mano)"
+        type: string
+        default: "{}"
+      mins:
+        description: "Tiempo máximo por actualización en minutos (2-60; vacío = no cambiar)"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -38,6 +50,9 @@ jobs:
           VM: ${{ inputs.vigilante_min }}
           BM: ${{ inputs.bt_max }}
           CFGJ: ${{ inputs.cfg }}
+          MAIN: ${{ inputs.main }}
+          VGCJ: ${{ inputs.vgc }}
+          MINS: ${{ inputs.mins }}
         run: |
           node -e '
           const fs = require("fs");
@@ -48,7 +63,7 @@ jobs:
           if (!Number.isFinite(bm)) { console.error("El máximo debe ser un número"); process.exit(1); }
           bm = Math.max(200, Math.min(500, bm));
           // mismos rangos seguros que la app (LIM): lo que se salga se rechaza
-          const LIM = { slots: [1, 6], mrisk: [0.001, 0.03], dloss: [0.005, 0.1], ddstop: [0.02, 0.3], fee: [0, 5], slip: [0, 0.02], minpos: [10, 200], sweep: [0, 1] };
+          const LIM = { slots: [1, 6], mrisk: [0.001, 0.03], dloss: [0.005, 0.1], ddstop: [0.02, 0.3], fee: [0, 5], slip: [0, 0.02], minpos: [10, 200], sweep: [0, 1], mode: [0, 2], buy: [0, 101], sell: [0, 100], risk: [0.001, 0.03], stop: [0.5, 6], stopS: [0.5, 4], trail: [0.5, 8], trailS: [0.5, 5], tp: [0, 0.5], maxd: [3, 120], posNote: [1, 100] };
           let inCfg = {}; try { inCfg = JSON.parse(process.env.CFGJ || "{}"); } catch { console.error("cfg no es JSON válido"); process.exit(1); }
           const cfg = Object.assign({}, a.cfg || {});
           for (const k of Object.keys(inCfg)) {
@@ -58,6 +73,24 @@ jobs:
           }
           const out = { vigilante_min: vm, bt_max: bm };
           if (Object.keys(cfg).length) out.cfg = cfg;
+          // método principal: solo una clave interna (la app comprueba que exista)
+          const mainIn = (process.env.MAIN || "").trim();
+          if (mainIn) { if (!/^[A-Za-z0-9_-]{1,40}$/.test(mainIn)) { console.error("Método no válido: " + mainIn); process.exit(1); } out.main = mainIn; }
+          else if (a.main) out.main = a.main;
+          // vigilante: subida mínima, nº de acciones extra, operar sí/no
+          let vgcIn = {}; try { vgcIn = JSON.parse(process.env.VGCJ || "{}"); } catch { console.error("vgc no es JSON válido"); process.exit(1); }
+          const VL = { thr: [0.5, 50], top: [0, 300], trade: [0, 1] };
+          const vgc = Object.assign({}, a.vgc || {});
+          for (const k of Object.keys(vgcIn)) {
+            const v = +vgcIn[k];
+            if (!VL[k] || !Number.isFinite(v) || v < VL[k][0] || v > VL[k][1]) { console.error("Parámetro del vigilante rechazado: " + k + " = " + vgcIn[k]); process.exit(1); }
+            vgc[k] = v;
+          }
+          if (Object.keys(vgc).length) out.vgc = vgc;
+          // tiempo máximo por actualización
+          const minsIn = (process.env.MINS || "").trim();
+          if (minsIn) { const mv = Math.round(+minsIn); if (!Number.isFinite(mv) || mv < 2 || mv > 60) { console.error("Tiempo máximo fuera de rango (2-60): " + minsIn); process.exit(1); } out.mins = mv; }
+          else if (a.mins) out.mins = a.mins;
           fs.writeFileSync("ajustes.json", JSON.stringify(out, null, 2) + "\n");
           '
           cat ajustes.json
