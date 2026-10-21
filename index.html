@@ -234,6 +234,24 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
  #nav{width:calc(100% - 16px);bottom:calc(8px + env(safe-area-inset-bottom,0px));padding:5px}
 }
 @media (max-height:480px) and (orientation:landscape){.w{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}}
+
+/* ===== v8 · bloque «Qué hacer con esta cartera» dentro de Cartera ===== */
+.mi-card{border:1px solid var(--line);border-left:6px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:8px;background:color-mix(in srgb,var(--line) 14%,transparent);min-width:0}
+.mi-buy{border-left-color:var(--go)}.mi-sell{border-left-color:var(--stop)}.mi-hold{border-left-color:var(--acc)}.mi-old{border-left-color:var(--muted)}
+.mi-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.mi-t{font-size:22px;font-weight:800;letter-spacing:-.01em}.mi-t small{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:2px}
+.mi-badge{display:inline-block;font-weight:800;font-size:13px;padding:4px 11px;border-radius:99px;letter-spacing:.02em;white-space:nowrap}
+.b-buy{background:var(--gobg);color:var(--go)}.b-sell{background:var(--stopbg);color:var(--stop)}.b-hold{background:color-mix(in srgb,var(--acc) 15%,transparent);color:var(--acc)}.b-old{background:color-mix(in srgb,var(--line) 60%,transparent);color:var(--muted)}
+.mi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px 12px;font-size:15px}
+.mi-grid>div>span{display:block;color:var(--muted);font-size:12px;font-weight:500}.mi-grid b{font-weight:700}
+.mi-lv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.mi-lv>div{border-radius:10px;padding:8px 10px;font-size:13px;line-height:1.4}.mi-lv b{display:block;font-size:16px}
+.mi-sl{background:var(--stopbg);color:var(--stop)}.mi-no{background:color-mix(in srgb,var(--line) 35%,transparent);color:var(--muted)}
+.mi-why{font-size:13px;color:var(--muted);line-height:1.5}
+.mi-big{font-size:19px;font-weight:800;line-height:1.3}
+.mi-warn{border-radius:12px;padding:10px 12px;background:var(--waitbg);color:var(--wait);font-size:13px;line-height:1.5}
+.mi-cash{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px;padding:4px 2px}
+#mi-box{padding:0;gap:0}#mi-box>details.rd{margin:0}
 </style></head><body><div class="w">
 <div><h1>Bot Trading Pro<span class="tag">PAPER TRADING · v45</span></h1><div class="m">Precios de mercado · solo simulación · capital ficticio de <span class="capT">500 €</span> · sin órdenes reales</div></div>
 <section class="tab" id="t-hoy">
@@ -250,6 +268,7 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 </section>
 <section class="tab" id="t-cartera">
 <div class="p"><h2>Cartera por método</h2><div id="sel-cart"></div><div class="kv" id="kv"></div></div>
+<div class="p" id="mi-box"></div>
 <div class="p"><h2>Lo que tiene comprado</h2><div class="tw" id="pos"></div></div>
 <div class="p"><h2>Riesgo de esta cartera ahora</h2><div id="rk"></div></div>
 <div class="p"><h2>Operaciones (por fecha y hora)</h2><div id="tr"></div></div>
@@ -2016,7 +2035,7 @@ function draw(){try{capApply();mailUI()}catch{}try{nxDraw()}catch{}
   if(!busy&&$("#st").textContent==="Cargando…")$("#st").textContent=S.lastDate?"Último día de mercado registrado: "+S.lastDate:"Aún no hay datos. Pulsa el botón para el primer día.";
   $("#ev").innerHTML=feedHtml(vmGet("hoy"));
   chartDraw();infDraw();
-  cartDraw();
+  cartDraw();try{miDraw()}catch(e){try{console.error(e)}catch{}}
   radarDraw();$("#dg").textContent=S.diag.length?S.diag.map(mask).join("\n"):"—";$("#fx").value=S.fx;
 }
 function dl(name,data){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"text/plain"}));a.download=name;document.body.append(a);a.click();a.remove()}
@@ -2061,6 +2080,54 @@ function cartDraw(){const k=vmGet("cart"),B=bkOf(k)||CB(),fx=S.fx||1;CBK=k;try{
  const map={};B.trades.slice(0,400).forEach(t=>{(map[t.d]=map[t.d]||[]).push(t)});const ks=Object.keys(map).sort().reverse();
  $("#tr").innerHTML=ks.length?foldDays(ks,"tr:"+k,d=>{const a=map[d],pn=a.filter(t=>t.pnl!=null).reduce((s,t)=>s+t.pnl,0);return`${esc(fdLong(d))} · ${a.length} ${a.length===1?"orden":"órdenes"}${a.some(t=>t.pnl!=null)?` · cerrado <b class="${pn>=0?"up":"dn"}">${E2(pn)}</b>`:""}`},d=>`<div class="tw"><table><tr><th>Hora</th><th></th><th>Activo</th><th>Uds</th><th>Precio $</th><th>Importe</th><th>Com.</th><th>Resultado</th></tr>${map[d].map(t=>{const c=t.pnl!=null?(+t.eur-t.pnl):0;return`<tr><td>${t.t?hmL(t.t):"—"}</td><td>${esc(t.side)}</td><td><b>${esc(t.s)}</b></td><td class="n">${(+t.q).toFixed(4)}</td><td class="n">${(+t.px).toFixed(2)}</td><td class="n">${E(t.eur)}</td><td class="n">${E(t.fee||0)}</td><td class="n ${t.pnl>0?"up":t.pnl<0?"dn":""}">${t.pnl==null?"—":E2(t.pnl)+(c>0?"<br>"+P2(t.pnl/c*100):"")}</td></tr><tr><td colspan="8" class="m" style="white-space:normal">${esc(plainWhy(t.side,t.why).slice(0,220))}</td></tr>`}).join("")}</table></div>`):'<div class="m">Este método todavía no ha operado.</div>';
  riskDraw()}finally{CBK=null}}
+
+/* ===== v8: bloque desplegable «Qué hacer con esta cartera» (dentro de Cartera) ===== */
+const MI_K="pbmi",MIS={seen:{}};try{Object.assign(MIS,JSON.parse(localStorage.getItem(MI_K)||"{}"))}catch{}
+const miSave=()=>{try{localStorage.setItem(MI_K,JSON.stringify(MIS))}catch{}};
+const MI_NAME={SPY:"S&P 500 · las 500 mayores empresas de EE. UU.",QQQ:"Nasdaq 100 · tecnológicas",IWM:"Empresas pequeñas de EE. UU.",EFA:"Bolsas desarrolladas fuera de EE. UU.",EEM:"Mercados emergentes",VNQ:"Inmobiliario de EE. UU.",GLD:"Oro",XLK:"Sector tecnología",XLV:"Sector salud",XLE:"Sector energía",XLF:"Sector financiero",XLY:"Consumo discrecional",XLP:"Consumo básico",XLI:"Sector industrial",XLU:"Servicios públicos",XLB:"Materiales",XLC:"Comunicaciones",SMH:"Semiconductores",AGG:"Bonos agregados de EE. UU.",IEF:"Bonos de EE. UU. a 7-10 años",LQD:"Bonos de empresas",SHY:"Bonos de EE. UU. a corto plazo (liquidez)",TLT:"Bonos de EE. UU. a largo plazo",SPMO:"S&P 500 Momentum",SPHQ:"S&P 500 Calidad",URTH:"MSCI World · bolsa mundial"};
+const miUsd=n=>(+n).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" $";
+function miHist(B){const hist=[],op={};for(const t of (B.trades||[]).slice().reverse()){const o=op[t.s]||(op[t.s]={q:0,cost:0,d:t.d,pnl:0,qIn:0,pxIn:0});
+ if(t.side==="COMPRA"){if(o.q<1e-9){o.d=t.d;o.cost=0;o.pnl=0;o.qIn=0;o.pxIn=0}o.q+=+t.q;o.cost+=+t.eur;o.qIn+=+t.q;o.pxIn+=(+t.px)*(+t.q)}
+ else{o.q-=+t.q;o.pnl+=(+t.pnl||0);if(o.q<=1e-6*Math.max(1,o.qIn)){hist.push({s:t.s,d0:o.d,d1:t.d,pxIn:o.qIn?o.pxIn/o.qIn:0,pxOut:+t.px,pnl:o.pnl,cost:o.cost,why:t.why});o.q=0;o.cost=0;o.pnl=0;o.qIn=0;o.pxIn=0}}}
+ return hist.reverse()}
+function miDraw(){
+ const A=document.getElementById("mi-box");if(!A)return;
+ const k=vmGet("cart"),B=bkOf(k),fx=S.fx||1,nm=(STR[k]&&STR[k].n)||k,det=(id,sum,body,def)=>`<details class="rd" data-id="${id}"${opn(id,def)}><summary><span>${sum}</span></summary><div class="rb" style="display:grid;gap:10px">${body}</div></details>`;
+ if(!B){A.innerHTML=det("micart","<b>🧾 Qué hacer con esta cartera</b>",'<div class="m">Todavía no hay datos del bot. Cuando haga la primera actualización aparecerá aquí lo que compra y vende.</div>',true);return}
+ const lastD=S.lastDate||((B.trades||[])[0]||{}).d||"";
+ const pxOf=(s,p)=>{const l=S.last&&S.last[s];return(l&&l.px)||p.lastMark||p.avg};
+ const pos=Object.entries(B.pos||{}).map(([s,p])=>{const c=pxOf(s,p),v=p.q*c/fx;return{s,p,c,v,pc:(c/p.avg-1)*100}}).sort((a,b)=>b.v-a.v);
+ const val=pos.reduce((t,x)=>t+x.v,0),tot=Math.max(1e-9,(B.cash||0)+val),W=x=>x/tot,posMap={};pos.forEach(x=>posMap[x.s]=x);
+ const desc=s=>MI_NAME[s]?`<small>${esc(MI_NAME[s])}</small>`:"";
+ const levels=x=>{const st=x.p.stop?+x.p.stop:null,tp=x.p.tp?+x.p.tp:null;
+  return`<div class="mi-lv">${st?`<div class="mi-sl">🛑 Stop loss<b>${miUsd(st)}</b>Si baja hasta aquí (${P2((st/x.p.avg-1)*100)} desde la compra), el bot vende.</div>`:`<div class="mi-no">🛑 Stop loss<b>Sin precio fijo</b>Este método no usa stop: vende cuando su regla lo indica.</div>`}
+  ${tp?`<div class="mi-no">🎯 Objetivo (take profit)<b>${miUsd(tp)}</b>Si sube hasta aquí, el bot vende y asegura la ganancia.</div>`:`<div class="mi-no">🎯 Objetivo (take profit)<b>Sin objetivo</b>Deja correr la ganancia mientras la regla la mantenga.</div>`}</div>`};
+ const whyBuy=s=>{const t=(B.trades||[]).find(z=>z.s===s&&z.side==="COMPRA"),w=(B.tgt&&B.tgt.why&&B.tgt.why[s])||"";return w?"Por qué la tiene: "+w+".":(t?"Por qué la compró: "+plainWhy("COMPRA",t.why).slice(0,220):"")};
+ MIS.seen=MIS.seen||{};const seen=MIS.seen[k]||null,days=[...new Set((B.trades||[]).map(t=>t.d))].sort().reverse();
+ const chg=(B.trades||[]).filter(t=>seen?t.d>seen:days.slice(0,3).includes(t.d));
+ const age=lastD?(Date.now()-new Date(lastD+"T12:00:00").getTime())/864e5:null;
+ const stale=age!=null&&age>4?`<div class="mi-warn">⚠️ Los últimos datos del bot son del <b>${esc(fdLong(lastD))}</b> (hace ${Math.floor(age)} días). Antes de operar con dinero real comprueba que el bot se está actualizando.</div>`:"";
+ const cards=chg.map(t=>{const x=posMap[t.s],buy=t.side==="COMPRA";
+  if(buy){const more=x&&x.p.d&&x.p.d<t.d;return`<div class="mi-card mi-buy"><div class="mi-top"><div class="mi-t">${esc(t.s)}${desc(t.s)}</div><span class="mi-badge b-buy">🟢 ${more?"COMPRAR MÁS":"COMPRAR"}</span></div>
+   <div class="mi-grid"><div><span>El bot compró el</span><b>${esc(fd(t.d))}</b></div><div><span>A precio de</span><b>${miUsd(t.px)}</b></div><div><span>Peso en la cartera</span><b>${((x?W(x.v):t.eur/tot)*100).toFixed(0)}%</b></div></div>
+   ${x?levels(x):'<div class="mi-why">Después ya la ha vendido (mira «Ya vendidas»).</div>'}<div class="mi-why">${esc(whyBuy(t.s))}</div></div>`}
+  const cost=(+t.eur)-(+t.pnl),pc=cost>0?(+t.pnl)/cost*100:0,part=!!x,fr=part?t.q/(t.q+x.p.q):1;
+  return`<div class="mi-card mi-sell"><div class="mi-top"><div class="mi-t">${esc(t.s)}${desc(t.s)}</div><span class="mi-badge b-sell">🔴 ${part?"VENDER PARTE":"VENDER"}</span></div>
+   <div class="mi-grid"><div><span>El bot vendió el</span><b>${esc(fd(t.d))}</b></div><div><span>A precio de</span><b>${miUsd(t.px)}</b></div><div><span>Resultado del bot</span><b class="${t.pnl>=0?"up":"dn"}">${P2(pc)}</b></div>${part?`<div><span>Vende</span><b>≈ ${(fr*100).toFixed(0)}% de lo que tengas</b></div>`:""}</div>
+   <div class="mi-why">${esc(plainWhy("VENTA",t.why).slice(0,240))}</div></div>`}).join("");
+ const nb=chg.filter(t=>t.side==="COMPRA").length,ns=chg.length-nb;
+ const head=chg.length?(seen?`${chg.length} ${chg.length===1?"cambio nuevo":"cambios nuevos"} desde tu última revisión (${esc(fd(seen))})`:"Últimos cambios del bot")+` · 🟢 ${nb} · 🔴 ${ns}`:"✅ Sin cambios nuevos: mantén lo que tienes";
+ const sum=`<b>🧾 Qué hacer con esta cartera</b> · ${chg.length?`🟢 ${nb} · 🔴 ${ns}`:"✅ sin cambios nuevos"}`;
+ const act=`<div class="m">Método: <b>${esc(nm)}</b> · datos del <b>${lastD?esc(fdLong(lastD)):"—"}</b></div>${stale}<div class="mi-big">${head}</div>${cards}${chg.length?'<button class="go" data-mi="seen">Ya lo he hecho / lo he revisado</button>':""}
+  <div class="mi-warn">⏱️ El bot decide con el cierre de cada día y lo simula a la <b>apertura de ese día</b>. Tú lo harás a la apertura de la siguiente sesión: el precio puede ser algo distinto. Es una simulación, no asesoramiento financiero.</div>`;
+ const hold=`<div class="mi-big">✅ Lo que tiene ahora (${pos.length})</div>`+(pos.length?pos.map(x=>{const p=x.p;return`<div class="mi-card mi-hold"><div class="mi-top"><div class="mi-t">${esc(x.s)}${desc(x.s)}</div><span class="mi-badge b-hold">✅ SIGUE EN CARTERA</span></div>
+  <div class="mi-grid"><div><span>Comprada el</span><b>${esc(fd(p.d||""))||"—"}</b></div><div><span>Precio de compra</span><b>${miUsd(p.avg)}</b></div><div><span>Precio ahora</span><b>${miUsd(x.c)}</b></div><div><span>Ganancia / pérdida</span><b class="${x.pc>=0?"up":"dn"}">${P2(x.pc)}</b></div><div><span>Peso en la cartera</span><b>${(W(x.v)*100).toFixed(0)}%</b></div></div>
+  ${levels(x)}<div class="mi-why">${esc(whyBuy(x.s))}</div><div class="mi-why">🔄 Cuándo decide venderla: ${esc((STR[k]&&STR[k].rev)||"cuando su método lo indique")}. Cuando la venda saldrá arriba como 🔴 VENDER.</div></div>`}).join(""):'<div class="m">Ahora mismo el bot no tiene nada comprado: todo está en efectivo.</div>')+`<div class="mi-cash"><span>💶 Efectivo sin invertir</span><b>${(B.cash/tot*100).toFixed(0)}% de la cartera</b></div>`;
+ const H=miHist(B),hc=h=>{const pc=h.cost>0?h.pnl/h.cost*100:0;return`<div class="mi-card mi-old"><div class="mi-top"><div class="mi-t">${esc(h.s)}${desc(h.s)}</div><span class="mi-badge b-old">VENDIDA</span></div>
+  <div class="mi-grid"><div><span>Comprada</span><b>${esc(fd(h.d0))} · ${miUsd(h.pxIn)}</b></div><div><span>Vendida</span><b>${esc(fd(h.d1))} · ${miUsd(h.pxOut)}</b></div><div><span>Resultado del bot</span><b class="${h.pnl>=0?"up":"dn"}">${P2(pc)}</b></div></div><div class="mi-why">${esc(plainWhy("VENTA",h.why).slice(0,200))}</div></div>`};
+ const old=H.length?H.slice(0,8).map(hc).join("")+(H.length>8?`<div class="m">Y ${H.length-8} más antiguas en «Operaciones» (abajo).</div>`:""):'<div class="m">El bot todavía no ha vendido nada.</div>';
+ A.innerHTML=det("micart",sum,act+hold+det("micart-old",`<b>📜 Ya vendidas (${H.length})</b>`,old,false),true)}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-mi]");if(!b||b.dataset.mi!=="seen")return;const k=vmGet("cart"),B=bkOf(k);MIS.seen=MIS.seen||{};MIS.seen[k]=S.lastDate||(((B&&B.trades)||[])[0]||{}).d||"";miSave();miDraw()});
 function infDraw(){CBK=vmGet("inf");try{$("#sel-inf").innerHTML=mSel("inf");$("#st2").innerHTML=stats().map(([k,v])=>`<div>${k}<b>${v}</b></div>`).join("")}finally{CBK=null}}
 
 /* ---------- Radar por método ---------- */
