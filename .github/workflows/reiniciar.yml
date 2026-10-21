@@ -1,0 +1,94 @@
+name: Reiniciar todo (borra todos los datos del bot)
+
+# Lo lanza el botón «Reiniciar todo» de la pestaña Ajustes de la web (o a mano: Run workflow escribiendo REINICIAR).
+# Para las ejecuciones del bot que estén en marcha, borra el estado publicado (rama data) y deja los ajustes (ajustes.json) como el primer día.
+# La web queda vacía; la próxima actualización diaria empieza de cero. Las claves (Secrets) NO se tocan aquí: la web las quita antes si lo pides.
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: "Escribe REINICIAR para confirmar (borra TODOS los datos: cuentas, operaciones, informes, pruebas históricas, vigilante, precios y ajustes)"
+        type: string
+        required: true
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: reiniciar
+  cancel-in-progress: false
+
+jobs:
+  reiniciar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Comprobar la confirmación
+        env:
+          CONF: ${{ inputs.confirmar }}
+        run: |
+          if [ "$CONF" != "REINICIAR" ]; then echo "Hay que escribir REINICIAR (en mayúsculas) para confirmar."; exit 1; fi
+      - uses: actions/checkout@v4
+      - name: Parar las ejecuciones del bot que estén en marcha
+        run: |
+          # si una actualización o un turno del vigilante siguiera corriendo, volvería a publicar los datos viejos encima del reinicio
+          for wf in diario.yml vigilante.yml; do
+            for st in in_progress queued waiting pending; do
+              for id in $(gh run list --workflow "$wf" --status "$st" --json databaseId --jq '.[].databaseId' 2>/dev/null); do
+                echo "Cancelando $wf #$id ($st)"; gh run cancel "$id" || true
+              done
+            done
+          done
+          for i in $(seq 1 36); do
+            n=0
+            for wf in diario.yml vigilante.yml; do
+              for st in in_progress queued waiting pending; do
+                c=$(gh run list --workflow "$wf" --status "$st" --json databaseId --jq 'length' 2>/dev/null || echo 0); n=$((n + c))
+              done
+            done
+            [ "$n" = "0" ] && break
+            echo "Esperando a que terminen de cancelarse ($n)…"; sleep 5
+          done
+      - name: Borrar el estado publicado y los ajustes
+        env:
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
+          POLYGON_KEY: ${{ secrets.POLYGON_KEY }}
+          ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE_KEY }}
+          FMP_KEY: ${{ secrets.FMP_KEY }}
+          EMAIL: ${{ secrets.EMAIL }}
+          WEB3FORMS_KEY: ${{ secrets.WEB3FORMS_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          rm -rf "$RUNNER_TEMP/pub" && mkdir -p "$RUNNER_TEMP/pub"
+          PUB="$RUNNER_TEMP/pub" node -e '
+          const fs = require("fs");
+          const names = ["ALPACA_KEY","TWELVEDATA_KEY","POLYGON_KEY","ALPHAVANTAGE_KEY","FMP_KEY","SMTP_USER","SMTP_PASS","EMAIL","NTFY_TOPIC","WEB3FORMS_KEY","SMTP_HOST","SMTP_PORT"];
+          const secrets = {}; for (const k of names) secrets[k] = !!(process.env[k] || "").trim();
+          // copia de datos vacía: la web y el bot la leen como una instalación nueva
+          fs.writeFileSync(process.env.PUB + "/state.json", JSON.stringify({ v: 1, savedAt: Date.now(), reset: true, ls: {}, idb: {}, meta: { secrets } }));
+          fs.writeFileSync("ajustes.json", JSON.stringify({ vigilante_min: 30, bt_max: 300 }, null, 2) + "\n");
+          '
+          git -C "$RUNNER_TEMP/pub" init -q -b data
+          git -C "$RUNNER_TEMP/pub" config user.name "bot-trading"
+          git -C "$RUNNER_TEMP/pub" config user.email "bot-trading@users.noreply.github.com"
+          git -C "$RUNNER_TEMP/pub" add state.json
+          git -C "$RUNNER_TEMP/pub" commit -q -m "reinicio total $(date -u +%FT%TZ)"
+          git -C "$RUNNER_TEMP/pub" push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git" data
+          echo "Estado publicado borrado (rama data)."
+          git config user.name "bot-trading"
+          git config user.email "bot-trading@users.noreply.github.com"
+          git add ajustes.json
+          if git diff --cached --quiet; then echo "ajustes.json ya estaba por defecto"; else
+            git commit -q -m "Reinicio total: ajustes por defecto"
+            for i in 1 2 3; do git pull -q --rebase origin main && git push -q origin HEAD:main && break || sleep 3; done
+          fi
+          echo "Listo: la web queda vacía y el bot empieza de cero en su próxima ejecución."
