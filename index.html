@@ -252,13 +252,22 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 .mi-warn{border-radius:12px;padding:10px 12px;background:var(--waitbg);color:var(--wait);font-size:13px;line-height:1.5}
 .mi-cash{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px;padding:4px 2px}
 #mi-box{display:grid;gap:10px}
+.adv{display:none!important}
+.rk{display:grid;gap:8px}
+.rk-c{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:14px;cursor:pointer;background:color-mix(in srgb,var(--line) 12%,transparent)}
+.rk-c:first-child{border-color:var(--go);background:color-mix(in srgb,var(--go) 9%,transparent)}
+.rk-n{font-size:24px;min-width:30px;text-align:center}
+.rk-t b{display:block;font-size:16px}.rk-t small{display:block;font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4}
+.rk-g{font-size:20px;font-weight:800;text-align:right;white-space:nowrap}.rk-g small{display:block;font-size:12px;font-weight:600;margin-top:2px}
+.rk-g.up{color:var(--go)}.rk-g.dn{color:var(--stop)}
 </style></head><body><div class="w">
 <div><h1>Bot Trading Pro<span class="tag">PAPER TRADING · v45</span></h1><div class="m">Precios de mercado · solo simulación · capital ficticio de <span class="capT">500 €</span> · sin órdenes reales</div></div>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Tu cartera ficticia hoy</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
+<div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
 <div class="p"><h2>Rendimiento del bot · ganancias y pérdidas</h2><div id="ch"></div></div>
 <div class="p"><div class="m" id="nx"></div><button class="go" id="run">Actualizar precios y que el bot decida</button><div class="m" id="st">Cargando…</div></div>
-<div class="p"><h2>Qué ha hecho el bot (en cristiano)</h2><div id="ev"></div></div>
+<div class="p adv"><h2>Qué ha hecho el bot (en cristiano)</h2><div id="ev"></div></div>
 
 </section>
 <section class="tab" id="t-radar">
@@ -273,9 +282,9 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 </section>
 <section class="tab" id="t-informe">
 <div class="p"><h2>Comparativa de métodos</h2><div class="tw" id="mt"></div><div class="m">Cada método opera su propia cuenta ficticia de <span class="capT">500 €</span>, con las mismas reglas de riesgo y costes. Las pruebas históricas incluyen comisión por orden y deslizamiento, usan señales al cierre anterior y ejecución a la apertura siguiente; los stops usan máximos/mínimos diarios y pueden sufrir huecos. Sharpe: sin tasa libre de riesgo, rentabilidad diaria de los días registrados × √252; con pocos días no significa nada.</div></div>
-<div class="p"><h2>Informe de rendimiento por método</h2><div id="sel-inf"></div><div class="kv" id="st2"></div></div>
-<div class="p"><h2>Neto frente a bruto (efecto de las comisiones)</h2><div class="tw" id="gn"></div></div>
-<div class="p"><h2>Alertas automáticas</h2><div id="al"></div></div>
+<div class="p adv"><h2>Informe de rendimiento por método</h2><div id="sel-inf"></div><div class="kv" id="st2"></div></div>
+<div class="p adv"><h2>Neto frente a bruto (efecto de las comisiones)</h2><div class="tw" id="gn"></div></div>
+<div class="p adv"><h2>Alertas automáticas</h2><div id="al"></div></div>
 <div class="p"><h2>Registro para enviármelo</h2><div class="m"><b>Cada informe con fecha y hora</b> tiene su .md y su .json con todos sus datos: en la prueba histórica, todas las operaciones y la curva diaria de cada método y tramo; en una actualización, las cotizaciones, las señales, las carteras objetivo, las operaciones y el diagnóstico de ese día. <b>«Informe GENERAL de todo»</b> descarga todo junto: todos los informes, las cuentas con todas sus operaciones y curvas, el vigilante de todos los días y, si quieres, las velas de precios. «Informe completo» junta en un solo archivo todos los informes archivados de todas las fechas y horas. Cada informe individual (más abajo) descarga solo el de esa fecha y hora. «Estado actual del bot» lleva todo lo que hace el bot ahora mismo, sus resultados y la prueba histórica: súbelo a la conversación para mejorar el bot.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="ej">Descargar informes (.json)</button><button id="im">Importar informes (.json)</button><button id="vaciarInf">Vaciar todos los informes</button><button id="fr">Descargar informe completo (todos los informes, .md)</button><button id="fs">Estado actual del bot (.md)</button><button id="fgm">Informe GENERAL de todo (.md)</button><button id="fgj">Informe GENERAL de todo (.json)</button><textarea id="ta" readonly style="display:none;width:100%;height:160px;font-size:12px"></textarea><input id="imf" type="file" accept=".json" hidden></div><div class="m">Historial automático: cada intento de actualización se guarda con fecha y hora, estado, fecha de mercado y una copia del informe. Se conserva separado de la cartera activa.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rref">Actualizar lista</button></div><div id="rlist"><div class="m">Cargando historial…</div></div></div>
 <div class="p"><h2>Prueba histórica por método</h2><div class="m">La prueba evita usar el cierre del mismo día para decidir y ejecutar: decide con el cierre previo y simula la entrada/salida en la apertura siguiente. Los stops se comprueban con máximos y mínimos diarios; un hueco puede empeorar el precio. Baja años de histórico de una muestra al azar de hasta 500 acciones (las ~280 de la lista y, si pides más de ~280, otras grandes y medianas de EE. UU.; con Twelve Data gratis 500 activos tardan varios días por el límite de 800 créditos/día, con Alpaca solo minutos) más los ETFs (unos 10-15 minutos con Twelve Data; no minimices la app) (necesita clave de Twelve Data; tarda varios minutos; también sirve Alpaca) y simula cada método en tres tramos: entrenamiento, validación y prueba fuera de muestra. El histórico debe ser suficientemente largo; si no hay datos para una prueba mínimamente útil, no se calcula.</div><label class="m"><input type="checkbox" id="btx" style="width:auto"> Prueba de estrés: excluir las 12 ganadoras obvias (NVDA, AMD, TSLA, AVGO, NFLX, LLY, META, AAPL, MSFT, AMZN, GOOGL, UBER) para reducir el sesgo de supervivencia</label><div class="m"><b>Máximo</b> de acciones a analizar (10 a 500; los ETFs siempre se incluyen): <input id="btn" type="number" min="10" max="500" value="300" style="width:70px"> · en la nube, cada día se hace la prueba con un número <b>aleatorio entre 200 y este máximo</b> de acciones elegidas al azar (otras distintas cada vez). Si pulsas el botón a mano, usa exactamente este número.</div><button id="btr">Descargar histórico largo y probar</button><div class="m" id="btst"></div><div class="tw" id="bt2"></div><div class="m"><b>Detalle de un método</b></div><div id="bt3"></div></div>
 </section>
@@ -296,7 +305,7 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 <div class="m">Tiempo máximo por actualización (minutos): <input id="mins" type="number" value="8" style="width:70px"> · Las claves se guardan solo en este navegador. El simulador no ejecuta órdenes reales ni garantiza beneficios.</div>
 <label class="m"><input type="checkbox" id="nt" checked style="width:auto"> Avisarme con una notificación cuando termine un proceso (actualización de precios, prueba histórica)</label>
 <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="pt">Probar conexiones</button><button id="ntb">Activar / probar notificaciones</button></div><div class="m">Notificación por ntfy (gratis): instala la app «ntfy» de la Play Store, suscríbete a un tema con nombre largo y secreto y escríbelo aquí:<br><input id="ntt" placeholder="ej. botrade-x7k29qpl4m" style="width:100%"></div><div class="m" id="nts"></div><pre id="ptr">—</pre></div>
-<div class="p"><h2>Envío automático por correo</h2>
+<div class="p adv"><h2>Envío automático por correo</h2>
 <div class="m">Te manda por correo los métodos que van <b>en verde</b> (ganancia positiva) de la <b>cartera</b> y del <b>vigilante</b>: valor, ganancia, operaciones, posiciones abiertas y últimas operaciones. Cartera: un correo por cada día de mercado nuevo, cuando termina la actualización. Vigilante: un correo al cierre de Wall Street (16:15 hora de Nueva York). Los envíos se hacen mientras la app está abierta.</div>
 <label class="m"><input type="checkbox" id="mon" style="width:auto"> Activar envíos automáticos</label>
 <div class="m">Clave de acceso de Web3Forms (se genera gratis en web3forms.com escribiendo tu correo; te la mandan por email):<br><input id="mkey" type="password" placeholder="pega aquí la clave" style="width:100%"></div><div class="m">Tu correo (solo como recordatorio; los correos llegan al que usaste para crear la clave):<br><input id="mto" type="email" placeholder="tucorreo@ejemplo.com" style="width:100%"></div>
@@ -305,7 +314,7 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="mtest">Enviar prueba ahora</button></div>
 <div class="m" id="mls"></div>
 <div class="m">Se envía a través del servicio gratuito Web3Forms (web3forms.com), que funciona aunque abras el archivo HTML directamente. Pasos: entra en web3forms.com, escribe tu correo en «Create your Access Key», copia la clave que te llega por email y pégala arriba. Revisa también spam.</div></div>
-<div class="p"><h2>Auditoría de parámetros y datos</h2><div class="m">Revisa todos los parámetros, reglas, cuentas y datos y te dice qué está bien (✔), qué conviene vigilar (⚠) y qué falla (✖). También se incluye en el informe completo.</div><button id="aud">Ejecutar auditoría ahora</button><div id="audo"></div></div>
+<div class="p adv"><h2>Auditoría de parámetros y datos</h2><div class="m">Revisa todos los parámetros, reglas, cuentas y datos y te dice qué está bien (✔), qué conviene vigilar (⚠) y qué falla (✖). También se incluye en el informe completo.</div><button id="aud">Ejecutar auditoría ahora</button><div id="audo"></div></div>
 <div class="p"><h2>Parámetros del bot (ajustables)</h2><div id="cf"></div></div>
 <div class="p"><h2>Cuenta</h2>
 <div class="m">Cambio €/$ <input id="fx" type="number" step="0.01"> (se actualiza solo con tu proveedor)</div>
@@ -316,474 +325,37 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 <div class="m"><b>Ajustes:</b> las claves se guardan en el almacenamiento local de este navegador. «Copiar TODOS los ajustes» y las copias incluyen parámetros, reglas y, si la casilla está marcada, tus claves. No pegues claves en código que vayas a compartir.</div><label class="m"><input type="checkbox" id="bkk" style="width:auto" checked> Incluir claves (APIs, correo y notificaciones) en la copia y en el bloque CONFIG (nunca compartas el archivo)</label>
 <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="bcfg">Copiar TODOS los ajustes (bloque CONFIG)</button><button id="bkd">Descargar copia (.json)</button><button id="bkc">Copiar copia</button><button id="bkr">Restaurar desde el texto pegado</button><button id="bkp">Elegir archivo .json…</button><input id="bkf" type="file" accept=".json,.txt" hidden></div>
 <textarea id="bkt" placeholder="Para restaurar: pega aquí el contenido de la copia (.json) o el bloque CONFIG y pulsa «Restaurar desde el texto pegado»" style="width:100%;height:120px;font-size:12px"></textarea><div id="bkm" class="m" style="font-weight:bold;margin-top:6px"></div></div>
-<div class="p"><h2>Diagnóstico técnico</h2><pre id="dg">—</pre></div>
+<div class="p adv"><h2>Diagnóstico técnico</h2><pre id="dg">—</pre></div>
 </section>
 <section class="tab" id="t-ayuda">
-<div class="p"><h2>Ayuda · cómo funciona todo</h2>
-<div class="m">Guía completa del bot, de cero. Toca cada apartado para abrirlo. Si buscas algo concreto, escríbelo aquí:</div>
-<input id="hq" placeholder="Buscar en la ayuda (p. ej. stop, correo, vigilante…)" style="width:100%"><div class="m" id="hqn"></div></div>
-
-<details class="fold hlp" open><summary>1 · Qué es este bot (en un minuto)</summary><div class="fb m">
-<p>Es un <b>simulador</b> de inversión en bolsa («paper trading»). Trabaja con <b>precios reales de mercado</b>, pero con <b>dinero ficticio</b>: empieza con <span class="capT">500 €</span> inventados (puedes cambiarlo) y decide qué comprar y vender siguiendo reglas fijas. <b>Nunca envía órdenes reales ni toca ningún broker.</b></p>
-<p>Sirve para <b>comprobar si una estrategia funciona antes de arriesgar dinero de verdad</b>. Cada día (de mercado) el bot descarga precios, aplica sus reglas, anota lo que «compraría» y «vendería» y va midiendo si gana o pierde.</p>
-<p>Lo especial: no corre una sola estrategia, sino <b>varios métodos a la vez</b>, cada uno con su propia cuenta ficticia, para compararlos en igualdad de condiciones. Además hay un <b>vigilante intradía</b> con 5 métodos más que miran el mercado durante el día.</p>
-<p><b>Aviso:</b> es una herramienta de estudio, no asesoramiento financiero. Que un método gane en simulación no garantiza que gane en la realidad.</p></div></details>
-
-<details class="fold hlp"><summary>2 · Primeros pasos (por orden)</summary><div class="fb m">
-<ol style="margin:6px 0 6px 18px;padding:0">
-<li><b>Ajustes → Conexión de datos:</b> pega al menos una clave de un proveedor de precios (recomendado: <b>Alpaca</b> o <b>Twelve Data</b>). Sin clave funcionan Yahoo/Stooq como respaldo, pero con menos fiabilidad.</li>
-<li><b>Ajustes → Cuenta:</b> si quieres otro capital que no sea 500 €, ponlo y pulsa «Aplicar y reiniciar todo» <i>antes</i> de empezar.</li>
-<li><b>Hoy → «Actualizar precios y que el bot decida»:</b> la primera vez descarga mucho histórico y tarda varios minutos. No cierres ni minimices la app mientras trabaja.</li>
-<li>Repite esa actualización <b>una vez por día de mercado</b>.</li>
-<li><b>Opcional:</b> activa el vigilante (pestaña Vigilante), el correo automático (Ajustes) y las notificaciones.</li>
-<li><b>Haz una copia de seguridad</b> (Ajustes → Copia de seguridad) de vez en cuando.</li>
-</ol>
-<p>Con pocos días de datos las cifras no significan nada. Hacen falta <b>semanas o meses</b> para sacar conclusiones.</p></div></details>
-
-<details class="fold hlp"><summary>3 · Las pestañas, una por una</summary><div class="fb m">
-<p><b>🏠 Hoy.</b> Resumen rápido. Arriba, cuánto vale tu cartera ficticia (del método principal elegido) y si ganas o pierdes desde el capital inicial, comparado con «comprar SPY y no tocar nada». Debajo, el botón <b>«Actualizar precios y que el bot decida»</b> (el corazón del bot), la gráfica de rendimiento frente al SP500 y «Qué ha hecho el bot (en cristiano)»: un diario día a día, explicado en lenguaje normal, de cada compra, venta y decisión.</p>
-<p><b>📡 Radar.</b> Lo que el bot ve ahora mismo. «Radar por método» muestra el ranking de cada método (qué acciones/ETFs puntúan mejor, cuáles «compraría», cuáles cumplen las condiciones y qué les falta). «Señales de hoy» resume las órdenes pendientes. «Detalle por activo»: escribe un ticker (p. ej. AAPL) y pulsa <i>Ver</i> para ver su análisis.</p>
-<p><b>💼 Cartera.</b> Elige un método y verás su valor total, ganancia, efectivo libre, <b>lo que tiene comprado</b> (precio de compra, precio actual, stop), el <b>riesgo ahora</b> (% invertido, % en efectivo, mayor posición, pérdida si saltaran todos los stops) y todas sus <b>operaciones con fecha y hora</b>.</p>
-<p><b>📊 Informe.</b> La comparativa de los métodos de cartera ordenada por ganancia (con el SPY pasivo como referencia), el informe de rendimiento de cada uno, el efecto de las comisiones (neto frente a bruto), las alertas automáticas, el registro descargable para enviármelo y la <b>prueba histórica</b>.</p>
-<p><b>👁️ Vigilante.</b> Vigilancia durante el día de la bolsa de EE. UU. con sus 5 métodos intradía, su ranking, su bitácora y sus informes.</p>
-<p><b>⚙️ Ajustes.</b> Claves de datos, notificaciones, correo automático, auditoría, parámetros del bot, cuenta/capital, copias de seguridad y diagnóstico.</p>
-<p><b>❓ Ayuda.</b> Esta guía.</p></div></details>
-
-<details class="fold hlp"><summary>4 · Cómo decide y opera el bot (el ciclo diario)</summary><div class="fb m">
-<p>Cuando pulsas <b>Actualizar</b>, el bot hace esto:</p>
-<ol style="margin:6px 0 6px 18px;padding:0">
-<li><b>Descarga precios</b> de los proveedores (ver Ajustes), respetando sus límites diarios. Las fuentes con clave van primero; así los precios no se mezclan entre proveedores.</li>
-<li><b>Calcula indicadores</b> (medias, momentum, volatilidad…) con los datos hasta el <b>cierre anterior</b>.</li>
-<li><b>Cada método aplica sus reglas</b> y decide qué comprar, vender o mantener. Algunos solo revisan una vez al mes (primer día de mercado del mes), otros cada semana, trimestre o todos los días.</li>
-<li><b>Simula la ejecución en la apertura siguiente</b> con costes realistas: <b>comisión</b> por orden (0,15 € por defecto; la editas en Ajustes) y <b>deslizamiento</b> (0,15 % por lado, es decir, que compras algo más caro y vendes algo más barato que el precio ideal).</li>
-<li><b>Guarda todo</b>: operaciones, valor diario, decisiones explicadas y un informe archivado con fecha y hora.</li>
-</ol>
-<p><b>Regla clave anti-trampa:</b> el bot nunca decide con el cierre del mismo día en el que ejecuta. Decide con el cierre de ayer y ejecuta en la apertura de hoy, como haría una persona real.</p>
-<p><b>Gestión del riesgo</b> (igual para todos los métodos):</p>
-<ul style="margin:6px 0 6px 18px;padding:0">
-<li><b>Stop loss:</b> un precio de seguridad por debajo del de compra. Si el precio cae hasta ahí, el bot vende solo. Se calcula con el <b>ATR</b> (el rango medio diario de la acción): acciones más nerviosas, stop más lejano. Puede ser un stop que <b>sube</b> con el precio («trailing») para proteger ganancias. Si hay un hueco (el precio abre muy por debajo), se vende al precio real, que puede ser peor que el stop.</li>
-<li><b>Riesgo por operación (0,5 % por defecto):</b> el tamaño de cada compra se calcula para que, si salta el stop, la pérdida sea como mucho ese % de la cartera (teórico).</li>
-<li><b>Orden mínima (25 €):</b> si el importe calculado es menor, la orden se descarta: pagar comisión por una compra diminuta no compensa.</li>
-<li><b>Freno por pérdida diaria (1 %)</b> y <b>freno por caída desde máximos (6 %)</b>: si la cartera pierde demasiado en un día o cae demasiado desde su mejor valor, el bot deja de abrir posiciones nuevas hasta recuperarse.</li>
-<li><b>Filtro de mercado:</b> muchos métodos no compran si el SPY está por debajo de su media de 200 sesiones (mercado bajista) y se quedan en efectivo o pasan a bonos.</li>
-<li><b>Ahorro de ganancias:</b> un % de cada ganancia cerrada (50 % por defecto) puede apartarse a un ahorro a largo plazo en un fondo indexado, ya sin usarse para operar. Se ajusta en Parámetros (0 = no ahorrar).</li>
-</ul>
-<p>La app <b>no ejecuta nada sola en segundo plano</b> salvo que esté abierta. Para que actualice sin tenerla abierta, usa la versión en la nube.</p></div></details>
-
-<details class="fold hlp"><summary>5 · Los 5 métodos de cartera (sin bonos)</summary><div class="fb m">
-<p>Todos usan solo ETFs de renta variable y efectivo: cuando una regla no tiene candidato válido, ese dinero se queda en efectivo (no se compran bonos).</p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li><b>Rotación de sectores (Faber)</b> · <b>comprobado</b>: los 3 mejores sectores del S&amp;P 500 cada mes, solo sobre su media de 10 meses. En la prueba histórica del 20-10-2026 dio +12,8 % anual frente a +12,7 % del SPY (sin las 12 ganadoras obvias), con menos caída máxima.</li>
-<li><b>Mezcla 50/50</b> · sin probar: mitad Rotación de sectores, mitad Tendencia QQQ.</li>
-<li><b>Tendencia QQQ de 10 meses</b> · sin probar: 100 % QQQ sobre su media de 10 meses; si no, efectivo.</li>
-<li><b>Rotación ampliada</b> · sin probar: los 3 mejores entre los 10 sectores más QQQ, SMH e IWM.</li>
-<li><b>Dual Momentum EE. UU.</b> · sin probar: el mejor a 12 meses entre QQQ, SPY, IWM y SMH, si supera a la liquidez y a su media; si no, efectivo.</li>
-</ul>
-<p><b>Antes de usar dinero real:</b> ejecuta la prueba histórica y mira cuáles igualan o superan al SPY; los que no, no los uses. Una simulación pasada no garantiza resultados futuros y ningún método de esta lista tiene la ganancia asegurada.</p>
-<p>El vigilante intradía sigue probando sus reglas con las acciones actuales; aún no tienen prueba histórica. La app no tiene datos de criptomonedas.</p></div></details>
-
-<details class="fold hlp"><summary>6 · El vigilante intradía</summary><div class="fb m">
-<p>Mientras los métodos normales deciden <b>una vez al día</b>, el vigilante <b>mira el mercado durante el día</b>. Cada X minutos (10, 15, 30 o 60), con la bolsa de EE. UU. abierta, consulta la cotización actual de las acciones con mejor momentum y comprueba si alguna cumple las reglas de entrada. Si compra, lo hace en <b>cuentas ficticias propias</b>, separadas de las de los métodos, y las gestiona con un stop que va subiendo (máximo menos 2 veces el rango medio diario).</p>
-<p><b>Necesita:</b> una clave de Alpaca (recomendada) o de Twelve Data, y haber hecho antes al menos una actualización en «Hoy» para tener el histórico reciente. Y <b>dejar la app abierta</b> durante la sesión (por eso existe la opción de evitar que la pantalla se apague).</p>
-<p><b>Sus 5 métodos</b> (cada uno con su cuenta de ficticios; todos exigen tendencia: sobre la media de 200 sesiones y SPY alcista):</p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li><b>Arranque +X % (regla original):</b> compra si sube al menos X % hoy (el umbral lo eliges tú), está en el 30 % alto de su rango del día y no sube más de un 10 %.</li>
-<li><b>Hueco alcista que aguanta:</b> abre con un hueco de al menos +2 % y se mantiene sobre su apertura.</li>
-<li><b>Ruptura de máximo de 20 sesiones:</b> supera su máximo de 20 sesiones con subida de al menos 1 % hoy.</li>
-<li><b>Fuerza moderada (+1,5 %):</b> como el arranque pero con umbral más bajo.</li>
-<li><b>Caída en tendencia (rebote):</b> líder que cae entre 1,5 % y 5 % hoy y ya rebota del mínimo del día.</li>
-</ul>
-<p><b>Controles de la pestaña:</b> «Iniciar vigilancia» (activa/desactiva), «Consultar ahora» (una consulta inmediata), intervalo, subida mínima hoy (%), número de acciones a vigilar, evitar que la pantalla se apague, comprar/vender en las cuentas ficticias (si lo desmarcas, solo avisa), y ejecutar la actualización diaria tras el cierre.</p>
-<p><b>Qué muestra:</b> el ranking de los 5 métodos (valor, ganancia, operaciones, acierto, posiciones), la bitácora hora a hora (hora local y hora de Nueva York) y registros descargables: informe del día, informe total y datos crudos (JSON).</p>
-<p><b>Horario:</b> la bolsa de EE. UU. abre a las 9:30 y cierra a las 16:00 hora de Nueva York (15:30 a 22:00 en España peninsular, salvo semanas de cambio horario).</p>
-<p>Ojo: estas reglas de «arranque» <b>no están probadas en la prueba histórica</b>; mídelas primero en ficticio.</p></div></details>
-
-<details class="fold hlp"><summary>7 · Cómo leer los resultados</summary><div class="fb m">
-<ul style="margin:6px 0 6px 18px;padding:0">
-<li><b>Verde / rojo:</b> verde = ganancia, rojo = pérdida, respecto al capital inicial.</li>
-<li><b>Valor:</b> efectivo + lo invertido a precio actual (en euros, usando el cambio €/$).</li>
-<li><b>Neto frente a bruto:</b> neto es lo ganado después de comisiones; bruto, lo que habría salido sin ellas. Si el neto es mucho peor, el problema es el coste por orden y no la idea.</li>
-<li><b>Operaciones cerradas / acierto:</b> cuántas ventas completas hubo y qué % dio ganancia.</li>
-<li><b>Ganancia media / pérdida media / expectativa:</b> cuánto ganas o pierdes de media por operación; la expectativa es el resultado medio por operación.</li>
-<li><b>Factor de beneficio:</b> suma de ganancias ÷ suma de pérdidas. Por encima de 1 gana más de lo que pierde.</li>
-<li><b>Caída máxima:</b> la mayor bajada desde un máximo de la cartera hasta un mínimo posterior. Mide cuánto «duele» la estrategia.</li>
-<li><b>Sharpe:</b> rentabilidad ajustada por la variabilidad diaria. Con pocos días no significa nada.</li>
-<li><b>SPY (pasivo):</b> lo que habrías tenido simplemente comprando el índice y sin tocarlo. Si un método no lo supera con el tiempo, no aporta.</li>
-<li><b>Menos de 30 operaciones cerradas:</b> muestra orientativa; no demuestra ventaja estadística.</li>
-</ul></div></details>
-
-<details class="fold hlp"><summary>8 · La prueba histórica (backtest)</summary><div class="fb m">
-<p>Responde a «¿cómo habría funcionado cada método en el pasado?». En Informe → Prueba histórica, el bot descarga <b>años de histórico</b> de una muestra al azar de hasta 500 acciones más los ETFs, y simula cada método en <b>tres tramos seguidos</b>: <b>entrenamiento</b>, <b>validación</b> y <b>prueba fuera de muestra</b>. Cada tramo empieza con capital nuevo (el de tus ajustes).</p>
-<ul style="margin:6px 0 6px 18px;padding:0">
-<li>Usa las mismas reglas anti-trampa (decide con el cierre previo, ejecuta en la apertura siguiente), comisión, deslizamiento y stops con máximos/mínimos del día.</li>
-<li><b>Prueba de estrés:</b> excluye 12 acciones ganadoras obvias (NVDA, TSLA, AAPL…) para reducir el sesgo de supervivencia.</li>
-<li>Elegir pocas o muchas acciones cambia la fiabilidad: más acciones = conclusiones más sólidas, pero más tiempo y más créditos del proveedor.</li>
-<li>Necesita clave de Twelve Data o Alpaca. Con Alpaca tarda minutos; con Twelve Data gratis puede tardar bastante. <b>No minimices la app</b> mientras corre.</li>
-</ul>
-<p><b>Limitaciones:</b> usa acciones que existen hoy (sesgo de supervivencia: sale más optimista que la realidad), no incluye dividendos explícitos ni impuestos, y el pasado no garantiza el futuro.</p></div></details>
-
-<details class="fold hlp"><summary>9 · Ajustes, uno por uno</summary><div class="fb m">
-<p><b>Conexión de datos.</b> Claves (todas opcionales) de Twelve Data, Polygon, Alpaca (formato ID:SECRETO), Alpha Vantage y Financial Modeling Prep. Sin clave: Yahoo y Stooq (acciones/ETFs, vía proxy, como respaldo) y Binance/Coinbase (criptos). Cada proveedor tiene límites diarios (p. ej., Twelve Data gratis ≈ 800 créditos al día) y la app los controla. Las claves se guardan solo en este navegador.</p>
-<p><b>Tiempo máximo por actualización (min):</b> corta la descarga si tarda más de lo indicado.</p>
-<p><b>Notificaciones:</b> avisa cuando termina un proceso largo. Botón «Activar/probar notificaciones». Opcional: <b>ntfy</b> (app gratuita de móvil): suscríbete a un tema largo y secreto y escríbelo en la casilla para recibir avisos en el móvil.</p>
-<p><b>Probar conexiones:</b> comprueba qué proveedores responden con tus claves.</p>
-<p><b>Envío automático por correo:</b> ver el apartado 10.</p>
-<p><b>Auditoría de parámetros y datos:</b> revisa parámetros, reglas, cuentas y datos y marca ✔ (bien), ⚠ (conviene vigilar) o ✖ (falla).</p>
-<p><b>Parámetros del bot (ajustables):</b> método principal y 8 valores: nº de ETFs en cartera (1–6), riesgo por operación (%), freno de pérdida diaria (%), freno de caída desde máximos (%), comisión por operación (€), deslizamiento por lado (%), orden mínima (€) y % de ganancia que se aparta al ahorro. Cada valor tiene un rango seguro; si te pasas, lo rechaza. Los cambios se aplican en la siguiente actualización.</p>
-<p><b>Cuenta:</b> cambio €/$ (se actualiza solo con tu proveedor); <b>capital inicial</b> (500 € por defecto) con «Aplicar y reiniciar todo»; y «Reiniciar» con el capital actual. Cambiar el capital reinicia <b>todas</b> las cuentas (métodos y vigilante) porque, si no, los resultados no serían comparables. Antes de reiniciar se archiva una copia automática. Se conservan ajustes, claves, reglas e informes archivados.</p>
-<p><b>Copia de seguridad y claves:</b> ver el apartado 11.</p>
-<p><b>Diagnóstico técnico:</b> información para localizar problemas.</p></div></details>
-
-<details class="fold hlp"><summary>10 · Correo automático</summary><div class="fb m">
-<p>El bot puede mandarte por correo los <b>métodos que van en verde</b> (ganancia positiva) de la cartera y del vigilante: valor, ganancia, operaciones, posiciones abiertas y últimas operaciones.</p>
-<p><b>Cuándo envía:</b></p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li><b>Cartera:</b> un correo por cada día de mercado nuevo, cuando termina la actualización.</li>
-<li><b>Vigilante:</b> un correo al cierre de Wall Street (16:15 hora de Nueva York).</li>
-<li>Si ese día ningún método está en verde, no se envía nada.</li>
-<li>Solo se envía <b>mientras la app está abierta</b>.</li>
-</ul>
-<p><b>Cómo se configura (una sola vez):</b></p>
-<ol style="margin:4px 0 8px 18px;padding:0">
-<li>Entra en <b>web3forms.com</b>, escribe tu correo en «Create your Access Key» y pulsa crear.</li>
-<li>Te llega un email con una clave larga. Cópiala.</li>
-<li>En Ajustes → Envío automático por correo, pega la clave, marca «Activar envíos automáticos» y elige si incluyes cartera, vigilante o ambos.</li>
-<li>Pulsa <b>«Enviar prueba ahora»</b>. Debería llegarte un correo (mira spam).</li>
-</ol>
-<p>Los correos llegan siempre al correo con el que creaste la clave. Si el estado dice que no pudo enviar, revisa que la clave esté bien copiada y que haya conexión; reintenta solo cada 10 minutos.</p></div></details>
-
-<details class="fold hlp"><summary>11 · Copias de seguridad, informes e historial</summary><div class="fb m">
-<p><b>Por qué:</b> al reinstalar o limpiar el navegador, el estado local puede borrarse. Haz copias de vez en cuando.</p>
-<p><b>Qué incluye la copia (.json):</b> la cartera completa (todas las cuentas, operaciones, historial, informes), el capital, los parámetros y reglas, el método principal, los ajustes del correo, la configuración del vigilante y de las notificaciones y, si dejas marcada la casilla «Incluir claves», las claves de API, la clave del correo y el tema de ntfy.</p>
-<p><b>Botones:</b></p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li><b>Copiar TODOS los ajustes (bloque CONFIG):</b> un texto con ajustes que puedes pegar en el propio archivo HTML para que una instalación nueva arranque ya configurada.</li>
-<li><b>Descargar copia (.json)</b> / <b>Copiar copia:</b> sacan la copia como archivo o como texto.</li>
-<li><b>Restaurar desde el texto pegado</b> / <b>Elegir archivo .json…:</b> restauran una copia o un bloque CONFIG. Tras restaurar, la página se recarga sola. Si la copia no traía claves, se conservan las que ya tenías.</li>
-</ul>
-<p><b>Nunca compartas</b> una copia que incluya claves.</p>
-<p><b>Informes archivados</b> (Informe → Registro): cada intento de actualización guarda un informe con fecha, hora, estado y una copia del estado. Puedes descargar todos (.json), importar, vaciar, o bajar el <b>informe completo (.md)</b>, que junta todos los informes de todas las fechas y horas. Cada informe individual descarga solo el suyo. El botón «Estado actual del bot (.md)» baja el estado completo para analizar el bot a fondo. Se conservan separados de la cartera activa.</p></div></details>
-
-<details class="fold hlp"><summary>12 · Problemas frecuentes</summary><div class="fb m">
-<ul style="margin:6px 0 6px 18px;padding:0">
-<li><b>«No he podido obtener precios nuevos»:</b> ve a Ajustes → «Probar conexiones». Suele ser una clave mal pegada, un límite diario agotado o falta de conexión.</li>
-<li><b>El bot no compra nada:</b> es normal. Muchos días ninguna regla se cumple, o el SPY está en tendencia bajista y los métodos esperan en efectivo, o el freno de seguridad está activo. En Radar ves qué le falta a cada activo.</li>
-<li><b>«Señal no ejecutada por tamaño mínimo»:</b> con poco capital, algunas compras salen por debajo de la orden mínima. Revisa la alerta del Informe.</li>
-<li><b>Los métodos no se mueven:</b> solo cambian al actualizar (una vez por día de mercado). Fines de semana y festivos no hay datos nuevos.</li>
-<li><b>El vigilante no consulta:</b> necesita clave de Alpaca o Twelve Data, histórico descargado, mercado abierto y la app abierta.</li>
-<li><b>El correo no llega:</b> ver el estado en Ajustes → Envío por correo; revisa spam y la clave.</li>
-<li><b>Perdí los datos al reinstalar:</b> restaura la última copia en Ajustes.</li>
-<li><b>Ajustes fuera de rango:</b> el bot los corrige y avisa en el diagnóstico.</li>
-</ul></div></details>
-
-<details class="fold hlp"><summary>13 · Glosario</summary><div class="fb m">
-<p><b>Paper trading:</b> operar con dinero ficticio. · <b>Stop loss:</b> precio de salida automática para limitar pérdidas. · <b>Trailing stop:</b> stop que sube con el precio. · <b>ATR:</b> rango medio diario de una acción; mide su nerviosismo. · <b>Momentum:</b> comprar lo que más ha subido, esperando que siga. · <b>Momentum 12-1:</b> rentabilidad de hace 12 meses a hace 1 mes. · <b>Media de 200 sesiones:</b> precio medio de los últimos 200 días; bajo ella, la tendencia es bajista. · <b>SPY:</b> fondo que copia las 500 mayores empresas de EE. UU.; la referencia de «comprar y no tocar». · <b>ETF:</b> fondo cotizado que agrupa muchos activos. · <b>Efectivo:</b> dinero sin invertir. · <b>Deslizamiento:</b> diferencia entre el precio ideal y el que realmente obtienes. · <b>Hueco (gap):</b> cuando una acción abre muy por encima o por debajo del cierre anterior. · <b>Rebalanceo:</b> devolver una cartera a sus pesos objetivo. · <b>Refugio:</b> bonos o efectivo en los que se esconde el bot cuando el mercado va mal. · <b>Swing:</b> operación de días o semanas con objetivo; <b>position:</b> se deja correr con stop móvil. · <b>Caída máxima (drawdown):</b> mayor bajada desde un máximo. · <b>Sharpe:</b> rentabilidad ajustada por volatilidad. · <b>Fuera de muestra:</b> tramo de datos que no se usó para elegir reglas. · <b>Sesgo de supervivencia:</b> probar solo con empresas que sobrevivieron hasta hoy, lo que embellece el pasado.</p></div></details>
-
-<details class="fold hlp"><summary>14 · Límites y avisos importantes</summary><div class="fb m">
-<ul style="margin:6px 0 6px 18px;padding:0">
-<li>Es una <b>simulación</b>: no hay dinero real, ni órdenes reales, ni garantía de beneficios. No es asesoramiento financiero.</li>
-<li>No modela dividendos explícitos, impuestos, falta de liquidez, ni fallos de ejecución; el deslizamiento es fijo.</li>
-<li>Fuentes distintas pueden dar precios algo distintos (ajustes por dividendos).</li>
-<li>Con poco capital y comisión fija por orden, muchas señales se descartan por tamaño mínimo.</li>
-<li>Pocos días u operaciones = resultados sin valor estadístico. Espera semanas o meses.</li>
-<li>Las reglas de entrada del vigilante no están validadas históricamente.</li>
-<li>Las claves y copias contienen datos sensibles: no las compartas.</li>
-</ul></div></details>
-
-<div class="p" style="margin-top:6px"><h2>Parte técnica · todo lo que hace la app, con sus fórmulas</h2><div class="m">Los apartados 15 a 30 explican por dentro cada pieza: de dónde salen los datos, cada fórmula, cada regla de compra y venta, cada número que ves en pantalla y cada límite. Están escritos para que, leyéndolos, puedas reproducir a mano lo que hace el bot. El buscador de arriba también los recorre.</div></div>
-
-<details class="fold hlp"><summary>15 · Notación y convenciones (léelo primero)</summary><div class="fb m">
-<ul style="margin:6px 0 6px 18px;padding:0">
-<li><b>Sesión / vela:</b> un día de mercado con apertura (O), máximo (H), mínimo (L), cierre (C) y volumen (V). El bot solo trabaja con velas <b>diarias</b>.</li>
-<li><b>SMA(n):</b> media simple de los últimos n cierres. <code>SMA(n) = (C₁ + … + Cₙ) ÷ n</code>. Se usan SMA(5), 50, 100, 150, 200, 210 y 252.</li>
-<li><b>Rentabilidad a n sesiones:</b> <code>rt(n) = C_hoy ÷ C_hace n sesiones − 1</code>.</li>
-<li><b>Rango verdadero (TR):</b> <code>TR = máx(H − L, |H − C_ayer|, |L − C_ayer|)</code>. <b>ATR(n)</b> es la media simple de los n últimos TR (ATR(20) en Turtle; ATR(14) en el vigilante).</li>
-<li><b>«Señal con el cierre anterior»:</b> todo indicador se calcula con la vela del día anterior (índice <i>i</i>). La orden se ejecuta al precio de <b>apertura</b> de la vela siguiente (índice <i>i+1</i>). El bot nunca usa el cierre del mismo día para decidir y ejecutar.</li>
-<li><b>Moneda:</b> los precios están en dólares (USD); tu cartera está en euros. <code>fx</code> = dólares por euro (EUR/USD, p. ej. 1,15). Pasar de USD a EUR es <code>USD ÷ fx</code>.</li>
-<li><b>Capital inicial (START):</b> 500 € por defecto; configurable. Cada método y cada cuenta del vigilante empieza con ese importe.</li>
-<li><b>Redondeos:</b> los importes en pantalla van con 2 decimales y los porcentajes con 1 o 2. No afectan a los cálculos internos.</li>
-<li><b>Método:</b> una estrategia con su propia cuenta ficticia (efectivo, posiciones, operaciones y curva diaria). Hay 5 métodos «de cartera» y 5 «del vigilante».</li>
-</ul></div></details>
-
-<details class="fold hlp"><summary>16 · Los datos: de dónde vienen, cómo se descargan y se limpian</summary><div class="fb m">
-<p><b>Lista de activos (universo).</b> ~280 acciones grandes y medianas de EE. UU. más ETFs: SPY, QQQ, IWM, EFA, EEM, VNQ, GLD, sectores XLK/XLV/XLE/XLF/XLY/XLP/XLI/XLU/XLB/XLC, SMH, bonos AGG/IEF/LQD/SHY/TLT, materias primas DBC y MSCI World (URTH). El código sabe leer criptos (Binance/Coinbase) pero la lista actual no incluye ninguna.</p>
-<p><b>Proveedores y límites internos</b> (la app cuenta sus consultas del día en el navegador y se detiene al llegar al tope):</p>
-<table><tr><th>Proveedor</th><th>Pausa entre consultas</th><th>Tope diario</th><th>Notas</th></tr>
-<tr><td>Alpaca</td><td>0,5 s</td><td>3.000</td><td>Clave ID:SECRETO. Usa feed SIP y, si el plan no lo permite, IEX. Precios ajustados.</td></tr>
-<tr><td>Twelve Data</td><td>7,7 s</td><td>800</td><td>Plan gratis: 8 por minuto y 800 créditos/día.</td></tr>
-<tr><td>Polygon</td><td>12,6 s</td><td>5.000</td><td>Precios ajustados.</td></tr>
-<tr><td>Financial Modeling Prep</td><td>1,2 s</td><td>240</td><td>Clave gratuita.</td></tr>
-<tr><td>Alpha Vantage</td><td>1,4 s</td><td>25</td><td>Solo se usa si no hay otras claves o el activo ya tiene ≥ 250 velas.</td></tr>
-<tr><td>Yahoo Finance</td><td>1 s</td><td>3.000</td><td>Sin clave, vía proxy. Respaldo. Ajusta O/H/L/C por el factor «cierre ajustado ÷ cierre».</td></tr>
-<tr><td>Stooq</td><td>1,5 s</td><td>2.000</td><td>Sin clave, vía proxy. Respaldo del respaldo.</td></tr></table>
-<p><b>Reglas de prioridad.</b></p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li>Cada proveedor con clave trabaja en paralelo con los demás, cogiendo activos de una cola común. Cada activo se descarga <b>de un solo proveedor</b> (el que primero lo coge) para no mezclar precios de fuentes distintas.</li>
-<li>Yahoo y Stooq solo cogen un activo si <b>todos los proveedores con clave ya han fallado</b> con él o si ya no hay ninguno disponible. Stooq además espera a que Yahoo lo haya intentado.</li>
-<li><b>Orden de la cola:</b> primero SPY, luego lo que tienes en cartera, luego los activos con la descarga más antigua y al final el resto.</li>
-<li><b>Reintentos automáticos (v45).</b> Si un proveedor devuelve 429 (límite por minuto), un error 5xx o se cae la red, la app espera sola (65 s con Twelve Data) y reintenta el mismo activo; no pierde lo ya descargado. Si no hay internet, espera a que vuelva. Si tras varios intentos no lo consigue, programa ella misma otro intento en 75 s (actualización de cartera, hasta 4) o 2 min (prueba histórica, hasta 3) y continúa por donde se quedó. Mientras reintenta no archiva informes de error: solo archiva el resultado final.</li>
-<li>Un proveedor se da por «muerto» durante la ejecución si devuelve 401/403 (clave no válida o plan sin acceso), agota su tope diario o acumula 6 esperas seguidas por límite. Si hay 4 fallos de red seguidos (bloqueo CORS) se bloquea hasta el día siguiente, o hasta que pulses «Probar conexiones». Lo descargado se guarda y la siguiente pulsación continúa desde ahí (la prueba histórica guarda cada activo del día y reutiliza la misma selección aleatoria).</li>
-<li>La descarga se corta al llegar al <b>tiempo máximo</b> que fijes en Ajustes (8 min por defecto). Lo que no dio tiempo se descarga en la siguiente actualización; por eso la cobertura mejora con los días.</li>
-</ul>
-<p><b>Limpieza de cada vela.</b> Se descarta si O, H, L o C no son números finitos, si C ≤ 0, si H &lt; L, si la fecha no tiene formato AAAA-MM-DD o si la fecha está duplicada. Se ordenan por fecha. Si la última vela tiene fecha de hoy y aún no son las 21:00 UTC, se elimina porque la sesión podría estar incompleta. Un activo con menos de 30 velas buenas se rechaza.</p>
-<p><b>Caché.</b> Cada activo guarda hasta <b>300 velas</b> como filas <code>[día, apertura, máximo, mínimo, cierre, volumen]</code> (día = días desde 1970-01-01). Se mezcla con lo ya guardado de la misma fuente. Queda en IndexedDB y en localStorage; si se llena, se liberan los activos más antiguos.</p>
-<p><b>Control de cambio de fuente.</b> Si un activo cambia de proveedor, se comparan los últimos 10 días solapados y se guarda la diferencia del cierre en %. Si supera el 2 %, aparece una alerta (puede ser un ajuste por dividendos o un dato erróneo).</p>
-<p><b>Activos «analizables»:</b> los que tienen al menos 63 velas y su última vela no tiene más de 7 días de antigüedad. Para que el bot decida hacen falta al menos <b>20 activos de bolsa</b> analizables.</p>
-<p><b>Tipo de cambio.</b> Se pide EUR/USD a frankfurter.dev (gratis). Si falla y tienes Alpha Vantage, se usa esa clave. Si todo falla se usa el último cambio guardado y se avisa en el diagnóstico. Para recuperar días atrasados se descarga también la serie histórica del cambio y cada día usa el suyo.</p></div></details>
-
-<details class="fold hlp"><summary>17 · El ciclo de «Actualizar», paso a paso con todas sus comprobaciones</summary><div class="fb m">
-<ol style="margin:6px 0 6px 18px;padding:0">
-<li><b>Arranque.</b> Se bloquea el botón, se mantiene la pantalla encendida si lo has activado y se guardan las claves en el navegador.</li>
-<li><b>Descarga</b> según el apartado 16. Se muestra «Descargando datos reales… n de N activos».</li>
-<li><b>Sin datos nuevos:</b> si no se pudo bajar ningún activo, no hay decisiones y el informe queda como «sin-datos».</li>
-<li><b>Tipo de cambio</b> (apartado 16).</li>
-<li><b>Fecha de decisión:</b> la fecha de la vela más reciente entre las acciones/ETFs recién descargados.</li>
-<li><b>Comprobación de SPY:</b> SPY debe tener una vela con <i>esa misma fecha</i>. Si no, se pausan las decisiones («pausado-datos») para no operar con un mercado de referencia desactualizado.</li>
-<li><b>Sesión ya procesada:</b> si esa fecha ya está registrada en los métodos de cartera, solo se refrescan precios y valoraciones. <b>No se repiten órdenes</b> («ya-actualizado»).</li>
-<li><b>Cobertura mínima:</b> con menos de 20 activos de bolsa analizables se pausa («pausado-cobertura»).</li>
-<li><b>Días atrasados:</b> si la app no estuvo abierta varios días, se reproducen las sesiones pendientes (hasta 15) una a una, en orden, con el EUR/USD de cada día.</li>
-<li><b>Por cada sesión y cada método:</b> se construye el conjunto de datos con <code>señal = vela anterior</code>, <code>ejecución = apertura de la sesión</code>, <code>valoración = cierre de la sesión</code>; se calcula el ranking de fuerza relativa del universo y se llama a la lógica del método (apartados 19 a 21). Se anota cada compra, venta, omisión o bloqueo en el registro de señales.</li>
-<li><b>Curvas.</b> Cada método añade su punto diario: <code>valor = efectivo + Σ(unidades × cierre ÷ fx) + ahorro</code>. La curva de «Hoy» es la del método principal. La referencia SPY pasivo vale <code>START × (cierre SPY ÷ fx_día) ÷ (cierre SPY ÷ fx del primer día)</code>.</li>
-<li><b>Cierre.</b> Se guardan los últimos precios, el diario de ejecuciones, el informe archivado (con copia del estado), y se envía la notificación y, si procede, el correo.</li>
-</ol>
-<p>Ningún paso envía órdenes a un bróker. Todo son anotaciones dentro de tu navegador.</p></div></details>
-
-<details class="fold hlp"><summary>18 · Costes, tamaño de las órdenes y contabilidad de una operación</summary><div class="fb m">
-<p><b>Compra</b> (importe objetivo <code>amt</code> en €, precio de apertura <code>raw</code> en $):</p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li>Precio pagado: <code>bp = raw × (1 + deslizamiento)</code> (0,15 % por defecto).</li>
-<li>Unidades: <code>q = amt × fx ÷ bp</code>.</li>
-<li>Efectivo que sale: <code>amt + comisión</code>. El <b>coste</b> de la posición es ese total; la comisión forma parte del coste.</li>
-</ul>
-<p><b>Venta:</b></p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li>Precio cobrado: <code>sp = precio_ejecución × (1 − deslizamiento)</code>.</li>
-<li>Entra al efectivo: <code>máx(0, q × sp ÷ fx − comisión)</code>.</li>
-<li>Resultado de la operación: <code>pnl = lo cobrado − coste</code>. En una venta parcial se usa la parte proporcional del coste.</li>
-</ul>
-<p><b>Métodos de reparto</b> (Momentum, Núcleo, Sectores, Permanente, 60/40, Tendencia 10 meses): el importe de cada compra es la diferencia entre el peso objetivo y lo que ya tienes, limitado por el efectivo disponible; también respeta la orden mínima.</p>
-<p><b>Compras con la misma acción repetida:</b> si ya tenías la posición, se promedia el precio medio: <code>avg = (avg × q + bp × nuevas) ÷ (q + nuevas)</code> y se suma el coste.</p></div></details>
-
-<details class="fold hlp"><summary>19 · Indicadores y fórmulas que usan los métodos</summary><div class="fb m">
-<ul style="margin:6px 0 6px 18px;padding:0">
-<li><b>Momentum 12-1:</b> <code>C(hace 21 sesiones) ÷ C(hace 252 sesiones) − 1</code>. Se salta el último mes porque tiende a revertir. Es el criterio de Momentum de acciones y se muestra en Radar y en el vigilante.</li>
-<li><b>Fuerza relativa compuesta</b> (Núcleo SPY): <code>0,4 × rt(63) + 0,2 × rt(126) + 0,2 × rt(189) + 0,2 × rt(252)</code>. El percentil de una acción es su posición en la lista ordenada de todas las acciones/ETFs evaluados: <code>100 × puesto ÷ (n − 1)</code>.</li>
-<li><b>Momentum 13612 (Keller):</b> <code>(12 × rt(21) + 4 × rt(63) + 2 × rt(126) + 1 × rt(252)) ÷ 4</code>. Da más peso a lo reciente. Se usa para elegir el refugio del Núcleo SPY.</li>
-<li><b>Momentum medio de sectores (Faber):</b> <code>(rt(63) + rt(126) + rt(252)) ÷ 3</code>.</li>
-</ul></div></details>
-
-<details class="fold hlp"><summary>20 · Gestión del riesgo: stops, frenos y filtros, con sus condiciones exactas</summary><div class="fb m">
-<p><b>Stops.</b> Solo RSI(2) lleva un stop fijo de entrada (cierre × 0,92, el 8 % por debajo; se comprueba con el mínimo del día y los huecos de apertura). Los demás métodos salen por reglas de tendencia o por la cartera objetivo (apartado 21).</p>
-<p>Los métodos de reparto no usan precio de stop: salen por reglas de tendencia (media de 200 sesiones, cartera objetivo, etc.). El campo «Stop $» que ves en Cartera para ellos es el nivel de emergencia <code>SMA(200) × 0,95</code> (Momentum) o <code>× 0,96</code> (Núcleo), calculado con el último cierre.</p>
-<p><b>Filtro de mercado.</b> Los métodos con «filtro SPY» (Momentum, Núcleo, Tendencia 10 meses) usan la media de 200 sesiones (o 210 sesiones en Faber) del SPY para pasar a efectivo o bonos.</p>
-<p><b>Otras reglas comunes:</b> orden mínima 25 €; deslizamiento y comisión en toda orden; no se vende y se recompra la misma acción el mismo día en los métodos de señal.</p></div></details>
-
-<details class="fold hlp"><summary>21 · Los métodos de cartera: reglas exactas</summary><div class="fb m">
-<p>Todos operan con <i>señal = cierre anterior</i> y <i>ejecución = apertura siguiente</i>. «Revisión» es el momento en que reconstruyen su cartera objetivo: mensual = primera sesión de cada mes; semanal = primera sesión de cada semana (lunes); trimestral = primera sesión de cada trimestre.</p>
-
-<p><b>1 · Momentum de acciones 12-1</b> (principal por defecto)</p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li><b>Candidatas:</b> acciones con ≥ 253 velas, cierre sobre SMA(200) y momentum 12-1 positivo. Se ordenan por momentum de mayor a menor.</li>
-<li><b>Revisión mensual:</b> vende lo que sale del top 20. Si el mercado lo permite, rellena los huecos libres hasta 5 posiciones con las mejores no poseídas. Cada hueco = <code>valor de la cuenta ÷ 5</code>. Si el importe sale menor que la orden mínima, se omite.</li>
-<li><b>Diario:</b> vende una acción si cierra más de un 5 % bajo su SMA(200) (<code>cierre &lt; SMA200 × 0,95</code>).</li>
-<li><b>Filtro SPY:</b> mercado «alcista» si <code>cierre SPY &gt; SMA200 × 1</code> (sin posiciones) o <code>× 0,97</code> (con posiciones, para evitar entradas y salidas continuas). Si no lo es, se vende todo cada día y no se compra.</li>
-</ul>
-
-<p><b>2 · Núcleo SPY + fuerza relativa</b></p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li>Universo: SPY, QQQ, IWM, EFA, EEM, VNQ, GLD, 10 sectores y SMH. Refugio: IEF, LQD o SHY.</li>
-<li>N huecos = «Nº de ETFs en cartera» (3 por defecto, entre 2 y 6); cada hueco vale 1/N de la cuenta.</li>
-<li>Un ETF puede ocupar hueco si está sobre su SMA(200), su fuerza relativa es positiva y supera a la del SPY en más de <b>3 puntos</b> (los que ya tienes solo necesitan superarla). Se mantiene mientras siga entre los N+2 mejores.</li>
-<li>Los huecos no ocupados se quedan en SPY. Si el SPY cae bajo su SMA(200), el 100 % va al refugio con mejor momentum 13612 positivo (o a efectivo si ninguno).</li>
-<li>Se recorta una posición si supera su peso objetivo en más de medio hueco; se compra si falta más de medio hueco.</li>
-<li><b>Salida de emergencia diaria:</b> un ETF que cierra más de un 4 % bajo su SMA(200) se vende y fuerza una revisión inmediata.</li>
-</ul>
-
-<p><b>3 · Rotación de sectores (Faber)</b> · mensual · 3 sectores a 1/3.</p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li>Ordena los 10 sectores por momentum medio 3/6/12 meses. Compra los 3 mejores solo si el sector está sobre SMA(210) y su momentum es positivo. Faltando alguno, ese tercio queda en efectivo.</li></ul>
-
-<p><b>4 · Tendencia SPY de 10 meses (Faber)</b> · mensual.</p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li>SPY sobre SMA(210) → 100 % SPY. Si no → 100 % IEF (SHY si no hay IEF).</li></ul>
-
-<p><b>5 · Cartera permanente</b> · trimestral: 25 % SPY, 25 % TLT, 25 % GLD, 25 % SHY. <b>6 · 60/40</b> · trimestral: 60 % SPY, 40 % AGG.</p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li>Si faltan datos de algún activo (mínimo 3 en Permanente, 2 en 60/40), los pesos se reescalan entre los disponibles.</li>
-<li><b>Umbral de rebalanceo</b> de todos los métodos de reparto: se recorta solo si la posición supera su objetivo en más de <code>máx(orden mínima, 0,5 × valor ÷ N)</code>, y se compra solo si falta más de esa cantidad (o si la posición no existe y la diferencia supera la orden mínima). En la Cartera permanente el factor es 0,25 y en 60/40 es 0,1. Así se evitan comisiones por ajustes minúsculos.</li></ul>
-
-<p>Los cinco candidatos de la v51 (Dual Momentum, RSI(2), Momentum + Calidad, Tendencia + volatilidad objetivo y Overnight) se eliminaron en la v52 tras la prueba histórica; sus reglas quedan documentadas en el apartado 32.</p>
-<p>Si la información de un método no es suficiente (por ejemplo, menos de 20 acciones evaluables), ese método no opera esa revisión y espera a la siguiente sin marcarla como hecha.</p></div></details>
-
-<details class="fold hlp"><summary>22 · Ahorro de ganancias (fondo de largo plazo)</summary><div class="fb m">
-<ul style="margin:6px 0 6px 18px;padding:0">
-<li>Cada vez que una venta cierra con ganancia, el bot aparta una parte: <code>ahorro = mín( ganancia × % de ahorro ,  efectivo disponible )</code>. Por defecto el % es 50; con 0 no se ahorra.</li>
-<li>Si el ahorro es menor de 1 € no se aparta.</li>
-<li>Se «compra» MSCI World (URTH; si no hay datos, SPY) a la apertura de esa sesión con el mismo deslizamiento, <b>sin comisión</b>.</li>
-<li>Ese dinero ya no se usa para operar ni se vende; se valora cada día con el último precio y cuenta en el valor total y en la ganancia del método.</li>
-<li>Se ve en Cartera («Ahorro MSCI World») y en el diario como «💰 Ahorro».</li>
-<li>Efecto: el método gana (o pierde) lo mismo, pero tiene menos efectivo para operar y se bloquea una parte de sus beneficios en un activo indexado.</li>
-</ul></div></details>
-
-<details class="fold hlp"><summary>23 · Métricas del informe: qué significa y cómo se calcula cada una</summary><div class="fb m">
-<ul style="margin:6px 0 6px 18px;padding:0">
-<li><b>Valor del método:</b> <code>efectivo + Σ(unidades × último cierre ÷ fx) + ahorro</code>.</li>
-<li><b>Ganancia / Rentabilidad:</b> <code>valor − capital inicial</code> y <code>valor ÷ capital inicial − 1</code>.</li>
-<li><b>Ganancia abierta:</b> valor actual de las posiciones menos su coste (con comisión). <b>Ganancia cerrada:</b> suma de los resultados de las ventas.</li>
-<li><b>Caída máxima:</b> se recorre la curva diaria llevando el máximo hasta el momento (empieza en el capital inicial); caída = <code>valor ÷ máximo − 1</code>; se toma la peor.</li>
-<li><b>Operaciones cerradas:</b> ventas con resultado. <b>Acierto</b> = ventas con resultado &gt; 0 ÷ ventas. <b>Ganancia media</b> = media de las ventas positivas; <b>pérdida media</b> = media de las demás.</li>
-<li><b>Expectativa:</b> media del resultado de todas las operaciones cerradas (en €).</li>
-<li><b>Factor de beneficio:</b> <code>suma de ganancias ÷ suma de pérdidas</code> (en valor absoluto). Por encima de 1 se gana más de lo que se pierde.</li>
-<li><b>Sharpe:</b> <code>media(rentabilidad diaria) ÷ desviación típica × √252</code>, sin tasa libre de riesgo. Con pocos días no significa nada.</li>
-<li><b>Bruto frente a neto:</b> neto = rentabilidad real; bruto = <code>(valor final + comisiones pagadas) ÷ capital inicial − 1</code>. La diferencia es el peso de las comisiones. No incluye el deslizamiento.</li>
-<li><b>R (múltiplo de riesgo):</b> <code>resultado neto ÷ riesgo planificado</code>, donde el riesgo planificado es <code>valor × riesgo%</code> en el momento de la compra. Solo existe para métodos de señal diaria y para el vigilante.</li>
-<li><b>MFE / MAE:</b> máxima subida y máxima bajada del precio respecto a la compra durante la operación, calculadas con máximos y mínimos de las velas guardadas.</li>
-<li><b>SPY pasivo:</b> la referencia del apartado 17.</li>
-<li><b>Gráfica de rendimiento:</b> porcentaje acumulado <code>valor ÷ valor al inicio del tramo visible − 1</code>; barras = variación de cada día; chips = hoy, 5 sesiones, 21 sesiones, total, mejor y peor día; «días en verde» y «cobrado en ventas».</li>
-<li><b>Riesgo ahora (Cartera):</b> % invertido = valor posiciones ÷ valor total; % efectivo; mayor posición; <b>pérdida si saltan todos los stops</b> = <code>Σ máx(0, precio − stop) × unidades ÷ fx</code> (sin costes ni huecos).</li>
-</ul></div></details>
-
-<details class="fold hlp"><summary>24 · La prueba histórica por dentro</summary><div class="fb m">
-<ul style="margin:6px 0 6px 18px;padding:0">
-<li><b>Requisitos:</b> clave de Twelve Data (recomendada) o Alpaca. Se piden hasta 5.000 velas por activo, ajustadas. Se rechazan los que tengan menos de 600 velas (los ETFs núcleo son obligatorios: si fallan, la prueba se aborta).</li>
-<li><b>Muestra:</b> nº de acciones elegido (10 a 500) al azar de la lista; si pides más que la lista base se amplía con otras grandes y medianas. Los ETFs (SPY, sectores, bonos, oro, DBC, URTH…) siempre entran. Cada prueba elige otras distintas.</li>
-<li><b>Estrés:</b> si marcas la casilla se excluyen NVDA, AMD, TSLA, AVGO, NFLX, LLY, META, AAPL, MSFT, AMZN, GOOGL y UBER para reducir el sesgo de supervivencia.</li>
-<li><b>Calendario:</b> el calendario es el de SPY. Se dejan 260 sesiones de calentamiento para los indicadores. Lo restante se divide cronológicamente en <b>60 % entrenamiento, 20 % validación y 20 % prueba fuera de muestra</b>.</li>
-<li><b>Cada tramo empieza con el capital inicial nuevo</b> y sin posiciones heredadas; el pasado anterior solo calienta indicadores.</li>
-<li><b>Misma lógica que en vivo:</b> cada método llama a la misma función que el bot real, con señal del cierre anterior, ejecución en la apertura siguiente, stops con H/L del día, deslizamiento, comisión, orden mínima y tipo de cambio histórico (si no está disponible, uno fijo y se avisa).</li>
-<li><b>SPY pasivo</b> de cada tramo: <code>START × (cierre ÷ fx) ÷ (cierre del día previo al tramo ÷ fx)</code>.</li>
-<li><b>Rentabilidad anual compuesta:</b> <code>(Π(1 + rent. de cada tramo))^(1 ÷ años) − 1</code>, con años = días naturales entre los cortes ÷ 365,25.</li>
-<li><b>Veredicto frente al SPY</b> (por método): cuenta en cuántos tramos tiene más rentabilidad que el SPY, menos caída máxima y ganancia neta. «Bate al SPY» exige ganar más y caer menos en todos los tramos; «reduce la caída y gana dinero en todos los tramos» es la segunda categoría; el resto «no supera el criterio mínimo».</li>
-<li><b>Validez:</b> menos de 30 operaciones cerradas en un tramo = «muestra insuficiente».</li>
-<li><b>Aviso importante:</b> las acciones de la lista existen hoy, así que la prueba es más optimista que la realidad (sesgo de supervivencia). No hay dividendos explícitos ni impuestos.</li>
-<li><b>Detalle de un método:</b> tabla por tramo con rentabilidad neta y bruta, caída, operaciones, acierto, €/operación, comisiones, señales omitidas y validez.</li>
-</ul></div></details>
-
-<details class="fold hlp"><summary>25 · El vigilante intradía por dentro</summary><div class="fb m">
-<p><b>Cuándo consulta.</b> De lunes a viernes entre las 9:35 y las 16:00 hora de Nueva York (el vigilante se activa 5 minutos tras la apertura). Revisa cada 15 segundos si toca consultar; consulta cuando llegue la hora marcada por el intervalo.</p>
-<p><b>Intervalo efectivo.</b> El que pidas o el mínimo que permita tu API, el mayor. Con Alpaca no hay límite práctico (cada 100 acciones = 1 llamada; 0,4 s entre llamadas). Con Twelve Data se piden 8 acciones por llamada con 62 s de pausa; se reservan 150 créditos para la actualización diaria y el resto del tope de 800 se reparte en la sesión: <code>consultas posibles = (800 − usados − 150) ÷ nº de acciones</code> y <code>intervalo mínimo = máx(385 ÷ consultas posibles, duración de una consulta)</code>. Si recibe un error de límite (429), espera un minuto y reintenta el mismo activo.</p>
-<p><b>Qué acciones vigila.</b> SPY (siempre), las posiciones abiertas de sus cuentas y las mejores por momentum 12-1: acciones con momentum positivo y precio sobre SMA(200) × 0,97, ordenadas por momentum. Cuántas: la casilla «Acciones a vigilar» (10 a 300); por defecto 150 con Alpaca y 24 con Twelve Data.</p>
-<p><b>Datos por consulta:</b> precio actual, apertura, máximo, mínimo y cierre anterior del día. Se descartan acciones sin operaciones de hoy. Si SPY lleva más de 30 minutos sin operar (festivo o fallo), se salta la consulta.</p>
-<p><b>Magnitudes:</b> <code>hoy = precio ÷ cierre anterior − 1</code> · <code>desde apertura = precio ÷ apertura − 1</code> · <code>hueco = apertura ÷ cierre anterior − 1</code> · <code>posición en rango = (precio − mínimo) ÷ (máximo − mínimo)</code> (1 = en máximos del día). El ATR(14), la SMA(200) y el máximo de 20 sesiones vienen del histórico diario descargado en «Hoy».</p>
-<p><b>Filtro común:</b> SPY por encima de su SMA(200), precio de la acción sobre su SMA(200), la acción no está ya en la cuenta de ese método y hay huecos libres (máx. 5 posiciones por método).</p>
-
-<table><tr><th>Método</th><th>Entra si…</th><th>Descarta si…</th></tr>
-<tr><td>Arranque +X %</td><td>hoy ≥ X % (3 % por defecto) y posición en rango ≥ 70 %</td><td>hoy &gt; 10 % (muy extendida)</td></tr>
-<tr><td>Hueco alcista</td><td>hueco ≥ 2 %, desde apertura &gt; 0 y posición ≥ 60 %</td><td>hoy &gt; 12 %</td></tr>
-<tr><td>Ruptura 20 sesiones</td><td>precio &gt; máximo de 20 sesiones, hoy ≥ 1 % y posición ≥ 70 %</td><td>hoy &gt; 10 %</td></tr>
-<tr><td>Fuerza moderada</td><td>hoy ≥ 1,5 %, desde apertura ≥ 0,5 %, posición ≥ 70 % y momentum 12-1 &gt; 0</td><td>hoy &gt; 8 %</td></tr>
-<tr><td>Caída en tendencia</td><td>hoy entre −5 % y −1,5 %, posición ≥ 35 % y momentum 12-1 &gt; 10 %</td><td>caída &gt; 5 % (posible noticia grave)</td></tr></table>
-<p>Cada candidata queda como «✅ Entraría / Comprada», «👀 Vigilar» (cumple lo esencial pero le falta algo, con el motivo) o «✖ Descartada».</p>
-
-<p><b>Compra simulada.</b> Entre las que «entrarían» se prioriza por momentum 12-1 de mayor a menor. <code>dist = 2 × ATR(14)</code>; <code>importe = mín( valor de la cuenta × riesgo% × precio ÷ dist ,  25 % del valor ,  efectivo − comisión )</code>; si es menor que la orden mínima, queda en vigilancia. Se compra al precio de la consulta con deslizamiento y comisión. Stop inicial = <code>precio − 2 × ATR(14)</code>.</p>
-<p><b>Gestión del stop.</b> En cada consulta: <code>máximo visto = máx(máximo anterior, máximo del día (si no se compró hoy), precio)</code> y <code>stop = máx(stop, máximo visto − 2 × ATR)</code>. El stop solo sube. Se vende si el precio ≤ stop o, en posiciones de días anteriores, si el mínimo del día ≤ stop; el precio de venta es el precio actual si ya está por debajo del stop y el stop si no, con deslizamiento y comisión. No hay otra salida: ni por tiempo ni por tendencia.</p>
-<p><b>Registros.</b> Cada consulta guarda: hora, fuente, nº de cotizaciones, amplitud (cuántas acciones suben ≥1, 2, 3 y 5 %), SPY, candidatas con motivos, operaciones y precios vigilados. Por cada día se pueden descargar: informe del día, informe total y datos crudos (JSON). Se incluye un seguimiento de lo que hizo cada candidata tras aparecer (máximo y mínimo posterior, variación hasta la última consulta).</p>
-<p><b>Avisos.</b> Con «Comprar y vender» desmarcado, solo avisa («posible entrada»). Con él marcado, avisa de cada compra o venta simulada. Si se activa «Tras el cierre, ejecutar también la actualización diaria», a partir de las 16:15 de Nueva York lanza la actualización del día (como mucho una vez por hora).</p>
-<p><b>Límites:</b> las ejecuciones usan el precio de la consulta, no cada operación; los datos de Alpaca IEX son de una sola bolsa (precios fiables, volumen no comparable); estas reglas no están validadas en la prueba histórica.</p></div></details>
-
-<details class="fold hlp"><summary>26 · Alertas automáticas y auditoría: qué comprueba exactamente</summary><div class="fb m">
-<p><b>Alertas (Informe → Alertas automáticas)</b> aparecen cuando:</p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li>Hay ≥ 3 operaciones cerradas y las comisiones (más de 5 €) superan la mitad del resultado bruto.</li>
-<li>Un método tiene ≥ 10 operaciones y acierto &lt; 30 %; o caída máxima mayor del 10 %; o ≥ 20 días con menos de 5 operaciones cerradas (muestra insuficiente).</li>
-<li>Menos del 90 % de los activos tienen datos recientes.</li>
-<li>Algún método tiene el freno de seguridad activo.</li>
-<li>Un método ha omitido ≥ 3 señales por tamaño mínimo (con consejo sobre capital y stops anchos).</li>
-<li>En la prueba histórica un método descartó ≥ 10 señales por tamaño.</li>
-<li>Hay ≥ 3 ejecuciones seguidas el mismo día (gastan cuota sin decisiones nuevas).</li>
-<li>Un cambio de fuente de datos muestra una diferencia de cierre &gt; 2 %.</li></ul>
-<p><b>Auditoría (Ajustes)</b> marca ✔, ⚠ o ✖ según:</p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li>Cada parámetro es un número dentro de su rango seguro (apartado 29).</li>
-<li>Comisión de ida y vuelta sobre la orden mínima: <code>2 × comisión ÷ orden mínima</code>; aviso si supera el 6 %.</li>
-<li>Posición típica con riesgo% y stop del 5 %: <code>capital × riesgo% ÷ 5 %</code>; aviso si las comisiones de ida y vuelta superan el 4 % de la posición.</li>
-<li>El deslizamiento no es 0.</li>
-<li>Coherencia de las reglas internas de puntuación y de los repartos fijos (suman 100 %).</li>
-<li>EUR/USD entre 0,8 y 1,6.</li>
-<li>Edad de la última sesión (aviso si &gt; 4 días).</li>
-<li>Cobertura de datos: activos con ≥ 253 velas por encima del 90 % de la lista.</li>
-<li>Existe alguna clave configurada.</li>
-<li>Cada cuenta: efectivo no negativo, posiciones válidas con precio actual, stops no por encima del precio, sin días duplicados ni valores no numéricos.</li>
-<li>Configuración del vigilante válida.</li>
-<li>La última prueba histórica usó ≥ 100 acciones.</li>
-<li>El estado guardado no supera ~3,5 MB.</li></ul></div></details>
-
-<details class="fold hlp"><summary>27 · Cómo se muestran las pantallas: qué es cada número</summary><div class="fb m">
-<p><b>Selector de método.</b> Un desplegable en cada pantalla (Hoy, Gráfica, Radar, Cartera, Informe, Histórico) lista los métodos de cartera ordenados por ganancia actual. Elegir uno solo cambia lo que se ve; no modifica la cartera. El «método principal» de Ajustes define el que aparece por defecto y la curva «principal» de la gráfica.</p>
-<p><b>🏠 Hoy.</b> Valor y ganancia del método elegido, comparación con SPY pasivo, gráfica, botón de actualizar y el diario «en cristiano» con «Ahora mismo» (precio actual frente a compra) y cada día: compras 🟢, ventas 🔴 / 🛑 (stop), ahorros 💰, avisos y cierre del día con lo ganado o perdido y lo que habría hecho el SPY.</p>
-<p><b>📡 Radar.</b> Para Momentum: las 20 mejores y quién «compraría» (primeras libres si el SPY es alcista; solo compra en la primera actualización del mes). Para métodos de señal diaria: tabla con puntuación, lo que cumple y lo que le falta. Para métodos de reparto: la cartera objetivo con pesos, euros y motivos. «Señales de hoy» resume órdenes pendientes. «Detalle por activo» evalúa un ticker con cada método de señal diaria y muestra tamaño, stop y calidad de datos.</p>
-<p><b>💼 Cartera.</b> Valor total, ganancia, efectivo, invertido, ganancia abierta/cerrada, ahorro, nº de órdenes y comisiones; posiciones con precio de compra (incluye deslizamiento), precio actual (último cierre diario descargado, con su fecha), ganancia y stop; riesgo; y operaciones por día y hora con su explicación.</p>
-<p><b>📊 Informe.</b> Comparativa ordenada por rentabilidad (incluye SPY pasivo), informe de rendimiento por método, neto frente a bruto, alertas, descargas y la prueba histórica.</p>
-<p><b>Explicación de las órdenes.</b> Cada compra o venta lleva un motivo técnico y una versión «en cristiano». Las compras muestran el precio del stop y la distancia en %. Las ventas muestran el resultado en € y en % sobre lo invertido.</p>
-<p><b>Precios «Ahora».</b> Son el último cierre diario descargado, no cotizaciones en directo (para eso está el vigilante). Por eso un precio puede tener un día de retraso.</p></div></details>
-
-<details class="fold hlp"><summary>28 · Informes, registros y descargas: qué contiene cada archivo</summary><div class="fb m">
-<ul style="margin:6px 0 6px 18px;padding:0">
-<li><b>Informes archivados.</b> Cada intento de actualización (con éxito, error, sin datos, pausado o ya procesado) guarda un informe con fecha, hora, estado, mensaje, valor de la cartera, operaciones y decisiones nuevas desde el último informe, posiciones, métodos y copia del estado. Se guardan en IndexedDB y en localStorage como respaldo (máx. 12), y se agrupan por día.</li>
-<li><b>Informe completo (.md):</b> todos los informes archivados, de todas las fechas y horas, en un solo archivo. <b>Informe individual (.md):</b> solo el de esa fecha y hora (posiciones, operaciones y decisiones nuevas, métodos).</li>
-<li><b>Estado actual del bot (.md):</b> estado, posiciones, operaciones, métodos ordenados por ganancia, ranking de momentum, parámetros, alertas, operaciones cerradas con rasgos de entrada (RS, ATR%, rt(63), distancia al máximo, volumen relativo, SPY alcista), auditoría de datos por activo, registros de señales, curvas diarias, diario de ejecuciones, limitaciones, vigilante y prueba histórica completa.</li>
-<li><b>Informes (.json):</b> exporta/importa el archivo de informes. Importar solo añade al historial; no toca la cartera (si el archivo es una cartera completa, pide confirmación antes de reemplazarla).</li>
-<li><b>Informe del vigilante (.md):</b> comparación de métodos, detalle de cada uno, bitácora hora a hora y anexo técnico de consultas. «Total» resume todos los días y añade curva y operaciones cerradas. «Crudos» incluye todas las cotizaciones vigiladas.</li>
-<li><b>Vaciar informes</b> borra solo el archivo histórico, nunca la cartera ni los ajustes.</li>
-</ul></div></details>
-
-<details class="fold hlp"><summary>29 · Todos los parámetros: valores por defecto, rangos y a qué afectan</summary><div class="fb m">
-<table><tr><th>Parámetro</th><th>Defecto</th><th>Rango</th><th>Afecta a</th></tr>
-<tr><td>Nº de ETFs en cartera</td><td>3</td><td>1 a 6</td><td>Núcleo SPY (huecos)</td></tr>
-<tr><td>Riesgo por operación</td><td>0,5 %</td><td>0,1 a 3 %</td><td>Tamaño de RSI(2) y cuentas del vigilante</td></tr>
-<tr><td>Freno: pérdida diaria</td><td>1 %</td><td>0,5 a 10 %</td><td>RSI(2) (no abre posiciones nuevas si el último día cayó más de ese %)</td></tr>
-<tr><td>Freno: caída desde máximos</td><td>6 %</td><td>2 a 30 %</td><td>RSI(2) (no abre posiciones si cae más de ese % desde máximos de 60 días); alertas</td></tr>
-<tr><td>Comisión por operación</td><td>0,15 €</td><td>0 a 5 €</td><td>Todos (también en prueba histórica)</td></tr>
-<tr><td>Deslizamiento por lado</td><td>0,15 %</td><td>0 a 2 %</td><td>Todos</td></tr>
-<tr><td>Orden mínima</td><td>25 €</td><td>10 a 200 €</td><td>Todos</td></tr>
-<tr><td>% de ganancia al ahorro</td><td>50 %</td><td>0 a 100 %</td><td>Todos los métodos de cartera</td></tr></table>
-<p>Si introduces un valor fuera del rango, la app lo rechaza y vuelve al anterior. Si un valor guardado queda fuera de rango (por ejemplo, tras restaurar una copia), se corrige y se avisa en el diagnóstico. Los cambios se aplican en la siguiente actualización; no reescriben el pasado.</p>
-<p><b>Parámetros heredados</b> (compra≥, venta, stop, trailing, objetivo, tiempo máximo swing…): vienen del bot antiguo de puntos y siguen en el bloque CONFIG por compatibilidad, pero los métodos de cartera actuales <b>no los usan</b>. Las reglas fijas de los métodos (SMA, canarios, repartos, ventanas…) no se ajustan con tus datos, para evitar el sobreajuste.</p>
-<p><b>Otros ajustes:</b> tiempo máximo por actualización (min), notificaciones y tema ntfy, correo, claves, cambio EUR/USD (se actualiza solo; puedes forzar un valor entre 0,3 y 3), capital inicial (100 a 1.000.000 €), método principal.</p></div></details>
-
-<details class="fold hlp"><summary>30 · Correo, notificaciones y almacenamiento</summary><div class="fb m">
-<p><b>Correo automático (Web3Forms).</b> La app comprueba cada minuto si toca enviar.</p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li><b>Cartera:</b> cuando hay un día de mercado nuevo procesado. Incluye solo los métodos con ganancia &gt; 0 (valor, ganancia, ops cerradas, acierto, caída, efectivo, hasta 8 posiciones y 3 últimas operaciones). Si ninguno está en verde, no se envía.</li>
-<li><b>Vigilante:</b> a partir de las 16:15 de Nueva York en día laborable, una vez por día, con los métodos del vigilante en verde.</li>
-<li>Si el envío falla, reintenta a los 10 minutos. Al activar los envíos no se mandan los de ese día ya pasado.</li>
-<li>La clave se guarda en tu navegador y se incluye en copias solo si lo marcas.</li></ul>
-<p><b>Notificaciones.</b> Al terminar una actualización, la prueba histórica y las señales del vigilante se intenta, por este orden: ntfy (si pusiste tema), puente de Android (si existe) y notificación del navegador. También vibra y cambia el título si la pestaña está oculta.</p>
-<p><b>Segundo plano.</b> La opción experimental reproduce un audio casi silencioso y pide el bloqueo de pantalla para que el navegador no suspenda la descarga. La app no puede ejecutarse si está cerrada del todo.</p>
-<p><b>Dónde se guarda todo:</b></p>
-<ul style="margin:4px 0 8px 18px;padding:0">
-<li>Estado de la cartera: localStorage <i>y</i> IndexedDB (al arrancar se carga la copia más reciente de las dos). Precios, claves, registros del vigilante e informes archivados van también en IndexedDB.</li>
-<li>Preferencias (método elegido por pantalla, apartados abiertos, vigilante, notificaciones) en localStorage.</li>
-<li>Las consultas del día a cada proveedor se cuentan en el navegador; si borras los datos del sitio, el contador vuelve a cero.</li>
-<li>Al cambiar la versión interna del estado, las cuentas se reinician con migración automática; los informes archivados se conservan.</li></ul>
-<p><b>Copia de seguridad.</b> Contiene el estado completo, ajustes, parámetros, reglas, correo, vigilante y notificaciones, y (si marcas la casilla) las claves. Restaurar sustituye el estado, mantiene las claves existentes si la copia no las traía y recarga la página. El bloque <i>CONFIG</i> es una línea de código que, pegada en el HTML (<code>const CONFIG=…</code>), deja una instalación nueva ya configurada. <b>Nunca compartas copias ni el HTML con claves dentro.</b></p></div></details>
-
-<details class="fold hlp"><summary>31 · Qué NO hace la app (y por qué las cifras pueden ser optimistas)</summary><div class="fb m">
-<ul style="margin:6px 0 6px 18px;padding:0">
-<li>No envía órdenes, no se conecta a ningún bróker ni maneja dinero.</li>
-<li>No simula dividendos explícitos (los precios ajustados los reflejan en parte, según el proveedor), ni impuestos, ni tasas de cambio de divisa de un bróker real, ni liquidez, ni órdenes rechazadas, ni parones de cotización.</li>
-<li>El deslizamiento es un porcentaje fijo, no el de cada acción ni cada día. Los huecos de precio pueden dar peores ejecuciones de las simuladas.</li>
-<li>Los precios «Ahora» son cierres diarios; los stops se contrastan una vez por sesión con el máximo/mínimo del día (en vivo, el bot decide en la actualización, no al segundo).</li>
-<li>La prueba histórica usa acciones que existen hoy, lo que la hace más optimista (sesgo de supervivencia), y las reglas de los métodos son fijas y públicas, no optimizadas, pero eso no garantiza resultados futuros.</li>
-<li>Con 500 € y una comisión fija por orden, el coste relativo es alto y muchas señales quedan por debajo de la orden mínima; en cuentas mayores el efecto de las comisiones baja.</li>
-<li>Menos de 30 operaciones cerradas o pocos meses de datos no demuestran ventaja estadística.</li>
-<li>Los métodos del vigilante no están validados en histórico.</li>
-<li>Es una herramienta de estudio, no asesoramiento financiero.</li></ul></div></details>
-
-<details class="fold hlp"><summary>32 · Métodos eliminados en la v52: fórmulas, fuentes y qué dijo la prueba</summary><div class="fb m">
-<p>Resumen de lo que dicen las fuentes publicadas. <b>Ninguna afirma que los cinco batan al S&amp;P 500</b>; casi todos los resultados son teóricos (sin impuestos y, a veces, sin costes). La prueba histórica de la app (Informe) los mide con tus costes.</p>
-<p><b>1 · Dual Momentum (GEM).</b> Regla: si la rentabilidad a 12 meses del SPY supera a la de la liquidez, se invierte en el mejor entre SPY y bolsa fuera de EE. UU. (aquí EFA); si no, en bonos agregados (AGG). Revisión mensual. Un análisis de ReSolve (Advisor Perspectives, 2019) da 14,9 % anual para 1950-2018 (teórico, sin costes), pero su benchmark era una mezcla 45/28/27 de bolsa EE. UU., exterior y bonos, no el SPY solo, y su propio autor cree que parte de la ventaja en la muestra original es suerte. En la prueba 2007-2026 de esta app rindió 6,9 % anual frente a 12,7 % del SPY.</p>
-<p><b>2 · RSI(2) + filtro de tendencia.</b> Regla (Connors y Alvarez): comprar si cierre &gt; SMA(200) y RSI(2) &lt; 10 (versiones más estrictas usan &lt; 5); vender si cierra sobre SMA(5). Un backtest publicado sobre el S&amp;P 500 (2016-2026) da +1,7 % anual frente a +13,5 % de comprar y mantener; menos caída (-21,5 % frente a -35 %) pero muy poco tiempo invertido. En la app: stop del 8 %, tamaño por riesgo del 0,5 % y máximo 8 posiciones; si el importe sale menor que la orden mínima, se omite.</p>
-<p><b>3 · Momentum + Calidad.</b> Regla: 50 % SPMO y 50 % SPHQ, rebalanceo semestral. Un backtest teórico publicado en Nasdaq (1995-junio 2026) da 14,17 % anual frente a 11,08 % del S&amp;P 500, con menor volatilidad y caídas, aunque sin cifras de caída. Es el único de los cinco con una ventaja publicada sobre el S&amp;P 500 que se pueda replicar con ETFs. Aviso: SPMO y SPHQ son ETFs de EE. UU. y normalmente no se pueden comprar desde Europa; tendrías que buscar equivalentes (índices MSCI USA Momentum y MSCI USA Quality) en tu bróker. SPMO empezó en 2015, así que en la prueba histórica solo cuenta el último tramo.</p>
-<p><b>4 · Tendencia + volatilidad objetivo.</b> Regla: exposición al SPY = mín(1; 10 % ÷ volatilidad anual de 20 sesiones) si SPY &gt; SMA(210); si no, 0 %. El resto en SHY. Revisión semanal; solo se opera si la diferencia con el objetivo supera el umbral. Inspirado en Moreira y Muir (2017), que encuentran alfa positivo escalando la exposición con la volatilidad reciente (4,86 % anual bruto para el factor mercado), pero con apalancamiento cuando la volatilidad es baja, con fricciones que los propios revisores consideran subestimadas y con resultados mayormente brutos. Aquí no hay apalancamiento: es de esperar menos caída, no más rentabilidad.</p>
-<p><b>5 · Overnight.</b> Regla: comprar SPY al cierre, vender a la apertura siguiente. Un análisis de Alpha Architect con SPY (1993-enero 2020) da +717 % sin costes frente a +627 % de comprar y mantener, pero -32 % con costes (horquilla y 0,01 $ por acción), y la diferencia no es estadísticamente significativa (p = 0,06). En la app, con 500 € y 0,15 € por orden, la comisión supone un 0,06 % diario.</p>
-<p><b>ORB (ruptura del rango de apertura), no implementado.</b> Zarattini, Barbon y Aziz (2024) proponen operar las acciones «en juego» (volumen de los primeros 5 minutos superior a su media de 14 días): comprar si la primera vela de 5 minutos cierra al alza y se supera su máximo (vender si cierra a la baja y se pierde su mínimo), stop a una fracción del ATR de 14 días, y cerrar al final de la sesión; riesgo del 1 % de la cartera por operación y hasta 20 acciones. Reportan más de +1.600 % neto entre 2016 y 2023 frente a +198 % del S&amp;P 500. Réplicas independientes (QuantConnect) muestran solo 2016 con buenos resultados y comentarios con malos años, tasa de aciertos del 17 % y dudas por costes. Exige datos intradía y órdenes en el minuto de la apertura, algo que la app no tiene.</p>
-</div></details>
-
+<div class="p"><h2>Cómo usar este bot</h2>
+<div class="m"><b>Qué es.</b> Un simulador: varios <b>métodos</b> (estrategias) invierten cada uno <span class="capT">500 €</span> ficticios con las mismas reglas. Con el tiempo ves cuál gana más. No mueve dinero real.</div>
+<div class="m"><b>Cuándo trabaja.</b> Cada día de bolsa, después del cierre de Wall Street, actualiza precios y cada método decide si compra o vende. La prueba histórica corre aparte, después.</div>
+</div>
+<div class="p"><h2>Qué mirar, en orden</h2>
+<div class="m"><b>1. 📊 Métodos:</b> el ranking. Arriba, el método que más gana. Fíjate en la ganancia, la caída máxima y las operaciones cerradas: con pocas operaciones o pocas semanas, no concluye nada.</div>
+<div class="m"><b>2. 💼 Cartera:</b> elige un método. «Datos de la cartera» te dice cuánto tiene invertido, en efectivo y ganado. «Qué hacer» te dice qué comprar o vender ahora.</div>
+<div class="m"><b>3. 🏠 Hoy:</b> resumen y curva de ganancias frente a comprar SPY y no tocar nada.</div>
+</div>
+<div class="p"><h2>Cómo replicarlo en tu app de trading</h2>
+<div class="m"><b>Comprar:</b> en «Qué hacer» aparece 🟢 COMPRAR con el activo, el precio y el peso. Compra ese activo a mercado en la siguiente apertura, sin pasarte del peso (% de tu dinero).</div>
+<div class="m"><b>Stop loss:</b> es el precio al que sale automáticamente para limitar la pérdida. Si la tarjeta lo muestra, ponlo como orden stop en tu app. Si dice «sin precio fijo», ese método no usa stop: vende cuando su regla lo indica y entonces verás 🔴 VENDER.</div>
+<div class="m"><b>Objetivo (take profit):</b> si lo hay, es un precio de venta para asegurar ganancia. Muchos métodos no lo usan: dejan correr la ganancia.</div>
+<div class="m"><b>Vender:</b> cuando salga 🔴 VENDER, véndelo en la siguiente apertura. Pulsa «Ya lo he hecho» y solo verás lo nuevo.</div>
+<div class="m">El precio real puede ser algo distinto del simulado. Empieza con poco dinero y solo cuando un método lleve semanas ganando de forma estable.</div>
+</div>
+<div class="p"><h2>Costes y ajustes</h2>
+<div class="m">Cada orden paga una comisión (0,15 € por defecto) y un pequeño deslizamiento (compras algo más caro, vendes algo más barato). Todo se cambia en <b>Ajustes</b>. Si cambias la comisión, marca «Recalcular también la cartera ya hecha» para corregir lo pasado.</div>
+<div class="m"><b>Si los datos tienen más de 4 días</b>, el bot no se está actualizando: mira la pestaña Actions de GitHub.</div>
+</div>
+<div class="p"><h2>Palabras que verás</h2>
+<div class="m"><b>Método:</b> una estrategia con su propia cuenta ficticia. <b>ETF:</b> fondo que compra muchas empresas a la vez. <b>Peso:</b> parte de tu dinero en un activo. <b>Efectivo:</b> dinero sin invertir. <b>Caída máxima:</b> lo más que ha bajado desde un máximo. <b>Neto / bruto:</b> con / sin comisiones.</div>
+<div class="m">Es una simulación con dinero ficticio, no asesoramiento financiero. Los resultados pasados no garantizan los futuros.</div>
+</div>
 </section>
 
 </div>
-<nav id="nav"><button data-t="hoy"><span>🏠</span>Hoy</button><button data-t="radar"><span>📡</span>Radar</button><button data-t="cartera"><span>💼</span>Cartera</button><button data-t="informe"><span>📊</span>Informe</button><button data-t="vigia"><span>👁️</span>Vigilante</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
+<nav id="nav"><button data-t="hoy"><span>🏠</span>Hoy</button><button data-t="cartera"><span>💼</span>Cartera</button><button data-t="informe"><span>📊</span>Métodos</button><button data-t="vigia"><span>👁️</span>Vigilante</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
 <script id="viewer-shim">
 /* Modo VISOR (solo en la web publicada). En el ordenador (file://) y en el proceso automático NO hace nada.
    Carga la última copia de datos que dejó el proceso automático en GitHub y la muestra tal cual. */
@@ -2026,7 +1598,7 @@ function chart(){
 function stats(){const cl=CB().trades.filter(t=>t.pnl!=null),w=cl.filter(t=>t.pnl>0),l=S.days.at(-1),e=eq(),ps=cl.map(t=>t.pnl);let m=START,dd=0;(CB().days&&CB().days.length?CB().days:S.days).forEach(x=>{m=Math.max(m,x.eq);dd=Math.min(dd,(x.eq/m-1)*100)});
 return[["Días registrados",S.days.length],["Operaciones cerradas",cl.length],["Acierto",cl.length?Math.round(w.length/cl.length*100)+"%":"—"],["Mejor operación",ps.length?E(Math.max(...ps)):"—"],["Peor operación",ps.length?E(Math.min(...ps)):"—"],["Caída máxima",P(dd)],["Bot vs SPY",l&&l.b!=null?P((e-l.b)/START*100)+" pts":"—"]]}
 function draw(){try{capApply();mailUI()}catch{}try{nxDraw()}catch{}
-  const kH=vmGet("hoy"),e=liveEq(kH),pl=e-START,pc=pl/START*100;$("#sel-hoy").innerHTML=mSel("hoy");
+  const kH=vmGet("hoy"),e=liveEq(kH),pl=e-START,pc=pl/START*100;$("#sel-hoy").innerHTML=mSel("hoy");try{hoyRank()}catch(e){try{console.error(e)}catch{}}
   $("#eq").textContent=E(e);$("#pl").innerHTML=`<b class="${pl>=0?"up":"dn"}">${pl>=0?"▲ Ganas":"▼ Pierdes"} ${E(Math.abs(pl))} (${P(pc)})</b> <span class="m">desde los ${E(S.start)} iniciales</span>`;
   const last=S.days.at(-1);$("#bench").textContent=last&&last.b!=null?`Para comparar: si solo hubieras comprado SPY el primer día, tendrías ${E(last.b)}.`:"La comparación con 'comprar y no tocar' aparece tras la primera actualización.";
   $("#run").disabled=busy;$("#run").textContent=busy?"Consultando precios reales…":"Actualizar precios y que el bot decida";
@@ -2050,6 +1622,17 @@ function liveEq(k){const B=bkOf(k);if(!B)return START;const fx=S.fx||1;let t=B.c
 const mGain=k=>liveEq(k)-START;
 const mSorted=()=>Object.keys(STR).filter(k=>bkOf(k)).sort((a,b)=>mGain(b)-mGain(a));
 const vmGet=v=>{const k=VM[v];if(k&&STR[k]&&bkOf(k))return k;return STR[S.main]&&bkOf(S.main)?S.main:(mSorted()[0]||"sect")};
+/* ===== v9 · ranking sencillo en Hoy ===== */
+function hoyRank(){const A=document.getElementById("hoy-rank");if(!A)return;
+ const ks=mSorted();
+ if(!ks.length){A.innerHTML='<div class="m">Aún no hay métodos con datos. Espera a la primera actualización diaria o pulsa «Actualizar precios…».</div>';return}
+ const med=["🥇","🥈","🥉"],last=S.lastDate||"";
+ const rows=ks.map((k,j)=>{const B=bkOf(k),tr=B.trades||[],g=mGain(k),pc=g/START*100,cl=tr.filter(t=>t.pnl!=null).length,nb=tr.filter(t=>t.d===last&&t.side==="COMPRA").length,ns=tr.filter(t=>t.d===last&&t.side==="VENTA").length,np=Object.keys(B.pos||{}).length;
+  const act=(nb||ns)?`🟢 ${nb} · 🔴 ${ns} en el último día`:"sin cambios en el último día";
+  return`<div class="rk-c" data-go="${k}"><div class="rk-n">${med[j]||(j+1)+"."}</div><div class="rk-t"><b>${esc(STR[k].n)}</b><small>${np} ${np===1?"activo":"activos"} en cartera · ${cl} ventas cerradas · ${act}</small></div><div class="rk-g ${g>=0?"up":"dn"}">${P2(pc)}<small>${E2(g)}</small></div></div>`}).join("");
+ const dias=(S.days||[]).length,pocas=ks.every(k=>((bkOf(k).trades)||[]).filter(t=>t.pnl!=null).length<30);
+ A.innerHTML=`<div class="rk">${rows}</div><div class="m">Toca un método para ver qué hacer con él. Llevas ${dias} ${dias===1?"día":"días"} de datos${pocas?": todavía hay pocas ventas cerradas (menos de 30 por método), así que el ranking aún no demuestra nada. Sigue unas semanas.":"."}</div>`}
+document.addEventListener("click",e=>{const c=e.target&&e.target.closest&&e.target.closest("[data-go]");if(!c||!STR[c.dataset.go])return;VM.cart=c.dataset.go;VM.hoy=c.dataset.go;try{localStorage.setItem("pbvm",JSON.stringify(VM))}catch{}draw();const b=document.querySelector('#nav button[data-t="cartera"]');if(b)b.click()});
 const gtxt=g=>`<b class="${g>=0?"up":"dn"}">${E2(g)} (${P2(g/START*100)})</b>`;
 const hmL=t=>t?new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"";
 const hmS=t=>new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
@@ -2070,7 +1653,7 @@ function stampTrades(){const now=new Date().toISOString();for(const B of[...Obje
 /* ---------- Cartera por método ---------- */
 function cartDraw(){const k=vmGet("cart"),B=bkOf(k)||CB(),fx=S.fx||1;CBK=k;try{
  const rk=mSorted().map((m,j)=>`<div class="mo${m===k?" on":""}" data-v="cart" data-k="${m}"><span>${j+1}. ${esc(STR[m].n)}</span>${gtxt(mGain(m))}</div>`).join("");
- $("#sel-cart").innerHTML=mSel("cart")+`<details class="rd" data-id="rankcart"${opn("rankcart",false)}><summary><span>Ranking de todos los métodos (toca uno para verlo)</span></summary><div class="mol">${rk}</div></details><div class="m">${esc((STR[k].d||STR[k].src||"").slice(0,400))}</div>`;
+ $("#sel-cart").innerHTML=mSel("cart")+`<details class="rd" data-id="rankcart"${opn("rankcart",false)}><summary><span>Ranking de todos los métodos (toca uno para verlo)</span></summary><div class="mol">${rk}</div></details><div class="m">${esc((STR[k].d||STR[k].src||"").slice(0,220))}</div>`;
  const ps=Object.entries(B.pos).map(([s,p])=>{const lp=S.last[s],px=(lp&&lp.px)||p.lastMark||p.avg,v=p.q*px/fx;return{s,p,lp,px,v,g:v-p.cost}}).sort((a,b)=>b.g-a.g);
  const inv=ps.reduce((t,x)=>t+x.p.cost,0),val=ps.reduce((t,x)=>t+x.v,0),vault=bvLive(B),tot=B.cash+val+vault,cl=B.trades.filter(t=>t.pnl!=null),real=cl.reduce((t,x)=>t+x.pnl,0),fees=B.trades.reduce((t,x)=>t+(x.fee||0),0);
  $("#kv").innerHTML=`<div>Valor total<b>${E(tot)}</b></div><div>Ganancia total<b class="${tot>=START?"up":"dn"}">${E2(tot-START)}</b></div><div>Efectivo libre<b>${E(B.cash)}</b></div><div>Invertido (coste)<b>${E(inv)}</b></div><div>Vale ahora<b>${E(val)}</b></div><div>Ganancia abierta<b class="${val-inv>=0?"up":"dn"}">${E2(val-inv)}</b></div><div>Ganancia cerrada<b class="${real>=0?"up":"dn"}">${E2(real)}</b></div><div>Ahorro MSCI World<b>${E(vault)}</b></div><div>Órdenes · comisiones<b>${B.trades.length} · ${E(fees)}</b></div>`;
@@ -2117,7 +1700,7 @@ function miDraw(){
  const head=chg.length?(seen?`${chg.length} ${chg.length===1?"cambio nuevo":"cambios nuevos"} desde tu última revisión (${esc(fd(seen))})`:"Últimos cambios del bot")+` · 🟢 ${nb} · 🔴 ${ns}`:"✅ Sin cambios nuevos: mantén lo que tienes";
  const sum=`<b>🧾 Qué hacer con esta cartera</b> · ${chg.length?`🟢 ${nb} · 🔴 ${ns}`:"✅ sin cambios nuevos"}`;
  const act=`<div class="m">Método: <b>${esc(nm)}</b> · datos del <b>${lastD?esc(fdLong(lastD)):"—"}</b></div>${stale}<div class="mi-big">${head}</div>${cards}${chg.length?'<button class="go" data-mi="seen">Ya lo he hecho / lo he revisado</button>':""}
-  <div class="mi-warn">⏱️ El bot decide con el cierre de cada día y lo simula a la <b>apertura de ese día</b>. Tú lo harás a la apertura de la siguiente sesión: el precio puede ser algo distinto. Es una simulación, no asesoramiento financiero.</div>`;
+  <div class="mi-warn">📲 Para replicarlo: compra a mercado en la siguiente apertura, pon el stop loss indicado y no pases del % de peso. El precio puede diferir algo del simulado. Simulación, no asesoramiento financiero.</div>`;
  A.innerHTML=act}
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-mi]");if(!b||b.dataset.mi!=="seen")return;const k=vmGet("cart"),B=bkOf(k);MIS.seen=MIS.seen||{};MIS.seen[k]=S.lastDate||(((B&&B.trades)||[])[0]||{}).d||"";miSave();miDraw()});
 function infDraw(){CBK=vmGet("inf");try{$("#sel-inf").innerHTML=mSel("inf");$("#st2").innerHTML=stats().map(([k,v])=>`<div>${k}<b>${v}</b></div>`).join("")}finally{CBK=null}}

@@ -95,6 +95,14 @@ Actions → «Actualización de precios…» (o «Prueba histórica diaria…»)
   - Este paquete ya trae `ajustes.json` con `fee 0,15` y una petición de recálculo: al subirlo, **la siguiente ejecución del bot recalcula la cartera una sola vez**.
 - Archivos que cambian respecto a v8: `index.html`, `runner/runner.mjs`, `.github/workflows/ajustes.yml` y `ajustes.json`.
 
+## Simplificación de la app (v9)
+
+- **Menú:** Hoy · Radar (oculto) · Cartera · Métodos (antes «Informe») · Vigilante · Ajustes · Ayuda. Radar no sale en el menú; el Vigilante sí.
+- **Hoy:** nuevo panel «🏆 Qué método va ganando»: tarjetas con la rentabilidad de cada método, sus ventas cerradas y lo que hizo en el último día; al tocar una, te lleva a su Cartera.
+- **Ayuda:** de 32 apartados técnicos (~67 KB) a una guía corta de una pantalla: qué mirar y cómo replicar el bot en tu app de trading (comprar, stop loss, objetivo, vender).
+- **Ocultos (siguen funcionando por detrás, no se ven):** «Qué ha hecho el bot (en cristiano)» en Hoy; «Informe de rendimiento por método», «Neto frente a bruto» y «Alertas automáticas» en Métodos; «Envío automático por correo», «Auditoría de parámetros y datos» y «Diagnóstico técnico» en Ajustes.
+- No se ha borrado ningún archivo: el vigilante, sus flujos y sus datos siguen igual.
+
 ## Cambios de la versión v8
 
 - **Cartera → «🧾 Qué hacer con esta cartera»**: bloque desplegable (abierto por defecto) debajo del selector de método. Muestra 🟢 COMPRAR / 🔴 VENDER con activo, fecha, precio y motivo; lo que sigue en cartera (precio de compra y actual, ganancia, peso, stop loss y objetivo del bot) y las ya vendidas. El botón «Ya lo he hecho» hace que la próxima vez solo enseñe lo nuevo.
