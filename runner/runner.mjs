@@ -225,7 +225,9 @@ function loadAjustes() {
     const XL = { mon: [0, 1], mc: [0, 1], mv: [0, 1], nt: [0, 1], fx: [0.3, 3] };
     for (const k of Object.keys(XL)) { const v = +a.extra[k]; if (a.extra[k] != null && Number.isFinite(v) && v >= XL[k][0] && v <= XL[k][1]) extra[k] = v; }
   }
-  return { vigilante_min: vm, bt_max: bmax, cfg, main, vgc, mins, avisos, capital, extra };
+  // recálculo único de las comisiones ya pagadas: lo pide la web / el flujo «Ajustes de la nube» con un identificador nuevo
+  const recalc = a.recalc && typeof a.recalc.id === "string" && a.recalc.id.length > 0 && a.recalc.id.length <= 80 ? a.recalc.id : "";
+  return { vigilante_min: vm, bt_max: bmax, cfg, main, vgc, mins, avisos, capital, extra, recalc };
 }
 // número aleatorio de acciones: entre 200 y el máximo (si el máximo es menor de 200, se usa el máximo)
 function btCount(max) { const lo = Math.min(200, max); return lo + Math.floor(Math.random() * (max - lo + 1)); }
@@ -397,6 +399,21 @@ async function boot() {
       log("Ajustes de la web aplicados:", r.done.join(", ") || "sin cambios", r.bad.length ? "· rechazados (fuera de rango): " + r.bad.join(", ") : "");
     }
   } catch (e) { log("No se pudieron aplicar los ajustes de la web:", String(e.message).slice(0, 160)); }
+  // recalcular la cartera con la comisión vigente (una sola vez por cada identificador nuevo de ajustes.json → recalc)
+  try {
+    const rc = loadAjustes().recalc;
+    if (rc) {
+      const r = await page.evaluate(async (id) => {
+        if (typeof recalcFees !== "function") return "";
+        if (S.feeRecalcId === id) return "";
+        try { await archiveReport("antes-de-recalcular-comision", "Copia automática antes de recalcular la comisión a " + CFG.fee + " €."); } catch {}
+        const msg = recalcFees(CFG.fee);
+        S.feeRecalcId = id; await save();
+        return msg;
+      }, rc);
+      if (r) log("Recálculo de comisiones:", r);
+    }
+  } catch (e) { log("No se pudo recalcular la comisión:", String(e.message).slice(0, 200)); }
   // método principal, ajustes del vigilante y tiempo máximo por actualización (también vienen de la web)
   try {
     const A = loadAjustes();
