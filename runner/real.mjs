@@ -23,6 +23,7 @@ const r2 = (n) => Math.round(n * 100) / 100;
 const eur = (n) => (n == null || !Number.isFinite(+n) ? "—" : (+n).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €");
 const pct = (n) => (n == null || !Number.isFinite(+n) ? "—" : (n > 0 ? "+" : "") + (+n).toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + "%");
 const qtyTxt = (q) => (+q).toLocaleString("es-ES", { maximumFractionDigits: 6 });
+const seur = (n) => { const v = r2(+n || 0); return (v > 0 ? "+" : v < 0 ? "−" : "") + eur(Math.abs(v)); };   // importe con signo (+1,20 € / −0,35 € / 0,00 €)
 
 const NOMBRES = {
   sect: "Rotación de sectores (Faber)", sectx: "Rotación ampliada (sectores + QQQ + SMH + IWM)", trq: "Tendencia QQQ de 10 meses (Faber)",
@@ -78,7 +79,8 @@ const BAD = /Hedged|Leverag|Short|Daily|\b[23]x\b|Equal|ESG|SRI|Paris|Screened|S
 const BASE_UNI = Object.keys(PAT);
 
 // ---------- hora de Madrid ----------
-function madrid(d = new Date()) {
+const NOWF = () => (env("REAL_NOW") && !env("GITHUB_ACTIONS") ? new Date(env("REAL_NOW")) : new Date());   // REAL_NOW: solo para pruebas en el ordenador
+function madrid(d = NOWF()) {
   const p = {};
   new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour12: false, weekday: "short", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
     .formatToParts(d).forEach((x) => (p[x.type] = x.value));
@@ -111,12 +113,14 @@ async function loadReal() {
   }
   return Object.assign(freshReal(), j);
 }
-function freshReal() { return { v: 1, created: new Date().toISOString(), days: [], orders: [], reports: [], plan: null, planHist: [], map: {}, inst: null, paused: null, botTickers: [], last: null, lastNormal: null, account: null, positions: [], deposits: null, cfg: null }; }
+function freshReal() { return { v: 2, created: new Date().toISOString(), days: [], orders: [], reports: [], plan: null, planHist: [], map: {}, inst: null, paused: null, botTickers: [], last: null, lastNormal: null, account: null, positions: [], deposits: null, cfg: null, ledger: null, pendBot: [], approved: null, flows: {}, cuenta: [] }; }
 
 async function publishReal(R) {
   R.savedAt = Date.now();
-  R.reports = R.reports.slice(0, 300).map((x, i) => (i > 120 && x.md && x.md.length > 20000 ? { ...x, md: x.md.slice(0, 20000) + "\n\n[… recortado por antigüedad]\n" } : x));
-  R.orders = R.orders.slice(0, 2000); R.planHist = (R.planHist || []).slice(0, 100);
+  // se guarda todo: los informes más antiguos (a partir del 500) conservan los primeros 6.000 caracteres; todos te llegaron completos por correo
+  R.reports = R.reports.sort((a, b) => (a.ts < b.ts ? 1 : -1)).slice(0, 5000).map((x, i) => (i >= 500 && x.md && x.md.length > 6000 ? { ...x, md: x.md.slice(0, 6000) + "\n\n[… recortado por antigüedad: el informe completo te llegó por correo]\n" } : x));
+  R.orders = R.orders.slice(0, 20000); R.planHist = (R.planHist || []).slice(0, 1000);
+  if (R.ledger) R.ledger.hist = R.ledger.hist.slice(0, 20000);
   const plain = JSON.stringify(R);
   const pw = env("REAL_VIEW_PASS");
   if (!pw) throw new Error("sin REAL_VIEW_PASS no se publica nada (privacidad)");
@@ -130,7 +134,7 @@ async function publishReal(R) {
   const g = (c) => sh(`git -C "${pub}" ${c}`);
   g("init -q -b real"); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"');
   g("add real.json"); g(`commit -q -m "cartera real ${new Date().toISOString()}"`);
-  for (let i = 0; i < 3; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git real`); break; } catch (e) { if (i === 2) throw e; await sleep(4000); } }
+  for (let i = 0; i < 6; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git real`); break; } catch (e) { if (i === 5) throw new Error("no pude guardar el historial en GitHub tras 6 intentos"); await sleep(5000 * (i + 1)); } }
   log("Cartera real publicada (cifrada).");
 }
 
@@ -262,6 +266,108 @@ function resolveMap(insts, syms, A) {
 }
 function pick(sym, i, why) { return { sym, t: i.ticker, name: i.name || i.shortName || i.ticker, short: i.shortName || "", cur: i.currencyCode, isin: i.isin || "", type: i.type, ext: !!i.extendedHours, why }; }
 
+// ---------- SUBCUENTA DEL BOT dentro de tu cuenta de Trading 212 ----------
+// El bot lleva su propia contabilidad, aparte de lo tuyo:
+//  · cap   = dinero que le has dado a trabajar (el ajuste «Dinero que trabaja el bot»). Subirlo = aportar; bajarlo = retirar.
+//  · cash  = efectivo del bot (lo que le queda sin invertir de su capital, más lo cobrado en sus ventas).
+//  · lots  = participaciones que ha comprado ÉL, con su coste. Nunca vende más de esto, aunque tú tengas más del mismo ETF.
+//  · real  = ganancia o pérdida realizada en sus ventas (lo que se declara en la renta).
+// Así: si ingresas dinero en Trading 212, el bot no lo toca hasta que subas su capital; sus ganancias se reinvierten solas.
+const unitVal = (p) => { const q = +p.quantity || 0, v = +((p.walletImpact && p.walletImpact.currentValue) || 0); return q > 0 ? v / q : 0; };
+function hist(R, e) { R.ledger.hist.unshift({ ts: new Date().toISOString(), ...e, cashBot: r2(R.ledger.cash) }); }
+function flowAdd(R, d, v) { R.flows = R.flows || {}; R.flows[d] = r2((R.flows[d] || 0) + v); }
+export function ensureLedger(R, A, positions, m, notas) {
+  const byT = Object.fromEntries(positions.map((p) => [p.instrument.ticker, p]));
+  if (!R.ledger) {
+    R.ledger = { cap: 0, cash: 0, lots: {}, real: 0, hist: [], limite: null, desde: m.date };
+    // versión anterior: posiciones que el bot ya había comprado (se asume que son todas suyas)
+    for (const t of R.botTickers || []) { const p = byT[t]; if (p && +p.quantity > 0) R.ledger.lots[t] = { q: +p.quantity, cost: r2(+((p.walletImpact && p.walletImpact.totalCost) || 0)), d: m.date }; }
+  }
+  const L = R.ledger;
+  // capital: el ajuste manda. La primera vez se crea; después, cada cambio es una aportación (+) o retirada (−) del bot
+  if (L.limite == null) {
+    const cost = Object.values(L.lots).reduce((t, x) => t + x.cost, 0);
+    L.cap = A.limite; L.cash = r2(A.limite - cost); L.limite = A.limite;
+    hist(R, { tipo: "capital", eur: A.limite, nota: `capital inicial del bot: ${eur(A.limite)}` }); flowAdd(R, m.date, A.limite);
+  } else if (Math.abs(A.limite - L.limite) > 0.004) {
+    const dlt = r2(A.limite - L.cap);   // el ajuste fija el capital exacto del bot: la diferencia es lo que le das o le quitas
+    L.cap = A.limite; L.cash = r2(L.cash + dlt); L.limite = A.limite; R.applied = null;   // se recalcula la cartera entera con el capital nuevo
+    hist(R, { tipo: dlt > 0 ? "aportación" : "retirada", eur: dlt, nota: `has cambiado el dinero que trabaja el bot a ${eur(A.limite)} (${seur(dlt)})` }); flowAdd(R, m.date, dlt);
+    notas.push(`Has cambiado el dinero que trabaja el bot: ${seur(dlt)} (ahora ${eur(A.limite)}). Cuenta como ${dlt > 0 ? "aportación" : "retirada"}, no como ganancia ni pérdida.`);
+  }
+  return L;
+}
+export function syncLots(R, positions, m, notas) {
+  const L = R.ledger, byT = Object.fromEntries(positions.map((p) => [p.instrument.ticker, p]));
+  // participaciones del bot frente a lo que hay de verdad en la cuenta (si vendiste tú a mano, se descuenta)
+  for (const [t, lot] of Object.entries(L.lots)) {
+    const p = byT[t], have = p ? +p.quantity || 0 : 0;
+    if (have + 1e-6 < lot.q) {
+      const gone = lot.q - have, frac = gone / lot.q, val = p ? gone * unitVal(p) : 0, cost = lot.cost * frac;
+      lot.q = have; lot.cost = r2(lot.cost - cost);
+      L.cap = r2(L.cap - val); flowAdd(R, m.date, -val);   // (el ajuste «Dinero que trabaja el bot» no cambia: solo el capital)
+      hist(R, { tipo: "ajuste", t, q: gone, eur: -r2(val), nota: `en la cuenta hay ${have} participaciones de ${t} y el bot tenía ${r2(gone + have)}: se descuentan ${r2(gone)} (¿las vendiste tú?). Se cuenta como retirada del bot.` });
+      notas.push(`${t}: en Trading 212 hay menos participaciones que las que compró el bot (¿las vendiste a mano?). Se descuentan de su cartera.`);
+      if (lot.q <= 1e-6) delete L.lots[t];
+    }
+  }
+  return L;
+}
+// valor actual de lo que es del bot y de lo que es tuyo, ticker a ticker
+export function split(R, positions) {
+  const L = R.ledger, out = [];
+  for (const p of positions) {
+    const t = p.instrument.ticker, u = unitVal(p), q = +p.quantity || 0, bq = Math.min(q, (L.lots[t] && L.lots[t].q) || 0);
+    out.push({ t, p, u, q, bq, uq: Math.max(0, q - bq), bv: bq * u, uv: Math.max(0, q - bq) * u, qa: +p.quantityAvailableForTrading || 0 });
+  }
+  return out;
+}
+export function botEquity(R, positions, accCash) {
+  const inv = split(R, positions).reduce((t, x) => t + x.bv, 0), c = Math.max(0, Math.min(R.ledger.cash, accCash));
+  return { inv: r2(inv), cash: r2(R.ledger.cash), cashUsable: r2(c), eq: r2(inv + R.ledger.cash) };
+}
+// apunta una orden ejecutada en la subcuenta del bot; devuelve {coste, pnl}
+export function applyFill(R, side, t, q, eurAmt, meta = {}) {
+  const L = R.ledger; q = Math.abs(+q || 0); eurAmt = Math.abs(+eurAmt || 0);
+  if (!(q > 0)) return { coste: null, pnl: null };
+  if (side === "COMPRA") {
+    const lot = L.lots[t] || (L.lots[t] = { q: 0, cost: 0, d: meta.d || null });
+    lot.q = +(lot.q + q).toFixed(8); lot.cost = r2(lot.cost + eurAmt); L.cash = r2(L.cash - eurAmt);
+    hist(R, { tipo: "compra", t, q, eur: -eurAmt, px: meta.px || null, id: meta.id || null, nota: meta.why || "" });
+    return { coste: eurAmt, pnl: null };
+  }
+  const lot = L.lots[t] || { q: 0, cost: 0 }, frac = lot.q > 0 ? Math.min(1, q / lot.q) : 1, cost = r2(lot.cost * frac), pnl = r2(eurAmt - cost);
+  lot.q = Math.max(0, +(lot.q - q).toFixed(8)); lot.cost = r2(lot.cost - cost); L.cash = r2(L.cash + eurAmt); L.real = r2(L.real + pnl);
+  if (lot.q <= 1e-6) delete L.lots[t]; else L.lots[t] = lot;
+  hist(R, { tipo: "venta", t, q, eur: eurAmt, px: meta.px || null, id: meta.id || null, coste: cost, pnl, nota: meta.why || "" });
+  return { coste: cost, pnl };
+}
+// órdenes del bot que quedaron pendientes (bolsa cerrada, festivo…): se mira cómo acabaron y se apuntan
+async function reconcile(T, R, rep) {
+  const keep = [];
+  for (const o of R.pendBot || []) {
+    let still = false;
+    try { const x = await T.call("GET", "/equity/orders/" + o.id); if (x && !/FILLED|CANCEL|REJECT/.test(String(x.status))) still = true; } catch (e) { if (e.st !== 404) still = true; }
+    if (still) { if (Date.now() - Date.parse(o.ts) < 10 * 864e5) keep.push(o); else rep.push(`- ⚠️ La orden ${o.side} ${o.t} lleva más de 10 días pendiente: revísala en Trading 212.`); continue; }
+    let it = null;
+    try { const h = await T.call("GET", `/equity/history/orders?ticker=${encodeURIComponent(o.t)}&limit=20`); it = ((h && h.items) || []).find((x) => x.order && String(x.order.id) === String(o.id)); } catch { keep.push(o); continue; }
+    const rec = (R.orders || []).find((x) => String(x.id) === String(o.id));
+    if (it && /FILLED/.test(String(it.order.status))) {
+      const q = +it.order.filledQuantity || o.qty, net = it.fill && it.fill.walletImpact ? Math.abs(+it.fill.walletImpact.netValue) : o.eur, px = it.fill && it.fill.price;
+      const r = applyFill(R, o.side, o.t, q, net, { px, id: o.id, d: String(it.fill && it.fill.filledAt || "").slice(0, 10), why: "orden pendiente que se ejecutó después" });
+      if (rec) Object.assign(rec, { estado: "ejecutada", qty: Math.abs(q), px: px || rec.px, eur: r2(net), coste: r.coste, pnl: r.pnl, ejecutadaEn: it.fill && it.fill.filledAt, err: "se ejecutó después de enviarla (bolsa cerrada o festivo)" });
+      rep.push(`- ✔ La orden pendiente ${o.side} ${o.t} se ejecutó${px ? " a " + px : ""} · ${eur(net)}${r.pnl != null ? ` · resultado ${seur(r.pnl)}` : ""}.`);
+    } else if (it) {
+      if (rec) Object.assign(rec, { estado: "rechazada", err: "Trading 212: " + it.order.status });
+      rep.push(`- ✖ La orden pendiente ${o.side} ${o.t} terminó como ${it.order.status}: no se ejecutó.`);
+    } else if (Date.now() - Date.parse(o.ts) < 3 * 864e5) keep.push(o);
+    else { if (rec) Object.assign(rec, { estado: "desconocida", err: "no aparece en el historial de Trading 212" }); rep.push(`- ⚠️ No encuentro la orden ${o.side} ${o.t} en el historial de Trading 212: revísala en la app.`); }
+  }
+  R.pendBot = keep;
+}
+// ¿está abierta la bolsa europea? (las órdenes de ETFs europeos solo se envían de 9:05 a 17:20, hora de España)
+const euOpen = (m) => m.wk && m.min >= 9 * 60 + 5 && m.min <= 17 * 60 + 20;
+
 // ---------- plan: qué comprar y vender para parecerse al método ----------
 export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
   const notas = [], orders = [], m = madrid(now);
@@ -272,24 +378,19 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
   const age = S.lastDate ? (now - Date.parse(S.lastDate + "T22:00:00Z")) / 864e5 : 99;
   if (age > 5) return { block: `los datos del bot son del ${S.lastDate || "—"} (hace ${Math.floor(age)} días): no opero con datos viejos. Revisa la actualización diaria.` };
 
-  const managedSet = new Set([...Object.values(map).map((x) => x.t).filter(Boolean), ...(R.botTickers || [])]);
-  const mine = positions.filter((p) => managedSet.has(p.instrument && p.instrument.ticker));
-  const others = positions.filter((p) => !managedSet.has(p.instrument && p.instrument.ticker));
-  const val = (p) => +((p.walletImpact && p.walletImpact.currentValue) || 0);
-  const managedVal = mine.reduce((t, p) => t + val(p), 0);
-  const cash = +((account.cash && account.cash.availableToTrade) || 0);
-  const base = managedVal + cash;
-  const presupuesto = managedVal > A.limite ? Math.min(base, managedVal) : Math.min(base, A.limite);
+  const sp = split(R, positions), accCash = +((account.cash && account.cash.availableToTrade) || 0), E = botEquity(R, positions, accCash);
+  const mine = sp.filter((x) => x.bq > 0), others = sp.filter((x) => x.uq > 0);
+  const managedVal = mine.reduce((t, x) => t + x.bv, 0), cash = E.cashUsable;
+  if (R.ledger.cash > accCash + 0.5) notas.push(`El efectivo del bot (${eur(R.ledger.cash)}) es mayor que el efectivo libre de tu cuenta (${eur(accCash)}): ¿has retirado dinero o lo has usado tú? El bot solo usa ${eur(accCash)}. Si quieres darle menos dinero, baja «Dinero que trabaja el bot».`);
+  if (R.ledger.cash < -0.5) notas.push(`El bot ha invertido más que su capital (${eur(-R.ledger.cash)} de más): en esta revisión ajusta su cartera.`);
+  const presupuesto = Math.max(0, managedVal + Math.min(R.ledger.cash, accCash));   // = dinero del bot (capital ± ganancias), nunca más de lo que hay
   const invest = presupuesto * (1 - A.reserva / 100);
   const thr = Math.max(A.minOrden, (A.umbral / 100) * invest);
-  if (others.length) notas.push(`Hay ${others.length} posición(es) en tu cuenta que el bot no toca: ${others.map((p) => p.instrument.ticker).join(", ")}.`);
+  if (others.length) notas.push(`Posiciones tuyas que el bot no toca: ${others.map((x) => `${x.t} (${qtyTxt(x.uq)})`).join(", ")}.`);
   const pend = new Set((pending || []).map((o) => o.ticker || (o.instrument && o.instrument.ticker)));
-  // «Como la simulación»: si esta cartera objetivo ya se aplicó, no se reajusta por pequeñas desviaciones de precio
-  // (la simulación solo reajusta cuando el método revisa su cartera). Sí se compra lo que falte y se invierte el dinero nuevo.
-  const yaAplicada = A.reajuste !== "desvio" && R.applied && R.applied.metodo === key && R.applied.tgtD === (tgt.d || null);
-  if (yaAplicada) notas.push(`La cartera objetivo del ${tgt.d || "—"} ya está aplicada: hasta la próxima revisión del método solo se compra lo que falte o el dinero nuevo (como en la simulación).`);
+  const yaAplicada = A.reajuste !== "desvio" && R.applied && R.applied.metodo === key && R.applied.tgtD === (tgt.d || null) && R.ledger.cash >= -0.5;
+  if (yaAplicada) notas.push(`La cartera objetivo del ${tgt.d || "—"} ya está aplicada: hasta la próxima revisión del método solo se compra lo que falte o con dinero nuevo (como en la simulación).`);
 
-  // objetivo en € por ticker de Trading 212
   const objetivo = [], tv = {}, symOf = {};
   for (const [sym, w] of Object.entries(tgt.w)) {
     if (!(w > 0)) continue;
@@ -300,41 +401,37 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
   }
   for (const [sym, mp] of Object.entries(map)) if (mp.t && !symOf[mp.t]) symOf[mp.t] = sym;
 
-  // ventas primero
-  for (const p of mine) {
-    const t = p.instrument.ticker, cur = val(p), q = +p.quantityAvailableForTrading || 0, goal = tv[t] || 0;
+  for (const x of mine) {
+    const t = x.t, cur = x.bv, q = Math.min(x.bq, x.qa), goal = tv[t] || 0;
     if (pend.has(t)) { notas.push(`${t} tiene una orden pendiente en Trading 212: no se toca hasta que se resuelva.`); continue; }
-    if (!(q > 0)) continue;
+    if (!(q > 0)) { notas.push(`${t}: sus participaciones no están disponibles para vender ahora (¿en un «pie»?).`); continue; }
     if (goal <= 0) {
       if (cur < 1) { notas.push(`${t}: resto de ${eur(cur)} demasiado pequeño para vender.`); continue; }
-      orders.push({ side: "VENTA", t, sym: symOf[t] || "", name: p.instrument.name || "", qty: q, full: true, eur: r2(cur), why: `ya no está en la cartera del método${tgt.bull === false ? " (el método está fuera del mercado)" : ""}` });
+      orders.push({ side: "VENTA", t, sym: symOf[t] || "", name: x.p.instrument.name || "", qty: q, full: true, eur: r2(q * x.u), why: `ya no está en la cartera del método${tgt.bull === false ? " (el método está fuera del mercado)" : ""}` });
     } else if (!yaAplicada && cur - goal > thr) {
-      const sell = cur - goal, left = cur - sell;
-      const full = left < A.minOrden;
-      orders.push({ side: "VENTA", t, sym: symOf[t] || "", name: p.instrument.name || "", qty: full ? q : Math.floor((q * sell) / cur * 1e4) / 1e4, full, eur: r2(full ? cur : sell), why: `reduce a su peso objetivo (${eur(goal)} de ${eur(cur)})` });
+      const sell = cur - goal, full = cur - sell < A.minOrden;
+      orders.push({ side: "VENTA", t, sym: symOf[t] || "", name: x.p.instrument.name || "", qty: full ? q : Math.min(q, Math.floor((x.bq * sell) / cur * 1e4) / 1e4), full, eur: r2(full ? q * x.u : sell), why: `reduce a su peso objetivo (${eur(goal)} de ${eur(cur)})` });
     }
   }
-  // compras
   const sells = orders.reduce((t, o) => t + o.eur, 0);
-  let freeCash = cash + sells - presupuesto * (A.reserva / 100) - (base > presupuesto ? base - presupuesto : 0);
-  freeCash = Math.min(freeCash, cash + sells);
+  let freeCash = Math.min(cash + sells - presupuesto * (A.reserva / 100), accCash + sells);
   const buys = [];
   for (const [t, goal] of Object.entries(tv)) {
     if (pend.has(t)) continue;
-    const p = mine.find((x) => x.instrument.ticker === t), cur = p ? val(p) : 0, diff = goal - cur;
-    if (diff > thr || (!p && diff >= A.minOrden)) buys.push({ side: "COMPRA", t, sym: symOf[t], name: (Object.values(map).find((x) => x.t === t) || {}).name || "", eur: r2(diff), why: (tgt.why && tgt.why[symOf[t]]) || "está en la cartera objetivo del método" });
+    const x = mine.find((y) => y.t === t), cur = x ? x.bv : 0, diff = goal - cur;
+    if (diff > thr || (!x && diff >= A.minOrden)) buys.push({ side: "COMPRA", t, sym: symOf[t], name: (Object.values(map).find((y) => y.t === t) || {}).name || "", eur: r2(diff), why: (tgt.why && tgt.why[symOf[t]]) || "está en la cartera objetivo del método" });
   }
   buys.sort((a, b) => b.eur - a.eur);
   for (const b of buys) {
     const amt = Math.min(b.eur, freeCash);
-    if (amt < A.minOrden) { if (!yaAplicada || !mine.some((x) => x.instrument.ticker === b.t)) notas.push(`${b.t}: faltan ${eur(b.eur)} pero solo quedan ${eur(Math.max(0, freeCash))} libres (mínimo por orden ${eur(A.minOrden)}).`); continue; }
+    if (amt < A.minOrden) { if (!yaAplicada || !mine.some((x) => x.t === b.t)) notas.push(`${b.t}: faltan ${eur(b.eur)} pero al bot solo le quedan ${eur(Math.max(0, freeCash))} libres (mínimo por orden ${eur(A.minOrden)}).`); continue; }
     orders.push({ ...b, eur: r2(amt) }); freeCash -= amt;
   }
   let cut = 0;
   while (orders.length > A.maxOrdenes) { orders.pop(); cut++; }
-  if (cut) notas.push(`Se han dejado ${cut} órdenes para la próxima ejecución (máximo ${A.maxOrdenes} por vez).`);
+  if (cut) notas.push(`Se han dejado ${cut} órdenes para la próxima revisión (máximo ${A.maxOrdenes} por vez).`);
   const firma = orders.map((o) => o.side + ":" + o.t).sort().join("|");
-  return { plan: { id: m.date.replace(/-/g, "") + "-" + Math.random().toString(36).slice(2, 7), ts: now.toISOString(), d: m.date, metodo: key, metodoNombre: NOMBRES[key] || key, tgtD: tgt.d || null, yaAplicada: !!yaAplicada, bull: tgt.bull !== false, datos: S.lastDate || null, presupuesto: r2(presupuesto), invertible: r2(invest), umbral: r2(thr), cash: r2(cash), gestionado: r2(managedVal), orders, notas, objetivo, firma, estado: orders.length ? "pendiente" : "sin-cambios" } };
+  return { plan: { id: m.date.replace(/-/g, "") + "-" + Math.random().toString(36).slice(2, 7), ts: now.toISOString(), d: m.date, metodo: key, metodoNombre: NOMBRES[key] || key, tgtD: tgt.d || null, yaAplicada: !!yaAplicada, bull: tgt.bull !== false, datos: S.lastDate || null, presupuesto: r2(presupuesto), invertible: r2(invest), umbral: r2(thr), cash: r2(cash), cashCuenta: r2(accCash), gestionado: r2(managedVal), capital: R.ledger.cap, reajuste: A.reajuste, orders, notas, objetivo, firma, estado: orders.length ? "pendiente" : "sin-cambios" } };
 }
 
 // ---------- ejecución de órdenes (a mercado) ----------
@@ -419,25 +516,28 @@ async function priceOf(t, map, positions, fx) {
 async function execute(T, A, R, plan, ctx, rep) {
   const res = [], m = madrid();
   REAL_ORDERS = R.orders || [];
+  R.pendBot = R.pendBot || [];
   const ordered = [...plan.orders.filter((o) => o.side === "VENTA"), ...plan.orders.filter((o) => o.side === "COMPRA")];
-  let positions = ctx.positions, fx = null, sellsDone = false;
+  let positions = ctx.positions, fx = null, sellsDone = false, spent = 0;
   for (const o of ordered) {
     const inst = Object.values(ctx.map).find((x) => x.t === o.t) || {};
     const us = /_US_EQ$/.test(o.t);
     const skip = (estado, err) => { res.push({ ...o, estado, err }); rep.push(`- ${o.side} ${o.t}: ${estado} · ${err}`); };
-    if (us && (m.min < 15 * 60 + 35 || m.min > 21 * 60 + 55)) { skip("aplazada", "acción de EE. UU.: se envía con la bolsa de Nueva York abierta (15:35-21:55 hora de España)"); continue; }
+    if (us && (!m.wk || m.min < 15 * 60 + 35 || m.min > 21 * 60 + 55)) { skip("aplazada", "acción de EE. UU.: se envía con la bolsa de Nueva York abierta (15:35-21:55 hora de España)"); continue; }
+    if (!us && !euOpen(m)) { skip("aplazada", "la bolsa europea está cerrada (las órdenes se envían de 9:05 a 17:20, hora de España): se hará en la próxima revisión con la bolsa abierta"); continue; }
     if (o.side === "COMPRA" && !sellsDone) {
       sellsDone = true;
-      if (res.some((x) => x.side === "VENTA")) {
-        try { const a = await T.call("GET", "/equity/account/summary"); ctx.account = a; positions = await T.call("GET", "/equity/positions"); ctx.positions = positions; } catch (e) { rep.push("  · no pude refrescar el efectivo tras las ventas: " + explainT212(e)); }
+      if (res.some((x) => x.side === "VENTA" && x.estado === "ejecutada")) {
+        try { await sleep(5200); ctx.account = await T.call("GET", "/equity/account/summary"); positions = await T.call("GET", "/equity/positions"); ctx.positions = positions; } catch (e) { rep.push("  · no pude refrescar el efectivo tras las ventas: " + explainT212(e)); }
       }
     }
     let qty;
     if (o.side === "VENTA") qty = -o.qty;
     else {
-      const cashNow = +((ctx.account.cash && ctx.account.cash.availableToTrade) || 0) - res.filter((x) => x.side === "COMPRA" && x.estado !== "error").reduce((t, x) => t + (x.eurReal || x.eur || 0), 0);
+      const acc = +((ctx.account.cash && ctx.account.cash.availableToTrade) || 0) - spent;
+      const cashNow = Math.min(R.ledger.cash, acc);
       const amt = Math.min(o.eur, cashNow - 0.3);
-      if (amt < A.minOrden) { skip("omitida", `solo hay ${eur(Math.max(0, cashNow))} libres`); continue; }
+      if (amt < A.minOrden) { skip("omitida", `al bot solo le quedan ${eur(Math.max(0, cashNow))} libres (cuenta ${eur(Math.max(0, acc))})`); continue; }
       if (!fx && inst.cur && inst.cur !== "EUR") fx = await fxRates();
       const pr = await priceOf(o.t, ctx.map, positions, fx);
       if (!pr) { skip("omitida", "no encontré un precio fiable para calcular las participaciones"); continue; }
@@ -446,16 +546,26 @@ async function execute(T, A, R, plan, ctx, rep) {
       qty = (amt * rate * 0.99) / pr.px;
       o.pxEst = pr.px; o.pxSrc = pr.src; o.eur = r2(amt);
     }
-    rep.push(`- Enviando ${o.side} ${o.t} · ${qtyTxt(Math.floor(Math.abs(qty) * 1e4) / 1e4)} participaciones${o.side === "COMPRA" ? ` (~${eur(o.eur)} a ${o.pxEst} ${inst.cur || ""}, precio de ${o.pxSrc})` : ""}`);
+    rep.push(`- ${new Date().toISOString().slice(11, 19)} UTC · enviando ${o.side} ${o.t} · ${qtyTxt(Math.floor(Math.abs(qty) * 1e4) / 1e4)} participaciones${o.side === "COMPRA" ? ` (~${eur(o.eur)} a ${o.pxEst} ${inst.cur || ""}, precio de ${o.pxSrc})` : ""}`);
     R.prec = R.prec || {};
     const p = await placeMarket(T, o.t, qty, false, rep, R.prec[o.t]);
     if (p.ok && p.dec != null) R.prec[o.t] = p.dec;
     if (!p.ok) { res.push({ ...o, estado: "error", err: p.err }); rep.push("  ✖ " + p.err); continue; }
-    const f = await waitFill(T, p.o);
-    const filled = /FILLED/.test(String(f.status));
-    const r = { ...o, id: p.o.id, qtyEnv: Math.abs(p.qty), estado: filled ? "ejecutada" : String(f.status || "enviada").toLowerCase(), fillQty: f.filledQuantity, fillPx: f.price, eurReal: f.net != null ? Math.abs(+f.net) : null, nota: f.nota || (p.dudosa ? "confirmada tras perder la respuesta" : "") };
+    const f = await waitFill(T, p.o), st = String(f.status || "");
+    let estado = /^FILLED$/.test(st) ? "ejecutada" : /FILLED\?/.test(st) ? "ejecutada" : /CANCEL|REJECT/.test(st) ? "rechazada" : "pendiente";
+    const r = { ...o, id: p.o.id, qtyEnv: Math.abs(p.qty), estado, fillQty: f.filledQuantity, fillPx: f.price, eurReal: f.net != null ? Math.abs(+f.net) : null, nota: f.nota || (p.dudosa ? "confirmada tras perder la respuesta" : ""), hora: new Date().toISOString() };
+    if (estado === "ejecutada") {
+      const q = +f.filledQuantity || Math.abs(p.qty), amt = r.eurReal != null ? r.eurReal : o.side === "COMPRA" ? o.eur : o.eur;
+      const a = applyFill(R, o.side, o.t, q, amt, { px: f.price || o.pxEst, id: p.o.id, d: m.date, why: o.why });
+      r.coste = a.coste; r.pnl = a.pnl; if (r.eurReal == null) r.nota = (r.nota ? r.nota + " · " : "") + "importe estimado (Trading 212 aún no da el definitivo)";
+      if (o.side === "COMPRA") spent += amt;
+    } else if (estado === "pendiente") {
+      R.pendBot.push({ id: p.o.id, t: o.t, side: o.side, qty: Math.abs(p.qty), eur: o.eur, ts: new Date().toISOString(), plan: plan.id });
+      if (o.side === "COMPRA") spent += o.eur;
+      r.nota = "Trading 212 aún no la ha ejecutado (¿bolsa cerrada?): se comprobará y apuntará en la próxima ejecución";
+    } else if (estado === "rechazada") r.err = "Trading 212 la ha " + (/REJECT/.test(st) ? "rechazado" : "cancelado") + " (" + st + ")";
     res.push(r);
-    rep.push(`  ${filled ? "✔" : "·"} ${r.estado}${f.price ? ` a ${f.price}` : ""}${r.eurReal != null ? ` · ${eur(r.eurReal)}` : ""}${r.nota ? ` · ${r.nota}` : ""}`);
+    rep.push(`  ${estado === "ejecutada" ? "✔" : estado === "rechazada" ? "✖" : "⏳"} ${estado}${f.price ? ` a ${f.price}` : ""}${r.eurReal != null ? ` · ${eur(r.eurReal)}` : ""}${r.pnl != null ? ` · resultado ${seur(r.pnl)}` : ""}${r.nota ? ` · ${r.nota}` : ""}${r.err ? ` · ${r.err}` : ""}`);
     if (o.side === "COMPRA" && !R.botTickers.includes(o.t)) R.botTickers.push(o.t);
   }
   return res;
@@ -491,7 +601,7 @@ function mapTable(map) {
 function planMd(p) {
   const L = [`- Método: **${p.metodoNombre}** · cartera objetivo del ${p.tgtD || "—"} · datos del bot del ${p.datos || "—"}${p.bull ? "" : " · el método está FUERA del mercado"}`,
     `- Presupuesto del bot: ${eur(p.presupuesto)} (invertible ${eur(p.invertible)}; se deja una reserva en efectivo) · efectivo libre ${eur(p.cash)} · ya invertido por el bot ${eur(p.gestionado)}`,
-    `- Solo se reajusta una posición si se desvía más de ${eur(p.umbral)}.`, "", "### Cartera objetivo del método"];
+    p.reajuste === "desvio" ? `- Se reajusta una posición si se desvía más de ${eur(p.umbral)} de su peso.` : `- Como en la simulación: solo opera cuando el método cambia su cartera (o hay dinero nuevo), no por pequeñas variaciones de precio.`, "", "### Cartera objetivo del método"];
   for (const o of p.objetivo) L.push(`- ${o.sym} ${(o.w * 100).toFixed(1)}% → ${o.t ? o.t : "✖ " + o.disp}${o.why ? " · " + o.why : ""}`);
   if (!p.objetivo.length) L.push("- (vacía: todo en efectivo)");
   L.push("", `### Órdenes (${p.orders.length})`);
@@ -501,49 +611,60 @@ function planMd(p) {
   return L.join("\n");
 }
 
-// ---------- resumen (va al final de cada informe) y comparación con la simulación del mismo método ----------
+// ---------- rentabilidad del bot (descontando aportaciones y retiradas) y comparación con la simulación ----------
+// Rentabilidad «ponderada en el tiempo»: cada día cuenta lo que ha variado el dinero del bot SIN contar lo que le has dado o quitado ese día.
+export function twr(days) {
+  const D = (days || []).filter((x) => x.be != null), out = [];
+  let idx = 1;
+  for (let i = 0; i < D.length; i++) {
+    const x = D[i], prev = D[i - 1];
+    if (prev && prev.be > 0) { const r = (x.be - (x.bf || 0)) / prev.be; if (isFinite(r) && r > 0) idx *= r; }
+    out.push({ d: x.d, i: idx, be: x.be, bc: x.bc });
+  }
+  return out;
+}
 export function simCompare(R, S, key) {
-  const B = S && S.books && S.books[key], days = (R.days || []).filter((x) => x.v > 0);
-  if (!B || !B.days || !B.days.length || !days.length) return null;
-  const d0 = days[0].d, e = B.days, at = (d) => { let v = null; for (const x of e) { if (x.d <= d) v = x.eq; else break; } return v; };
+  const B = S && S.books && S.books[key], T = twr(R.days);
+  if (!B || !B.days || !B.days.length || T.length < 2) return null;
+  const d0 = T[0].d, e = B.days, at = (d) => { let v = null; for (const x of e) { if (x.d <= d) v = x.eq; else break; } return v; };
   const e0 = at(d0) ?? e[0].eq, e1 = e[e.length - 1].eq;
   return e0 > 0 ? { d0, ret: (e1 / e0 - 1) * 100, hasta: e[e.length - 1].d } : null;
 }
 export function resumen(R, S, A) {
-  const days = (R.days || []).filter((x) => x.v > 0), last = days[days.length - 1];
+  const T = twr(R.days), D = (R.days || []).filter((x) => x.be != null), last = D[D.length - 1], acc = (R.days || []).filter((x) => x.v > 0).pop();
   if (!last) return null;
-  const ap = last.ap != null ? last.ap : (R.deposits && R.deposits.net), d0 = days[0].d;
-  let pk = -Infinity, dd = 0;
-  for (const x of days) { const r = x.ap > 0 ? x.v / x.ap : null; if (r == null) continue; pk = Math.max(pk, r); dd = Math.min(dd, r / pk - 1); }
-  const prev = days.length > 1 ? days[days.length - 2] : null;
-  const ex = (R.orders || []).filter((o) => o.estado === "ejecutada");
-  const key = (A && A.metodo) || (S && S.main) || "sect", sim = S ? simCompare(R, S, key) : null;
-  return { d0, ap, v: last.v, res: ap != null ? last.v - ap : null, pct: ap > 0 ? (last.v / ap - 1) * 100 : null, dia: prev ? last.v - prev.v : null, dd: dd * 100, nOrd: ex.length, key, sim, cash: last.cash, inv: last.inv };
+  let pk = -Infinity, dd = 0; for (const x of T) { pk = Math.max(pk, x.i); dd = Math.min(dd, x.i / pk - 1); }
+  const prev = D.length > 1 ? D[D.length - 2] : null, O = R.orders || [];
+  const key = (A && A.metodo) || (S && S.main) || "sect", sim = S ? simCompare(R, S, key) : null, L = R.ledger || {};
+  return { d0: D[0].d, cap: last.bc, be: last.be, res: r2(last.be - last.bc), pct: T.length ? (T[T.length - 1].i - 1) * 100 : 0, dia: prev ? r2(last.be - prev.be - (last.bf || 0)) : null,
+    dd: dd * 100, real: L.real || 0, nOrd: O.filter((o) => o.estado === "ejecutada").length, nBad: O.filter((o) => /error|rechazada/.test(o.estado)).length, key, sim,
+    cashBot: last.bcash, invBot: r2(last.be - (last.bcash || 0)), v: acc ? acc.v : null, ap: acc ? acc.ap : null, cash: acc ? acc.cash : null };
 }
 function resumenMd(R, S, A) {
   const x = resumen(R, S, A);
   if (!x) return "";
-  const L = ["", "## Resumen de la cartera real", "",
-    `- Desde el ${x.d0}: aportado ${eur(x.ap)} · vale ${eur(x.v)} · resultado **${x.res != null ? (x.res >= 0 ? "+" : "") + eur(x.res) : "—"} (${pct(x.pct)})**`,
-    `- Último día: ${x.dia != null ? (x.dia >= 0 ? "+" : "") + eur(x.dia) : "—"} · peor caída desde el máximo: ${pct(x.dd)} · órdenes ejecutadas: ${x.nOrd}`,
-    `- Efectivo ${eur(x.cash)} · invertido ${eur(x.inv)}`];
-  if (x.sim && (R.days || []).length > 1) L.push(`- Mismo método en la simulación desde el ${x.sim.d0}: ${pct(x.sim.ret)} · real: ${pct(x.pct)} → diferencia ${pct((x.pct || 0) - x.sim.ret)} (precio, UCITS en vez del ETF de EE. UU., cambio €/$ y momento de ejecución)`);
+  const L = ["", "## Resumen del bot (su subcuenta dentro de tu cuenta)", "",
+    `- Desde el ${x.d0}: el bot trabaja con **${eur(x.cap)}** tuyos · ahora vale **${eur(x.be)}** · resultado **${seur(x.res)}** · rentabilidad ${pct(x.pct)} (sin contar aportaciones ni retiradas)`,
+    `- Último día: ${x.dia != null ? seur(x.dia) : "—"} · peor caída desde el máximo: ${pct(x.dd)} · ganancia realizada en ventas: ${seur(x.real)}`,
+    `- Invertido por el bot ${eur(x.invBot)} · efectivo del bot ${eur(x.cashBot)} · órdenes ejecutadas ${x.nOrd}${x.nBad ? ` · con error o rechazadas ${x.nBad}` : ""}`,
+    `- Tu cuenta de Trading 212 entera: ${eur(x.v)}${x.ap != null ? ` · ingresado neto ${eur(x.ap)}` : ""} · efectivo libre ${eur(x.cash)}`];
+  if (x.sim && (R.days || []).length > 1) L.push(`- Mismo método en la simulación desde el ${x.sim.d0}: ${pct(x.sim.ret)} · bot real: ${pct(x.pct)} → diferencia ${pct((x.pct || 0) - x.sim.ret)} (precio, ETF europeo en vez del de EE. UU., cambio €/$ y momento de ejecución)`);
   return L.join("\n");
 }
 function semanaMd(R, S, A, m) {
-  const days = (R.days || []).filter((x) => x.v > 0), t0 = Date.parse(m.date) - 7 * 864e5;
-  const wk = days.filter((x) => Date.parse(x.d) > t0), first = days.filter((x) => Date.parse(x.d) <= t0).pop() || wk[0], last = days[days.length - 1];
-  const ords = (R.orders || []).filter((o) => Date.parse(o.ts) > t0);
-  const L = [`## Semana del ${new Date(t0 + 864e5).toISOString().slice(0, 10)} al ${m.date}`, ""];
+  const t0 = Date.parse(m.date) - 7 * 864e5, D = (R.days || []).filter((x) => x.be != null);
+  const first = D.filter((x) => Date.parse(x.d) <= t0).pop() || D[0], last = D[D.length - 1], wk = D.filter((x) => Date.parse(x.d) > t0);
+  const ords = (R.orders || []).filter((o) => Date.parse(o.ts) > t0), L = [`## Semana del ${new Date(t0 + 864e5).toISOString().slice(0, 10)} al ${m.date}`, ""];
   if (first && last) {
-    const flow = (last.ap || 0) - (first.ap || 0), g = last.v - first.v - flow;
-    L.push(`- Valor: ${eur(first.v)} → ${eur(last.v)}${flow ? ` (aportaste ${eur(flow)})` : ""} · resultado de la semana **${g >= 0 ? "+" : ""}${eur(g)}** (${pct(first.v > 0 ? (g / first.v) * 100 : 0)})`);
+    const flow = wk.reduce((t, x) => t + (x.bf || 0), 0) - (first === wk[0] ? first.bf || 0 : 0), g = r2(last.be - first.be - flow);
+    L.push(`- Dinero del bot: ${eur(first.be)} → ${eur(last.be)}${flow ? ` (le diste ${flow > 0 ? "+" : ""}${eur(flow)})` : ""} · resultado de la semana **${seur(g)}** (${pct(first.be > 0 ? (g / first.be) * 100 : 0)})`);
   }
   L.push(`- Órdenes esta semana: ${ords.length}${ords.length ? "" : " (ninguna: el método no ha cambiado su cartera)"}`);
-  ords.forEach((o) => L.push(`  - ${o.d} ${o.side === "COMPRA" ? "🟢" : "🔴"} ${o.side} ${o.t}${o.sym ? " (" + o.sym + ")" : ""} · ${eur(o.eur)} · ${o.estado}${o.err ? " · " + o.err : ""}`));
-  L.push("", "### Lo que tienes ahora");
-  (R.positions || []).forEach((p) => L.push(`- ${p.t} · ${p.name || ""} · ${qtyTxt(p.q)} participaciones · vale ${eur(p.val)} · ${p.pnl >= 0 ? "+" : ""}${eur(p.pnl)}`));
-  if (!(R.positions || []).length) L.push("- Nada: todo en efectivo.");
+  ords.forEach((o) => L.push(`  - ${String(o.ts).slice(0, 16).replace("T", " ")} UTC · ${o.side === "COMPRA" ? "🟢" : "🔴"} ${o.side} ${o.t}${o.sym ? " (" + o.sym + ")" : ""} · ${eur(o.eur)} · ${o.estado}${o.pnl != null ? ` · resultado ${seur(o.pnl)}` : ""}${o.err ? " · " + o.err : ""}`));
+  L.push("", "### Lo que tiene el bot ahora");
+  const lots = Object.entries((R.ledger && R.ledger.lots) || {});
+  lots.forEach(([t, l]) => { const p = (R.positions || []).find((x) => x.t === t), u = p && p.q > 0 ? p.val / p.q : 0; L.push(`- ${t} · ${p ? p.name : ""} · ${qtyTxt(l.q)} participaciones · costó ${eur(l.cost)} · vale ${eur(l.q * u)} · ${seur(l.q * u - l.cost)}`); });
+  if (!lots.length) L.push("- Nada: todo en efectivo.");
   return L.join("\n");
 }
 
@@ -552,7 +673,7 @@ async function main() {
   const PW = env("REAL_VIEW_PASS");
   const LC = await loadCfg(path.join(ROOT, "real-ajustes.json"), [PW, env("REAL_VIEW_PASS_OLD")]);
   const A = LC.cfg;
-  const now = new Date(), m = madrid(now);
+  const now = NOWF(), m = madrid(now);
   if (!PW) {
     // privacidad: sin contraseña no se lee ni se publica nada de la cuenta (el repositorio es público)
     if (EVENT === "schedule" && !A.on) { log("Cartera real sin configurar: nada que hacer."); return; }
@@ -594,7 +715,7 @@ async function main() {
 
     if (!env("T212_KEY")) { estado = "error"; titulo = "Faltan las claves de Trading 212"; rep.push("Pon T212_KEY y T212_SECRET en los ajustes de la cartera real (o en GitHub → Settings → Secrets)."); aviso = { title: "✖ Cartera real: faltan las claves", msg: rep.join("\n"), prio: 4 }; return; }
     const T = t212(A.env);
-    let account, positions, pending;
+    let account, positions, pending;   // positions puede refrescarse tras conciliar
     try {
       account = await T.call("GET", "/equity/account/summary");
       positions = (await T.call("GET", "/equity/positions")) || [];
@@ -602,17 +723,31 @@ async function main() {
     } catch (e) { estado = "error"; titulo = "No pude conectar con Trading 212"; rep.push(explainT212(e)); aviso = { title: "✖ Cartera real: sin conexión con Trading 212", msg: explainT212(e), prio: 4 }; return; }
     const { id: _id, ...acc } = account || {};   // el número de cuenta no se guarda
     R.account = { ...acc, at: now.toISOString() };
-    R.positions = positions.map((p) => ({ t: p.instrument.ticker, name: p.instrument.name, cur: p.instrument.currency, isin: p.instrument.isin, q: p.quantity, qa: p.quantityAvailableForTrading, avg: p.averagePricePaid, px: p.currentPrice, val: p.walletImpact && p.walletImpact.currentValue, cost: p.walletImpact && p.walletImpact.totalCost, pnl: p.walletImpact && p.walletImpact.unrealizedProfitLoss, fx: p.walletImpact && p.walletImpact.fxImpact, desde: p.createdAt }));
+    R.positions = mapPos(positions, R);
     R.pending = pending.map((o) => ({ id: o.id, t: o.ticker || (o.instrument && o.instrument.ticker), side: o.side, type: o.type, q: o.quantity, status: o.status, at: o.createdAt }));
     if (acc.currency && acc.currency !== "EUR") rep.push(`⚠️ La divisa principal de tu cuenta es ${acc.currency}: los importes se muestran en esa divisa aunque ponga €.`);
 
-    // aportaciones netas (depósitos - retiradas) para medir la ganancia de verdad
+    // subcuenta del bot: primero se miran las órdenes que quedaron pendientes, después el capital y las participaciones
+    const notasL = [];
+    ensureLedger(R, A, positions, m, notasL);
+    if ((R.pendBot || []).length) { rep.push("## Órdenes que estaban pendientes", ""); await reconcile(T, R, rep); rep.push(""); try { positions = (await T.call("GET", "/equity/positions")) || positions; } catch {} }
+    syncLots(R, positions, m, notasL);
+    R.positions = mapPos(positions, R);
+    // ingresos y retiradas de TU cuenta (no cambian el dinero del bot: para eso está «Dinero que trabaja el bot»)
     try {
+      const prevNet = R.deposits ? R.deposits.net : null;
       const tx = await T.pages("/equity/history/transactions?limit=50", 20);
       let net = 0, n = 0;
       for (const x of tx) { const a = Math.abs(+x.amount || 0); if (x.type === "DEPOSIT") { net += a; n++; } else if (x.type === "WITHDRAW") { net -= a; n++; } else if (x.type === "TRANSFER") { net += +x.amount || 0; n++; } }
       R.deposits = { net: r2(net), n, at: now.toISOString() };
-    } catch (e) { rep.push("· No pude leer los depósitos (se usa el último dato): " + explainT212(e)); }
+      if (prevNet != null && Math.abs(net - prevNet) > 0.004) {
+        const d = r2(net - prevNet);
+        R.cuenta = (R.cuenta || []); R.cuenta.unshift({ ts: now.toISOString(), eur: d, net: r2(net) });
+        notasL.push(d > 0 ? `Has ingresado ${eur(d)} en tu cuenta de Trading 212. El bot NO lo usa: sigue trabajando con ${eur(A.limite)} más sus ganancias. Si quieres que invierta también lo nuevo, sube «Dinero que trabaja el bot».` : `Has retirado ${eur(-d)} de tu cuenta de Trading 212. Si el efectivo libre queda por debajo del del bot, este usará solo lo que haya.`);
+        aviso = { title: d > 0 ? `💶 Cartera real: has ingresado ${eur(d)}` : `💶 Cartera real: has retirado ${eur(-d)}`, msg: notasL[notasL.length - 1], prio: 3 };
+      }
+    } catch (e) { rep.push("· No pude leer los ingresos y retiradas (se usa el último dato): " + explainT212(e)); }
+    if (notasL.length) rep.push("## Movimientos de dinero", "", ...notasL.map((x) => "- " + x), "");
 
     // instrumentos y mapeo (se refresca cada 5 días o si cambian los ajustes)
     const bot = getBot();
@@ -632,34 +767,36 @@ async function main() {
     const cash = +((acc.cash && acc.cash.availableToTrade) || 0), inv = +((acc.investments && acc.investments.currentValue) || 0), resv = +((acc.cash && acc.cash.reservedForOrders) || 0) + +((acc.cash && acc.cash.inPies) || 0);
     const total = r2(cash + inv + resv), aport = R.deposits ? R.deposits.net : null;
     R.days = R.days.filter((x) => x.d !== m.date);
-    R.days.push({ d: m.date, t: now.toISOString(), v: total, cash: r2(cash), inv: r2(inv), ap: aport, foto: tipo === "foto" || undefined });
+    const BE = botEquity(R, positions, cash);
+    R.days.push({ d: m.date, t: now.toISOString(), v: total, cash: r2(cash), inv: r2(inv), ap: aport, be: BE.eq, bc: R.ledger.cap, bf: (R.flows || {})[m.date] || 0, bcash: R.ledger.cash, foto: tipo === "foto" || undefined });
     R.days.sort((a, b) => (a.d < b.d ? -1 : 1));
     R.last = now.toISOString();
-    head.push(`- Cuenta: valor ${eur(total)} · efectivo ${eur(cash)} · invertido ${eur(inv)}${aport != null ? ` · aportado ${eur(aport)} · resultado ${eur(total - aport)} (${pct(aport ? (total / aport - 1) * 100 : 0)})` : ""}`);
+    head.push(`- Bot: trabaja con ${eur(R.ledger.cap)} · vale ${eur(BE.eq)} (${seur(BE.eq - R.ledger.cap)}) · invertido ${eur(BE.inv)} · efectivo del bot ${eur(R.ledger.cash)}${R.ledger.cash < -0.5 ? " (negativo: tiene invertido más que su capital, p. ej. porque lo has bajado; esta revisión vende la diferencia)" : ""} · ganancia realizada ${eur(R.ledger.real)}`,
+      `- Tu cuenta de Trading 212: ${eur(total)} · efectivo libre ${eur(cash)} · invertido ${eur(inv)}${aport != null ? ` · ingresado neto ${eur(aport)}` : ""}`);
 
-    // freno por pérdidas: referencia = lo aportado, o el valor del día en que pulsaste «Reanudar» (si aportas o retiras dinero, vuelve a lo aportado)
-    if (R.lossRef && R.lossRef.ap !== aport) R.lossRef = null;
-    if (R.rearm) { R.lossRef = { v: total, ap: aport, d: m.date }; delete R.rearm; }
-    const ref = R.lossRef ? R.lossRef.v : aport, refTxt = R.lossRef ? `el valor del ${R.lossRef.d}, cuando reanudaste (${eur(R.lossRef.v)})` : `lo aportado (${eur(aport)})`;
-    if (ref > 0 && total < ref * (1 - A.maxPerdida / 100) && !R.paused) {
-      R.paused = { ts: now.toISOString(), why: `la cuenta (${eur(total)}) ha caído más de un ${A.maxPerdida}% desde ${refTxt}` };
+    // freno por pérdidas sobre el DINERO DEL BOT: referencia = su capital, o su valor el día que pulsaste «Reanudar» (si cambias el capital, vuelve al capital)
+    if (R.lossRef && R.lossRef.cap !== R.ledger.cap) R.lossRef = null;
+    if (R.rearm) { R.lossRef = { v: BE.eq, cap: R.ledger.cap, d: m.date }; delete R.rearm; }
+    const ref = R.lossRef ? R.lossRef.v : R.ledger.cap, refTxt = R.lossRef ? `su valor del ${R.lossRef.d}, cuando reanudaste (${eur(R.lossRef.v)})` : `su capital (${eur(R.ledger.cap)})`;
+    if (ref > 0 && BE.eq < ref * (1 - A.maxPerdida / 100) && !R.paused) {
+      R.paused = { ts: now.toISOString(), why: `el dinero del bot (${eur(BE.eq)}) ha caído más de un ${A.maxPerdida}% desde ${refTxt}` };
       aviso = { title: "⛔ Cartera real en PAUSA automática", msg: `El bot deja de operar: ${R.paused.why}. Revísalo y pulsa «Reanudar» en la web si quieres seguir.`, prio: 5 };
     }
 
     if (tipo === "foto") {
-      titulo = "Foto diaria del valor"; rep.push(`Valor de la cuenta guardado para la gráfica: ${eur(total)}.`);
+      titulo = "Foto diaria del valor"; rep.push(`Guardado para la gráfica: el bot vale ${eur(BE.eq)} y tu cuenta ${eur(total)}.`);
       if (m.fri && A.semanal && R.lastWeekly !== m.date) {
         const b = getBot();
         titulo = "Informe semanal de la cartera real"; rep.push("", semanaMd(R, b.S, A, m)); R.lastWeekly = m.date;
         const x = resumen(R, b.S, A);
-        aviso = aviso || { title: `📊 Cartera real · semana: ${x && x.res != null ? (x.res >= 0 ? "+" : "") + eur(x.res) : eur(total)}`, msg: `Valor ${eur(total)}${x && x.ap != null ? ` · aportado ${eur(x.ap)} · ${pct(x.pct)}` : ""}${x && x.sim ? `\nSimulación del mismo método: ${pct(x.sim.ret)}` : ""}\nÓrdenes de la semana: ${(R.orders || []).filter((o) => Date.now() - Date.parse(o.ts) < 7 * 864e5).length}`, prio: 3, tags: ["bar_chart"] };
+        aviso = aviso || { title: `📊 Cartera real · semana`, msg: `El bot vale ${eur(BE.eq)}${x ? ` · desde el inicio ${seur(x.res)} (${pct(x.pct)})` : ""}${x && x.sim ? `\nSimulación del mismo método: ${pct(x.sim.ret)}` : ""}\nÓrdenes de la semana: ${(R.orders || []).filter((o) => Date.now() - Date.parse(o.ts) < 7 * 864e5).length}`, prio: 3, tags: ["bar_chart"] };
       }
       return;
     }
     if (tipo === "probar") {
       titulo = "Prueba de conexión con Trading 212 ✔";
       rep.push(`Conexión correcta con Trading 212 (${A.env === "demo" ? "demo" : "cuenta real"}). Divisa de la cuenta: ${acc.currency || "—"}.`, `Posiciones: ${positions.length} · órdenes pendientes: ${pending.length} · instrumentos disponibles: ${R.inst ? R.inst.n : "—"}.`, "", "## ¿Se puede operar todo lo que usa el bot?", "", mapTable(R.map));
-      aviso = aviso || { title: "✔ Cartera real: conexión correcta con Trading 212", msg: `Valor ${eur(total)} · efectivo ${eur(cash)} · ${Object.values(R.map).filter((x) => x.t).length} de ${Object.keys(R.map).length} activos del bot disponibles.`, prio: 3 };
+      aviso = aviso || { title: "✔ Cartera real: conexión correcta con Trading 212", msg: `Cuenta ${eur(total)} · efectivo libre ${eur(cash)} · el bot trabaja con ${eur(R.ledger.cap)} · ${Object.values(R.map).filter((x) => x.t).length} de ${Object.keys(R.map).length} activos disponibles.`, prio: 3 };
       return;
     }
 
@@ -682,7 +819,10 @@ async function main() {
       if (P.d !== m.date) { P.estado = "caducada"; R.planHist.unshift(P); R.plan = null; titulo = "Propuesta caducada"; rep.push("", `La propuesta era del ${P.d}: ha caducado. Se ha vuelto a calcular: mírala de nuevo.`); if (plan.orders.length) { R.plan = plan; aviso = { title: "🟡 Cartera real: propuesta nueva", msg: plan.orders.map(oneLine).join("\n") + "\n\nConfírmala en la web.", prio: 4 }; } return; }
       if (plan.firma !== P.firma) { P.estado = "sustituida"; R.planHist.unshift(P); R.plan = plan.orders.length ? plan : null; titulo = "La propuesta ha cambiado"; rep.push("", "Desde que se hizo la propuesta han cambiado los activos a comprar o vender. No se ejecuta: revisa la nueva."); if (plan.orders.length) aviso = { title: "🟡 Cartera real: la propuesta ha cambiado", msg: plan.orders.map(oneLine).join("\n") + "\n\nConfírmala de nuevo en la web.", prio: 4 }; return; }
       ejecutar = plan.orders.length > 0; P.estado = "aprobada"; R.planHist.unshift({ ...P, fin: now.toISOString() }); R.plan = null;
+      R.approved = { firma: plan.firma, metodo: plan.metodo, ts: now.toISOString(), d: m.date };
       if (!ejecutar) { titulo = "Nada que ejecutar"; R.applied = { metodo: plan.metodo, tgtD: plan.tgtD, d: m.date }; rep.push("", "Al recalcular, ya no hace falta ninguna orden."); return; }
+    } else if (R.approved && plan.orders.length && R.approved.firma === plan.firma && R.approved.metodo === plan.metodo && Date.now() - Date.parse(R.approved.ts) < 4 * 864e5) {
+      ejecutar = true; rep.push("", `Ya aprobaste estas órdenes el ${R.approved.d}, pero entonces la bolsa estaba cerrada: se ejecutan ahora sin volver a preguntarte.`);
     } else if (A.modo === "auto") ejecutar = plan.orders.length > 0;
     else if (A.modo === "confirmar") {
       if (!plan.orders.length) { if (R.plan && R.plan.estado === "pendiente") { R.plan.estado = "ya-no-hace-falta"; R.planHist.unshift(R.plan); R.plan = null; } titulo = "Sin cambios"; R.lastNormal = m.date; R.applied = { metodo: plan.metodo, tgtD: plan.tgtD, d: m.date }; R.lastPlan = plan; return; }
@@ -697,24 +837,27 @@ async function main() {
     if (!ejecutar) { titulo = "Sin cambios · la cartera ya sigue al método"; R.lastNormal = m.date; R.applied = { metodo: plan.metodo, tgtD: plan.tgtD, d: m.date }; return; }
     rep.push("", "## Ejecución");
     const res = await execute(T, A, R, plan, { account, positions, map: R.map }, rep);
-    const ok = res.filter((x) => x.estado === "ejecutada"), bad = res.filter((x) => x.estado === "error"), later = res.filter((x) => x.estado === "aplazada"), omit = res.filter((x) => x.estado === "omitida");
-    for (const x of res) R.orders.unshift({ ts: new Date().toISOString(), d: m.date, side: x.side, t: x.t, sym: x.sym, name: x.name, eur: x.eurReal != null ? r2(x.eurReal) : x.eur, qty: x.fillQty || x.qtyEnv || x.qty || null, px: x.fillPx || x.pxEst || null, estado: x.estado, err: x.err || x.nota || "", why: x.why, id: x.id || null, plan: plan.id, metodo: plan.metodo, modo: tipo === "aprobar" ? "aprobada" : "auto", env: A.env });
+    const ok = res.filter((x) => x.estado === "ejecutada"), bad = res.filter((x) => x.estado === "error" || x.estado === "rechazada"), later = res.filter((x) => x.estado === "aplazada"), omit = res.filter((x) => x.estado === "omitida"), pendQ = res.filter((x) => x.estado === "pendiente");
+    if (!later.length) R.approved = null;
+    for (const x of res) R.orders.unshift({ ts: x.hora || new Date().toISOString(), d: m.date, side: x.side, t: x.t, sym: x.sym, name: x.name, eur: x.eurReal != null ? r2(x.eurReal) : x.eur, qty: Math.abs(+(x.fillQty || x.qtyEnv || x.qty || 0)) || null, px: x.fillPx || x.pxEst || null, pxFuente: x.pxSrc || null, coste: x.coste ?? null, pnl: x.pnl ?? null, estado: x.estado, err: x.err || x.nota || "", why: x.why, id: x.id || null, plan: plan.id, metodo: plan.metodo, modo: tipo === "aprobar" || R.approved ? "aprobada" : "auto", env: A.env, cashBot: R.ledger.cash });
     plan.estado = bad.length ? "con-errores" : "ejecutada"; plan.res = res.map((x) => ({ t: x.t, side: x.side, estado: x.estado, err: x.err || "" }));
     R.planHist.unshift({ ...plan, fin: new Date().toISOString() });
     if (!later.length) R.lastNormal = m.date;
     if (!bad.length && !later.length && !omit.length) R.applied = { metodo: plan.metodo, tgtD: plan.tgtD, d: m.date };
     if (bad.length) estado = "error";
-    titulo = `${ok.length} ${ok.length === 1 ? "orden ejecutada" : "órdenes ejecutadas"}${bad.length ? ` · ${bad.length} con error` : ""}${later.length ? ` · ${later.length} aplazadas` : ""}${omit.length ? ` · ${omit.length} omitidas` : ""}`;
-    aviso = { title: `${bad.length ? "✖" : "💶"} Cartera real: ${titulo}`, msg: res.map((x) => `${x.side === "COMPRA" ? "🟢" : "🔴"} ${x.side} ${x.t}${x.sym ? " (" + x.sym + ")" : ""} · ${x.estado}${x.eurReal != null ? " · " + eur(x.eurReal) : x.eur ? " · ≈" + eur(x.eur) : ""}${x.err ? " · " + x.err : ""}\n   ${String(x.why || "").slice(0, 120)}`).join("\n") + `\n\nMétodo: ${plan.metodoNombre} · ${A.env === "demo" ? "DEMO" : "dinero real"}`, prio: bad.length ? 5 : 4 };
+    titulo = `${ok.length} ${ok.length === 1 ? "orden ejecutada" : "órdenes ejecutadas"}${bad.length ? ` · ${bad.length} con error` : ""}${pendQ.length ? ` · ${pendQ.length} pendientes en Trading 212` : ""}${later.length ? ` · ${later.length} aplazadas (bolsa cerrada)` : ""}${omit.length ? ` · ${omit.length} omitidas` : ""}`;
+    aviso = { title: `${bad.length ? "✖" : later.length && !ok.length ? "⏳" : "💶"} Cartera real: ${titulo}`, msg: res.map((x) => `${x.side === "COMPRA" ? "🟢" : "🔴"} ${x.side} ${x.t}${x.sym ? " (" + x.sym + ")" : ""} · ${x.estado}${x.eurReal != null ? " · " + eur(x.eurReal) : x.eur ? " · ≈" + eur(x.eur) : ""}${x.pnl != null ? ` · resultado ${seur(x.pnl)}` : ""}${x.err ? " · " + x.err : ""}\n   ${String(x.why || "").slice(0, 120)}`).join("\n") + `\n\nMétodo: ${plan.metodoNombre} · ${A.env === "demo" ? "DEMO" : "dinero real"}`, prio: bad.length ? 5 : 4 };
     // posiciones tras ejecutar
     // foto del valor tras ejecutar (la de arriba es de antes de las órdenes)
     try {
       await sleep(5200); const a2 = await T.call("GET", "/equity/account/summary");
       const c2 = +((a2.cash && a2.cash.availableToTrade) || 0), i2 = +((a2.investments && a2.investments.currentValue) || 0), r2v = +((a2.cash && a2.cash.reservedForOrders) || 0) + +((a2.cash && a2.cash.inPies) || 0);
-      const dd = R.days.find((x) => x.d === m.date); if (dd) Object.assign(dd, { v: r2(c2 + i2 + r2v), cash: r2(c2), inv: r2(i2), t: new Date().toISOString() });
+      let ps2 = positions; try { await sleep(1200); ps2 = (await T.call("GET", "/equity/positions")) || positions; } catch {}
+      const be2 = botEquity(R, ps2, c2);
+      const dd = R.days.find((x) => x.d === m.date); if (dd) Object.assign(dd, { v: r2(c2 + i2 + r2v), cash: r2(c2), inv: r2(i2), be: be2.eq, bcash: R.ledger.cash, t: new Date().toISOString() });
       const { id: _i2, ...acc2 } = a2 || {}; R.account = { ...acc2, at: new Date().toISOString() };
     } catch {}
-    try { const ps = await T.call("GET", "/equity/positions"); R.positions = ps.map((p) => ({ t: p.instrument.ticker, name: p.instrument.name, cur: p.instrument.currency, isin: p.instrument.isin, q: p.quantity, qa: p.quantityAvailableForTrading, avg: p.averagePricePaid, px: p.currentPrice, val: p.walletImpact && p.walletImpact.currentValue, cost: p.walletImpact && p.walletImpact.totalCost, pnl: p.walletImpact && p.walletImpact.unrealizedProfitLoss, fx: p.walletImpact && p.walletImpact.fxImpact, desde: p.createdAt })); } catch {}
+    try { const ps = await T.call("GET", "/equity/positions"); R.positions = mapPos(ps, R); } catch {}
   } catch (e) {
     estado = "error"; titulo = "Error inesperado"; rep.push("✖ " + String((e && e.stack) || e).slice(0, 800));
     log("Error inesperado (detalle en el informe cifrado)");
@@ -731,7 +874,7 @@ async function main() {
         normal: "Revisión diaria hecha.", foto: "Foto del valor de la cuenta guardada.", aprobar: "Tu aprobación se ha procesado.", rechazar: "Propuesta rechazada: no se ha enviado nada.",
         probar: "Prueba de conexión hecha.", reanudar: "Pausa quitada: el bot vuelve a operar.",
       }[tipo] || "Ejecución hecha.";
-      aviso = { title: `${estado === "error" ? "✖" : "💶"} Cartera real · ${titulo}`, msg: `${ex}${x ? `\nValor ${eur(x.v)}${x.res != null ? ` · ${x.res >= 0 ? "+" : ""}${eur(x.res)} (${pct(x.pct)})` : ""}` : ""}${R.lastPlan && tipo === "normal" && R.lastPlan.notas && R.lastPlan.notas.length ? "\n" + R.lastPlan.notas[R.lastPlan.notas.length - 1].slice(0, 200) : ""}`, prio: estado === "error" ? 4 : 2, tags: [] };
+      aviso = { title: `${estado === "error" ? "✖" : "💶"} Cartera real · ${titulo}`, msg: `${ex}${x ? `\nValor ${eur(x.v)}${x.res != null ? ` · ${seur(x.res)} (${pct(x.pct)})` : ""}` : ""}${R.lastPlan && tipo === "normal" && R.lastPlan.notas && R.lastPlan.notas.length ? "\n" + R.lastPlan.notas[R.lastPlan.notas.length - 1].slice(0, 200) : ""}`, prio: estado === "error" ? 4 : 2, tags: [] };
     }
     if (aviso) {
       const n = A.movil || aviso.prio >= 5 || estado === "error" ? await ntfy(aviso.title, aviso.msg, aviso.prio, aviso.tags || []) : "· móvil apagado en ajustes";
@@ -744,9 +887,21 @@ async function main() {
     try { if (env("GITHUB_STEP_SUMMARY")) appendFileSync(env("GITHUB_STEP_SUMMARY"), pub + "\n"); } catch {}
     log(pub);
     if (env("REAL_DEBUG_LOCAL") && !REPO) console.log(md + avTxt);   // solo en pruebas en el ordenador
-    await publishReal(R);
+    try { await publishReal(R); }
+    catch (e) {
+      // no se pudo guardar en GitHub: para no perder nada, te llega el informe completo por correo
+      const msg = "No pude guardar el historial de la cartera real en GitHub (" + String(e.message).slice(0, 120) + "). Te envío el informe completo para que no se pierda; en la próxima ejecución se intenta de nuevo.";
+      log(msg); await ntfy("✖ Cartera real: no se pudo guardar el historial", msg, 5); await mail("✖ Cartera real: no se pudo guardar el historial · informe completo", msg + "\n\n" + md + avTxt);
+      process.exitCode = 1;
+    }
     if (estado === "error") process.exitCode = 1;
   }
+}
+// posiciones de la cuenta con lo que es del bot (bq, botCost) y lo que es tuyo
+function mapPos(ps, R) {
+  const L = (R.ledger && R.ledger.lots) || {};
+  return (ps || []).map((p) => { const t = p.instrument.ticker, q = +p.quantity || 0, lot = L[t], bq = lot ? Math.min(q, lot.q) : 0;
+    return { t, name: p.instrument.name, cur: p.instrument.currency, isin: p.instrument.isin, q, qa: p.quantityAvailableForTrading, avg: p.averagePricePaid, px: p.currentPrice, val: p.walletImpact && p.walletImpact.currentValue, cost: p.walletImpact && p.walletImpact.totalCost, pnl: p.walletImpact && p.walletImpact.unrealizedProfitLoss, fx: p.walletImpact && p.walletImpact.fxImpact, desde: p.createdAt, bq: +bq.toFixed(8), botCost: lot ? r2(lot.cost * (lot.q > 0 ? bq / lot.q : 0)) : 0 }; });
 }
 function oneLine(o) { return `${o.side === "COMPRA" ? "🟢 COMPRAR" : "🔴 VENDER"} ${o.t}${o.sym ? " (" + o.sym + ")" : ""} · ≈ ${eur(o.eur)}`; }
 
