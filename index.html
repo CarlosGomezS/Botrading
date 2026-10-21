@@ -1166,8 +1166,8 @@ function optimize(all,fx){const grid=[];for(const buy of[64,69,74,79])for(const 
  const top=grid.map(cfg=>({cfg,is:backtest(all,fx,cfg,0,.7)})).filter(x=>x.is).map(x=>({...x,o:x.is.cagr+3*x.is.dd})).sort((a,b)=>b.o-a.o).slice(0,20).map(x=>{const r=backtest(all,fx,x.cfg,.7,1);return r?{cfg:x.cfg,is:{cagr:x.is.cagr,dd:x.is.dd},oos:{cagr:r.cagr,dd:r.dd,ret:r.ret}}:null}).filter(Boolean).slice(0,5);
  const b=backtest(all,fx,CFG,.7,1);return{n:grid.length,top,base:b&&{cagr:b.cagr,dd:b.dd},d:new Date().toISOString().slice(0,10)}}
 const svgLines=(A,B)=>{const W=640,H=180,v=[...A,...B],lo=Math.min(...v),hi=Math.max(...v),r=hi-lo||1,f=X=>X.map((y,i)=>`${(i/(X.length-1)*W).toFixed(1)},${(H-10-(y-lo)/r*(H-20)).toFixed(1)}`).join(" ");return`<svg viewBox="0 0 ${W} ${H}"><polyline fill="none" stroke="var(--acc)" stroke-width="2.5" points="${f(A)}"/><polyline fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 4" points="${f(B)}"/></svg>`};
-const FIELDS=[["slots","Nº de ETFs en cartera (1 a 6)",1],["mrisk","Riesgo por operación (% del capital, 0,1 a 3)",100],["dloss","Freno: pérdida diaria máxima (%, 0,5 a 10)",100],["ddstop","Freno: caída desde máximos (%, 2 a 30)",100],["fee","Comisión por operación (€)",1],["slip","Deslizamiento por lado (%)",100],["minpos","Orden mínima (€)",1],["sweep","% de cada ganancia que se lleva al MSCI World (0 = no ahorrar)",100]];
-function cfgDraw(){$("#cf").innerHTML=modeHtml()+`<div class="kv">${FIELDS.map(([k,l,m])=>`<div>${l}<input data-k="${k}" type="number" step="any" value="${+(CFG[k]*m).toFixed(2)}" style="width:100%"></div>`).join("")}</div><div class="m">Los cambios se aplican en la próxima actualización.</div>`;modeBind();$("#cf").querySelectorAll("input").forEach(el=>el.onchange=()=>{const f=FIELDS.find(x=>x[0]===el.dataset.k),v=+el.value/f[2];if(Number.isFinite(v)&&(v>0||((f[0]==="fee"||f[0]==="slip"||f[0]==="sweep"||f[0]==="tp")&&v===0))){const lim=LIM[f[0]];if(lim&&(v<lim[0]||v>lim[1])){el.value=+(CFG[f[0]]*f[2]).toFixed(2);alert("Ese valor está fuera del rango seguro permitido.");return}CFG[f[0]]=v;S.cfg={...CFG};save()}})}
+const FIELDS=[["slots","Nº de ETFs en cartera (1 a 6)",1],["mrisk","Riesgo por operación (% del capital, 0,1 a 3)",100],["dloss","Freno: pérdida diaria máxima (%, 0,5 a 10)",100],["ddstop","Freno: caída desde máximos (%, 2 a 30)",100],["fee","Comisión por operación (€)",1],["slip","Deslizamiento por lado (%)",100],["minpos","Orden mínima (€)",1],["sweep","% de cada ganancia que se lleva al MSCI World (0 = no ahorrar)",100],["mode","Motor de notas · tipo de operación (0 = position, 1 = swing, 2 = según la nota)",1],["buy","Motor de notas · nota mínima para comprar (0 a 101; 101 = no comprar nunca)",1],["sell","Motor de notas · vender si la nota baja de (0 a 100)",1],["risk","Motor de notas · riesgo por operación (% del capital, 0,1 a 3)",100],["stop","Motor de notas · stop inicial «position» (× ATR, 0,5 a 6)",1],["stopS","Motor de notas · stop inicial «swing» (× ATR, 0,5 a 4)",1],["trail","Motor de notas · stop móvil «position» (× ATR, 0,5 a 8)",1],["trailS","Motor de notas · stop móvil «swing» (× ATR, 0,5 a 5)",1],["tp","Motor de notas · objetivo de beneficio «swing» (%, 0 = sin objetivo)",100],["maxd","Motor de notas · sesiones máximas de un swing (3 a 120)",1],["posNote","Motor de notas · nota desde la que una compra es «position» (1 a 100)",1]];
+function cfgDraw(){$("#cf").innerHTML=modeHtml()+`<div class="kv">${FIELDS.map(([k,l,m])=>`<div>${l}<input data-k="${k}" type="number" step="any" value="${+(CFG[k]*m).toFixed(2)}" style="width:100%"></div>`).join("")}</div><div class="m">Los cambios se aplican en la próxima actualización.</div>`;modeBind();$("#cf").querySelectorAll("input").forEach(el=>el.onchange=()=>{const f=FIELDS.find(x=>x[0]===el.dataset.k),v=+el.value/f[2];if(Number.isFinite(v)&&(v>0||(LIM[f[0]]&&LIM[f[0]][0]<=0&&v===0))){const lim=LIM[f[0]];if(lim&&(v<lim[0]||v>lim[1])){el.value=+(CFG[f[0]]*f[2]).toFixed(2);alert("Ese valor está fuera del rango seguro permitido.");return}CFG[f[0]]=v;S.cfg={...CFG};save()}})}
 function applyCfg(k){Object.assign(CFG,S.opt.top[k].cfg);S.cfg={...CFG};save();draw()}
 function riskDraw(){const E1=eq(),ps=Object.entries(CB().pos),mx=ps.reduce((m,[s,p])=>Math.max(m,p.q*((S.last[s]&&S.last[s].px)||0)/S.fx),0),loss=ps.reduce((t,[s,p])=>t+Math.max(0,(((S.last[s]&&S.last[s].px)||p.avg)-(p.stop||((S.last[s]&&S.last[s].px)||p.avg)))*p.q/S.fx),0);
  $("#rk").innerHTML=`<div class="kv"><div>Invertido<b>${(val()/E1*100).toFixed(0)}%</b></div><div>En efectivo<b>${(CB().cash/E1*100).toFixed(0)}%</b></div><div>Mayor posición<b>${(mx/E1*100).toFixed(0)}%</b></div><div>Pérdida si saltan todos los stops<b>${E(loss)}</b></div></div>`}
@@ -2022,7 +2022,7 @@ function draw(){try{capApply();mailUI()}catch{}try{nxDraw()}catch{}
 function dl(name,data){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"text/plain"}));a.download=name;document.body.append(a);a.click();a.remove()}
 function md(){let b="";try{if(S.btm)b=btmFull(S.btm).md}catch(e){b="\n(No se pudo añadir la prueba histórica: "+String(e.message||e)+")\n"}return md0()+"\n"+momMd()+radarMd()+optMd()+bookMd()+methodsMd()+learnMd()+extraMd()+vgIntraMd()+vgVarsMd()+auditMd()+b}function md0(){const e=eq();return`# Registro Bot Paper Trading\nGenerado: ${new Date().toISOString()} UTC · ${new Date().toLocaleString("es-ES")} (hora local)\n\n- Capital inicial: ${E(S.start)}\n- Valor actual: ${E(e)} (${P((e/S.start-1)*100)})\n- Efectivo: ${E(CB().cash)}\n- Último día de mercado: ${S.lastDate||"—"}\n- Rendimiento: ${stats().map(([k,v])=>k+": "+v).join(" · ")}\n- EUR/USD usado: ${S.fx}\n- Costes simulados: comisión ${E(CFG.fee)} por orden + deslizamiento ${(CFG.slip*100).toFixed(2)}% por lado.\n- Modo: simulación; no envía órdenes al bróker.\n\n## Posiciones\n${Object.entries(CB().pos).map(([s,p])=>`- ${s}: ${p.q.toFixed(4)} uds, compra $${p.avg.toFixed(2)}, ahora $${(S.last[s]?.px||0).toFixed(2)}`).join("\n")||"- (ninguna)"}\n\n## Operaciones\n${CB().trades.map(t=>`- ${t.d} ${t.side} ${t.s} ${E(t.eur)} @ $${t.px.toFixed(2)}${t.pnl!=null?" → "+E(t.pnl):""}`).join("\n")||"- (ninguna)"}\n\n## Decisiones recientes\n${S.events.slice(0,40).map(x=>`- ${x.d} ${x.t}`).join("\n")}\n\n## Evolución diaria\n${S.days.map(x=>`- ${x.d}: ${E(x.eq)}${x.b!=null?" (SPY: "+E(x.b)+")":""}`).join("\n")}\n\n## Auditoría de ejecuciones (últimas 10)\n${(S.runLog||[]).slice(0,10).map(x=>`- Inicio ${x.startedAt||"—"} · fin ${x.finishedAt||"—"} · estado ${x.status||"—"} · mercado ${x.marketDate||"—"} · solicitados ${x.requestedAssets??"—"} · frescos ${x.freshAssets??"—"} · caché reciente ${x.cacheRecentAssets??"—"} · decisiones ejecutadas ${x.decisionsRun?"sí":"no"} · motivo: ${x.decisionReason||"—"} · operaciones ${x.tradesBefore??"—"} → ${x.tradesAfter??"—"} · posiciones ${x.positionsBefore??"—"} → ${x.positionsAfter??"—"}`).join("\n")||"- Sin ejecuciones registradas"}\n\n## Procedencia y frescura de precios (resumen)\n${auditSummary()}\n\n## Diagnóstico\n${S.diag.map(mask).join("\n")}\n`}
 /* ===== v42: todo por método · bitácora del vigilante · 5 métodos intradía · auditoría de parámetros ===== */
-const LIM={slots:[1,6],buy:[0,101],sell:[0,100],risk:[0.001,0.03],max:[1,10],cap:[0.05,0.5],slip:[0,0.02],fee:[0,5],stop:[0.5,6],trail:[0.5,8],mrisk:[0.001,0.03],dloss:[0.005,0.1],tp:[0,0.5],maxd:[3,120],stopS:[0.5,4],trailS:[0.5,5],posNote:[1,100],sweep:[0,1],minpos:[10,200],ddstop:[0.02,0.3]};
+const LIM={mode:[0,2],slots:[1,6],buy:[0,101],sell:[0,100],risk:[0.001,0.03],max:[1,10],cap:[0.05,0.5],slip:[0,0.02],fee:[0,5],stop:[0.5,6],trail:[0.5,8],mrisk:[0.001,0.03],dloss:[0.005,0.1],tp:[0,0.5],maxd:[3,120],stopS:[0.5,4],trailS:[0.5,5],posNote:[1,100],sweep:[0,1],minpos:[10,200],ddstop:[0.02,0.3]};
 const CFG_DEF={...CFG};
 function sanitizeCfg(){const f=[];for(const k in LIM){const v=+CFG[k];if(!Number.isFinite(v)||v<LIM[k][0]||v>LIM[k][1]){f.push(k+": "+CFG[k]+" → "+CFG_DEF[k]);CFG[k]=CFG_DEF[k]}else CFG[k]=v}return f}
 const VM={hoy:null,graf:null,cart:null,radar:null,inf:null,hist:null};try{Object.assign(VM,JSON.parse(localStorage.getItem("pbvm")||"{}"))}catch{}
@@ -2338,11 +2338,12 @@ window.__API={
  var b=document.createElement("div");
  b.style.cssText="position:sticky;top:0;z-index:9999;padding:8px 12px;font:600 13px/1.35 system-ui,sans-serif;background:#1f2937;color:#fff;text-align:center";
  b.id="viewer-banner";document.body.insertBefore(b,document.body.firstChild);
- function paint(){b.textContent=window.__VIEWER_ERR?("⚠️ "+window.__VIEWER_ERR):("👁️ Modo visor · el bot corre solo en la nube · datos de: "+when()+" · recarga para ver lo último")}
+ function paint(){b.textContent=window.__VIEWER_ERR?("⚠️ "+window.__VIEWER_ERR):(window.__NEWDATA?"🔄 Hay datos nuevos · toca aquí para actualizar":"👁️ Modo visor · el bot corre solo en la nube · datos de: "+when()+" · se refresca solo")}
  paint();
  try{vgScan=function(){};}catch(e){}
+ b.style.cursor="pointer";b.onclick=function(){if(window.__NEWDATA)location.reload()};
  try{run=async function(){};}catch(e){}
- function lock(){try{var r=document.querySelector("#run");if(r){r.onclick=function(){alert("Esta es la copia pública de solo lectura. El bot se actualiza solo en la nube cada día a las 23:00 (hora de España).")}}
+ function lock(){try{var r=document.querySelector("#run");if(r){r.onclick=function(){alert("Esta es la copia pública de solo lectura. El bot se actualiza solo en la nube: cada día después del cierre de Wall Street (hacia las 23:15, hora de España) y el vigilante durante la sesión.")}}
   var g=document.querySelector("#bg");if(g)g.checked=false;
   }catch(e){}}
  setTimeout(function(){try{var h=document.querySelector('#nav button[data-t="hoy"]');if(h&&!window.__userNav)h.click()}catch(e){}},2200);
@@ -2362,7 +2363,22 @@ window.__API={
  function lockNow(){TOK=null;clearTimeout(lockT);cloudRender()}
  function touch(){clearTimeout(lockT);if(TOK)lockT=setTimeout(lockNow,10*60*1000)}
  function fields(){try{return FIELDS}catch(e){return[]}}
- function curVal(k,m){var v=(CL.cfg&&CL.cfg[k]!=null)?CL.cfg[k]:(window.CFG?CFG[k]:null);return v==null?"":+(v*m).toFixed(4)}
+ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{v=CFG[k]}catch(e){}}return v==null?"":+(v*m).toFixed(4)}
+
+ var SECRETS=[["ALPACA_KEY","Alpaca (formato ID:SECRETO) · recomendada"],["TWELVEDATA_KEY","Twelve Data"],["POLYGON_KEY","Polygon"],["ALPHAVANTAGE_KEY","Alpha Vantage"],["FMP_KEY","Financial Modeling Prep"],["SMTP_USER","Correo: usuario SMTP (tu Gmail)"],["SMTP_PASS","Correo: contraseña de aplicación"],["EMAIL","Correo: dónde recibir los avisos"],["NTFY_TOPIC","Móvil: tema de ntfy"],["WEB3FORMS_KEY","Correo: clave Web3Forms (respaldo)"]];
+ function esc2(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+ function extraHtml(){var h="",V=CL.vgc||{},ST=null;try{ST=STR}catch(e){}
+  if(ST){var cur=CL.main||"sect",cats={};if(!CL.main){try{cur=S.main||"sect"}catch(e){}}Object.keys(ST).forEach(function(k){var c=ST[k].cat||"Otros";(cats[c]=cats[c]||[]).push(k)});
+   h+='<div style="grid-column:1/-1">Método principal (el de «Hoy», «Cartera» y la gráfica)<select id="cs_main" style="width:100%">'+Object.keys(cats).map(function(c){return'<optgroup label="'+esc2(c)+'">'+cats[c].map(function(k){return'<option value="'+esc2(k)+'"'+(k===cur?' selected':'')+'>'+esc2(ST[k].n)+'</option>'}).join("")+'</optgroup>'}).join("")+'</select></div>'}
+  h+='<div>Vigilante: subida mínima hoy (%)<input id="cs_vthr" type="number" step="0.5" min="0.5" max="50" value="'+(V.thr!=null?V.thr:3)+'" style="width:100%"></div>';
+  h+='<div>Vigilante: nº de acciones extra a vigilar (0 a 300)<input id="cs_vtop" type="number" step="1" min="0" max="300" value="'+(V.top!=null?V.top:0)+'" style="width:100%"></div>';
+  h+='<div>Vigilante: operar en simulación<select id="cs_vtr" style="width:100%"><option value="1"'+(V.trade===0?'':' selected')+'>Sí</option><option value="0"'+(V.trade===0?' selected':'')+'>No (solo mirar)</option></select></div>';
+  h+='<div>Tiempo máximo por actualización (min, 2 a 60)<input id="cs_mins" type="number" step="1" min="2" max="60" value="'+(CL.mins!=null?CL.mins:8)+'" style="width:100%"></div>';
+  return h}
+ function secretsHtml(){var ri=repoInfo(),M=(window.__SNAP&&__SNAP.meta&&__SNAP.meta.secrets)||null,url=ri?("https://github.com/"+ri.o+"/"+ri.r+"/settings/secrets/actions"):"#";
+  return'<div class="m" style="margin-top:10px"><b>Claves y avisos</b> (viven en GitHub Secrets; esta web pública nunca las guarda ni las muestra):</div><div class="m">'+
+   SECRETS.map(function(s){var ok=M?M[s[0]]:null;return(ok===true?"✔ ":ok===false?"✖ ":"· ")+esc2(s[1])+' <span style="opacity:.6">('+s[0]+')</span>'}).join("<br>")+
+   '</div><div class="m"><a href="'+url+'" target="_blank" rel="noopener">Abrir en GitHub para añadir o cambiar una clave</a>. No se editan desde aquí a propósito: guardar un secreto exigiría darle a este token permiso para escribir secretos, y eso es mucho más riesgo que cambiar parámetros.</div>'}
  function cloudPanel(){var host=document.querySelector("#t-ajustes");if(!host||document.getElementById("cloudset"))return;
   var d=document.createElement("div");d.id="cloudset";d.className="p";d.style.cssText="border:1px solid #4b5563;border-radius:10px;padding:10px;margin:10px 0";host.insertBefore(d,host.firstChild);cloudRender()}
  function cloudRender(){var d=document.getElementById("cloudset");if(!d)return;var ri=repoInfo(),has=false;try{has=!!localStorage.getItem(ENC)}catch(e){}
@@ -2379,7 +2395,7 @@ window.__API={
   h+='<div class="m">🔓 Desbloqueado. Cambia lo que quieras y pulsa «Aplicar en la nube»: se guarda en el repositorio y el bot lo usa desde la siguiente ejecución. El capital inicial no se cambia aquí (reiniciaría las cuentas).</div><div class="kv">'+
    F.map(function(f){return'<div>'+f[1]+'<input data-ck="'+f[0]+'" data-cm="'+f[2]+'" type="number" step="any" value="'+curVal(f[0],f[2])+'" style="width:100%"></div>'}).join("")+
    '<div>Vigilante: consultar cada (min)<select id="cs_vm" style="width:100%">'+[10,15,30,60].map(function(x){return'<option'+(+CL.vigilante_min===x?' selected':'')+'>'+x+'</option>'}).join("")+'</select></div>'+
-   '<div>Prueba histórica: máximo de acciones (200-500)<input id="cs_bm" type="number" min="200" max="500" value="'+(CL.bt_max||300)+'" style="width:100%"></div></div>'+
+   '<div>Prueba histórica: máximo de acciones (200-500)<input id="cs_bm" type="number" min="200" max="500" value="'+(CL.bt_max||300)+'" style="width:100%"></div>'+extraHtml()+'</div>'+secretsHtml()+
    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button id="cs_apply">Aplicar en la nube</button><button id="cs_lock">Bloquear ahora</button></div><div id="cs_st" class="m" style="margin-top:6px"></div>';
   d.innerHTML=h;d.oninput=touch;document.getElementById("cs_apply").onclick=cloudApply;document.getElementById("cs_lock").onclick=lockNow}
  async function cloudUnlock(){var st=document.getElementById("cs_st"),pw=(document.getElementById("cs_pw").value||""),t=document.getElementById("cs_tok");
@@ -2396,14 +2412,32 @@ window.__API={
    if(el.value===""||!isFinite(v)){bad=k;return}var lim=null;try{lim=LIM[k]}catch(e){}
    if(lim&&(v<lim[0]-1e-12||v>lim[1]+1e-12)){bad=(F.filter(function(f){return f[0]===k})[0]||[k,k])[1];return}cfg[k]=+v.toFixed(6)});
   if(bad){st.textContent="Valor fuera del rango seguro o vacío: "+bad;return}
+  var mainEl=document.getElementById("cs_main"),main=mainEl?mainEl.value:"",vgc={thr:+document.getElementById("cs_vthr").value,top:Math.round(+document.getElementById("cs_vtop").value),trade:+document.getElementById("cs_vtr").value},mins=Math.round(+document.getElementById("cs_mins").value);
+  if(!(vgc.thr>=0.5&&vgc.thr<=50)){st.textContent="Vigilante: la subida mínima debe estar entre 0,5 y 50.";return}
+  if(!(vgc.top>=0&&vgc.top<=300)){st.textContent="Vigilante: el nº de acciones extra debe estar entre 0 y 300.";return}
+  if(!(mins>=2&&mins<=60)){st.textContent="El tiempo máximo por actualización debe estar entre 2 y 60 minutos.";return}
   var vm=document.getElementById("cs_vm").value,bm=String(Math.max(200,Math.min(500,Math.round(+document.getElementById("cs_bm").value||300))));
   st.textContent="Enviando…";
-  fetch("https://api.github.com/repos/"+ri.o+"/"+ri.r+"/actions/workflows/ajustes.yml/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+TOK,"Accept":"application/vnd.github+json","Content-Type":"application/json","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs:{vigilante_min:vm,bt_max:bm,cfg:JSON.stringify(cfg)}})})
+  fetch("https://api.github.com/repos/"+ri.o+"/"+ri.r+"/actions/workflows/ajustes.yml/dispatches",{method:"POST",headers:{"Authorization":"Bearer "+TOK,"Accept":"application/vnd.github+json","Content-Type":"application/json","X-GitHub-Api-Version":"2022-11-28"},body:JSON.stringify({ref:"main",inputs:{vigilante_min:vm,bt_max:bm,cfg:JSON.stringify(cfg),main:main,vgc:JSON.stringify(vgc),mins:String(mins)}})})
    .then(function(r){st.textContent=r.status===204?"✔ Enviado. En 1-2 minutos queda guardado y el bot lo usa desde su siguiente ejecución.":(r.status===401||r.status===403||r.status===404?"GitHub rechazó el token (HTTP "+r.status+"). Comprueba que sea de este repositorio, con permiso «Actions: Read and write» y que no haya caducado.":"No se pudo aplicar (HTTP "+r.status+").")})
    .catch(function(e){st.textContent="No se pudo aplicar: "+e})}
  function cloudSync(){try{var v=document.querySelector("#vgi"),b=document.querySelector("#btn");if(CL.vigilante_min&&v)v.value=String(CL.vigilante_min);if(CL.bt_max&&b)b.value=CL.bt_max;cloudPanel()}catch(e){}}
  try{fetch("ajustes.json?t="+Date.now()).then(function(r){return r.ok?r.json():null}).then(function(a){if(a){CL=a;cloudSync();if(!TOK)cloudRender()}}).catch(function(){})}catch(e){}
  setTimeout(cloudSync,2600);setTimeout(cloudSync,8000);
+
+ /* ---- el visor se mantiene al día solo: cada 5 min mira si el bot publicó datos nuevos ---- */
+ (function(){var ri=repoInfo(),SHA0=null,idleAt=Date.now(),dead=0;if(!ri)return;
+  ["pointerdown","keydown","touchstart","scroll"].forEach(function(ev){document.addEventListener(ev,function(){idleAt=Date.now()},true)});
+  async function sha(){try{var r=await fetch("https://api.github.com/repos/"+ri.o+"/"+ri.r+"/commits/data",{headers:{Accept:"application/vnd.github.sha"},cache:"no-store"});return r.ok?(await r.text()).trim():null}catch(e){return null}}
+  async function tick(){var s=await sha();if(!s)return;if(!SHA0){SHA0=s;return}
+   if(s!==SHA0){window.__NEWDATA=true;paint();
+    var busy=!!TOK||/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||"");
+    var last=+sessionStorage.getItem("vw_last")||0;
+    if(!busy&&Date.now()-idleAt>90000&&Date.now()-last>5*60000){try{sessionStorage.setItem("vw_last",String(Date.now()))}catch(e){}location.reload()}}}
+  tick();setInterval(tick,5*60000);
+  document.addEventListener("visibilitychange",function(){if(!document.hidden)tick()});
+  if(window.__VIEWER_ERR)setTimeout(function(){location.reload()},60000);
+ })();
  setTimeout(function(){lock();paint()},2500);setTimeout(function(){lock();paint()},8000);
 })();
 </script>

@@ -3,9 +3,9 @@
 Qué hace este paquete:
 
 - **Web pública** (GitHub Pages): la abres desde el móvil o el ordenador y ves el bot tal cual, con los datos más recientes. Es de solo lectura.
-- **Actualización diaria a las 23:00 (hora de España)**: GitHub ejecuta el botón «Actualizar precios y que el bot decida» por ti, lunes a viernes. Cambia sola entre horario de verano e invierno.
+- **Actualización diaria tras el cierre de Wall Street (hacia las 23:17, hora de España)**: GitHub ejecuta el botón «Actualizar precios y que el bot decida» por ti, lunes a viernes. Hay **5 disparos** (21:17, 21:47, 22:17, 22:47 y 23:17 UTC) y cada uno comprueba primero, en segundos, si el día de hoy ya está hecho; si lo está, no hace nada. Así, si GitHub retrasa o descarta un disparo, el siguiente lo recupera. Cubre horario de verano e invierno sin tocar nada. **Por qué después del cierre y no a la apertura:** el bot decide con velas diarias completas; a la apertura solo existiría la vela de ayer, que ya está procesada. Durante la sesión ya trabaja el vigilante.
 - **Prueba histórica diaria**: justo después de la actualización, con un número **aleatorio de acciones entre 200 y el máximo** (por defecto 300) elegidas al azar.
-- **Vigilante**: GitHub lo mantiene encendido en turnos de 55 minutos mientras Wall Street está abierto (lunes a viernes). Consulta **cada X minutos según el desplegable** (10, 15, 30 o 60).
+- **Vigilante**: GitHub lo mantiene encendido en turnos de 55 minutos mientras Wall Street está abierto (lunes a viernes). Es lo más parecido a «siempre escuchando» que permite GitHub gratis: entre turno y turno puede haber unos minutos sin consulta (el arranque del navegador tarda 2-3 min) y GitHub no garantiza la hora exacta. Consulta **cada X minutos según el desplegable** (10, 15, 30 o 60).
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Informe → Registro). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
@@ -32,7 +32,9 @@ Qué hace este paquete:
 
 ## Cambiar los ajustes desde la web (con clave)
 
-En la pestaña **Ajustes** de la web aparece el recuadro **«☁️ Ajustes de la nube»**. Desde ahí puedes editar: nº de ETFs, riesgo por operación, frenos de pérdida, **comisión por operación (€)**, deslizamiento, orden mínima, % de ahorro, intervalo del vigilante y máximo de la prueba histórica. Cada valor tiene su rango seguro; si te pasas, lo rechaza.
+En la pestaña **Ajustes** de la web aparece el recuadro **«☁️ Ajustes de la nube»**. Desde ahí puedes editar **todos los parámetros del bot** (los 19: nº de ETFs, riesgo, frenos, comisión, deslizamiento, orden mínima, % de ahorro y los del motor de notas: tipo de operación, nota de compra/venta, stops, objetivo, sesiones máximas…), el **método principal**, el **vigilante** (intervalo, subida mínima, nº de acciones extra, operar sí/no), el **tiempo máximo por actualización** y el **máximo de la prueba histórica**. Cada valor tiene su rango seguro; si te pasas, lo rechaza.
+
+**Lo que NO se edita desde la web, a propósito:** las claves de datos, el correo y el tema de ntfy. Viven en GitHub Secrets. El recuadro te muestra con ✔/✖ cuáles están puestos y un enlace directo a la página de Secrets. Guardar un secreto desde aquí obligaría a darle a tu token permiso para escribir secretos: mucho más riesgo que cambiar parámetros. Tampoco se cambia aquí el capital inicial (reiniciaría las cuentas).
 
 **Primera vez en cada navegador:**
 1. En GitHub: Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate. Limítalo a **este repositorio** y dale el permiso **Actions: Read and write**.
@@ -60,7 +62,7 @@ Si no lo subes, el bot empieza de cero con 500 €.
 
 ## Qué debes saber
 
-- La web muestra los datos publicados por el último turno: el vigilante los actualiza cada 10 minutos aproximadamente, y GitHub puede tardar unos minutos más en servirlos.
+- La web muestra los datos publicados por el último turno: el vigilante los actualiza cada 10 minutos aproximadamente. La web **mira cada 5 minutos si hay datos nuevos**: si estás sin tocarla se recarga sola; si la estás usando, la barra de arriba cambia a «Hay datos nuevos · toca aquí para actualizar».
 - GitHub no garantiza la hora exacta de las tareas programadas: pueden retrasarse varios minutos en horas de mucha carga y, muy de vez en cuando, saltarse un turno. Entre turnos del vigilante puede haber huecos de unos 5 minutos.
 - El repositorio es público, así que cualquiera con el enlace puede ver tu cartera ficticia. Las claves no se publican nunca.
 - Las fuentes sin clave (Yahoo y Stooq) pasan por proxies públicos que pueden bloquear a GitHub. Con una clave de Alpaca funciona mejor.
@@ -72,3 +74,14 @@ Si no lo subes, el bot empieza de cero con 500 €.
 ## Cambios en la web respecto a tu archivo
 
 Solo estos: la nueva función de informes individuales y la prueba histórica diaria (el campo «Máximo» ahora vale 300 por defecto), el recuadro «☁️ Ajustes de la nube» del modo visor; y lo que ya había: se quitó tu correo del código (ahora viene de los Secrets); se añadió el modo visor (carga los datos publicados, muestra una barra con la fecha del último dato y desactiva los botones que consultarían precios); y dos líneas que avisan a la app de cuándo ha terminado de cargar. Abierto en tu ordenador como archivo, funciona como siempre.
+
+## Si un día no se ejecutó la actualización
+
+Actions → «Actualización diaria…» → abre las ejecuciones de esa noche. En el paso «¿Toca ejecutar algo en este disparo?» el registro dice la decisión y el motivo (por ejemplo «actualización ya hecha hoy» o «aún no ha pasado una hora desde el cierre»). Si no hay ninguna ejecución esa noche, es que GitHub descartó los 5 disparos: lanza «Run workflow» a mano y avísame para revisarlo.
+
+## Cambios de esta versión (v5)
+
+- Actualización diaria: 5 disparos con comprobación de «ya hecho hoy» en vez de exigir las 23 h exactas (si GitHub se retrasaba pasada la medianoche, el día se perdía y tampoco corría la prueba histórica).
+- Ajustes de la web: ahora editan todos los parámetros, el método principal, el vigilante y el tiempo máximo. Corregido un fallo: los campos del recuadro salían vacíos y «Aplicar» daba «vacío» hasta que existiera un valor guardado.
+- Pantalla de Ajustes de la app (también en el ordenador): «Parámetros del bot» muestra los 19 parámetros y admite 0 donde es válido.
+- Visor: se refresca solo cuando hay datos nuevos.
