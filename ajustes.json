@@ -1,8 +1,32 @@
 {
   "vigilante_min": 30,
-  "bt_max": 300,
+  "bt_max": 200,
   "cfg": {
-    "fee": 0.15
+    "fee": 0.15,
+    "slots": 3,
+    "mrisk": 0.005,
+    "dloss": 0.01,
+    "ddstop": 0.06,
+    "slip": 0.0015,
+    "minpos": 50,
+    "sweep": 0
+  },
+  "main": "sect",
+  "vgc": {
+    "thr": 3,
+    "top": 0,
+    "trade": 1
+  },
+  "mins": 8,
+  "avisos": {
+    "movil": 1,
+    "correo": 1
+  },
+  "extra": {
+    "nt": 1,
+    "mon": 0,
+    "mc": 1,
+    "mv": 1
   },
   "recalc": {
     "id": "comision-0.15-2026-10-21"
