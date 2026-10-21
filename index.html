@@ -251,7 +251,7 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 .mi-big{font-size:19px;font-weight:800;line-height:1.3}
 .mi-warn{border-radius:12px;padding:10px 12px;background:var(--waitbg);color:var(--wait);font-size:13px;line-height:1.5}
 .mi-cash{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px;padding:4px 2px}
-#mi-box{padding:0;gap:0}#mi-box>details.rd{margin:0}
+#mi-box{display:grid;gap:10px}
 </style></head><body><div class="w">
 <div><h1>Bot Trading Pro<span class="tag">PAPER TRADING · v45</span></h1><div class="m">Precios de mercado · solo simulación · capital ficticio de <span class="capT">500 €</span> · sin órdenes reales</div></div>
 <section class="tab" id="t-hoy">
@@ -267,11 +267,9 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 <div class="p"><h2>Detalle por activo</h2><div style="display:flex;gap:8px"><input id="sy" placeholder="Ticker, p. ej. AAPL" style="width:150px"><button id="sb">Ver</button></div><div id="sd"></div></div>
 </section>
 <section class="tab" id="t-cartera">
-<div class="p"><h2>Cartera por método</h2><div id="sel-cart"></div><div class="kv" id="kv"></div></div>
-<div class="p" id="mi-box"></div>
-<div class="p"><h2>Lo que tiene comprado</h2><div class="tw" id="pos"></div></div>
-<div class="p"><h2>Riesgo de esta cartera ahora</h2><div id="rk"></div></div>
-<div class="p"><h2>Operaciones (por fecha y hora)</h2><div id="tr"></div></div>
+<div class="p"><h2>Cartera por método</h2><div id="sel-cart"></div></div>
+<div class="p"><h2>Datos de la cartera</h2><div class="kv" id="kv"></div><div class="m" style="margin-top:14px"><b>Lo que tiene comprado</b></div><div class="tw" id="pos"></div><div class="m" style="margin-top:14px"><b>Riesgo ahora</b></div><div id="rk"></div></div>
+<div class="p"><h2>Qué hacer con esta cartera</h2><div id="mi-box"></div><div class="m" style="margin-top:14px"><b>Lo que ha hecho el bot (por fecha y hora)</b></div><div id="tr"></div></div>
 </section>
 <section class="tab" id="t-informe">
 <div class="p"><h2>Comparativa de métodos</h2><div class="tw" id="mt"></div><div class="m">Cada método opera su propia cuenta ficticia de <span class="capT">500 €</span>, con las mismas reglas de riesgo y costes. Las pruebas históricas incluyen comisión por orden y deslizamiento, usan señales al cierre anterior y ejecución a la apertura siguiente; los stops usan máximos/mínimos diarios y pueden sufrir huecos. Sharpe: sin tasa libre de riesgo, rentabilidad diaria de los días registrados × √252; con pocos días no significa nada.</div></div>
@@ -357,7 +355,7 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 <li><b>Descarga precios</b> de los proveedores (ver Ajustes), respetando sus límites diarios. Las fuentes con clave van primero; así los precios no se mezclan entre proveedores.</li>
 <li><b>Calcula indicadores</b> (medias, momentum, volatilidad…) con los datos hasta el <b>cierre anterior</b>.</li>
 <li><b>Cada método aplica sus reglas</b> y decide qué comprar, vender o mantener. Algunos solo revisan una vez al mes (primer día de mercado del mes), otros cada semana, trimestre o todos los días.</li>
-<li><b>Simula la ejecución en la apertura siguiente</b> con costes realistas: <b>comisión</b> por orden (1 € por defecto) y <b>deslizamiento</b> (0,15 % por lado, es decir, que compras algo más caro y vendes algo más barato que el precio ideal).</li>
+<li><b>Simula la ejecución en la apertura siguiente</b> con costes realistas: <b>comisión</b> por orden (0,15 € por defecto; la editas en Ajustes) y <b>deslizamiento</b> (0,15 % por lado, es decir, que compras algo más caro y vendes algo más barato que el precio ideal).</li>
 <li><b>Guarda todo</b>: operaciones, valor diario, decisiones explicadas y un informe archivado con fecha y hora.</li>
 </ol>
 <p><b>Regla clave anti-trampa:</b> el bot nunca decide con el cierre del mismo día en el que ejecuta. Decide con el cierre de ayer y ejecuta en la apertura de hoy, como haría una persona real.</p>
@@ -735,7 +733,7 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 <tr><td>Riesgo por operación</td><td>0,5 %</td><td>0,1 a 3 %</td><td>Tamaño de RSI(2) y cuentas del vigilante</td></tr>
 <tr><td>Freno: pérdida diaria</td><td>1 %</td><td>0,5 a 10 %</td><td>RSI(2) (no abre posiciones nuevas si el último día cayó más de ese %)</td></tr>
 <tr><td>Freno: caída desde máximos</td><td>6 %</td><td>2 a 30 %</td><td>RSI(2) (no abre posiciones si cae más de ese % desde máximos de 60 días); alertas</td></tr>
-<tr><td>Comisión por operación</td><td>1 €</td><td>0 a 5 €</td><td>Todos (también en prueba histórica)</td></tr>
+<tr><td>Comisión por operación</td><td>0,15 €</td><td>0 a 5 €</td><td>Todos (también en prueba histórica)</td></tr>
 <tr><td>Deslizamiento por lado</td><td>0,15 %</td><td>0 a 2 %</td><td>Todos</td></tr>
 <tr><td>Orden mínima</td><td>25 €</td><td>10 a 200 €</td><td>Todos</td></tr>
 <tr><td>% de ganancia al ahorro</td><td>50 %</td><td>0 a 100 %</td><td>Todos los métodos de cartera</td></tr></table>
@@ -778,7 +776,7 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 <p><b>2 · RSI(2) + filtro de tendencia.</b> Regla (Connors y Alvarez): comprar si cierre &gt; SMA(200) y RSI(2) &lt; 10 (versiones más estrictas usan &lt; 5); vender si cierra sobre SMA(5). Un backtest publicado sobre el S&amp;P 500 (2016-2026) da +1,7 % anual frente a +13,5 % de comprar y mantener; menos caída (-21,5 % frente a -35 %) pero muy poco tiempo invertido. En la app: stop del 8 %, tamaño por riesgo del 0,5 % y máximo 8 posiciones; si el importe sale menor que la orden mínima, se omite.</p>
 <p><b>3 · Momentum + Calidad.</b> Regla: 50 % SPMO y 50 % SPHQ, rebalanceo semestral. Un backtest teórico publicado en Nasdaq (1995-junio 2026) da 14,17 % anual frente a 11,08 % del S&amp;P 500, con menor volatilidad y caídas, aunque sin cifras de caída. Es el único de los cinco con una ventaja publicada sobre el S&amp;P 500 que se pueda replicar con ETFs. Aviso: SPMO y SPHQ son ETFs de EE. UU. y normalmente no se pueden comprar desde Europa; tendrías que buscar equivalentes (índices MSCI USA Momentum y MSCI USA Quality) en tu bróker. SPMO empezó en 2015, así que en la prueba histórica solo cuenta el último tramo.</p>
 <p><b>4 · Tendencia + volatilidad objetivo.</b> Regla: exposición al SPY = mín(1; 10 % ÷ volatilidad anual de 20 sesiones) si SPY &gt; SMA(210); si no, 0 %. El resto en SHY. Revisión semanal; solo se opera si la diferencia con el objetivo supera el umbral. Inspirado en Moreira y Muir (2017), que encuentran alfa positivo escalando la exposición con la volatilidad reciente (4,86 % anual bruto para el factor mercado), pero con apalancamiento cuando la volatilidad es baja, con fricciones que los propios revisores consideran subestimadas y con resultados mayormente brutos. Aquí no hay apalancamiento: es de esperar menos caída, no más rentabilidad.</p>
-<p><b>5 · Overnight.</b> Regla: comprar SPY al cierre, vender a la apertura siguiente. Un análisis de Alpha Architect con SPY (1993-enero 2020) da +717 % sin costes frente a +627 % de comprar y mantener, pero -32 % con costes (horquilla y 0,01 $ por acción), y la diferencia no es estadísticamente significativa (p = 0,06). En la app, con 500 € y 1 € por orden, la comisión supone un 0,4 % diario.</p>
+<p><b>5 · Overnight.</b> Regla: comprar SPY al cierre, vender a la apertura siguiente. Un análisis de Alpha Architect con SPY (1993-enero 2020) da +717 % sin costes frente a +627 % de comprar y mantener, pero -32 % con costes (horquilla y 0,01 $ por acción), y la diferencia no es estadísticamente significativa (p = 0,06). En la app, con 500 € y 0,15 € por orden, la comisión supone un 0,06 % diario.</p>
 <p><b>ORB (ruptura del rango de apertura), no implementado.</b> Zarattini, Barbon y Aziz (2024) proponen operar las acciones «en juego» (volumen de los primeros 5 minutos superior a su media de 14 días): comprar si la primera vela de 5 minutos cierra al alza y se supera su máximo (vender si cierra a la baja y se pierde su mínimo), stop a una fracción del ATR de 14 días, y cerrar al final de la sesión; riesgo del 1 % de la cartera por operación y hasta 20 acciones. Reportan más de +1.600 % neto entre 2016 y 2023 frente a +198 % del S&amp;P 500. Réplicas independientes (QuantConnect) muestran solo 2016 con buenos resultados y comentarios con malos años, tasa de aciertos del 17 % y dudas por costes. Exige datos intradía y órdenes en el minuto de la apertura, algo que la app no tiene.</p>
 </div></details>
 
@@ -822,7 +820,7 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 <script>
 /* ======== CONFIGURACIÓN PERSONAL: rellena UNA sola vez entre las comillas y no tendrás que pegar nada más ========
    Las claves escritas aquí sustituyen a las guardadas en la app. No compartas este archivo una vez rellenado. */
-const CONFIG={capital:500,email:"",key_w3:"",mail:null,ntt:"",nt:true,vg:null,keys:{td:"",pg:"",al:"",av:"",fm:""},minutos:8,segundoPlano:false,params:{"slots":3,"slip":0.0015,"fee":1,"mrisk":0.005,"dloss":0.01,"minpos":25,"ddstop":0.06,"sweep":0.5},fx:null,rules:{"w":{"c_s50":10,"c_s20":5,"s50_s200":10,"s50_up":5,"mom_max":10,"mom_k":1,"rsi_mid":10,"rsi_hi":3,"rsi_lo":4,"macd_pos":3,"macd_up":2,"pb":8,"atr":7,"vol_up":10,"vol_ok":4},"p":{"rsiLo":50,"rsiHi":68,"rsiLow":40,"pbMax":0.90,"atrMax":3,"volOk":0.8,"momDays":63,"s50up":10},"d":{"reqRegime":1,"s200":1,"reqS50":1,"minAge":3,"regimeExit":56}}};
+const CONFIG={capital:500,email:"",key_w3:"",mail:null,ntt:"",nt:true,vg:null,keys:{td:"",pg:"",al:"",av:"",fm:""},minutos:8,segundoPlano:false,params:{"slots":3,"slip":0.0015,"fee":0.15,"mrisk":0.005,"dloss":0.01,"minpos":25,"ddstop":0.06,"sweep":0.5},fx:null,rules:{"w":{"c_s50":10,"c_s20":5,"s50_s200":10,"s50_up":5,"mom_max":10,"mom_k":1,"rsi_mid":10,"rsi_hi":3,"rsi_lo":4,"macd_pos":3,"macd_up":2,"pb":8,"atr":7,"vol_up":10,"vol_ok":4},"p":{"rsiLo":50,"rsiHi":68,"rsiLow":40,"pbMax":0.90,"atrMax":3,"volOk":0.8,"momDays":63,"s50up":10},"d":{"reqRegime":1,"s200":1,"reqS50":1,"minAge":3,"regimeExit":56}}};
 /* ============================================================================================================ */
 const $=s=>document.querySelector(s),SRV="Alpha Vantage MCP Server",WL=["SPY","QQQ","IWM","EFA","EEM","VNQ","GLD","XLK","XLV","XLE","XLF","XLY","XLP","XLI","XLU","XLB","XLC","SMH","AGG","IEF","LQD","SHY","AAPL","MSFT","NVDA","AMZN","GOOGL","META","AVGO","TSLA","JPM","V","MA","UNH","LLY","XOM","CVX","WMT","COST","HD","PG","KO","PEP","JNJ","ABBV","MRK","ORCL","CRM","ADBE","INTC","CSCO","QCOM","BAC","WFC","DIS","NKE","MCD","CAT","BA","GE","UBER","AMD","NFLX","TXN","IBM","AMAT","MU","NOW","INTU","PYPL","BKNG","SBUX","TMO","ABT","DHR","PFE","AMGN","GILD","MDT","UPS","LMT","HON","ACN","T","LOW","MDLZ","ISRG","GS","DE","COP","LIN","NEE","PLD","ADI","VZ","TJX","CL","SYK","MS","RTX","EOG","SHW","DUK","AMT","ADP","CMCSA","ROST","KMB","BSX","C","NOC","SLB","APD","SO","EQIX","ADSK","TMUS","ORLY","GIS","EW","SCHW","GD","OXY","ECL","D","CCI","AKAM","CHTR","AZO","KHC","ZTS","BLK","LHX","PSX","DD","AEP","PSA","APH","OMC","YUM","MO","VRTX","AXP","ETN","VLO","DOW","EXC","O","CDNS","IPG","MAR","PM","REGN","USB","EMR","MPC","NEM","SRE","SPG","CTSH","FOXA","HLT","STZ","BIIB","PNC","ITW","KMI","FCX","XEL","WELL","EA","TTWO","CMG","SYY","BDX","COF","MMM","WMB","NUE","ED","DLR","FFIV","DHI","HSY","CI","MET","PH","OKE","VMC","PEG","AVB","FTNT","LEN","CPB","CVS","PRU","CMI","HAL","MLM","WEC","EQR","GLW","PHM","CAG","HSIC","AFL","PCAR","BKR","PPG","ES","VTR","HPQ","NVR","MKC","HUM","ALL","FDX","DVN","IFF","EIX","ARE","KLAC","F","CLX","MCK","TRV","CSX","FANG","ALB","DTE","MAA","LRCX","GM","EL","CAH","CB","UNP","APA","MOS","ETR","ESS","MCHP","EBAY","KR","HCA","AIG","NSC","CF","FE","EXR","MSI","BBY","ADM","IQV","PGR","WM","LYB","PPL","NTAP","GPC","TSN","A","AON","RSG","IP","AEE","PAYX","KMX","HRL","MTD","SPGI","GWW","PKG","CMS","ROP","TSCO","TAP","WAT","MCO","FAST","BALL","CNP","SNPS","ULTA","MNST","ZBH","ICE","ODFL","AVY","STX","LVS","CHD","BAX","CME","CTAS","TEL","WYNN","SJM","IDXX","NDAQ","TLT","DBC","URTH","SPMO","SPHQ"];let START=500;
 const E=n=>(+n).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
@@ -1001,7 +999,7 @@ function isTransient(e){if(!e||e.sym)return false;const c=+e.st;if(c==400||c==40
 async function waitSay(ms,say){const end=Date.now()+ms;let off0=0;while(Date.now()<end){if(navigator.onLine===false){if(!off0)off0=Date.now();if(Date.now()-off0>600000)return;if(say)say("Sin conexión a internet: espero a que vuelva y sigo solo…");await sleep(2000);continue}off0=0;if(say)say(Math.ceil((end-Date.now())/1000));await sleep(Math.max(50,Math.min(1000,end-Date.now())))}}
 async function retrying(fn,opt={}){const n=opt.tries||6,cool=opt.cool||20000;for(let a=0;;a++){try{return await fn(a)}catch(e){if(!e||!isTransient(e)||isDaily(e)||a>=n-1){if(e&&typeof e==="object")e.intentos=a+1;throw e}RETRIES.n++;const ra=(+e.retryAfter||0)*1000,base=e.st==429?cool:Math.min(30000,3000*Math.pow(1.8,a)),w=Math.min(180000,Math.max(ra,base))+Math.random()*1200,why=e.st?"HTTP "+e.st:"fallo de red";await waitSay(w,l=>{if(opt.say)opt.say(typeof l==="number"?"fallo temporal ("+why+"), reintento "+(a+2)+" de "+n+" en "+l+" s. Sigo solo, no hace falta que hagas nada.":l)})}}}
 function autoSchedule(ms,why){clearTimeout(AUTO.t);AUTO.go=false;const at=new Date(Date.now()+ms);AUTO.t=setTimeout(()=>{AUTO.go=true;run()},ms);try{$("#st").textContent+=" · Reintento automático a las "+at.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+" ("+why+"). Continúa por donde se quedó; no hace falta que hagas nada."}catch{}}
-const CFG={slots:3,slip:0.0015,fee:1,mrisk:0.005,dloss:0.01,minpos:25,ddstop:0.06,sweep:0.5};
+const CFG={slots:3,slip:0.0015,fee:0.15,mrisk:0.005,dloss:0.01,minpos:25,ddstop:0.06,sweep:0.5};
 function parseX(p){try{if(typeof p==="string")p=JSON.parse(p);const k=Object.keys(p).find(k=>/Time Series/i.test(k));if(!k)return[];return Object.entries(p[k]).map(([d,r])=>({d,o:+r["1. open"],h:+r["2. high"],l:+r["3. low"],c:+r["4. close"],v:+r["5. volume"]})).filter(x=>x.c>0).sort((a,b)=>a.d<b.d?-1:1)}catch{return[]}}
 const smaA=(c,n)=>{let s=0;return c.map((x,i)=>{s+=x;if(i>=n)s-=c[i-n];return i<n-1?null:s/n})};
 const sdA=(c,n)=>{let s=0,q=0;return c.map((x,i)=>{s+=x;q+=x*x;if(i>=n){s-=c[i-n];q-=c[i-n]**2}if(i<n-1)return null;const m=s/n;return Math.sqrt(Math.max(0,q/n-m*m))})};
@@ -1186,7 +1184,7 @@ function optimize(all,fx){const grid=[];for(const buy of[64,69,74,79])for(const 
  const b=backtest(all,fx,CFG,.7,1);return{n:grid.length,top,base:b&&{cagr:b.cagr,dd:b.dd},d:new Date().toISOString().slice(0,10)}}
 const svgLines=(A,B)=>{const W=640,H=180,v=[...A,...B],lo=Math.min(...v),hi=Math.max(...v),r=hi-lo||1,f=X=>X.map((y,i)=>`${(i/(X.length-1)*W).toFixed(1)},${(H-10-(y-lo)/r*(H-20)).toFixed(1)}`).join(" ");return`<svg viewBox="0 0 ${W} ${H}"><polyline fill="none" stroke="var(--acc)" stroke-width="2.5" points="${f(A)}"/><polyline fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 4" points="${f(B)}"/></svg>`};
 const FIELDS=[["slots","Nº de ETFs en cartera (1 a 6)",1],["mrisk","Riesgo por operación (% del capital, 0,1 a 3)",100],["dloss","Freno: pérdida diaria máxima (%, 0,5 a 10)",100],["ddstop","Freno: caída desde máximos (%, 2 a 30)",100],["fee","Comisión por operación (€)",1],["slip","Deslizamiento por lado (%)",100],["minpos","Orden mínima (€)",1],["sweep","% de cada ganancia que se lleva al MSCI World (0 = no ahorrar)",100]];
-function cfgDraw(){$("#cf").innerHTML=modeHtml()+`<div class="kv">${FIELDS.map(([k,l,m])=>`<div>${l}<input data-k="${k}" type="number" step="any" value="${+(CFG[k]*m).toFixed(2)}" style="width:100%"></div>`).join("")}</div><div class="m">Los cambios se aplican en la próxima actualización.</div>`;modeBind();$("#cf").querySelectorAll("input").forEach(el=>el.onchange=()=>{const f=FIELDS.find(x=>x[0]===el.dataset.k),v=+el.value/f[2];if(Number.isFinite(v)&&(v>0||(LIM[f[0]]&&LIM[f[0]][0]<=0&&v===0))){const lim=LIM[f[0]];if(lim&&(v<lim[0]||v>lim[1])){el.value=+(CFG[f[0]]*f[2]).toFixed(2);alert("Ese valor está fuera del rango seguro permitido.");return}CFG[f[0]]=v;S.cfg={...CFG};save()}})}
+function cfgDraw(){$("#cf").innerHTML=modeHtml()+`<div class="kv">${FIELDS.map(([k,l,m])=>`<div>${l}<input data-k="${k}" type="number" step="any" value="${+(CFG[k]*m).toFixed(2)}" style="width:100%"></div>`).join("")}</div><div class="m">Los cambios se aplican en la próxima actualización.</div><div class="m" style="margin-top:10px"><button id="fee-rc">Recalcular la cartera con esta comisión</button> Corrige las órdenes ya hechas (comisión, efectivo, coste, resultados y curvas) a la comisión de arriba. No cambia precios ni decisiones.</div>`;modeBind();{const rb=$("#fee-rc");if(rb)rb.onclick=async()=>{if(!confirm("¿Recalcular todas las órdenes ya hechas con una comisión de "+CFG.fee+" € por orden?\n\nSe corrigen el efectivo, el coste de las posiciones, los resultados de las ventas y las curvas. Antes se archiva una copia del estado."))return;try{await archiveReport("antes-de-recalcular-comision","Copia automática antes de recalcular la comisión a "+CFG.fee+" €.")}catch{}const r=recalcFees(CFG.fee);await save();draw();alert(r||"No se pudo recalcular.")}};$("#cf").querySelectorAll("input").forEach(el=>el.onchange=()=>{const f=FIELDS.find(x=>x[0]===el.dataset.k),v=+el.value/f[2];if(Number.isFinite(v)&&(v>0||(LIM[f[0]]&&LIM[f[0]][0]<=0&&v===0))){const lim=LIM[f[0]];if(lim&&(v<lim[0]||v>lim[1])){el.value=+(CFG[f[0]]*f[2]).toFixed(2);alert("Ese valor está fuera del rango seguro permitido.");return}CFG[f[0]]=v;S.cfg={...CFG};save()}})}
 function applyCfg(k){Object.assign(CFG,S.opt.top[k].cfg);S.cfg={...CFG};save();draw()}
 function riskDraw(){const E1=eq(),ps=Object.entries(CB().pos),mx=ps.reduce((m,[s,p])=>Math.max(m,p.q*((S.last[s]&&S.last[s].px)||0)/S.fx),0),loss=ps.reduce((t,[s,p])=>t+Math.max(0,(((S.last[s]&&S.last[s].px)||p.avg)-(p.stop||((S.last[s]&&S.last[s].px)||p.avg)))*p.q/S.fx),0);
  $("#rk").innerHTML=`<div class="kv"><div>Invertido<b>${(val()/E1*100).toFixed(0)}%</b></div><div>En efectivo<b>${(CB().cash/E1*100).toFixed(0)}%</b></div><div>Mayor posición<b>${(mx/E1*100).toFixed(0)}%</b></div><div>Pérdida si saltan todos los stops<b>${E(loss)}</b></div></div>`}
@@ -1472,7 +1470,7 @@ Object.assign(STR,{
  pp:{n:"Cartera permanente (Browne)",v:"1.0",tg:true,N:4,per:"q",th:0.25,target:TG.pp,cat:CAT_D,rev:"Rebalanceo trimestral",src:"Harry Browne (1981), «Fail-Safe Investing» (Permanent Portfolio).",d:"Reparto fijo: 25% SPY (bolsa), 25% TLT (bonos largos), 25% GLD (oro) y 25% SHY (liquidez). Se rebalancea cada trimestre."},
  mq:{n:"Momentum + Calidad (ETFs de factores)",v:"1.0",tg:true,N:2,per:"s",th:0.25,target:TG.mq,cat:CAT_E,rev:"Rebalanceo semestral",src:"Cartera 50/50 de ETFs de momentum (SPMO) y calidad (SPHQ) rebalanceada cada seis meses; backtest publicado en Nasdaq/Invesco (1995-2026, teórico). Fundamento: Jegadeesh y Titman (1993) y Asness, Frazzini y Pedersen (2019), «Quality Minus Junk».",d:"50% SPMO (S&P 500 Momentum) y 50% SPHQ (S&P 500 Quality), rebalanceado cada seis meses. Solo opera cuando existen datos de los dos ETFs (SPMO existe desde 2015), así que en la prueba histórica solo cuenta la parte reciente."},
  tvt:{n:"Tendencia + volatilidad objetivo (SPY)",v:"1.0",tg:true,N:2,per:"w",th:0.25,target:TG.tvt,cat:CAT_C,rev:"Revisión semanal (primer día de mercado de la semana)",src:"Faber (2007) para el filtro de tendencia y Moreira y Muir (2017), «Volatility-Managed Portfolios», Journal of Finance, para escalar la exposición con la volatilidad reciente; objetivo del 10% anual usado habitualmente en la literatura de volatility targeting.",d:"Si el SPY cierra sobre su media de 10 meses (210 sesiones), invierte en SPY una fracción igual a 10% ÷ volatilidad anual de las últimas 20 sesiones (como máximo 100%, sin apalancamiento) y deja el resto en SHY. Si cierra bajo su media, todo a SHY. Se revisa cada semana y solo se opera si la diferencia con el objetivo supera el umbral."},
- ovn:{n:"Overnight en SPY (cierre → apertura)",v:"1.0",ovn:true,cat:CAT_F,rev:"A diario: compra al cierre, vende a la apertura siguiente",src:"Cliff, Cooper y Gulen (2008), «Return Differences between Trading and Non-trading Hours»; Lou, Polk y Skouras (2019), «A Tug of War: Overnight versus Intraday Expected Returns» (Journal of Financial Economics).",d:"Cada día compra SPY al cierre y lo vende a la apertura siguiente: solo está invertido de noche. Existe para comprobar si el efecto overnight sobrevive a los costes (comisión por orden y deslizamiento de 0,02% por lado, el de un ETF muy líquido). Con 500 € y 1 € por orden, la comisión por sí sola es del 0,4% por día."},
+ ovn:{n:"Overnight en SPY (cierre → apertura)",v:"1.0",ovn:true,cat:CAT_F,rev:"A diario: compra al cierre, vende a la apertura siguiente",src:"Cliff, Cooper y Gulen (2008), «Return Differences between Trading and Non-trading Hours»; Lou, Polk y Skouras (2019), «A Tug of War: Overnight versus Intraday Expected Returns» (Journal of Financial Economics).",d:"Cada día compra SPY al cierre y lo vende a la apertura siguiente: solo está invertido de noche. Existe para comprobar si el efecto overnight sobrevive a los costes (comisión por orden y deslizamiento de 0,02% por lado, el de un ETF muy líquido). Con 500 € y 0,15 € por orden, la comisión por sí sola es del 0,06% por día."},
  gem:{n:"Dual Momentum (Antonacci)",v:"1.0",tg:true,N:1,per:"m",target:TG.gem,cat:CAT_C,rev:"Revisión mensual (primer día de mercado del mes)",src:"Antonacci (2014), «Dual Momentum Investing», McGraw-Hill (modelo GEM).",d:"Cada mes compara SPY y EFA (resto del mundo desarrollado) por rentabilidad a 12 meses. Si el mejor de los dos supera al refugio de corto plazo (SHY) lo compra al 100%; si no, se pasa a bonos agregados (AGG). Una sola posición."},
  rsi2:{n:"Reversión RSI(2) (Connors)",v:"1.0",f:sRsi2,cat:CAT_B,rev:"Opera a diario con las señales del cierre anterior",src:"Connors y Alvarez (2008), «Short Term Trading Strategies That Work».",d:"Compra una acción en tendencia alcista (sobre su media de 200) cuando cae con fuerza a corto plazo (RSI de 2 sesiones bajo 10), esperando un rebote. Vende cuando cierra sobre su media de 5 sesiones. Stop de seguridad del 8%. Operaciones muy cortas: la comisión pesa más."},
  s6040:{n:"Clásica 60/40 (SPY + bonos)",v:"1.0",tg:true,N:2,per:"q",th:0.1,target:TG.s6040,cat:CAT_D,rev:"Rebalanceo trimestral",src:"Reparto 60/40 tradicional (Markowitz, Bogle); referencia estándar de los fondos mixtos.",d:"60% SPY y 40% AGG (bonos agregados), rebalanceado cada trimestre. Sirve de referencia: si un método complicado no gana a esto, no merece la pena."},
@@ -2093,7 +2091,7 @@ function miHist(B){const hist=[],op={};for(const t of (B.trades||[]).slice().rev
 function miDraw(){
  const A=document.getElementById("mi-box");if(!A)return;
  const k=vmGet("cart"),B=bkOf(k),fx=S.fx||1,nm=(STR[k]&&STR[k].n)||k,det=(id,sum,body,def)=>`<details class="rd" data-id="${id}"${opn(id,def)}><summary><span>${sum}</span></summary><div class="rb" style="display:grid;gap:10px">${body}</div></details>`;
- if(!B){A.innerHTML=det("micart","<b>🧾 Qué hacer con esta cartera</b>",'<div class="m">Todavía no hay datos del bot. Cuando haga la primera actualización aparecerá aquí lo que compra y vende.</div>',true);return}
+ if(!B){A.innerHTML='<div class="m">Todavía no hay datos del bot. Cuando haga la primera actualización aparecerá aquí lo que compra y vende.</div>';return}
  const lastD=S.lastDate||((B.trades||[])[0]||{}).d||"";
  const pxOf=(s,p)=>{const l=S.last&&S.last[s];return(l&&l.px)||p.lastMark||p.avg};
  const pos=Object.entries(B.pos||{}).map(([s,p])=>{const c=pxOf(s,p),v=p.q*c/fx;return{s,p,c,v,pc:(c/p.avg-1)*100}}).sort((a,b)=>b.v-a.v);
@@ -2110,7 +2108,7 @@ function miDraw(){
  const cards=chg.map(t=>{const x=posMap[t.s],buy=t.side==="COMPRA";
   if(buy){const more=x&&x.p.d&&x.p.d<t.d;return`<div class="mi-card mi-buy"><div class="mi-top"><div class="mi-t">${esc(t.s)}${desc(t.s)}</div><span class="mi-badge b-buy">🟢 ${more?"COMPRAR MÁS":"COMPRAR"}</span></div>
    <div class="mi-grid"><div><span>El bot compró el</span><b>${esc(fd(t.d))}</b></div><div><span>A precio de</span><b>${miUsd(t.px)}</b></div><div><span>Peso en la cartera</span><b>${((x?W(x.v):t.eur/tot)*100).toFixed(0)}%</b></div></div>
-   ${x?levels(x):'<div class="mi-why">Después ya la ha vendido (mira «Ya vendidas»).</div>'}<div class="mi-why">${esc(whyBuy(t.s))}</div></div>`}
+   ${x?levels(x):'<div class="mi-why">Después ya la ha vendido (mira «Lo que ha hecho el bot», debajo).</div>'}<div class="mi-why">${esc(whyBuy(t.s))}</div></div>`}
   const cost=(+t.eur)-(+t.pnl),pc=cost>0?(+t.pnl)/cost*100:0,part=!!x,fr=part?t.q/(t.q+x.p.q):1;
   return`<div class="mi-card mi-sell"><div class="mi-top"><div class="mi-t">${esc(t.s)}${desc(t.s)}</div><span class="mi-badge b-sell">🔴 ${part?"VENDER PARTE":"VENDER"}</span></div>
    <div class="mi-grid"><div><span>El bot vendió el</span><b>${esc(fd(t.d))}</b></div><div><span>A precio de</span><b>${miUsd(t.px)}</b></div><div><span>Resultado del bot</span><b class="${t.pnl>=0?"up":"dn"}">${P2(pc)}</b></div>${part?`<div><span>Vende</span><b>≈ ${(fr*100).toFixed(0)}% de lo que tengas</b></div>`:""}</div>
@@ -2120,13 +2118,7 @@ function miDraw(){
  const sum=`<b>🧾 Qué hacer con esta cartera</b> · ${chg.length?`🟢 ${nb} · 🔴 ${ns}`:"✅ sin cambios nuevos"}`;
  const act=`<div class="m">Método: <b>${esc(nm)}</b> · datos del <b>${lastD?esc(fdLong(lastD)):"—"}</b></div>${stale}<div class="mi-big">${head}</div>${cards}${chg.length?'<button class="go" data-mi="seen">Ya lo he hecho / lo he revisado</button>':""}
   <div class="mi-warn">⏱️ El bot decide con el cierre de cada día y lo simula a la <b>apertura de ese día</b>. Tú lo harás a la apertura de la siguiente sesión: el precio puede ser algo distinto. Es una simulación, no asesoramiento financiero.</div>`;
- const hold=`<div class="mi-big">✅ Lo que tiene ahora (${pos.length})</div>`+(pos.length?pos.map(x=>{const p=x.p;return`<div class="mi-card mi-hold"><div class="mi-top"><div class="mi-t">${esc(x.s)}${desc(x.s)}</div><span class="mi-badge b-hold">✅ SIGUE EN CARTERA</span></div>
-  <div class="mi-grid"><div><span>Comprada el</span><b>${esc(fd(p.d||""))||"—"}</b></div><div><span>Precio de compra</span><b>${miUsd(p.avg)}</b></div><div><span>Precio ahora</span><b>${miUsd(x.c)}</b></div><div><span>Ganancia / pérdida</span><b class="${x.pc>=0?"up":"dn"}">${P2(x.pc)}</b></div><div><span>Peso en la cartera</span><b>${(W(x.v)*100).toFixed(0)}%</b></div></div>
-  ${levels(x)}<div class="mi-why">${esc(whyBuy(x.s))}</div><div class="mi-why">🔄 Cuándo decide venderla: ${esc((STR[k]&&STR[k].rev)||"cuando su método lo indique")}. Cuando la venda saldrá arriba como 🔴 VENDER.</div></div>`}).join(""):'<div class="m">Ahora mismo el bot no tiene nada comprado: todo está en efectivo.</div>')+`<div class="mi-cash"><span>💶 Efectivo sin invertir</span><b>${(B.cash/tot*100).toFixed(0)}% de la cartera</b></div>`;
- const H=miHist(B),hc=h=>{const pc=h.cost>0?h.pnl/h.cost*100:0;return`<div class="mi-card mi-old"><div class="mi-top"><div class="mi-t">${esc(h.s)}${desc(h.s)}</div><span class="mi-badge b-old">VENDIDA</span></div>
-  <div class="mi-grid"><div><span>Comprada</span><b>${esc(fd(h.d0))} · ${miUsd(h.pxIn)}</b></div><div><span>Vendida</span><b>${esc(fd(h.d1))} · ${miUsd(h.pxOut)}</b></div><div><span>Resultado del bot</span><b class="${h.pnl>=0?"up":"dn"}">${P2(pc)}</b></div></div><div class="mi-why">${esc(plainWhy("VENTA",h.why).slice(0,200))}</div></div>`};
- const old=H.length?H.slice(0,8).map(hc).join("")+(H.length>8?`<div class="m">Y ${H.length-8} más antiguas en «Operaciones» (abajo).</div>`:""):'<div class="m">El bot todavía no ha vendido nada.</div>';
- A.innerHTML=det("micart",sum,act+hold+det("micart-old",`<b>📜 Ya vendidas (${H.length})</b>`,old,false),true)}
+ A.innerHTML=act}
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-mi]");if(!b||b.dataset.mi!=="seen")return;const k=vmGet("cart"),B=bkOf(k);MIS.seen=MIS.seen||{};MIS.seen[k]=S.lastDate||(((B&&B.trades)||[])[0]||{}).d||"";miSave();miDraw()});
 function infDraw(){CBK=vmGet("inf");try{$("#sel-inf").innerHTML=mSel("inf");$("#st2").innerHTML=stats().map(([k,v])=>`<div>${k}<b>${v}</b></div>`).join("")}finally{CBK=null}}
 
@@ -2291,6 +2283,46 @@ $("#bcfg").onclick=async()=>{const P0={};for(const k in CFG)P0[k]=+(+CFG[k]).toF
 
 /* ===== v44: capital configurable + correo automático ===== */
 function capApply(){try{const t=E(START);document.querySelectorAll(".capT").forEach(e=>e.textContent=t);const r=$("#rs");if(r)r.textContent="Reiniciar con "+t;const c=$("#cap0");if(c&&document.activeElement!==c)c.value=START}catch{}}
+/* ===== v9 · recalcular las comisiones ya pagadas (solo toca lo que depende de la comisión) ===== */
+function recalcFees(fee){
+ fee=+fee;if(!Number.isFinite(fee)||fee<0)return"";
+ const books=[];
+ for(const[k,B]of Object.entries(S.books||{}))if(B&&Array.isArray(B.trades))books.push({id:"m:"+k,k,B});
+ if(S.intra&&Array.isArray(S.intra.trades))books.push({id:"intra",k:null,B:S.intra});
+ for(const[k,B]of Object.entries(S.ivs||{}))if(B&&Array.isArray(B.trades))books.push({id:"v:"+k,k:null,B});
+ let nOrd=0,dAll=0,nBk=0;const cumBy={};
+ for(const bk of books){
+  const B=bk.B,lots={},byDate={};let dB=0,nB=0;
+  for(const t of B.trades.slice().reverse()){ // de la más antigua a la más reciente
+   const old=+t.fee||0,lot=lots[t.s]||(lots[t.s]={q:0,cO:0,cN:0}),eO=+t.eur||0;
+   let eN=eO,d=0;
+   if(old>0&&Math.abs(old-fee)>1e-9){d=fee-old;eN=t.side==="COMPRA"?eO+d:Math.max(0,eO-d);t.fee=fee;t.eur=eN;nB++;dB+=d;byDate[t.d]=(byDate[t.d]||0)+d}
+   if(t.side==="COMPRA"){lot.q+=+t.q||0;lot.cO+=eO;lot.cN+=eN}
+   else{const fr=lot.q>1e-12?Math.min(1,(+t.q||0)/lot.q):1,cO=lot.cO*fr,cN=lot.cN*fr;
+    if(t.pnl!=null&&Number.isFinite(+t.pnl))t.pnl=+t.pnl+(eN-eO)-(cN-cO);
+    lot.q-=(+t.q||0);lot.cO-=cO;lot.cN-=cN;if(lot.q<1e-9){lot.q=0;lot.cO=0;lot.cN=0}}
+  }
+  if(!nB)continue;
+  nBk++;nOrd+=nB;dAll+=dB;
+  B.cash=(+B.cash||0)-dB; // cada orden con comisión distinta mueve el efectivo en -(nueva − antigua)
+  for(const[sym,p]of Object.entries(B.pos||{})){const lot=lots[sym];if(lot&&p&&Number.isFinite(+p.cost))p.cost=+p.cost+(lot.cN-lot.cO)}
+  const ds=Object.keys(byDate).sort();
+  const cumAt=d=>{let c=0;for(const x of ds){if(x<=d)c+=byDate[x];else break}return c};
+  for(const z of(B.days||[]))if(z&&Number.isFinite(+z.eq))z.eq=+z.eq-cumAt(z.d);
+  if(bk.k)cumBy[bk.k]=cumAt;
+ }
+ // curva diaria de la cartera principal y de cada método (copias de las curvas de los libros)
+ try{
+  const main=(S.books||{})[S.main||"sect"];
+  for(const z of(S.days||[])){
+   if(main&&Array.isArray(main.days)){const y=main.days.find(q=>q.d===z.d);if(y)z.eq=y.eq}
+   if(z.me)for(const m of Object.keys(z.me)){const B=(S.books||{})[m],y=B&&Array.isArray(B.days)?B.days.find(q=>q.d===z.d):null;if(y&&Number.isFinite(+y.eq))z.me[m]=+(+y.eq).toFixed(2)}
+  }
+ }catch{}
+ S.feeRecalc={fee,at:new Date().toISOString(),ordenes:nOrd,efectivo:+(-dAll).toFixed(2)};
+ const msg=nOrd?`Comisión recalculada a ${fee.toLocaleString("es-ES")} € por orden: ${nOrd} órdenes en ${nBk} cuentas · efectivo ${-dAll>=0?"+":""}${(-dAll).toFixed(2)} € en total. Corregidos efectivo, coste de las posiciones abiertas, resultados de las ventas y curvas de valor.`:`Comisión ${fee.toLocaleString("es-ES")} € por orden: todas las órdenes ya la tenían, no hubo nada que cambiar.`;
+ S.diag=S.diag||[];S.diag.unshift(msg);
+ return msg}
 async function resetAccounts(cap){
  try{await archiveReport("antes-de-reiniciar","Copia automática del estado justo antes de reiniciar la cuenta a "+E(cap)+".")}catch{}
  const keep={fx:S.fx,main:S.main,last:S.last,radar:S.radar,rsP:S.rsP,bt:S.bt,btm:S.btm,rulesRev:S.rulesRev,rulesHist:S.rulesHist,mail:S.mail};
@@ -2460,6 +2492,7 @@ window.__API={
   if(ST){var cur=CL.main||"",cats={};if(!cur){try{cur=S.main||"sect"}catch(e){cur="sect"}}Object.keys(ST).forEach(function(k){var c=ST[k].cat||"Otros";(cats[c]=cats[c]||[]).push(k)});
    h+='<div style="grid-column:1/-1">Método principal (el de «Hoy», «Cartera» y la gráfica; el que invierte el dinero ficticio)<select id="cs_main" style="width:100%">'+Object.keys(cats).map(function(c){return'<optgroup label="'+esc2(c)+'">'+cats[c].map(function(k){return'<option value="'+esc2(k)+'"'+(k===cur?' selected':'')+'>'+esc2(ST[k].n)+'</option>'}).join("")+'</optgroup>'}).join("")+'</select></div>'}
   h+=F.map(function(f){return'<div>'+f[1]+'<input data-ck="'+f[0]+'" data-cm="'+f[2]+'" type="number" step="any" value="'+curVal(f[0],f[2])+'" style="width:100%"></div>'}).join("")+'</div>';
+  h+='<div class="m" style="margin-top:10px"><label><input type="checkbox" id="cs_rc" style="width:auto"> Recalcular también la cartera ya hecha con la comisión de arriba (corrige las órdenes pasadas: comisión, efectivo, coste y resultados). Se aplica una sola vez en la siguiente ejecución del bot.</label></div>';
   h+=h3("Vigilante")+'<div class="kv"><div>Consultar cada (min)<select id="cs_vm" style="width:100%">'+[10,15,30,60].map(function(x){return'<option'+(+CL.vigilante_min===x||(!CL.vigilante_min&&x===30)?' selected':'')+'>'+x+'</option>'}).join("")+'</select></div>'+
    '<div>Subida mínima hoy (%)<input id="cs_vthr" type="number" step="0.5" min="0.5" max="50" value="'+(V.thr!=null?V.thr:3)+'" style="width:100%"></div>'+
    '<div>Nº de acciones extra a vigilar (0 a 300)<input id="cs_vtop" type="number" step="1" min="0" max="300" value="'+(V.top!=null?V.top:0)+'" style="width:100%"></div>'+
@@ -2541,9 +2574,10 @@ window.__API={
   document.querySelectorAll("#cloudset [data-sd]").forEach(function(el){if(el.checked&&!secs.some(function(s){return s[0]===el.dataset.sd}))dels.push(el.dataset.sd)});
   if(badS){stSet("Clave no válida · "+badS);return}
   if(dels.length&&!confirm("Vas a QUITAR estas claves guardadas:\n"+dels.join(", ")+"\n\n¿Continuar?"))return;
+  var rcV=(document.getElementById("cs_rc")&&document.getElementById("cs_rc").checked)?"si":"no";
   setBusy(true);stSet("Enviando…");var since=Date.now(),msg1="";
   try{
-   var r=await dispatch(ri,"ajustes.yml",{vigilante_min:vm,bt_max:bm,cfg:JSON.stringify(cfg),main:main,vgc:JSON.stringify(vgc),mins:String(mins),avisos:JSON.stringify(av),capital:capS,extra:JSON.stringify(ex)});
+   var r=await dispatch(ri,"ajustes.yml",{vigilante_min:vm,bt_max:bm,cfg:JSON.stringify(cfg),main:main,vgc:JSON.stringify(vgc),mins:String(mins),avisos:JSON.stringify(av),capital:capS,extra:JSON.stringify(ex),recalcular:rcV});
    if(r.status!==204){stSet(rejectMsg(r,"ajustes.yml"));setBusy(false);return}
    var ok=[],ko=[];
    for(var i=0;i<secs.length;i++){stSet("Parámetros enviados · guardando clave "+(i+1)+" de "+(secs.length+dels.length)+"…");
@@ -2552,7 +2586,7 @@ window.__API={
     try{await ghSecretDel(ri,dels[j]);ok.push(dels[j]+" (quitada)");SEC[dels[j]]=false}catch(e){ko.push(dels[j]+" ("+(e&&e.message||e)+")")}}
    stSet("Parámetros enviados · esperando a que GitHub los guarde (1-2 minutos)…");
    var res=await waitRun(ri,"ajustes.yml",since,240);
-   if(res==="success"){await freshCL(ri);msg1="✔ Guardado en la nube. El bot usará estos ajustes desde su siguiente ejecución."+(capS?" Con el capital nuevo reiniciará todas las cuentas en esa ejecución.":"")}
+   if(res==="success"){await freshCL(ri);msg1="✔ Guardado en la nube. El bot usará estos ajustes desde su siguiente ejecución."+(capS?" Con el capital nuevo reiniciará todas las cuentas en esa ejecución.":"")+(rcV==="si"?" La cartera ya hecha se recalculará con la comisión nueva en esa ejecución.":"")}
    else if(res===null)msg1="Enviado, pero GitHub aún no confirma que haya terminado. Mira en unos minutos (pestaña Actions → «Ajustes de la nube»).";
    else msg1="✖ GitHub no pudo guardar los ajustes (resultado: "+res+"). Mira Actions → «Ajustes de la nube» para ver el motivo.";
    msg1+=(ok.length?" · ✔ Claves: "+ok.join(", ")+" (las usa el bot desde su siguiente ejecución).":"")+(ko.length?" · ✖ No guardadas: "+ko.join("; "):"");

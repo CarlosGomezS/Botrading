@@ -83,7 +83,23 @@ Solo estos: la nueva función de informes individuales y la prueba histórica di
 
 Actions → «Actualización diaria…» → abre las ejecuciones de esa noche. En el paso «¿Toca ejecutar algo en este disparo?» el registro dice la decisión y el motivo (por ejemplo «actualización ya hecha hoy» o «aún no ha pasado una hora desde el cierre»). Si no hay ninguna ejecución esa noche, es que GitHub descartó los 5 disparos: lanza «Run workflow» a mano y avísame para revisarlo.
 
-## Cambios de esta versión (v7)
+## Cambios de esta versión (v9)
+
+- **Cartera en dos apartados, siempre por método** (el selector de arriba): **«Datos de la cartera»** (valor, ganancia, efectivo, invertido, ganancia abierta y cerrada, ahorro, órdenes y comisiones, lo que tiene comprado y el riesgo) y **«Qué hacer con esta cartera»** (🟢 COMPRAR / 🔴 VENDER nuevos, el botón «Ya lo he hecho» y el historial de lo que ha hecho el bot). Los títulos tienen el mismo formato que el resto de pantallas.
+- **Comisión por defecto: 0,15 € por orden.** Sigue siendo editable (0 a 5 €) en Ajustes y en el recuadro de la nube.
+- **Recalcular la cartera con la comisión nueva.** Corrige solo lo que depende de la comisión en las órdenes ya hechas: la comisión de cada orden, el importe, el efectivo, el coste de las posiciones abiertas, el resultado de las ventas y las curvas de valor. No cambia precios, unidades, stops ni decisiones. El ahorro (MSCI World) ya apartado no se toca. Es idempotente (repetirlo no cambia nada) y archiva antes una copia del estado.
+  - Desde la web: Ajustes → Editar → «Parámetros del bot» → pon la comisión, marca **«Recalcular también la cartera ya hecha…»** → Guardar edición.
+  - Sin token: Actions → «Ajustes de la nube» → Run workflow → **recalcular = si** (y, en `cfg`, `{"fee": 0.15}`).
+  - Este paquete ya trae `ajustes.json` con `fee 0,15` y una petición de recálculo: al subirlo, **la siguiente ejecución del bot recalcula la cartera una sola vez**.
+- Archivos que cambian respecto a v8: `index.html`, `runner/runner.mjs`, `.github/workflows/ajustes.yml` y `ajustes.json`.
+
+## Cambios de la versión v8
+
+- **Cartera → «🧾 Qué hacer con esta cartera»**: bloque desplegable (abierto por defecto) debajo del selector de método. Muestra 🟢 COMPRAR / 🔴 VENDER con activo, fecha, precio y motivo; lo que sigue en cartera (precio de compra y actual, ganancia, peso, stop loss y objetivo del bot) y las ya vendidas. El botón «Ya lo he hecho» hace que la próxima vez solo enseñe lo nuevo.
+- Avisa si los datos del bot llevan más de 4 días sin actualizarse.
+- No añade ajustes ni cambia el bot ni el runner: solo se sustituye `index.html`.
+
+## Cambios de la versión v7
 
 - Pestaña Ajustes de la web: arriba del todo el campo de la **clave** y el botón **Editar**. Al pulsarlo aparecen debajo **todos** los ajustes (claves de datos, avisos y correo, parámetros del bot, método principal, vigilante, prueba histórica, capital y cambio €/$). **Guardar edición** los envía a la nube y avisa cuando GitHub ha terminado de guardarlos. Cada clave puesta tiene casilla «quitar esta clave». Los cuadros antiguos de Ajustes (que solo cambiaban el navegador) se ocultan en la web pública.
 - **Reiniciar todo**: borra todos los datos (cuentas, operaciones, informes, pruebas históricas, vigilante, precios) y los ajustes guardados; la web queda vacía como el primer día. Opcionalmente borra también las claves. Usa el flujo nuevo `.github/workflows/reiniciar.yml` (**hay que subirlo al repositorio**) y para las ejecuciones en marcha antes de borrar. Pide escribir REINICIAR.
