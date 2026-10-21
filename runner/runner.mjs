@@ -76,7 +76,7 @@ function sanitize(dump) {
     }
     idb[name] = { version: db.version, stores };
   }
-  const secretNames = ["ALPACA_KEY", "TWELVEDATA_KEY", "POLYGON_KEY", "ALPHAVANTAGE_KEY", "FMP_KEY", "SMTP_USER", "SMTP_PASS", "EMAIL", "NTFY_TOPIC", "WEB3FORMS_KEY"];
+  const secretNames = ["ALPACA_KEY", "TWELVEDATA_KEY", "POLYGON_KEY", "ALPHAVANTAGE_KEY", "FMP_KEY", "SMTP_USER", "SMTP_PASS", "EMAIL", "NTFY_TOPIC", "WEB3FORMS_KEY", "SMTP_HOST", "SMTP_PORT"];
   const secrets = {}; for (const k of secretNames) secrets[k] = !!env(k);
   return { v: 1, savedAt: Date.now(), ls, idb, meta: { secrets } };
 }
@@ -216,7 +216,16 @@ function loadAjustes() {
   }
   const mv = Math.round(+a.mins);
   const mins = Number.isFinite(mv) && mv >= 2 && mv <= 60 ? mv : null;
-  return { vigilante_min: vm, bt_max: bmax, cfg, main, vgc, mins };
+  const avisos = { movil: 1, correo: 1 };
+  if (a.avisos && typeof a.avisos === "object") for (const k of ["movil", "correo"]) if (a.avisos[k] != null && [0, 1].includes(+a.avisos[k])) avisos[k] = +a.avisos[k];
+  const cp = Math.round(+a.capital);
+  const capital = Number.isFinite(cp) && cp >= 100 && cp <= 1000000 ? cp : null;
+  const extra = {};
+  if (a.extra && typeof a.extra === "object") {
+    const XL = { mon: [0, 1], mc: [0, 1], mv: [0, 1], nt: [0, 1], fx: [0.3, 3] };
+    for (const k of Object.keys(XL)) { const v = +a.extra[k]; if (a.extra[k] != null && Number.isFinite(v) && v >= XL[k][0] && v <= XL[k][1]) extra[k] = v; }
+  }
+  return { vigilante_min: vm, bt_max: bmax, cfg, main, vgc, mins, avisos, capital, extra };
 }
 // número aleatorio de acciones: entre 200 y el máximo (si el máximo es menor de 200, se usa el máximo)
 function btCount(max) { const lo = Math.min(200, max); return lo + Math.floor(Math.random() * (max - lo + 1)); }
@@ -283,12 +292,16 @@ async function sendMail(page, subject, text) {
   return { ok: false, txt: "NO enviado el correo (" + (smtp ? smtp.txt + " · " : "") + why + ")" };
 }
 // Envía móvil + correo y deja constancia en el propio informe individual.
-async function avisar(page, rep, { title, short, subject, silent = false }) {
+async function avisar(page, rep, { title, short, subject, silent = false, force = false }) {
   const body = [short, "", SITE ? "Web: " + SITE : ""].join("\n").trim();
   const mailTxt = ["BOT TRADING PRO · simulación, sin dinero real", title, "", rep && rep.md ? rep.md : short, "", SITE ? "Web: " + SITE : ""].join("\n");
   // silent: el turno del vigilante deja su informe en la web pero NO manda móvil ni correo (serían demasiados). Los errores sí avisan.
   const off = { ok: false, txt: "no enviado a propósito (los turnos del vigilante no avisan; solo los errores)" };
-  const [n, m] = silent ? [off, off] : [await sendNtfy(title, body), await sendMail(page, subject, mailTxt)];
+  // avisos apagados desde la web (Ajustes de la nube): los errores (force) avisan siempre
+  const AV = loadAjustes().avisos;
+  const offM = { ok: false, txt: "no enviado a propósito (apagado en Ajustes de la nube → avisos al móvil)" };
+  const offC = { ok: false, txt: "no enviado a propósito (apagado en Ajustes de la nube → avisos por correo)" };
+  const [n, m] = silent ? [off, off] : [(force || AV.movil) ? await sendNtfy(title, body) : offM, (force || AV.correo) ? await sendMail(page, subject, mailTxt) : offC];
   log("Aviso móvil:", n.txt); log("Aviso correo:", m.txt);
   const bloque = silent ? `\n\n## Avisos de esta ejecución\n- Sin aviso al móvil ni correo (turno del vigilante: solo se avisa si hay un error).\n`
     : `\n\n## Avisos de esta ejecución\n- Móvil (ntfy): ${n.ok ? "✔ " : "✖ "}${n.txt}\n- Correo: ${m.ok ? "✔ " : "✖ "}${m.txt}\n`;
@@ -342,6 +355,31 @@ async function boot() {
     await page.waitForFunction(() => window.__loaded === true, null, { timeout: 120000 });
     await sleep(4000);
   }
+  // capital inicial editado desde la web: si no coincide con el actual, se reinician las cuentas (la app archiva antes una copia)
+  try {
+    const cap = loadAjustes().capital;
+    if (cap) {
+      const r = await page.evaluate(async (c) => {
+        if (typeof START !== "number" || START === c) return "";
+        const antes = START; await resetAccounts(c); return "capital " + antes + " → " + c + " (cuentas reiniciadas)";
+      }, cap);
+      if (r) log("Ajustes de la web aplicados:", r);
+    }
+  } catch (e) { log("No se pudo aplicar el capital:", String(e.message).slice(0, 160)); }
+  // correo automático de la app, notificaciones y cambio €/$ (ajustes.json → extra)
+  try {
+    const ex = loadAjustes().extra || {};
+    if (Object.keys(ex).length) {
+      const r = await page.evaluate(async (x) => {
+        const done = [];
+        if (x.mon != null || x.mc != null || x.mv != null) { const M = mailGet(); if (x.mon != null) M.on = !!x.mon; if (x.mc != null) M.c = !!x.mc; if (x.mv != null) M.v = !!x.mv; mailSet(M); done.push("correo app"); }
+        if (x.nt != null) { try { localStorage.setItem("pbnc", x.nt ? "1" : "0"); const el = document.querySelector("#nt"); if (el) el.checked = !!x.nt; done.push("nt=" + x.nt); } catch {} }
+        if (x.fx != null && S.fx !== x.fx) { S.fx = x.fx; await save(); done.push("fx=" + x.fx); }
+        return done;
+      }, ex);
+      if (r.length) log("Ajustes de la web aplicados (extra):", r.join(", "));
+    }
+  } catch (e) { log("No se pudieron aplicar los ajustes extra:", String(e.message).slice(0, 160)); }
   // ajustes editados desde la web (ajustes.json → cfg): se aplican a los parámetros del bot antes de cada ejecución
   try {
     const cfg = loadAjustes().cfg || {};
@@ -511,7 +549,7 @@ async function main() {
     log("ERROR:", msg);
     try {
       const it = await page.evaluate(([m, md]) => __API.custom("error-ejecucion", m, md, null), [msg, `# Error de ejecución (${MODE})\n\n- Hora: ${new Date().toISOString()}\n- ${msg}\n`]);
-      await avisar(page, { id: it && it.id, status: "error-ejecucion", message: msg, md: msg }, { title: `Bot Trading: ERROR en ${MODE}`, short: msg, subject: `Bot Trading · ERROR en ${MODE}` });
+      await avisar(page, { id: it && it.id, status: "error-ejecucion", message: msg, md: msg }, { title: `Bot Trading: ERROR en ${MODE}`, short: msg, subject: `Bot Trading · ERROR en ${MODE}`, force: true });
     } catch (e2) { await sendNtfy(`Bot Trading: ERROR en ${MODE}`, msg).catch(() => {}); }
     try { publish(await snapshot()); } catch {}
     await browser.close().catch(() => {});
