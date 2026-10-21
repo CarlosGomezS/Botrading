@@ -1,13 +1,13 @@
 name: Ajustes de la cartera real
 
-# Guarda en real-ajustes.json los ajustes de la cartera real (lo rellena la web: pestaña Real → Ajustes de la cartera real).
+# Guarda en real-ajustes.json, CIFRADOS, los ajustes de la cartera real (lo rellena la web: pestaña Real → Ajustes de la cartera real).
 # Cada valor tiene su rango seguro (runner/real-cfg.mjs); si algo se sale, se rechaza y no se guarda nada.
 # El flujo «Reiniciar todo» del simulador NO toca este archivo ni el historial real.
 on:
   workflow_dispatch:
     inputs:
       json:
-        description: 'Ajustes en JSON, solo lo que cambia. Ej.: {"on":1,"modo":"confirmar","metodo":"sect","limite":100}'
+        description: 'Ajustes CIFRADOS con la contraseña de la cartera (los envía la web). No escribas aquí nada en claro: este repositorio es público.'
         type: string
         default: "{}"
 
@@ -27,6 +27,8 @@ jobs:
       - name: Validar y guardar real-ajustes.json
         env:
           REAL_JSON: ${{ inputs.json }}
+          REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
         run: |
           node runner/real-cfg.mjs real-ajustes.json
           git config user.name "bot-trading"

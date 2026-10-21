@@ -1,7 +1,8 @@
 name: Cartera real (Trading 212)
 
 # Sigue con DINERO REAL el método elegido en «💶 Real → Ajustes de la cartera real» (archivo real-ajustes.json).
-# No usa navegador: tarda menos de un minuto. Guarda su historial en la rama «real» (real.json), aparte del simulador.
+# No usa navegador: tarda menos de un minuto. Guarda su historial en la rama «real» (real.json), aparte del simulador,
+# SIEMPRE cifrado con REAL_VIEW_PASS. Los registros de esta página son públicos: el motor no escribe en ellos importes ni posiciones.
 # Cuándo corre (lunes a viernes, hora de España; GitHub puede retrasarse unos minutos):
 #  - Revisión diaria hacia las 10:17 (con la Bolsa de Fráncfort ya abierta y los precios estables). Si GitHub se salta
 #    ese disparo, lo recupera el de las ~11:17 o el de la tarde. Cada disparo mira primero si hoy ya está hecho.
@@ -56,6 +57,7 @@ jobs:
           T212_KEY: ${{ secrets.T212_KEY }}
           T212_SECRET: ${{ secrets.T212_SECRET }}
           REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
           EMAIL: ${{ secrets.EMAIL }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
