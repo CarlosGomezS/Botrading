@@ -6,7 +6,7 @@ Qué hace este paquete:
 - **Actualización diaria tras el cierre de Wall Street (hacia las 23:17, hora de España)**: GitHub ejecuta el botón «Actualizar precios y que el bot decida» por ti, lunes a viernes. Hay **5 disparos** (21:17, 21:47, 22:17, 22:47 y 23:17 UTC) y cada uno comprueba primero, en segundos, si el día de hoy ya está hecho; si lo está, no hace nada. Así, si GitHub retrasa o descarta un disparo, el siguiente lo recupera. Cubre horario de verano e invierno sin tocar nada. **Por qué después del cierre y no a la apertura:** el bot decide con velas diarias completas; a la apertura solo existiría la vela de ayer, que ya está procesada. Durante la sesión ya trabaja el vigilante.
 - **Prueba histórica diaria** (flujo aparte, `historico.yml`): se lanza sola en cuanto termina la actualización de precios (y tiene 3 disparos de seguridad), solo si la actualización de ese día ya está hecha, con un número **aleatorio de acciones entre 200 y el máximo** (por defecto 300) elegidas al azar.
 - **Vigilante**: GitHub lo mantiene encendido en turnos de 55 minutos mientras Wall Street está abierto (lunes a viernes). Es lo más parecido a «siempre escuchando» que permite GitHub gratis: entre turno y turno puede haber unos minutos sin consulta (el arranque del navegador tarda 2-3 min) y GitHub no garantiza la hora exacta. Consulta **cada X minutos según el desplegable** (10, 15, 30 o 60).
-- **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Informe → Registro). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
+- **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
 ## Puesta en marcha (unos 15 minutos)
@@ -97,7 +97,7 @@ Actions → «Actualización de precios…» (o «Prueba histórica diaria…»)
 
 ## Simplificación de la app (v9)
 
-- **Menú:** Hoy · Radar (oculto) · Cartera · Métodos (antes «Informe») · Vigilante · Ajustes · Ayuda. Radar no sale en el menú; el Vigilante sí.
+- **Menú (v46):** Hoy · Histórico · Vigilante · Ajustes · Ayuda. La antigua pestaña «Cartera» ya no existe: su contenido está dentro de Hoy.
 - **Hoy:** nuevo panel «🏆 Qué método va ganando»: tarjetas con la rentabilidad de cada método, sus ventas cerradas y lo que hizo en el último día; al tocar una, te lleva a su Cartera.
 - **Ayuda:** de 32 apartados técnicos (~67 KB) a una guía corta de una pantalla: qué mirar y cómo replicar el bot en tu app de trading (comprar, stop loss, objetivo, vender).
 - **Ocultos (siguen funcionando por detrás, no se ven):** «Qué ha hecho el bot (en cristiano)» en Hoy; «Informe de rendimiento por método», «Neto frente a bruto» y «Alertas automáticas» en Métodos; «Envío automático por correo», «Auditoría de parámetros y datos» y «Diagnóstico técnico» en Ajustes.
@@ -129,3 +129,10 @@ Actions → «Actualización de precios…» (o «Prueba histórica diaria…»)
 - Ajustes de la web: ahora editan todos los parámetros, el método principal, el vigilante y el tiempo máximo. Corregido un fallo: los campos del recuadro salían vacíos y «Aplicar» daba «vacío» hasta que existiera un valor guardado.
 - Pantalla de Ajustes de la app (también en el ordenador): «Parámetros del bot» muestra los 19 parámetros y admite 0 donde es válido.
 - Visor: se refresca solo cuando hay datos nuevos.
+
+## v46 · Hoy simplificado
+
+- **Hoy** es ahora tu cartera entera, en este orden: gráfica pequeña (botón «Agrandar») · tu cartera ficticia hoy · **Qué hacer con esta cartera** (comprar, vender, stop) · lo que tiene comprado y historial de operaciones (plegados) · qué método va ganando · botón «Actualizar precios y que el bot decida».
+- El método elegido (selector de «Tu cartera ficticia hoy» o tarjeta del ranking) gobierna a la vez la gráfica y «Qué hacer».
+- **Histórico** (antes «Métodos»): solo la prueba histórica y los informes descargables. Quitados: comparativa de métodos, informe de rendimiento, neto frente a bruto y alertas automáticas (siguen calculándose por detrás, pero no se ven).
+- Vigilante, Ajustes y el funcionamiento de la nube no cambian.

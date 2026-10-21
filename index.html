@@ -260,33 +260,40 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 .rk-t b{display:block;font-size:16px}.rk-t small{display:block;font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4}
 .rk-g{font-size:20px;font-weight:800;text-align:right;white-space:nowrap}.rk-g small{display:block;font-size:12px;font-weight:600;margin-top:2px}
 .rk-g.up{color:var(--go)}.rk-g.dn{color:var(--stop)}
+
+/* ===== v46 · Hoy simplificado: gráfica pequeña con opción de agrandar ===== */
+.chtop{display:flex;align-items:center;justify-content:space-between;gap:10px}.chtop h2{margin:0}
+#chtog{padding:6px 12px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap;min-height:0}
+#ch .msel{display:none}
+#ch.mini{margin-top:6px}
+#ch.mini .pills,#ch.mini #chh,#ch.mini .m,#ch.mini #chw>svg:last-of-type{display:none}
+#ch.mini .chips{grid-template-columns:repeat(2,1fr)}
+#ch.mini .chip:nth-child(2),#ch.mini .chip:nth-child(3),#ch.mini .chip:nth-child(n+5){display:none}
 </style></head><body><div class="w">
-<div><h1>Bot Trading Pro<span class="tag">PAPER TRADING · v45</span></h1><div class="m">Precios de mercado · solo simulación · capital ficticio de <span class="capT">500 €</span> · sin órdenes reales</div></div>
+<div><h1>Bot Trading Pro<span class="tag">PAPER TRADING · v46</span></h1><div class="m">Precios de mercado · solo simulación · capital ficticio de <span class="capT">500 €</span> · sin órdenes reales</div></div>
 <section class="tab" id="t-hoy">
+<div class="p" id="chpanel"><div class="chtop"><h2>Rendimiento</h2><button id="chtog" type="button">⤢ Agrandar</button></div><div id="ch"></div></div>
 <div class="p hero"><h2>Tu cartera ficticia hoy</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
+<div class="p" id="mi-panel"><h2>Qué hacer con esta cartera</h2><div id="mi-box"></div></div>
+<details class="fold" id="hd-pos"><summary>Lo que tiene comprado</summary><div class="fb"><div class="kv" id="kv"></div><div class="tw" id="pos"></div></div></details>
+<details class="fold" id="hd-tr"><summary>Historial de operaciones</summary><div class="fb"><div id="tr"></div></div></details>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
-<div class="p"><h2>Rendimiento del bot · ganancias y pérdidas</h2><div id="ch"></div></div>
 <div class="p"><div class="m" id="nx"></div><button class="go" id="run">Actualizar precios y que el bot decida</button><div class="m" id="st">Cargando…</div></div>
 <div class="p adv"><h2>Qué ha hecho el bot (en cristiano)</h2><div id="ev"></div></div>
-
+<div class="adv"><div id="sel-cart"></div><div id="rk"></div></div>
 </section>
 <section class="tab" id="t-radar">
 <div class="p"><h2>Radar por método</h2><div class="tw" id="rd"></div></div>
 <div class="p"><h2>Señales de hoy</h2><div id="sg"></div></div>
 <div class="p"><h2>Detalle por activo</h2><div style="display:flex;gap:8px"><input id="sy" placeholder="Ticker, p. ej. AAPL" style="width:150px"><button id="sb">Ver</button></div><div id="sd"></div></div>
 </section>
-<section class="tab" id="t-cartera">
-<div class="p"><h2>Cartera por método</h2><div id="sel-cart"></div></div>
-<div class="p"><h2>Datos de la cartera</h2><div class="kv" id="kv"></div><div class="m" style="margin-top:14px"><b>Lo que tiene comprado</b></div><div class="tw" id="pos"></div><div class="m" style="margin-top:14px"><b>Riesgo ahora</b></div><div id="rk"></div></div>
-<div class="p"><h2>Qué hacer con esta cartera</h2><div id="mi-box"></div><div class="m" style="margin-top:14px"><b>Lo que ha hecho el bot (por fecha y hora)</b></div><div id="tr"></div></div>
-</section>
 <section class="tab" id="t-informe">
-<div class="p"><h2>Comparativa de métodos</h2><div class="tw" id="mt"></div><div class="m">Cada método opera su propia cuenta ficticia de <span class="capT">500 €</span>, con las mismas reglas de riesgo y costes. Las pruebas históricas incluyen comisión por orden y deslizamiento, usan señales al cierre anterior y ejecución a la apertura siguiente; los stops usan máximos/mínimos diarios y pueden sufrir huecos. Sharpe: sin tasa libre de riesgo, rentabilidad diaria de los días registrados × √252; con pocos días no significa nada.</div></div>
+<div class="p"><h2>Prueba histórica de los métodos</h2><div class="m">La prueba evita usar el cierre del mismo día para decidir y ejecutar: decide con el cierre previo y simula la entrada/salida en la apertura siguiente. Los stops se comprueban con máximos y mínimos diarios; un hueco puede empeorar el precio. Baja años de histórico de una muestra al azar de hasta 500 acciones (las ~280 de la lista y, si pides más de ~280, otras grandes y medianas de EE. UU.; con Twelve Data gratis 500 activos tardan varios días por el límite de 800 créditos/día, con Alpaca solo minutos) más los ETFs (unos 10-15 minutos con Twelve Data; no minimices la app) (necesita clave de Twelve Data; tarda varios minutos; también sirve Alpaca) y simula cada método en tres tramos: entrenamiento, validación y prueba fuera de muestra. El histórico debe ser suficientemente largo; si no hay datos para una prueba mínimamente útil, no se calcula.</div><label class="m"><input type="checkbox" id="btx" style="width:auto"> Prueba de estrés: excluir las 12 ganadoras obvias (NVDA, AMD, TSLA, AVGO, NFLX, LLY, META, AAPL, MSFT, AMZN, GOOGL, UBER) para reducir el sesgo de supervivencia</label><div class="m"><b>Máximo</b> de acciones a analizar (10 a 500; los ETFs siempre se incluyen): <input id="btn" type="number" min="10" max="500" value="300" style="width:70px"> · en la nube, cada día se hace la prueba con un número <b>aleatorio entre 200 y este máximo</b> de acciones elegidas al azar (otras distintas cada vez). Si pulsas el botón a mano, usa exactamente este número.</div><button id="btr">Descargar histórico largo y probar</button><div class="m" id="btst"></div><div class="tw" id="bt2"></div><div class="m"><b>Detalle de un método</b></div><div id="bt3"></div></div>
+<div class="p adv"><h2>Comparativa de métodos</h2><div class="tw" id="mt"></div><div class="m">Cada método opera su propia cuenta ficticia de <span class="capT">500 €</span>, con las mismas reglas de riesgo y costes. Las pruebas históricas incluyen comisión por orden y deslizamiento, usan señales al cierre anterior y ejecución a la apertura siguiente; los stops usan máximos/mínimos diarios y pueden sufrir huecos. Sharpe: sin tasa libre de riesgo, rentabilidad diaria de los días registrados × √252; con pocos días no significa nada.</div></div>
 <div class="p adv"><h2>Informe de rendimiento por método</h2><div id="sel-inf"></div><div class="kv" id="st2"></div></div>
 <div class="p adv"><h2>Neto frente a bruto (efecto de las comisiones)</h2><div class="tw" id="gn"></div></div>
 <div class="p adv"><h2>Alertas automáticas</h2><div id="al"></div></div>
-<div class="p"><h2>Registro para enviármelo</h2><div class="m"><b>Cada informe con fecha y hora</b> tiene su .md y su .json con todos sus datos: en la prueba histórica, todas las operaciones y la curva diaria de cada método y tramo; en una actualización, las cotizaciones, las señales, las carteras objetivo, las operaciones y el diagnóstico de ese día. <b>«Informe GENERAL de todo»</b> descarga todo junto: todos los informes, las cuentas con todas sus operaciones y curvas, el vigilante de todos los días y, si quieres, las velas de precios. «Informe completo» junta en un solo archivo todos los informes archivados de todas las fechas y horas. Cada informe individual (más abajo) descarga solo el de esa fecha y hora. «Estado actual del bot» lleva todo lo que hace el bot ahora mismo, sus resultados y la prueba histórica: súbelo a la conversación para mejorar el bot.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="ej">Descargar informes (.json)</button><button id="im">Importar informes (.json)</button><button id="vaciarInf">Vaciar todos los informes</button><button id="fr">Descargar informe completo (todos los informes, .md)</button><button id="fs">Estado actual del bot (.md)</button><button id="fgm">Informe GENERAL de todo (.md)</button><button id="fgj">Informe GENERAL de todo (.json)</button><textarea id="ta" readonly style="display:none;width:100%;height:160px;font-size:12px"></textarea><input id="imf" type="file" accept=".json" hidden></div><div class="m">Historial automático: cada intento de actualización se guarda con fecha y hora, estado, fecha de mercado y una copia del informe. Se conserva separado de la cartera activa.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rref">Actualizar lista</button></div><div id="rlist"><div class="m">Cargando historial…</div></div></div>
-<div class="p"><h2>Prueba histórica por método</h2><div class="m">La prueba evita usar el cierre del mismo día para decidir y ejecutar: decide con el cierre previo y simula la entrada/salida en la apertura siguiente. Los stops se comprueban con máximos y mínimos diarios; un hueco puede empeorar el precio. Baja años de histórico de una muestra al azar de hasta 500 acciones (las ~280 de la lista y, si pides más de ~280, otras grandes y medianas de EE. UU.; con Twelve Data gratis 500 activos tardan varios días por el límite de 800 créditos/día, con Alpaca solo minutos) más los ETFs (unos 10-15 minutos con Twelve Data; no minimices la app) (necesita clave de Twelve Data; tarda varios minutos; también sirve Alpaca) y simula cada método en tres tramos: entrenamiento, validación y prueba fuera de muestra. El histórico debe ser suficientemente largo; si no hay datos para una prueba mínimamente útil, no se calcula.</div><label class="m"><input type="checkbox" id="btx" style="width:auto"> Prueba de estrés: excluir las 12 ganadoras obvias (NVDA, AMD, TSLA, AVGO, NFLX, LLY, META, AAPL, MSFT, AMZN, GOOGL, UBER) para reducir el sesgo de supervivencia</label><div class="m"><b>Máximo</b> de acciones a analizar (10 a 500; los ETFs siempre se incluyen): <input id="btn" type="number" min="10" max="500" value="300" style="width:70px"> · en la nube, cada día se hace la prueba con un número <b>aleatorio entre 200 y este máximo</b> de acciones elegidas al azar (otras distintas cada vez). Si pulsas el botón a mano, usa exactamente este número.</div><button id="btr">Descargar histórico largo y probar</button><div class="m" id="btst"></div><div class="tw" id="bt2"></div><div class="m"><b>Detalle de un método</b></div><div id="bt3"></div></div>
+<div class="p"><h2>Informes y descargas</h2><div class="m"><b>Cada informe con fecha y hora</b> tiene su .md y su .json con todos sus datos: en la prueba histórica, todas las operaciones y la curva diaria de cada método y tramo; en una actualización, las cotizaciones, las señales, las carteras objetivo, las operaciones y el diagnóstico de ese día. <b>«Informe GENERAL de todo»</b> descarga todo junto: todos los informes, las cuentas con todas sus operaciones y curvas, el vigilante de todos los días y, si quieres, las velas de precios. «Informe completo» junta en un solo archivo todos los informes archivados de todas las fechas y horas. Cada informe individual (más abajo) descarga solo el de esa fecha y hora. «Estado actual del bot» lleva todo lo que hace el bot ahora mismo, sus resultados y la prueba histórica: súbelo a la conversación para mejorar el bot.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="ej">Descargar informes (.json)</button><button id="im">Importar informes (.json)</button><button id="vaciarInf">Vaciar todos los informes</button><button id="fr">Descargar informe completo (todos los informes, .md)</button><button id="fs">Estado actual del bot (.md)</button><button id="fgm">Informe GENERAL de todo (.md)</button><button id="fgj">Informe GENERAL de todo (.json)</button><textarea id="ta" readonly style="display:none;width:100%;height:160px;font-size:12px"></textarea><input id="imf" type="file" accept=".json" hidden></div><div class="m">Historial automático: cada intento de actualización se guarda con fecha y hora, estado, fecha de mercado y una copia del informe. Se conserva separado de la cartera activa.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rref">Actualizar lista</button></div><div id="rlist"><div class="m">Cargando historial…</div></div></div>
 </section>
 <section class="tab" id="t-vigia">
 <div class="p"><h2>Vigilante intradía</h2><div class="m">Déjalo abierto en el ordenador. Cada X minutos, con el mercado de EE. UU. abierto, consulta la cotización actual de las acciones del bot con mejor momentum y avisa si alguna <b>empieza a subir con fuerza</b> y el bot, con sus reglas de tendencia, entraría. Si el bot entraría, <b>compra en una cuenta ficticia propia de <span class="capT">500 €</span></b> (separada de los métodos, para medir esta regla por su cuenta) y la gestiona con un stop que sube (máximo menos 2 veces el rango medio diario). No envía órdenes reales. Esta regla de «arranque» no está probada en la prueba histórica: mídela en ficticio antes de fiarte.</div>
@@ -333,9 +340,10 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 <div class="m"><b>Cuándo trabaja.</b> Cada día de bolsa, después del cierre de Wall Street, actualiza precios y cada método decide si compra o vende. La prueba histórica corre aparte, después.</div>
 </div>
 <div class="p"><h2>Qué mirar, en orden</h2>
-<div class="m"><b>1. 📊 Métodos:</b> el ranking. Arriba, el método que más gana. Fíjate en la ganancia, la caída máxima y las operaciones cerradas: con pocas operaciones o pocas semanas, no concluye nada.</div>
-<div class="m"><b>2. 💼 Cartera:</b> elige un método. «Datos de la cartera» te dice cuánto tiene invertido, en efectivo y ganado. «Qué hacer» te dice qué comprar o vender ahora.</div>
-<div class="m"><b>3. 🏠 Hoy:</b> resumen y curva de ganancias frente a comprar SPY y no tocar nada.</div>
+<div class="m"><b>1. 🏠 Hoy</b> (es tu cartera, todo en una pantalla). Arriba, la <b>gráfica</b> en pequeño: toca «Agrandar» para verla entera. Debajo, lo que vale tu cartera ficticia. Luego <b>«Qué hacer con esta cartera»</b>: qué comprar, qué vender, a qué precio y con qué stop. Más abajo, lo que tienes comprado y el historial de operaciones (plegados), <b>qué método va ganando</b> y, al final, el botón para actualizar precios.</div>
+<div class="m"><b>2. 📈 Histórico:</b> la prueba histórica de todos los métodos (años de datos, en tres tramos) para ver cuáles aguantan de verdad, y los informes descargables.</div>
+<div class="m"><b>3. 👁️ Vigilante:</b> una cuenta ficticia aparte para probar la regla intradía, día a día.</div>
+<div class="m"><b>Cambiar de método:</b> toca el selector de «Tu cartera ficticia hoy» o una tarjeta del ranking. La gráfica y «Qué hacer» siguen siempre al método elegido.</div>
 </div>
 <div class="p"><h2>Cómo replicarlo en tu app de trading</h2>
 <div class="m"><b>Comprar:</b> en «Qué hacer» aparece 🟢 COMPRAR con el activo, el precio y el peso. Compra ese activo a mercado en la siguiente apertura, sin pasarte del peso (% de tu dinero).</div>
@@ -355,7 +363,7 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 </section>
 
 </div>
-<nav id="nav"><button data-t="hoy"><span>🏠</span>Hoy</button><button data-t="cartera"><span>💼</span>Cartera</button><button data-t="informe"><span>📊</span>Métodos</button><button data-t="vigia"><span>👁️</span>Vigilante</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
+<nav id="nav"><button data-t="hoy"><span>🏠</span>Hoy</button><button data-t="informe"><span>📈</span>Histórico</button><button data-t="vigia"><span>👁️</span>Vigilante</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
 <script id="viewer-shim">
 /* Modo VISOR (solo en la web publicada). En el ordenador (file://) y en el proceso automático NO hace nada.
    Carga la última copia de datos que dejó el proceso automático en GitHub y la muestra tal cual. */
@@ -604,7 +612,7 @@ const vaultVal=(PF,D,fx)=>{const v=PF.vault;if(!v||!(v.q>0))return 0;const q=D&&
 /* ===== v20: gráfica principal, estilos swing/position y ahorro en SP500 ===== */
 const MODES=[["2","Híbrido (swing + position)","Cada compra se clasifica sola: nota alta = position (deja correr con stop móvil); el resto = swing (objetivo de beneficio y tiempo máximo)."],["1","Solo swing","Entra y sale en días o semanas: vende al llegar al objetivo, al stop o al agotar las sesiones."],["0","Solo position","Compras para semanas o meses: sin objetivo ni tiempo máximo, solo stop móvil y nota (como la v17)."]];
 function modeHtml(){const cats={};for(const [k,m] of Object.entries(STR))(cats[m.cat||"Otros"]=cats[m.cat||"Otros"]||[]).push([k,m]);const cur=STR[S.main]?S.main:"sect",M=STR[cur];
- return `<div class="kv" style="grid-template-columns:1fr"><div>Método principal: es tu cartera ficticia de «Hoy», «Cartera» y la gráfica<select id="modeSel" style="width:100%;font:inherit;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);margin-top:4px">${Object.entries(cats).map(([c,a])=>`<optgroup label="${esc(c)}">${a.map(([k,m])=>`<option value="${k}" ${cur===k?"selected":""}>${esc(m.n)}</option>`).join("")}</optgroup>`).join("")}</select><div class="m" style="margin-top:6px">${esc(M.d||"")}</div><div class="m"><b>Fuente:</b> ${esc(M.src||"")}</div><div class="m"><b>Cuándo opera:</b> ${esc(M.rev||"Revisión mensual (primer día de mercado del mes)")}</div><span class="m">Cada método lleva su propia cuenta ficticia de ${E(START)} en paralelo, así puedes compararlos y cambiar de uno a otro sin perder su historial. El que elijas aquí es el que mandan las pantallas principales.</span></div></div>`}
+ return `<div class="kv" style="grid-template-columns:1fr"><div>Método principal: es tu cartera ficticia de «Hoy» y la gráfica<select id="modeSel" style="width:100%;font:inherit;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);margin-top:4px">${Object.entries(cats).map(([c,a])=>`<optgroup label="${esc(c)}">${a.map(([k,m])=>`<option value="${k}" ${cur===k?"selected":""}>${esc(m.n)}</option>`).join("")}</optgroup>`).join("")}</select><div class="m" style="margin-top:6px">${esc(M.d||"")}</div><div class="m"><b>Fuente:</b> ${esc(M.src||"")}</div><div class="m"><b>Cuándo opera:</b> ${esc(M.rev||"Revisión mensual (primer día de mercado del mes)")}</div><span class="m">Cada método lleva su propia cuenta ficticia de ${E(START)} en paralelo, así puedes compararlos y cambiar de uno a otro sin perder su historial. El que elijas aquí es el que mandan las pantallas principales.</span></div></div>`}
 function modeBind(){const e=$("#modeSel");if(e)e.onchange=()=>{S.main=e.value;const B=(S.books||{})[S.main];if(B)S.days.forEach(z=>{const y=B.days.find(d=>d.d===z.d);if(y)z.eq=y.eq});save();draw()}}
 function sweepGain(PF,D,fx,pnl,cf,log,d){
  if(!PF.vault||!(cf.sweep>0)||!(pnl>0))return;
@@ -614,7 +622,7 @@ function sweepGain(PF,D,fx,pnl,cf,log,d){
  PF.vault.hist=PF.vault.hist||[];PF.vault.hist.unshift({d,eur:+amt.toFixed(2)});PF.vault.hist=PF.vault.hist.slice(0,500);
  log("hold",`LLEVA ${E(amt)} de la ganancia al SP500 (ahorro a largo plazo: ya no se usa para operar).`)}
 function kindStats(cl){return["swing","position"].map(k=>{const a=cl.filter(t=>(t.kind||"position")===k);return[(k==="swing"?"Swing":"Position")+" (ops · neto)",a.length?a.length+" · "+E(a.reduce((x,t)=>x+t.pnl,0)):"—"]})}
-let CHR="all";
+let CHR="all";let CHMINI=true;try{CHMINI=localStorage.getItem("pbchm")!=="0"}catch{}
 const MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 const fd=d=>/^\d{4}-\d\d-\d\d$/.test(d)?(+d.slice(8))+" "+MESES[+d.slice(5,7)-1]:d;
 const P2=n=>(n>0.004?"+":n<-0.004?"−":"")+Math.abs(n).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+"%";
@@ -633,7 +641,7 @@ function chartDraw(){
  const pts=sl.map((x,i)=>({d:x.d,eq:x.eq,pct:(x.eq/e0-1)*100,bp:x.b!=null&&b0?(x.b/b0-1)*100:null,day:i?x.eq-sl[i-1].eq:0,dp:i?(x.eq/sl[i-1].eq-1)*100:0}));
  const L=full.length-1,chg=k=>(full[L].eq/full[Math.max(0,L-k)].eq-1)*100,dayP=(full[L].eq/full[L-1].eq-1)*100,tot=(full[L].eq/START-1)*100;
  const dps=full.slice(1).map((x,i)=>(x.eq/full[i].eq-1)*100),green=dps.filter(v=>v>0).length,best=Math.max(...dps),worst=Math.min(...dps);
- const cls=v=>v>0.004?"up":v<-0.004?"dn":"",W=chW(),H1=250,H2=124,pl=46,pr=14,pt=16,pb=26,pw=W-pl-pr,N=pts.length,xs=i=>pl+(N>1?i/(N-1)*pw:pw/2);
+ const cls=v=>v>0.004?"up":v<-0.004?"dn":"",W=chW(),H1=CHMINI?124:250,H2=124,pl=46,pr=14,pt=16,pb=26,pw=W-pl-pr,N=pts.length,xs=i=>pl+(N>1?i/(N-1)*pw:pw/2);
  const vals=pts.flatMap(x=>[x.pct,x.bp]).filter(v=>v!=null).concat([0]);let lo=Math.min(...vals),hi=Math.max(...vals);
  if(hi-lo<1){const m=(hi+lo)/2;lo=m-.5;hi=m+.5}const pad=(hi-lo)*.14;lo-=pad;hi+=pad;
  const ys=v=>pt+(hi-v)/(hi-lo)*(H1-pt-pb),stp=[.25,.5,1,2,5,10,20,50,100].find(s=>(hi-lo)/s<=5)||100,ticks=[];
@@ -671,7 +679,7 @@ ${spy}
  const show=i=>{i=Math.max(0,Math.min(N-1,i));const x=xs(i),a=$("#chx"),b=$("#chx2"),c=$("#chd");[a,b].forEach(l=>{if(l){l.setAttribute("x1",x);l.setAttribute("x2",x);l.setAttribute("opacity",".55")}});if(c){c.setAttribute("cx",x);c.setAttribute("cy",ys(pts[i].pct));c.setAttribute("opacity","1")}setH(i)};
  const hide=()=>{["#chx","#chx2","#chd"].forEach(s=>{const e=$(s);if(e)e.setAttribute("opacity","0")});setH(N-1)};
  const w=$("#chw"),mv=ev=>{const r=w.getBoundingClientRect(),x=(ev.clientX-r.left)/r.width*W;show(Math.round((x-pl)/pw*(N-1)))};
- w.onpointermove=mv;w.onpointerdown=mv;w.onpointerleave=hide;w.onpointercancel=hide;setH(N-1);
+ w.onpointermove=mv;w.onpointerdown=mv;w.onpointerleave=hide;w.onpointercancel=hide;setH(N-1);el.classList.toggle("mini",CHMINI);{const tg=$("#chtog");if(tg)tg.textContent=CHMINI?"⤢ Agrandar":"⤡ Reducir"}
  el.querySelectorAll("#chp button").forEach(b=>b.onclick=()=>{CHR=b.dataset.r;chartDraw()})}
 
 /* ===== v20: prueba histórica de la estrategia principal (swing / position / ahorro SP500) ===== */
@@ -1621,7 +1629,7 @@ const bkOf=k=>(S.books||{})[k]||null;
 function liveEq(k){const B=bkOf(k);if(!B)return START;const fx=S.fx||1;let t=B.cash;for(const[s,p]of Object.entries(B.pos||{}))t+=p.q*((S.last[s]&&S.last[s].px)||p.lastMark||p.avg)/fx;return t+bvLive(B)}
 const mGain=k=>liveEq(k)-START;
 const mSorted=()=>Object.keys(STR).filter(k=>bkOf(k)).sort((a,b)=>mGain(b)-mGain(a));
-const vmGet=v=>{const k=VM[v];if(k&&STR[k]&&bkOf(k))return k;return STR[S.main]&&bkOf(S.main)?S.main:(mSorted()[0]||"sect")};
+const vmGet=v=>{if(v==="cart"||v==="graf"||v==="inf")v="hoy";const k=VM[v];if(k&&STR[k]&&bkOf(k))return k;return STR[S.main]&&bkOf(S.main)?S.main:(mSorted()[0]||"sect")};
 /* ===== v9 · ranking sencillo en Hoy ===== */
 function hoyRank(){const A=document.getElementById("hoy-rank");if(!A)return;
  const ks=mSorted();
@@ -1632,7 +1640,7 @@ function hoyRank(){const A=document.getElementById("hoy-rank");if(!A)return;
   return`<div class="rk-c" data-go="${k}"><div class="rk-n">${med[j]||(j+1)+"."}</div><div class="rk-t"><b>${esc(STR[k].n)}</b><small>${np} ${np===1?"activo":"activos"} en cartera · ${cl} ventas cerradas · ${act}</small></div><div class="rk-g ${g>=0?"up":"dn"}">${P2(pc)}<small>${E2(g)}</small></div></div>`}).join("");
  const dias=(S.days||[]).length,pocas=ks.every(k=>((bkOf(k).trades)||[]).filter(t=>t.pnl!=null).length<30);
  A.innerHTML=`<div class="rk">${rows}</div><div class="m">Toca un método para ver qué hacer con él. Llevas ${dias} ${dias===1?"día":"días"} de datos${pocas?": todavía hay pocas ventas cerradas (menos de 30 por método), así que el ranking aún no demuestra nada. Sigue unas semanas.":"."}</div>`}
-document.addEventListener("click",e=>{const c=e.target&&e.target.closest&&e.target.closest("[data-go]");if(!c||!STR[c.dataset.go])return;VM.cart=c.dataset.go;VM.hoy=c.dataset.go;try{localStorage.setItem("pbvm",JSON.stringify(VM))}catch{}draw();const b=document.querySelector('#nav button[data-t="cartera"]');if(b)b.click()});
+document.addEventListener("click",e=>{const c=e.target&&e.target.closest&&e.target.closest("[data-go]");if(!c||!STR[c.dataset.go])return;VM.cart=c.dataset.go;VM.hoy=c.dataset.go;try{localStorage.setItem("pbvm",JSON.stringify(VM))}catch{}draw();const q=document.getElementById("mi-panel");if(q)q.scrollIntoView({behavior:"smooth",block:"start"})});
 const gtxt=g=>`<b class="${g>=0?"up":"dn"}">${E2(g)} (${P2(g/START*100)})</b>`;
 const hmL=t=>t?new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"";
 const hmS=t=>new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
@@ -1643,7 +1651,7 @@ function fdLong(d){try{return new Date(d+"T12:00:00").toLocaleDateString("es-ES"
 function mSel(v){const cur=vmGet(v),list=mSorted().map((k,j)=>`<div class="mo${k===cur?" on":""}" data-v="${v}" data-k="${k}"><span>${j+1}. ${esc(STR[k].n)}</span>${gtxt(mGain(k))}</div>`).join("");
  return`<details class="msel"><summary><span>Método: <b>${esc(STR[cur].n)}</b></span>${gtxt(mGain(cur))}</summary><div class="mol">${list}</div></details>`}
 document.addEventListener("click",e=>{const t=e.target;if(!t||!t.closest)return;
- const o=t.closest(".mo");if(o&&o.dataset.v&&STR[o.dataset.k]){VM[o.dataset.v]=o.dataset.k;try{localStorage.setItem("pbvm",JSON.stringify(VM))}catch{}const d=o.closest("details.msel");if(d)d.open=false;draw();return}
+ const o=t.closest(".mo");if(o&&o.dataset.v&&STR[o.dataset.k]){VM[o.dataset.v==="cart"||o.dataset.v==="graf"||o.dataset.v==="inf"?"hoy":o.dataset.v]=o.dataset.k;try{localStorage.setItem("pbvm",JSON.stringify(VM))}catch{}const d=o.closest("details.msel");if(d)d.open=false;draw();return}
  const s=t.closest("details[data-id]>summary");if(s){const d=s.parentNode;setTimeout(()=>{OPEN[d.dataset.id]=d.open;try{localStorage.setItem("pbop",JSON.stringify(OPEN))}catch{}},0)}});
 function foldDays(keys,pre,sum,body,nOpen=1,show=7){const one=(d,j)=>`<details class="rd" data-id="${pre}:${d}"${opn(pre+":"+d,j<nOpen)}><summary><span>${sum(d)}</span></summary><div class="rb">${body(d)}</div></details>`,r=keys.slice(show);
  return keys.slice(0,show).map(one).join("")+(r.length?`<details class="rd" data-id="${pre}:old"${opn(pre+":old",false)}><summary><span>Días anteriores (${r.length})</span></summary><div class="rb">${r.map(d=>one(d,99)).join("")}</div></details>`:"")}
@@ -1691,7 +1699,7 @@ function miDraw(){
  const cards=chg.map(t=>{const x=posMap[t.s],buy=t.side==="COMPRA";
   if(buy){const more=x&&x.p.d&&x.p.d<t.d;return`<div class="mi-card mi-buy"><div class="mi-top"><div class="mi-t">${esc(t.s)}${desc(t.s)}</div><span class="mi-badge b-buy">🟢 ${more?"COMPRAR MÁS":"COMPRAR"}</span></div>
    <div class="mi-grid"><div><span>El bot compró el</span><b>${esc(fd(t.d))}</b></div><div><span>A precio de</span><b>${miUsd(t.px)}</b></div><div><span>Peso en la cartera</span><b>${((x?W(x.v):t.eur/tot)*100).toFixed(0)}%</b></div></div>
-   ${x?levels(x):'<div class="mi-why">Después ya la ha vendido (mira «Lo que ha hecho el bot», debajo).</div>'}<div class="mi-why">${esc(whyBuy(t.s))}</div></div>`}
+   ${x?levels(x):'<div class="mi-why">Después ya la ha vendido (mira «Historial de operaciones», más abajo).</div>'}<div class="mi-why">${esc(whyBuy(t.s))}</div></div>`}
   const cost=(+t.eur)-(+t.pnl),pc=cost>0?(+t.pnl)/cost*100:0,part=!!x,fr=part?t.q/(t.q+x.p.q):1;
   return`<div class="mi-card mi-sell"><div class="mi-top"><div class="mi-t">${esc(t.s)}${desc(t.s)}</div><span class="mi-badge b-sell">🔴 ${part?"VENDER PARTE":"VENDER"}</span></div>
    <div class="mi-grid"><div><span>El bot vendió el</span><b>${esc(fd(t.d))}</b></div><div><span>A precio de</span><b>${miUsd(t.px)}</b></div><div><span>Resultado del bot</span><b class="${t.pnl>=0?"up":"dn"}">${P2(pc)}</b></div>${part?`<div><span>Vende</span><b>≈ ${(fr*100).toFixed(0)}% de lo que tengas</b></div>`:""}</div>
@@ -1832,6 +1840,7 @@ $("#aud").onclick=()=>{$("#audo").innerHTML=auditHtml()};
 $("#run").onclick=run;
 $("#fx").onchange=async()=>{const v=+$("#fx").value;if(v>0.3&&v<3){S.fx=v;await save();draw()}};
 $("#rs").onclick=async()=>{if(busy)return;if(!confirm("¿Reiniciar la cuenta ficticia a "+E(START)+"?\n\nSe borran ganancias, pérdidas, operaciones, posiciones y gráficas de TODAS las cuentas (métodos y vigilante).\nSe conservan: ajustes, claves, reglas, informes archivados y datos de precios."))return;await resetAccounts(START)};
+{const tg=document.getElementById("chtog");if(tg)tg.onclick=()=>{CHMINI=!CHMINI;try{localStorage.setItem("pbchm",CHMINI?"1":"0")}catch{}try{chartDraw()}catch{}}}
 function go(t){document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x.id==="t-"+t));document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));try{scrollTo(0,0)}catch{}if(t==="hoy"){try{chartDraw()}catch{}}}
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>go(b.dataset.t));
 try{$("#bg").checked=false}catch{}
@@ -1861,7 +1870,7 @@ function saveKeys(){try{const o={key:$("#key").value.trim(),k_fm:$("#k_fm").valu
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch{}
 try{const m=sessionStorage.getItem("pbrm");if(m){sessionStorage.removeItem("pbrm");setTimeout(()=>bkMsg(m+" (recargada)"),600)}}catch{}
 $("#bcfg").onclick=async()=>{const P0={};for(const k in CFG)P0[k]=+(+CFG[k]).toFixed(6);const fxv=+$("#fx").value,wk=$("#bkk").checked,K=wk?allKeys():{td:"",pg:"",al:"",av:"",fm:""};const t='const CONFIG='+JSON.stringify({capital:START,email:(mailGet().to||""),key_w3:wk?(mailGet().key||""):"",mail:mailCfg(wk),ntt:wk?($("#ntt").value||"").trim():"",nt:$("#nt").checked,vg:ajustesObj(false).vg,keys:K,minutos:+$("#mins").value||8,segundoPlano:false,params:P0,rules:RULES,fx:fxv>0?fxv:null})+';';try{await navigator.clipboard.writeText(t);$("#st").textContent=""+(wk?"Copiados parámetros, reglas y claves de API. ":"Copiados parámetros y reglas (sin claves). ")+"Pégalos en el HTML sustituyendo la línea const CONFIG=…"}catch{const a=$("#bkt");a.style.display="block";a.value=t;a.select();try{document.execCommand("copy")}catch{}$("#st").textContent="Si no se copió solo, mantén pulsada la caja de texto y copia."}};
-(()=>{const L=[...document.querySelectorAll("#t-radar .p,#t-cartera .p,#t-informe .p,#t-vigia .p,#t-ajustes .p")].map(p=>[p,p.parentNode.querySelector(".p")===p]);
+(()=>{const L=[...document.querySelectorAll("#t-radar .p,#t-informe .p:not(.adv),#t-vigia .p,#t-ajustes .p")].map(p=>[p,p.parentNode.querySelector(".p")===p]);
  L.forEach(([p,first])=>{const h=p.querySelector(":scope>h2");if(!h)return;const d=document.createElement("details");d.className="fold";if(first)d.open=true;const sm=document.createElement("summary");sm.textContent=h.textContent;h.remove();const b=document.createElement("div");b.className="fb";while(p.firstChild)b.append(p.firstChild);d.append(sm,b);p.parentNode.insertBefore(d,p);p.remove()})})();
 
 /* ===== v44: capital configurable + correo automático ===== */
