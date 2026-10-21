@@ -1246,6 +1246,20 @@ const ML0=MOM_UNI.length;if((+($("#btn")&&$("#btn").value)||0)>ML0){const ex0=ne
   else{BTA.n=0;const msg=mask(e.message||"Error desconocido")+" · Progreso guardado: "+prog0+"."+(dly?" La cuota diaria del proveedor está agotada: mañana (o con otra clave) al pulsar de nuevo continúa por donde se quedó.":" Al pulsar de nuevo continúa por donde se quedó.");$("#btst").textContent="Error: "+msg;await archiveReport("prueba-historica-error",msg)}}
  finally{MOM_UNI.length=ML0;BTB.v=false;$("#btr").disabled=false;if(btAgain){BTA.pend=true;BTA.t=setTimeout(()=>{BTA.pend=false;BTA.go=true;btRun()},120000)}else{BTA.pend=false;if(!busy)keepOff();try{notify(btOk?"Bot Trading: prueba histórica terminada":"Bot Trading: error en la prueba histórica",String($("#btst").textContent||"").slice(0,140))}catch{}}}}
 function btmDraw(){btmDraw0()}
+
+// v54: en la web publicada (modo visor) la prueba no se calcula en el móvil: se lanza en GitHub (flujo historico.yml, con tu clave de Twelve Data guardada en los secretos)
+async function btCloud(pw){const st=$("#btst"),c=window.__CLOUD;if(!c){st.textContent="Abre la web publicada en GitHub Pages para lanzarla.";return}
+ if(!c.tok()){if(!c.hasEnc()){st.innerHTML="Para lanzarla hace falta tu token de GitHub: pégalo una vez en <b>⚙️ Ajustes → Ajustes de la nube</b>. También puedes lanzarla en GitHub: Actions → «Prueba histórica diaria» → Run workflow.";return}
+  if(!pw){st.innerHTML='Escribe tu clave de ajustes: <input id="btpw" type="password" autocomplete="current-password" style="width:150px"> <button id="btgo">Lanzar</button>';const go=()=>btCloud(($("#btpw")||{}).value||"");$("#btgo").onclick=go;$("#btpw").onkeydown=e=>{if(e.key==="Enter")go()};$("#btpw").focus();return}
+  try{st.textContent="Comprobando la clave…";await c.unlock(pw)}catch(e){st.textContent="Clave incorrecta.";setTimeout(()=>btCloud(),1500);return}}
+ const ri=c.ri();if(!ri){st.textContent="No reconozco el repositorio de esta web.";return}
+ $("#btr").disabled=true;try{c.touch();const since=Date.now();st.textContent="Enviando a GitHub…";
+  const r=await c.dispatch(ri,"historico.yml",{});
+  if(r.status!==204){st.textContent=r.status===401||r.status===403?"GitHub rechazó el token (HTTP "+r.status+"): revisa que tenga «Actions: Read and write» y no haya caducado.":r.status===404?"No encuentro .github/workflows/historico.yml en el repositorio.":"GitHub respondió HTTP "+r.status+".";return}
+  st.textContent="✔ Lanzada en GitHub. Tarda unos 10-20 minutos; puedes cerrar la app. Los resultados aparecerán aquí solos cuando termine.";
+  const res=await c.waitRun(ri,"historico.yml",since,40*60);
+  st.textContent=res==="success"?"✔ Prueba terminada. Si aún no ves los resultados nuevos, toca la barra de arriba para actualizar.":res==null?"Sigue en marcha en GitHub: vuelve en un rato.":"✖ La prueba terminó con error: míralo en GitHub → Actions → «Prueba histórica diaria».";
+ }catch(e){st.textContent="No se pudo: "+(e.message||e)}finally{$("#btr").disabled=false}}
 function btmVerd(b,k){const r=b.rows[k],sp=b.rows.spy;if(!r||!sp)return null;const ok=[0,1,2].filter(j=>r[j]&&sp[j]);if(!ok.length)return null;const n=ok.length,beat=ok.filter(j=>r[j].ret>sp[j].ret).length,less=ok.filter(j=>r[j].dd>sp[j].dd).length,pos=ok.filter(j=>r[j].ret>0).length,ar=annualOf(r,b.cuts),as=annualOf(sp,b.cuts);
  if(ar!=null&&as!=null&&ar>as&&less>=2&&pos===n)return{c:"ok",t:"✅ Bate al SPY",x:`Gana más que el SPY en el total y cae menos en ${less} de ${n} tramos.`,beat,less,pos,n};
  if(ar!=null&&as!=null&&ar>as)return{c:"mid",t:"🟡 Gana más, cae más",x:`Gana más que el SPY en el total, pero con caídas iguales o mayores en ${n-less} de ${n} tramos.`,beat,less,pos,n};
@@ -1997,7 +2011,7 @@ document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>go(b.dataset.t
 try{$("#bg").checked=false}catch{}
 const autoRun=()=>{try{if(!$("#bg")||!$("#bg").checked)return;if(busy||document.hidden)return;if(S.runDay===T0())return;if(Date.now()-(+localStorage.getItem("pbt")||0)<20*60000)return;localStorage.setItem("pbt",Date.now());run()}catch{}};
 try{document.addEventListener("visibilitychange",autoRun)}catch{}try{document.addEventListener("visibilitychange",()=>{if(document.hidden)flush()})}catch{}try{addEventListener("pagehide",flush)}catch{}try{addEventListener("focus",()=>{if($("#bg")&&$("#bg").checked)autoRun()})}catch{}try{if($("#bg")&&$("#bg").checked)setInterval(autoRun,15*60000)}catch{}
-$("#pt").onclick=testConn;$("#btr").onclick=btRun;$("#sb").onclick=detail;
+$("#pt").onclick=testConn;$("#btr").onclick=()=>window.__VIEWER?btCloud():btRun();$("#sb").onclick=detail;
 $("#im").onclick=()=>$("#imf").click();
 $("#bkd").onclick=()=>{const o=backupObj($("#bkk").checked),n=o.keys?Object.values(o.keys).filter(Boolean).length:0;dl("copia-bot-"+T0()+".json",JSON.stringify(o));bkMsg(n?"Copia descargada CON "+n+" claves de API ✔":"⚠ Copia descargada SIN claves: la casilla está desmarcada o los campos de claves están vacíos en esta página.")};
 $("#bkc").onclick=async()=>{const o=backupObj($("#bkk").checked),n=o.keys?Object.values(o.keys).filter(Boolean).length:0,t=JSON.stringify(o);try{await navigator.clipboard.writeText(t);bkMsg(n?"Copia copiada CON "+n+" claves de API ✔":"⚠ Copia copiada SIN claves: la casilla está desmarcada o los campos de claves están vacíos en esta página.")}catch{const a=$("#bkt");a.style.display="block";a.value=t;a.select();try{document.execCommand("copy")}catch{}$("#st").textContent="Si no se copió sola, mantén pulsada la caja de texto y copia."}};
