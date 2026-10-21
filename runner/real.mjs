@@ -79,7 +79,8 @@ const BAD = /Hedged|Leverag|Short|Daily|\b[23]x\b|Equal|ESG|SRI|Paris|Screened|S
 const BASE_UNI = Object.keys(PAT);
 
 // ---------- hora de Madrid ----------
-const NOWF = () => (env("REAL_NOW") && !env("GITHUB_ACTIONS") ? new Date(env("REAL_NOW")) : new Date());   // REAL_NOW: solo para pruebas en el ordenador
+// REAL_NOW (fecha simulada) solo funciona en las pruebas automáticas (REAL_TEST=1, que nunca se pone en el flujo real) y contra el Trading 212 simulado
+const NOWF = () => (env("REAL_TEST") === "1" && env("REAL_NOW") && /^http:\/\/127\.0\.0\.1/.test(env("T212_BASE")) ? new Date(env("REAL_NOW")) : new Date());
 function madrid(d = NOWF()) {
   const p = {};
   new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour12: false, weekday: "short", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
@@ -154,7 +155,8 @@ function loadBot() {
 
 // ---------- Trading 212 ----------
 function t212(which) {
-  const base = env("T212_BASE") || (which === "demo" ? "https://demo.trading212.com/api/v0" : "https://live.trading212.com/api/v0");
+  // T212_BASE solo existe para las pruebas automáticas (simulador en 127.0.0.1); en GitHub nunca se usa otra dirección que la oficial
+  const tb = env("T212_BASE"), base = tb && env("REAL_TEST") === "1" && /^http:\/\/127\.0\.0\.1:\d+\//.test(tb) ? tb : which === "demo" ? "https://demo.trading212.com/api/v0" : "https://live.trading212.com/api/v0";
   const key = env("T212_KEY"), sec = env("T212_SECRET");
   const auth = sec ? "Basic " + Buffer.from(key + ":" + sec).toString("base64") : key;
   let calls = 0;
@@ -199,7 +201,7 @@ function explainT212(e) {
 }
 
 // ---------- precios para calcular cuántas participaciones comprar ----------
-const YH = env("YH_BASE") || "https://query1.finance.yahoo.com";
+const YH = env("REAL_TEST") === "1" && /^http:\/\/127\.0\.0\.1/.test(env("YH_BASE")) ? env("YH_BASE") : "https://query1.finance.yahoo.com";
 const SUF = { d: ".DE", l: ".L", a: ".AS", p: ".PA", m: ".MI", s: ".SW", e: ".MC", b: ".BR" };
 function yahooSym(t) {
   let m = String(t).match(/^(.+?)_US_EQ$/); if (m) return m[1].replace(/_/g, "-");
@@ -290,15 +292,30 @@ export function ensureLedger(R, A, positions, m, notas) {
     L.cap = A.limite; L.cash = r2(A.limite - cost); L.limite = A.limite;
     hist(R, { tipo: "capital", eur: A.limite, nota: `capital inicial del bot: ${eur(A.limite)}` }); flowAdd(R, m.date, A.limite);
   } else if (Math.abs(A.limite - L.limite) > 0.004) {
-    const dlt = r2(A.limite - L.cap);   // el ajuste fija el capital exacto del bot: la diferencia es lo que le das o le quitas
-    L.cap = A.limite; L.cash = r2(L.cash + dlt); L.limite = A.limite; R.applied = null;   // se recalcula la cartera entera con el capital nuevo
-    hist(R, { tipo: dlt > 0 ? "aportación" : "retirada", eur: dlt, nota: `has cambiado el dinero que trabaja el bot a ${eur(A.limite)} (${seur(dlt)})` }); flowAdd(R, m.date, dlt);
-    notas.push(`Has cambiado el dinero que trabaja el bot: ${seur(dlt)} (ahora ${eur(A.limite)}). Cuenta como ${dlt > 0 ? "aportación" : "retirada"}, no como ganancia ni pérdida.`);
+    // al cambiar el ajuste, el bot pasa a trabajar con ESA cantidad: la diferencia con lo que vale ahora es lo que le das (+) o le quitas (−)
+    const byT0 = Object.fromEntries(positions.map((p) => [p.instrument.ticker, p]));
+    const eqNow = L.cash + Object.entries(L.lots).reduce((t, [tk, l]) => { const p = byT0[tk]; return t + (p ? Math.min(l.q, +p.quantity || 0) * unitVal(p) : 0); }, 0);
+    const dlt = r2(A.limite - eqNow);
+    L.cap = r2(L.cap + dlt); L.cash = r2(L.cash + dlt); L.limite = A.limite; R.applied = null;   // se recalcula la cartera entera con el dinero nuevo (el freno de pérdidas no se ve afectado: usa la rentabilidad)
+    hist(R, { tipo: dlt > 0 ? "aportación" : "retirada", eur: dlt, nota: `has cambiado el dinero que trabaja el bot a ${eur(A.limite)}: valía ${eur(eqNow)}, así que ${dlt >= 0 ? "le das" : "le quitas"} ${eur(Math.abs(dlt))}` }); flowAdd(R, m.date, dlt);
+    notas.push(`Has cambiado el dinero que trabaja el bot a ${eur(A.limite)}. Valía ${eur(eqNow)}: ${dlt >= 0 ? "le das" : "le quitas"} ${eur(Math.abs(dlt))}. Cuenta como ${dlt >= 0 ? "aportación" : "retirada"}, no como ganancia ni pérdida.`);
   }
   return L;
 }
 export function syncLots(R, positions, m, notas) {
   const L = R.ledger, byT = Object.fromEntries(positions.map((p) => [p.instrument.ticker, p]));
+  // desdoblamiento o agrupación (split): las participaciones se multiplican por k y el precio medio se divide por k, sin órdenes de por medio
+  for (const [t, lot] of Object.entries(L.lots)) {
+    const p = byT[t], sn = (R.seen || {})[t];
+    if (!p || !sn || !(sn.q > 0) || !(sn.avg > 0)) continue;
+    const q = +p.quantity || 0, avg = +p.averagePricePaid || 0, k = q / sn.q;
+    const K = [2, 3, 4, 5, 8, 10, 20, 25, 50, 100, 1 / 2, 1 / 3, 1 / 4, 1 / 5, 1 / 10, 1 / 20, 1 / 100].find((x) => Math.abs(k / x - 1) < 0.005);
+    if (K && avg > 0 && Math.abs((avg * K) / sn.avg - 1) < 0.03) {
+      const old = lot.q; lot.q = +(lot.q * K).toFixed(8);
+      hist(R, { tipo: "ajuste", t, q: lot.q - old, eur: 0, nota: `desdoblamiento ${K >= 1 ? "1:" + K : Math.round(1 / K) + ":1"} detectado en ${t}: el bot pasa de ${r2(old)} a ${r2(lot.q)} participaciones (el coste no cambia)` });
+      notas.push(`${t}: Trading 212 muestra un desdoblamiento (${K >= 1 ? "1:" + K : Math.round(1 / K) + ":1"}). Se ajustan las participaciones del bot; su coste no cambia.`);
+    }
+  }
   // participaciones del bot frente a lo que hay de verdad en la cuenta (si vendiste tú a mano, se descuenta)
   for (const [t, lot] of Object.entries(L.lots)) {
     const p = byT[t], have = p ? +p.quantity || 0 : 0;
@@ -366,7 +383,14 @@ async function reconcile(T, R, rep) {
   R.pendBot = keep;
 }
 // ¿está abierta la bolsa europea? (las órdenes de ETFs europeos solo se envían de 9:05 a 17:20, hora de España)
-const euOpen = (m) => m.wk && m.min >= 9 * 60 + 5 && m.min <= 17 * 60 + 20;
+// festivos en los que Xetra (Fráncfort) no abre: 1 ene, Viernes Santo, Lunes de Pascua, 1 may, 24, 25, 26 y 31 dic
+export function xetraHoliday(d) {
+  const y = +d.slice(0, 4), a = y % 19, b = Math.floor(y / 100), c = y % 100, dd = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3),
+    h = (19 * a + b - dd - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, mm = Math.floor((a + 11 * h + 22 * l) / 451),
+    mo = Math.floor((h + l - 7 * mm + 114) / 31), da = ((h + l - 7 * mm + 114) % 31) + 1, easter = Date.UTC(y, mo - 1, da), iso = (t) => new Date(t).toISOString().slice(0, 10);
+  return new Set([`${y}-01-01`, iso(easter - 2 * 864e5), iso(easter + 864e5), `${y}-05-01`, `${y}-12-24`, `${y}-12-25`, `${y}-12-26`, `${y}-12-31`]).has(d);
+}
+export const euOpen = (m) => m.wk && !xetraHoliday(m.date) && m.min >= 9 * 60 + 5 && m.min <= 17 * 60 + 20;
 
 // ---------- plan: qué comprar y vender para parecerse al método ----------
 export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
@@ -392,7 +416,10 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
   if (yaAplicada) notas.push(`La cartera objetivo del ${tgt.d || "—"} ya está aplicada: hasta la próxima revisión del método solo se compra lo que falte o con dinero nuevo (como en la simulación).`);
 
   const objetivo = [], tv = {}, symOf = {};
-  for (const [sym, w] of Object.entries(tgt.w)) {
+  const W = Object.fromEntries(Object.entries(tgt.w).filter(([, w]) => Number.isFinite(+w) && +w > 0).map(([s0, w]) => [s0, +w]));
+  const sumW = Object.values(W).reduce((t, w) => t + w, 0);
+  if (sumW > 1.0001) { for (const k of Object.keys(W)) W[k] /= sumW; notas.push(`Los pesos del método sumaban ${(sumW * 100).toFixed(1)}%: se reducen proporcionalmente al 100% (nunca se invierte más de lo que tiene el bot).`); }
+  for (const [sym, w] of Object.entries(W)) {
     if (!(w > 0)) continue;
     const mp = map[sym] || { t: null, why: "sin buscar todavía" };
     objetivo.push({ sym, w: +w, t: mp.t, name: mp.name || "", why: (tgt.why && tgt.why[sym]) || "", disp: mp.t ? "" : mp.why });
@@ -412,6 +439,19 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
       const sell = cur - goal, full = cur - sell < A.minOrden;
       orders.push({ side: "VENTA", t, sym: symOf[t] || "", name: x.p.instrument.name || "", qty: full ? q : Math.min(q, Math.floor((x.bq * sell) / cur * 1e4) / 1e4), full, eur: r2(full ? q * x.u : sell), why: `reduce a su peso objetivo (${eur(goal)} de ${eur(cur)})` });
     }
+  }
+  // si el bot tiene invertido más que su capital (p. ej. porque lo has bajado), vende ese sobrante aunque en cada posición sea pequeño:
+  // se saca de la posición más cargada, en órdenes de al menos la orden mínima
+  if (!yaAplicada) {
+    let excess = managedVal - orders.reduce((t, o) => t + o.eur, 0) - invest;
+    const cand = mine.filter((x) => !pend.has(x.t) && !orders.some((o) => o.t === x.t) && Math.min(x.bq, x.qa) > 0).map((x) => ({ x, over: x.bv - (tv[x.t] || 0) })).sort((a, b) => b.over - a.over || b.x.bv - a.x.bv);
+    for (const { x } of cand) {
+      if (excess < A.minOrden) break;
+      const amt = Math.min(excess, x.bv), full = x.bv - amt < A.minOrden, q = Math.min(x.bq, x.qa);
+      orders.push({ side: "VENTA", t: x.t, sym: symOf[x.t] || "", name: x.p.instrument.name || "", qty: full ? q : Math.min(q, Math.floor((x.bq * amt) / x.bv * 1e4) / 1e4), full, eur: r2(full ? q * x.u : amt), why: `el bot tiene invertido ${eur(excess)} más que su capital: se vende la diferencia` });
+      excess -= full ? x.bv : amt;
+    }
+    if (excess > 0.5 && excess < A.minOrden) notas.push(`El bot tiene ${eur(excess)} invertidos de más: es menos que la orden mínima (${eur(A.minOrden)}), así que no se vende por ahora.`);
   }
   const sells = orders.reduce((t, o) => t + o.eur, 0);
   let freeCash = Math.min(cash + sells - presupuesto * (A.reserva / 100), accCash + sells);
@@ -503,7 +543,7 @@ async function priceOf(t, map, positions, fx) {
   if (ys) {
     const st = ys.replace(/\.DE$/i, ".de").replace(/\.L$/i, ".uk").replace(/\.(AS|PA|MI|SW|MC|BR)$/i, (x) => x.toLowerCase());
     try {
-      const r = await fetch(`${env("STOOQ_BASE") || "https://stooq.com"}/q/l/?s=${encodeURIComponent(st.toLowerCase())}&f=sd2t2c&h&e=csv`, { signal: AbortSignal.timeout(15000) });
+      const r = await fetch(`${env("REAL_TEST") === "1" && /^http:\/\/127\.0\.0\.1/.test(env("STOOQ_BASE")) ? env("STOOQ_BASE") : "https://stooq.com"}/q/l/?s=${encodeURIComponent(st.toLowerCase())}&f=sd2t2c&h&e=csv`, { signal: AbortSignal.timeout(15000) });
       const row = (await r.text()).trim().split("\n")[1] || "", c = +row.split(",")[4];
       if (r.ok && c > 0 && !(cur === "GBX" && /\.uk$/.test(st) && c < 5)) return { px: c, cur, src: "Stooq " + st };
     } catch (e) { log("Precio: Stooq no respondió"); }
@@ -519,12 +559,14 @@ async function execute(T, A, R, plan, ctx, rep) {
   R.pendBot = R.pendBot || [];
   const ordered = [...plan.orders.filter((o) => o.side === "VENTA"), ...plan.orders.filter((o) => o.side === "COMPRA")];
   let positions = ctx.positions, fx = null, sellsDone = false, spent = 0;
+  // dinero del bot al empezar esta revisión: ninguna revisión puede comprar más que esto (más lo que cobre en sus ventas)
+  const eq0 = botEquity(R, ctx.positions, +((ctx.account.cash && ctx.account.cash.availableToTrade) || 0)).eq;
   for (const o of ordered) {
     const inst = Object.values(ctx.map).find((x) => x.t === o.t) || {};
     const us = /_US_EQ$/.test(o.t);
     const skip = (estado, err) => { res.push({ ...o, estado, err }); rep.push(`- ${o.side} ${o.t}: ${estado} · ${err}`); };
     if (us && (!m.wk || m.min < 15 * 60 + 35 || m.min > 21 * 60 + 55)) { skip("aplazada", "acción de EE. UU.: se envía con la bolsa de Nueva York abierta (15:35-21:55 hora de España)"); continue; }
-    if (!us && !euOpen(m)) { skip("aplazada", "la bolsa europea está cerrada (las órdenes se envían de 9:05 a 17:20, hora de España): se hará en la próxima revisión con la bolsa abierta"); continue; }
+    if (!us && !euOpen(m)) { skip("aplazada", xetraHoliday(m.date) ? "hoy es festivo en la bolsa de Fráncfort: se hará en el próximo día de bolsa" : "la bolsa europea está cerrada (las órdenes se envían de 9:05 a 17:20, hora de España): se hará en la próxima revisión con la bolsa abierta"); continue; }
     if (o.side === "COMPRA" && !sellsDone) {
       sellsDone = true;
       if (res.some((x) => x.side === "VENTA" && x.estado === "ejecutada")) {
@@ -545,6 +587,21 @@ async function execute(T, A, R, plan, ctx, rep) {
       if (!rate) { skip("omitida", "no tengo el cambio € → " + pr.cur); continue; }
       qty = (amt * rate * 0.99) / pr.px;
       o.pxEst = pr.px; o.pxSrc = pr.src; o.eur = r2(amt);
+    }
+    // ---- guardas de seguridad: si algo no cuadra, NO se envía ----
+    {
+      const lot = R.ledger.lots[o.t], pos = (positions || []).find((x) => x.instrument && x.instrument.ticker === o.t), why = [];
+      if (o.side === "VENTA") {
+        const aq = Math.abs(qty);
+        if (!lot || aq > lot.q + 1e-6) why.push(`vendería ${qtyTxt(aq)} participaciones y el bot solo tiene ${qtyTxt(lot ? lot.q : 0)}`);
+        if (pos && aq > (+pos.quantityAvailableForTrading || 0) + 1e-6) why.push("más participaciones de las disponibles en tu cuenta");
+      } else {
+        const bought = spent + o.eur;
+        if (!(o.eur > 0) || bought > eq0 * 1.02 + 0.5) why.push(`las compras de esta revisión (${eur(bought)}) superarían el dinero del bot (${eur(eq0)})`);
+        const ref = (pos && +pos.currentPrice > 0 && +pos.currentPrice) || ((REAL_ORDERS || []).find((x) => x.t === o.t && x.px > 0 && /ejecutada/.test(x.estado) && Date.now() - Date.parse(x.ts) < 10 * 864e5) || {}).px;
+        if (ref && o.pxEst > 0 && Math.abs(o.pxEst / ref - 1) > 0.15) why.push(`el precio obtenido (${o.pxEst}) se aleja más de un 15% del último conocido (${ref}): precio sospechoso`);
+      }
+      if (why.length) { res.push({ ...o, estado: "error", err: "bloqueada por seguridad: " + why.join("; ") }); rep.push(`- ✋ ${o.side} ${o.t}: bloqueada por seguridad · ${why.join("; ")}`); continue; }
     }
     rep.push(`- ${new Date().toISOString().slice(11, 19)} UTC · enviando ${o.side} ${o.t} · ${qtyTxt(Math.floor(Math.abs(qty) * 1e4) / 1e4)} participaciones${o.side === "COMPRA" ? ` (~${eur(o.eur)} a ${o.pxEst} ${inst.cur || ""}, precio de ${o.pxSrc})` : ""}`);
     R.prec = R.prec || {};
@@ -732,7 +789,7 @@ async function main() {
     ensureLedger(R, A, positions, m, notasL);
     if ((R.pendBot || []).length) { rep.push("## Órdenes que estaban pendientes", ""); await reconcile(T, R, rep); rep.push(""); try { positions = (await T.call("GET", "/equity/positions")) || positions; } catch {} }
     syncLots(R, positions, m, notasL);
-    R.positions = mapPos(positions, R);
+    R.positions = mapPos(positions, R); noteSeen(R, positions);
     // ingresos y retiradas de TU cuenta (no cambian el dinero del bot: para eso está «Dinero que trabaja el bot»)
     try {
       const prevNet = R.deposits ? R.deposits.net : null;
@@ -774,12 +831,13 @@ async function main() {
     head.push(`- Bot: trabaja con ${eur(R.ledger.cap)} · vale ${eur(BE.eq)} (${seur(BE.eq - R.ledger.cap)}) · invertido ${eur(BE.inv)} · efectivo del bot ${eur(R.ledger.cash)}${R.ledger.cash < -0.5 ? " (negativo: tiene invertido más que su capital, p. ej. porque lo has bajado; esta revisión vende la diferencia)" : ""} · ganancia realizada ${eur(R.ledger.real)}`,
       `- Tu cuenta de Trading 212: ${eur(total)} · efectivo libre ${eur(cash)} · invertido ${eur(inv)}${aport != null ? ` · ingresado neto ${eur(aport)}` : ""}`);
 
-    // freno por pérdidas sobre el DINERO DEL BOT: referencia = su capital, o su valor el día que pulsaste «Reanudar» (si cambias el capital, vuelve al capital)
-    if (R.lossRef && R.lossRef.cap !== R.ledger.cap) R.lossRef = null;
-    if (R.rearm) { R.lossRef = { v: BE.eq, cap: R.ledger.cap, d: m.date }; delete R.rearm; }
-    const ref = R.lossRef ? R.lossRef.v : R.ledger.cap, refTxt = R.lossRef ? `su valor del ${R.lossRef.d}, cuando reanudaste (${eur(R.lossRef.v)})` : `su capital (${eur(R.ledger.cap)})`;
-    if (ref > 0 && BE.eq < ref * (1 - A.maxPerdida / 100) && !R.paused) {
-      R.paused = { ts: now.toISOString(), why: `el dinero del bot (${eur(BE.eq)}) ha caído más de un ${A.maxPerdida}% desde ${refTxt}` };
+    // freno por pérdidas: se mide con la RENTABILIDAD del bot (no cuenta lo que le das o le quitas), desde el inicio o desde que pulsaste «Reanudar»
+    const T1 = twr(R.days), iNow = T1.length ? T1[T1.length - 1].i : 1;
+    if (R.lossRef && R.lossRef.i == null) R.lossRef = null;   // formato de versiones anteriores
+    if (R.rearm) { R.lossRef = { i: iNow, d: m.date }; delete R.rearm; }
+    const iRef = R.lossRef ? R.lossRef.i : 1, caida = (iNow / iRef - 1) * 100, refTxt = R.lossRef ? `el ${R.lossRef.d}, cuando reanudaste` : "que empezó";
+    if (caida < -A.maxPerdida && !R.paused) {
+      R.paused = { ts: now.toISOString(), why: `la rentabilidad del bot ha caído un ${pct(caida)} desde ${refTxt} (el límite es −${A.maxPerdida}%)` };
       aviso = { title: "⛔ Cartera real en PAUSA automática", msg: `El bot deja de operar: ${R.paused.why}. Revísalo y pulsa «Reanudar» en la web si quieres seguir.`, prio: 5 };
     }
 
@@ -857,7 +915,7 @@ async function main() {
       const dd = R.days.find((x) => x.d === m.date); if (dd) Object.assign(dd, { v: r2(c2 + i2 + r2v), cash: r2(c2), inv: r2(i2), be: be2.eq, bcash: R.ledger.cash, t: new Date().toISOString() });
       const { id: _i2, ...acc2 } = a2 || {}; R.account = { ...acc2, at: new Date().toISOString() };
     } catch {}
-    try { const ps = await T.call("GET", "/equity/positions"); R.positions = mapPos(ps, R); } catch {}
+    try { const ps = await T.call("GET", "/equity/positions"); R.positions = mapPos(ps, R); noteSeen(R, ps); } catch {}
   } catch (e) {
     estado = "error"; titulo = "Error inesperado"; rep.push("✖ " + String((e && e.stack) || e).slice(0, 800));
     log("Error inesperado (detalle en el informe cifrado)");
@@ -877,7 +935,10 @@ async function main() {
       aviso = { title: `${estado === "error" ? "✖" : "💶"} Cartera real · ${titulo}`, msg: `${ex}${x ? `\nValor ${eur(x.v)}${x.res != null ? ` · ${seur(x.res)} (${pct(x.pct)})` : ""}` : ""}${R.lastPlan && tipo === "normal" && R.lastPlan.notas && R.lastPlan.notas.length ? "\n" + R.lastPlan.notas[R.lastPlan.notas.length - 1].slice(0, 200) : ""}`, prio: estado === "error" ? 4 : 2, tags: [] };
     }
     if (aviso) {
-      const n = A.movil || aviso.prio >= 5 || estado === "error" ? await ntfy(aviso.title, aviso.msg, aviso.prio, aviso.tags || []) : "· móvil apagado en ajustes";
+      // modo discreto: el aviso al móvil no lleva importes, tickers ni posiciones (el correo y la web sí)
+      const dTitle = A.discreto ? String(aviso.title).replace(/[−+-]?\d[\d.,]*\s?€/g, "").replace(/\s*·\s*$/, "").replace(/:\s*$/, "").trim() : aviso.title;
+      const dMsg = A.discreto ? "Detalle completo en tu correo y en la web (pestaña 💶 Real)." : aviso.msg;
+      const n = A.movil || aviso.prio >= 5 || estado === "error" ? await ntfy(dTitle, dMsg, aviso.prio, aviso.tags || []) : "· móvil apagado en ajustes";
       const c = A.correo || estado === "error" ? await mail(aviso.title, md) : "· correo apagado en ajustes";
       avTxt = `\n## Avisos\n- Móvil: ${n}\n- Correo: ${c}\n`;
     }
@@ -897,6 +958,8 @@ async function main() {
     if (estado === "error") process.exitCode = 1;
   }
 }
+// lo que se vio en esta ejecución (para detectar desdoblamientos la próxima vez)
+function noteSeen(R, ps) { R.seen = Object.fromEntries((ps || []).map((p) => [p.instrument.ticker, { q: +p.quantity || 0, avg: +p.averagePricePaid || 0, d: new Date().toISOString() }])); }
 // posiciones de la cuenta con lo que es del bot (bq, botCost) y lo que es tuyo
 function mapPos(ps, R) {
   const L = (R.ledger && R.ledger.lots) || {};

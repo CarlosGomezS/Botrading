@@ -23,6 +23,7 @@ export const DEF = {
   movil: 1,           // avisos al móvil (ntfy)
   correo: 1,          // avisos por correo
   avisos: "todo",     // todo = avisa de cada cosa que hace (revisión, foto, aprobación…) · importante = solo órdenes, propuestas, errores e informe semanal
+  discreto: 1,        // 1 = los avisos al MÓVIL no llevan importes ni posiciones (ntfy es público para quien adivine el tema); el correo sí lleva el informe completo
   aceptoReal: 0,      // 1 = el usuario confirmó que entiende que es dinero real
   reajuste: "revision", // revision = solo reajusta cuando el método revisa su cartera (igual que la simulación) · desvio = también si un activo se desvía más del umbral
   semanal: 1,         // 1 = informe semanal los viernes (móvil y correo)
@@ -30,22 +31,24 @@ export const DEF = {
 };
 
 const NUM = { limite: [5, 100000], minOrden: [1, 1000], umbral: [1, 50], reserva: [0, 20], maxOrdenes: [1, 30], maxPerdida: [5, 90] };
-const BIN = ["on", "acciones", "movil", "correo", "aceptoReal", "semanal"];
+const BIN = ["on", "acciones", "movil", "correo", "aceptoReal", "semanal", "discreto"];
 const ENUM = { env: ["live", "demo"], modo: ["confirmar", "auto", "pausa"], divisa: ["eur", "cualquiera"], reajuste: ["revision", "desvio"], avisos: ["todo", "importante"] };
 
-// ---------- cifrado (mismo formato que la web: PBKDF2 250 000 + AES-GCM) ----------
+// ---------- cifrado (mismo formato que la web): PBKDF2-SHA256 + AES-256-GCM ----------
+// v16: 600 000 iteraciones (recomendación OWASP 2023). El número va guardado con cada dato («it»): lo cifrado antes (250 000) se sigue leyendo.
+export const KDF_IT = 600000;
 const b64 = (u) => Buffer.from(u).toString("base64"), unb64 = (t) => new Uint8Array(Buffer.from(t, "base64"));
-async function kdf(pw, salt) {
+async function kdf(pw, salt, it) {
   const k = await webcrypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
-  return webcrypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 250000, hash: "SHA-256" }, k, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  return webcrypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: it, hash: "SHA-256" }, k, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
 }
 export async function encrypt(txt, pw) {
   const salt = webcrypto.getRandomValues(new Uint8Array(16)), iv = webcrypto.getRandomValues(new Uint8Array(12));
-  const ct = await webcrypto.subtle.encrypt({ name: "AES-GCM", iv }, await kdf(pw, salt), new TextEncoder().encode(txt));
-  return { s: b64(salt), i: b64(iv), c: b64(new Uint8Array(ct)) };
+  const ct = await webcrypto.subtle.encrypt({ name: "AES-GCM", iv }, await kdf(pw, salt, KDF_IT), new TextEncoder().encode(txt));
+  return { s: b64(salt), i: b64(iv), c: b64(new Uint8Array(ct)), it: KDF_IT };
 }
 export async function decrypt(o, pw) {
-  const pt = await webcrypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(o.i) }, await kdf(pw, unb64(o.s)), unb64(o.c));
+  const pt = await webcrypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(o.i) }, await kdf(pw, unb64(o.s), +o.it || 250000), unb64(o.c));
   return new TextDecoder().decode(pt);
 }
 // prueba la contraseña actual y, si se acaba de cambiar, la anterior
