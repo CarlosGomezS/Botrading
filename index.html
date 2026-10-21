@@ -269,8 +269,17 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 #ch.mini .pills,#ch.mini #chh,#ch.mini .m,#ch.mini #chw>svg:last-of-type{display:none}
 #ch.mini .chips{grid-template-columns:repeat(2,1fr)}
 #ch.mini .chip:nth-child(2),#ch.mini .chip:nth-child(3),#ch.mini .chip:nth-child(n+5){display:none}
+/* ===== v47 · pestaña 💶 Real ===== */
+#rl-root{display:grid;gap:18px;grid-template-columns:minmax(0,1fr)}
+@media (max-width:480px){#rl-root{gap:12px}.kv.rl-cfg{grid-template-columns:minmax(0,1fr)}}
+.kv.rl-cfg select,.kv.rl-cfg input:not([type=checkbox]){margin-top:4px}
+.hero .rl-hb{display:inline-block;font-weight:800;font-size:12.5px;padding:4px 11px;border-radius:99px;margin:0 6px 6px 0;background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.28)}
+.hero .rl-hb.rl-red{background:#ffe1e5;color:#b3261e;border:0}.hero .rl-hb.rl-grn{background:#d7f4e3;color:#0b6b3a;border:0}
+.rl-pos{display:grid;gap:8px}.rl-pos>div{border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:grid;gap:4px;background:color-mix(in srgb,var(--line) 14%,transparent)}
+.rl-pos .rl-pt{display:flex;justify-content:space-between;gap:8px;align-items:baseline}.rl-pos .rl-pt b{font-size:16px}
+details.rd>summary .rl-tp{white-space:nowrap;flex:none}
 </style></head><body><div class="w">
-<div><h1>Bot Trading Pro<span class="tag">PAPER TRADING · v46</span></h1><div class="m">Precios de mercado · solo simulación · capital ficticio de <span class="capT">500 €</span> · sin órdenes reales</div></div>
+<div><h1>Bot Trading Pro<span class="tag">PAPER TRADING · v47</span></h1><div class="m">Precios de mercado · simulación con capital ficticio de <span class="capT">500 €</span> · y en <b>💶 Real</b>, tu cartera de Trading 212 con dinero de verdad</div></div>
 <section class="tab" id="t-hoy">
 <div class="p" id="chpanel"><div class="chtop"><h2>Rendimiento</h2><button id="chtog" type="button">⤢ Agrandar</button></div><div id="ch"></div></div>
 <div class="p hero"><h2>Tu cartera ficticia hoy</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
@@ -343,6 +352,7 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 <div class="m"><b>1. 🏠 Hoy</b> (es tu cartera, todo en una pantalla). Arriba, la <b>gráfica</b> en pequeño: toca «Agrandar» para verla entera. Debajo, lo que vale tu cartera ficticia. Luego <b>«Qué hacer con esta cartera»</b>: qué comprar, qué vender, a qué precio y con qué stop. Más abajo, lo que tienes comprado y el historial de operaciones (plegados), <b>qué método va ganando</b> y, al final, el botón para actualizar precios.</div>
 <div class="m"><b>2. 📈 Histórico:</b> la prueba histórica de todos los métodos (años de datos, en tres tramos) para ver cuáles aguantan de verdad, y los informes descargables.</div>
 <div class="m"><b>3. 👁️ Vigilante:</b> una cuenta ficticia aparte para probar la regla intradía, día a día.</div>
+<div class="m"><b>4. 💶 Real:</b> tu cuenta de Trading 212 con dinero de verdad. Sigue el método que elijas (sus mismos ETFs y pesos, con los equivalentes europeos), con sus propios ajustes, su gráfica frente a la simulación, la propuesta de órdenes para aprobar y sus informes. Por defecto te pide confirmación antes de cada orden.</div>
 <div class="m"><b>Cambiar de método:</b> toca el selector de «Tu cartera ficticia hoy» o una tarjeta del ranking. La gráfica y «Qué hacer» siguen siempre al método elegido.</div>
 </div>
 <div class="p"><h2>Cómo replicarlo en tu app de trading</h2>
@@ -2105,7 +2115,7 @@ window.__API={
  function cloudPanel(){var host=document.querySelector("#t-ajustes");if(!host||document.getElementById("cloudset"))return;
   var d=document.createElement("div");d.id="cloudset";d.className="p";d.style.cssText="border:1px solid #4b5563;border-radius:10px;padding:10px;margin:10px 0";
   d.innerHTML='<h2>☁️ Ajustes (protegidos con clave)</h2><div id="cs_head"></div><div id="cs_body"></div>';host.insertBefore(d,host.firstChild);hideLegacy();cloudRender()}
- function cloudRender(){var d=document.getElementById("cloudset"),hd=document.getElementById("cs_head"),bd=document.getElementById("cs_body");if(!d||!hd||!bd)return;var ri=repoInfo(),has=false;try{has=!!localStorage.getItem(ENC)}catch(e){}
+ function cloudRender(){try{window.__realLock&&window.__realLock()}catch(e){}var d=document.getElementById("cloudset"),hd=document.getElementById("cs_head"),bd=document.getElementById("cs_body");if(!d||!hd||!bd)return;var ri=repoInfo(),has=false;try{has=!!localStorage.getItem(ENC)}catch(e){}
   if(!ri){hd.innerHTML='<div class="m">Solo funciona desde la web publicada en GitHub Pages.</div>';bd.innerHTML="";return}
   var st='<div id="cs_st" class="m" style="margin-top:6px"></div>';
   if(TOK){hd.innerHTML='<div class="m">🔓 Clave correcta · editando (se vuelve a bloquear a los 10 minutos).</div><div style="margin-top:6px"><button id="cs_lock">Bloquear ahora</button></div>'+st;
@@ -2207,6 +2217,10 @@ window.__API={
  try{fetch("ajustes.json?t="+Date.now()).then(function(r){return r.ok?r.json():null}).then(function(a){if(a&&!TOK){CL=a;cloudSync();cloudRender()}else if(a&&!document.getElementById("cloudset")){CL=a;cloudSync()}}).catch(function(){})}catch(e){}
  setTimeout(cloudSync,2600);setTimeout(cloudSync,8000);
 
+ /* ---- v47: la pestaña 💶 Real usa el mismo token cifrado y la misma clave ---- */
+ window.__CLOUD={ri:repoInfo,tok:function(){return TOK},hasEnc:function(){try{return!!localStorage.getItem(ENC)}catch(e){return false}},
+  unlock:async function(pw){if(!crypto||!crypto.subtle)throw new Error("este navegador no permite cifrar");TOK=await decTok(localStorage.getItem(ENC),pw);var r=repoInfo();if(r)await freshCL(r);touch();cloudRender();return true},
+  lock:lockNow,touch:touch,dispatch:dispatch,waitRun:waitRun,secret:ghSecret,secretDel:ghSecretDel,sec:SEC};
  /* ---- el visor se mantiene al día solo: cada 5 min mira si el bot publicó datos nuevos ---- */
  (function(){var ri=repoInfo(),SHA0=null,idleAt=Date.now(),dead=0;if(!ri)return;
   ["pointerdown","keydown","touchstart","scroll"].forEach(function(ev){document.addEventListener(ev,function(){idleAt=Date.now()},true)});
@@ -2221,6 +2235,319 @@ window.__API={
   if(window.__VIEWER_ERR)setTimeout(function(){location.reload()},60000);
  })();
  setTimeout(function(){lock();paint()},2500);setTimeout(function(){lock();paint()},8000);
+})();
+</script>
+<script id="real-ui">
+/* ===== v47 · 💶 CARTERA REAL (Trading 212) =====
+   Pantalla propia para el dinero real. Lee lo que publica el flujo «Cartera real (Trading 212)» (rama real → real.json,
+   cifrado con REAL_VIEW_PASS si lo pusiste) y los ajustes de real-ajustes.json. Para aprobar órdenes, lanzar acciones o
+   cambiar ajustes usa el mismo token cifrado y la misma clave que «⚙️ Ajustes» (window.__CLOUD). La web nunca habla con
+   Trading 212: lo hace GitHub con tus claves guardadas en Secrets. */
+(function(){
+"use strict";
+const RL={R:null,meta:null,enc:null,err:null,cfg:null,cfgSrc:"",loading:false,msg:"",busy:false,rng:"all",showRep:30,pick:null,at:0};
+const $r=s=>document.querySelector(s);
+const C=()=>window.__CLOUD||null;
+const NOMB={sect:"Rotación de sectores (Faber)",sectx:"Rotación ampliada (sectores + QQQ + SMH + IWM)",trq:"Tendencia QQQ de 10 meses (Faber)",dmu:"Dual Momentum EE. UU. (QQQ, SPY, IWM, SMH)",mix:"Mezcla 50/50: sectores + QQQ en tendencia"};
+const SECT=["XLK","XLV","XLE","XLF","XLY","XLP","XLI","XLU","XLB","XLC"];
+const UNI={sect:SECT,sectx:SECT.concat(["QQQ","SMH","IWM"]),trq:["QQQ"],dmu:["QQQ","SPY","IWM","SMH"],mix:SECT.concat(["QQQ"])};
+const TESTED={sect:"✔ El único que igualó o batió al SPY en la prueba histórica"};
+const DESC={SPY:"S&P 500",QQQ:"Nasdaq 100",SMH:"Semiconductores",IWM:"Pequeñas empresas EE. UU.",XLK:"Tecnología",XLV:"Salud",XLE:"Energía",XLF:"Financiero",XLY:"Consumo discrecional",XLP:"Consumo básico",XLI:"Industrial",XLU:"Servicios públicos",XLB:"Materiales",XLC:"Comunicaciones",SHY:"Bonos 1-3 años",GLD:"Oro"};
+const DEF={on:0,env:"live",modo:"confirmar",metodo:"sect",limite:100,minOrden:5,umbral:5,reserva:2,maxOrdenes:8,maxPerdida:25,divisa:"eur",acciones:1,movil:1,correo:1,aceptoReal:0,reajuste:"revision",semanal:1,mapa:{}};
+const NUM={limite:[5,100000,"Dinero máximo que gestiona el bot (€)","Aunque tengas más en la cuenta, el bot no usa más de esto. Con 100 € en la cuenta, pon 100."],minOrden:[1,1000,"Orden mínima (€)","No envía órdenes más pequeñas (evita órdenes ridículas)."],umbral:[1,50,"Desvío para reajustar (% del presupuesto)","Solo en el modo «también si se desvía»: reajusta un activo si se aparta más de esto de su peso."],reserva:[0,20,"Reserva en efectivo (%)","Margen que se deja sin invertir por si el precio sube entre el cálculo y la orden."],maxOrdenes:[1,30,"Máximo de órdenes por revisión","Freno de seguridad: si salieran más, deja el resto para el día siguiente."],maxPerdida:[5,90,"Freno de pérdidas (%)","Si la cuenta cae esto desde lo aportado, el bot se pone en PAUSA solo y te avisa."]};
+const SECRETS=[["T212_KEY","Clave API de Trading 212 (API key)"],["T212_SECRET","Secreto de la clave API (API secret)"],["REAL_VIEW_PASS","Contraseña para ver tu cartera real en esta web (cifra los datos)"]];
+const ES=n=>n==null||!isFinite(+n)?"—":E(+n),SG=n=>n==null||!isFinite(+n)?"—":E2(+n),PC=n=>n==null||!isFinite(+n)?"—":P2(+n);
+const cls=v=>v>0.004?"up":v<-0.004?"dn":"";
+const dt=t=>{try{return new Date(t).toLocaleString("es-ES",{dateStyle:"short",timeStyle:"short"})}catch(e){return String(t||"—")}};
+const ri=()=>{const c=C();return c&&c.ri?c.ri():null};
+const qtyT=q=>(+q).toLocaleString("es-ES",{maximumFractionDigits:4});
+function A(){return Object.assign({},DEF,(RL.R&&RL.R.cfg)||{},RL.cfg||{})}
+function say(t){RL.msg=t;const e=$r("#rl-st");if(e)e.textContent=t}
+
+/* ---------- datos: real.json (rama real) y real-ajustes.json (rama main) ---------- */
+function b64u(t){const s=atob(t),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}
+async function decrypt(o,pw){const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
+ const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64u(o.s),iterations:250000,hash:"SHA-256"},k,{name:"AES-GCM",length:256},false,["decrypt"]);
+ return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64u(o.i)},key,b64u(o.c)))}
+function pwGet(){try{return sessionStorage.getItem("rlpw")||localStorage.getItem("rlpw")||""}catch(e){return""}}
+async function getJson(urls,hdr){let last=null;for(const u of urls){try{const r=await fetch(u,{headers:hdr&&/api\.github\.com/.test(u)?hdr:{},cache:"no-store"});if(r.status===404){last="404";continue}if(!r.ok){last="HTTP "+r.status;continue}return await r.json()}catch(e){last=String(e.message||e)}}throw new Error(last||"sin respuesta")}
+function hdrs(raw){const c=C(),h={Accept:raw?"application/vnd.github.raw+json":"application/vnd.github+json"};if(c&&c.tok&&c.tok())h.Authorization="Bearer "+c.tok();return h}
+async function loadReal(fresh){if(RL.loading)return;RL.loading=true;
+ try{
+  const q=new URLSearchParams(location.search),over=q.get("real"),r=ri(),t=Math.floor(Date.now()/(fresh?1000:60000));
+  const urls=over?[over+(over.includes("?")?"&":"?")+"t="+t]:r?(fresh?["https://api.github.com/repos/"+r.o+"/"+r.r+"/contents/real.json?ref=real"]:[]).concat(["https://raw.githubusercontent.com/"+r.o+"/"+r.r+"/real/real.json?t="+t,"https://api.github.com/repos/"+r.o+"/"+r.r+"/contents/real.json?ref=real"]):["real.json?t="+t];
+  let j=null;try{j=await getJson(urls,hdrs(true))}catch(e){RL.err=e.message==="404"?"nada":"No pude leer los datos de la cartera real ("+e.message+").";RL.R=null;RL.enc=null}
+  if(!j){}else{RL.meta=j.meta||null;RL.err=null;
+  if(j.enc){RL.enc=j;const pw=pwGet();if(pw){try{RL.R=JSON.parse(await decrypt(j,pw))}catch(e){RL.R=null;RL.err="clave";try{sessionStorage.removeItem("rlpw");localStorage.removeItem("rlpw")}catch(e2){}}}else RL.R=null}
+  else{RL.enc=null;RL.R=j}}
+  RL.at=Date.now();
+ }finally{RL.loading=false}
+ await loadCfg(fresh);draw()}
+async function loadCfg(fresh){const r=ri();const urls=(fresh&&r?["https://api.github.com/repos/"+r.o+"/"+r.r+"/contents/real-ajustes.json?ref=main"]:[]).concat(["real-ajustes.json?t="+Date.now()]);
+ let got=null;try{got=await getJson(urls,hdrs(true))}catch(e){}
+ /* lo recién guardado manda durante 15 min: GitHub Pages tarda en publicar la copia nueva */
+ if(RL.saved&&Date.now()-RL.saved.t<15*60000&&(!got||JSON.stringify(got)!==JSON.stringify(RL.saved.cfg))){RL.cfg=RL.saved.cfg;return}
+ if(got){RL.cfg=got;RL.cfgSrc="nube"}else if(!RL.saved)RL.cfg=null}
+async function unlockView(){const pw=($r("#rl-vpw")||{}).value||"";if(!pw||!RL.enc)return;say("Descifrando…");
+ try{RL.R=JSON.parse(await decrypt(RL.enc,pw));RL.err=null;try{sessionStorage.setItem("rlpw",pw);if(($r("#rl-vrem")||{}).checked)localStorage.setItem("rlpw",pw)}catch(e){}say("")}catch(e){say("Contraseña incorrecta.");return}
+ await loadCfg(false);draw()}
+
+/* ---------- acciones en la nube (GitHub Actions) ---------- */
+function needTok(){const c=C();if(!c){say("Para esto abre la web publicada en GitHub Pages.");return null}if(!c.tok()){say("🔒 Primero desbloquea arriba con tu clave.");const e=$r("#rl-pw");if(e){e.focus();e.scrollIntoView({block:"center"})}return null}c.touch();return c}
+function rej(r,wf){return r.status===401||r.status===403?"GitHub rechazó el token (HTTP "+r.status+"): comprueba que sea de este repositorio, con «Actions: Read and write», y que no haya caducado.":r.status===404?"No existe el flujo «"+wf+"» en el repositorio: sube .github/workflows/"+wf+".":r.status===422?"GitHub no acepta esa acción (HTTP 422): sube la versión nueva de .github/workflows/"+wf+".":"No se pudo enviar (HTTP "+r.status+")."}
+async function runCloud(accion,plan,label){const c=needTok();if(!c||RL.busy)return;const r=ri();RL.busy=true;draw();
+ try{const since=Date.now();say((label||accion)+": enviando a GitHub…");
+  const x=await c.dispatch(r,"real.yml",{accion:accion,plan:plan||""});
+  if(x.status!==204){say(rej(x,"real.yml"));return}
+  say((label||accion)+": GitHub lo está haciendo (suele tardar 1-2 minutos; las órdenes, algo más)…");
+  const res=await c.waitRun(r,"real.yml",since,600);
+  await loadReal(true);
+  const rep=RL.R&&RL.R.reports&&RL.R.reports[0];
+  say((res==="success"?"✔ Hecho":res===null?"Enviado, pero GitHub aún no ha terminado: recarga en unos minutos":"✖ Terminó con error")+(rep?" · "+rep.titulo+" (el informe completo está abajo, en «Informes»)":""));
+ }catch(e){say("No se pudo: "+(e.message||e))}finally{RL.busy=false;draw()}}
+async function saveCfg(patch,secs,dels,why){const c=needTok();if(!c||RL.busy)return false;const r=ri();RL.busy=true;draw();let ok=false;
+ try{const since=Date.now(),cfg=Object.assign({},A(),patch);delete cfg.savedAt;
+  say("Guardando ajustes de la cartera real…");
+  const x=await c.dispatch(r,"real-ajustes.yml",{json:JSON.stringify(cfg)});
+  if(x.status!==204){say(rej(x,"real-ajustes.yml"));return false}
+  const okS=[],koS=[];
+  for(const [k,v] of secs||[]){say("Guardando la clave "+k+"…");try{await c.secret(r,k,v);okS.push(k);if(c.sec)c.sec[k]=true;if(k==="REAL_VIEW_PASS"){try{sessionStorage.setItem("rlpw",v)}catch(e){}}}catch(e){koS.push(k+" ("+(e.message||e)+")")}}
+  for(const k of dels||[]){try{await c.secretDel(r,k);okS.push(k+" (quitada)");if(c.sec)c.sec[k]=false}catch(e){koS.push(k+" ("+(e.message||e)+")")}}
+  say("Esperando a que GitHub guarde los ajustes (1-2 minutos)…");
+  const res=await c.waitRun(r,"real-ajustes.yml",since,300);
+  if(res==="success"){RL.cfg=cfg;RL.saved={t:Date.now(),cfg};await loadCfg(true);ok=true}
+  say((res==="success"?"✔ "+(why||"Ajustes guardados")+". Se usan desde la próxima revisión.":res===null?"Enviado; GitHub aún no confirma. Mira en unos minutos.":"✖ GitHub rechazó los ajustes (resultado: "+res+"). Mira Actions → «Ajustes de la cartera real».")+(okS.length?" · ✔ Claves: "+okS.join(", "):"")+(koS.length?" · ✖ No guardadas: "+koS.join("; "):""));
+ }catch(e){say("No se pudo guardar: "+(e.message||e))}finally{RL.busy=false;draw()}return ok}
+
+/* ---------- utilidades de presentación ---------- */
+function mdHtml(md){const L=String(md||"").split("\n"),o=[];let i=0;const inl=t=>esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/`([^`]+)`/g,"<code>$1</code>");
+ while(i<L.length){const l=L[i];
+  if(/^\s*\|/.test(l)){const rows=[];while(i<L.length&&/^\s*\|/.test(L[i])){rows.push(L[i]);i++}const cells=x=>x.trim().replace(/^\||\|$/g,"").split("|").map(s=>s.trim());
+   const body=rows.filter(x=>!/^\s*\|[\s:|-]+\|\s*$/.test(x));o.push('<div class="tw"><table><tr>'+cells(body[0]).map(c=>"<th>"+inl(c)+"</th>").join("")+"</tr>"+body.slice(1).map(x=>"<tr>"+cells(x).map(c=>"<td>"+inl(c)+"</td>").join("")+"</tr>").join("")+"</table></div>");continue}
+  let m;if((m=l.match(/^(#{1,4})\s+(.*)/))){o.push('<div style="font-weight:800;margin-top:8px;font-size:'+(m[1].length<=2?15:14)+'px">'+inl(m[2])+"</div>")}
+  else if((m=l.match(/^(\s*)-\s+(.*)/)))o.push('<div style="padding-left:'+(10+m[1].length*6)+'px">• '+inl(m[2])+"</div>");
+  else if(l.trim())o.push("<div>"+inl(l)+"</div>");
+  i++}
+ return'<div class="m" style="display:grid;gap:3px;color:var(--ink)">'+o.join("")+"</div>"}
+function badge(t,k){return'<span class="rl-hb '+(k==="b-sell"?"rl-red":k==="b-buy"?"rl-grn":"")+'">'+t+"</span>"}
+function simKey(){return A().metodo||(S&&S.main)||"sect"}
+function simEqAt(B,d){let v=null;for(const x of B.days||[]){if(x.d<=d)v=x.eq;else break}return v}
+function days(){return((RL.R&&RL.R.days)||[]).filter(x=>x.v>0)}
+function summary(){const D=days(),R=RL.R;if(!D.length)return null;const l=D[D.length-1],ap=l.ap!=null?l.ap:(R.deposits&&R.deposits.net);
+ let pk=-Infinity,dd=0,green=0;D.forEach((x,i)=>{const r=x.ap>0?x.v/x.ap:null;if(r!=null){pk=Math.max(pk,r);dd=Math.min(dd,r/pk-1)}if(i&&x.v-(x.ap||0)>D[i-1].v-(D[i-1].ap||0))green++});
+ const prev=D.length>1?D[D.length-2]:null,O=R.orders||[],B=bkOf(simKey());let sim=null;
+ if(B&&B.days&&B.days.length&&D.length>1){const e0=simEqAt(B,D[0].d)||B.days[0].eq,e1=B.days[B.days.length-1].eq;if(e0>0)sim=(e1/e0-1)*100}
+ return{d0:D[0].d,ap,v:l.v,res:ap!=null?l.v-ap:null,pct:ap>0?(l.v/ap-1)*100:null,dia:prev?(l.v-prev.v)-((l.ap||0)-(prev.ap||0)):null,dd:dd*100,green,nd:D.length,ok:O.filter(o=>o.estado==="ejecutada").length,bad:O.filter(o=>o.estado==="error").length,sim,cash:l.cash,inv:l.inv}}
+
+/* ---------- gráfica: tu dinero real frente al mismo método en simulación ---------- */
+function chartHtml(){const D=days();if(D.length<2)return'<div class="m">Aquí verás, día a día, cuánto gana o pierde tu dinero real (en % sobre lo aportado) y, en discontinua, lo que hizo el mismo método en la simulación. Necesita al menos 2 días de datos: el bot guarda una foto del valor cada tarde.</div>';
+ const nd={w:5,m:21,q:63}[RL.rng],sl=nd?D.slice(-(nd+1)):D,B=bkOf(simKey());
+ const r0=nd&&sl[0].ap>0?sl[0].v/sl[0].ap:1,e0=B?simEqAt(B,sl[0].d):null;
+ const pts=sl.map(x=>({d:x.d,v:x.v,ap:x.ap,p:((x.ap>0?x.v/x.ap:1)/r0-1)*100,s:e0&&B?((simEqAt(B,x.d)||e0)/e0-1)*100:null}));
+ const host=$r("#rl-ch"),W=Math.max(300,Math.min(900,(host&&host.clientWidth)||640)),H=220,pl=46,pr=14,pt=14,pb=26,pw=W-pl-pr,N=pts.length,xs=i=>pl+(N>1?i/(N-1)*pw:pw/2);
+ const vals=pts.flatMap(x=>[x.p,x.s]).filter(v=>v!=null).concat([0]);let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<1){const m=(hi+lo)/2;lo=m-.5;hi=m+.5}const pad=(hi-lo)*.14;lo-=pad;hi+=pad;
+ const ys=v=>pt+(hi-v)/(hi-lo)*(H-pt-pb),stp=[.25,.5,1,2,5,10,20,50,100].find(s=>(hi-lo)/s<=5)||100,tk=[];for(let v=Math.ceil(lo/stp)*stp;v<=hi;v+=stp)tk.push(+v.toFixed(4));
+ const P0=pts.map((x,i)=>[xs(i),ys(x.p)]),line=smoothPath(P0),y0=ys(0),area=line+` L${xs(N-1).toFixed(1)} ${y0.toFixed(1)} L${xs(0).toFixed(1)} ${y0.toFixed(1)} Z`;
+ const sp=pts.map((x,i)=>x.s==null?null:[xs(i),ys(x.s)]).filter(Boolean),simP=sp.length>1?`<path d="${smoothPath(sp)}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 5" opacity=".85"/>`:"";
+ const grid=tk.map(v=>`<line x1="${pl}" x2="${W-pr}" y1="${ys(v).toFixed(1)}" y2="${ys(v).toFixed(1)}" stroke="var(--line)" ${v===0?'stroke-width="1.6" stroke-dasharray="5 4"':'opacity=".7"'}/><text x="${pl-7}" y="${(ys(v)+4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--muted)">${v>0?"+":""}${v}%</text>`).join("");
+ const xl=[[0,"start"],...(N>=5?[[Math.round((N-1)/2),"middle"]]:[]),[N-1,"end"]].map(([i,a])=>`<text x="${xs(i).toFixed(1)}" y="${H-7}" text-anchor="${a}" font-size="11" fill="var(--muted)">${esc(fd(pts[i].d))}</text>`).join("");
+ const last=pts[N-1],col=last.p>=0?"var(--go)":"var(--stop)",[px,py]=P0[N-1];
+ const mh=(RL.R.metHist||[]).filter(m=>m.d>sl[0].d).map(m=>{const i=pts.findIndex(x=>x.d>=m.d);return i<0?"":`<line x1="${xs(i).toFixed(1)}" x2="${xs(i).toFixed(1)}" y1="${pt}" y2="${H-pb}" stroke="var(--wait)" stroke-dasharray="2 3"/><text x="${(xs(i)+3).toFixed(1)}" y="${pt+10}" font-size="10" fill="var(--wait)">cambio de método</text>`}).join("");
+ const svg=`<svg id="rl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Rentabilidad de la cartera real frente a la simulación"><defs><clipPath id="rlU"><rect x="0" y="0" width="${W}" height="${y0.toFixed(1)}"/></clipPath><clipPath id="rlD"><rect x="0" y="${y0.toFixed(1)}" width="${W}" height="${H}"/></clipPath>
+<linearGradient id="rlgU" gradientUnits="userSpaceOnUse" x1="0" y1="${y0.toFixed(1)}" x2="0" y2="${pt}"><stop offset="0" style="stop-color:var(--go);stop-opacity:0"/><stop offset="1" style="stop-color:var(--go);stop-opacity:.4"/></linearGradient>
+<linearGradient id="rlgD" gradientUnits="userSpaceOnUse" x1="0" y1="${y0.toFixed(1)}" x2="0" y2="${H-pb}"><stop offset="0" style="stop-color:var(--stop);stop-opacity:0"/><stop offset="1" style="stop-color:var(--stop);stop-opacity:.4"/></linearGradient></defs>
+${grid}${xl}${mh}<g clip-path="url(#rlU)"><path d="${area}" fill="url(#rlgU)"/><path d="${line}" fill="none" stroke="var(--go)" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></g>
+<g clip-path="url(#rlD)"><path d="${area}" fill="url(#rlgD)"/><path d="${line}" fill="none" stroke="var(--stop)" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></g>${simP}
+<line id="rl-x" x1="0" x2="0" y1="${pt}" y2="${H-pb}" stroke="var(--ink)" stroke-dasharray="3 3" opacity="0"/><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="5.5" fill="${col}" stroke="var(--panel)" stroke-width="3"/><circle id="rl-d" r="5.5" fill="var(--panel)" stroke="var(--ink)" stroke-width="2.5" opacity="0"/></svg>`;
+ const s=summary(),chip=(t,v,c)=>`<div class="chip"><small>${t}</small><b class="${c||""}">${v}</b></div>`,gap=s&&s.sim!=null&&s.pct!=null?s.pct-s.sim:null;
+ RL.pts=pts;RL.cx={W,pl,pw,N,ys};
+ return`<div class="pills" id="rl-rng">${[["w","1 sem"],["m","1 mes"],["q","3 meses"],["all","Todo"]].map(([k,t])=>`<button data-r="${k}" class="${RL.rng===k?"on":""}">${t}</button>`).join("")}</div>
+<div class="chh" id="rl-chh"></div><div id="rl-chw" style="touch-action:pan-y;cursor:crosshair">${svg}</div>
+<div class="m"><span style="color:var(--go)">━</span><span style="color:var(--stop)">━</span> Tu dinero real (sobre lo aportado; los ingresos y retiradas no cuentan como ganancia) · <span>╌╌</span> el mismo método en la simulación. Pasa el dedo para ver cada día.</div>
+<div class="chips">${s?chip("Último día",SG(s.dia),cls(s.dia))+chip("Total",SG(s.res),cls(s.res))+chip("Total %",PC(s.pct),cls(s.pct))+chip("Simulación",PC(s.sim),cls(s.sim))+chip("Real − simulación",PC(gap),cls(gap))+chip("Peor caída",PC(s.dd),cls(s.dd)):""}</div>`}
+function chartBind(){const w=$r("#rl-chw");document.querySelectorAll("#rl-rng button").forEach(b=>b.onclick=()=>{RL.rng=b.dataset.r;draw()});if(!w||!RL.pts)return;
+ const {W,pl,pw,N,ys}=RL.cx,pts=RL.pts,xs=i=>pl+(N>1?i/(N-1)*pw:pw/2);
+ const setH=i=>{const x=pts[i],h=$r("#rl-chh");if(!h)return;h.innerHTML=`<span class="m">${esc(fd(x.d))}</span><br><b class="${cls(x.p)}">${P2(x.p)}</b> <span class="m">· vale ${E(x.v)}${x.ap!=null?" · aportado "+E(x.ap):""}${x.s!=null?" · simulación "+P2(x.s):""}</span>`};
+ const show=i=>{i=Math.max(0,Math.min(N-1,i));const l=$r("#rl-x"),c=$r("#rl-d");if(l){l.setAttribute("x1",xs(i));l.setAttribute("x2",xs(i));l.setAttribute("opacity",".55")}if(c){c.setAttribute("cx",xs(i));c.setAttribute("cy",ys(pts[i].p));c.setAttribute("opacity","1")}setH(i)};
+ const hide=()=>{["#rl-x","#rl-d"].forEach(s=>{const e=$r(s);if(e)e.setAttribute("opacity","0")});setH(N-1)};
+ const mv=ev=>{const r=w.getBoundingClientRect(),x=(ev.clientX-r.left)/r.width*W;show(Math.round((x-pl)/pw*(N-1)))};
+ w.onpointermove=mv;w.onpointerdown=mv;w.onpointerleave=hide;w.onpointercancel=hide;setH(N-1)}
+
+/* ---------- bloques de la pantalla ---------- */
+function lockHtml(){const c=C();
+ if(!c)return'<div class="m">Estás viendo el archivo en el ordenador: para aprobar órdenes o cambiar ajustes abre la web publicada en GitHub Pages.</div>';
+ if(c.tok())return'<div class="m" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">🔓 <b>Desbloqueado</b> · puedes aprobar, lanzar y guardar (se bloquea solo a los 10 minutos) <button id="rl-lock">Bloquear</button></div>';
+ if(!c.hasEnc())return'<div class="m">🔒 Para aprobar órdenes o cambiar ajustes, primero guarda tu <b>token de GitHub</b> una sola vez en <b>⚙️ Ajustes → «Ajustes (protegidos con clave)»</b>. Después basta con tu clave aquí.</div><div><button id="rl-goaj">Ir a Ajustes</button></div>';
+ return'<div class="m">🔒 Escribe tu clave (la misma de Ajustes) para aprobar órdenes, lanzar acciones o cambiar ajustes. Mirar no necesita clave.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rl-pw" type="password" placeholder="Tu clave" autocomplete="current-password" style="flex:1 1 160px"><button id="rl-unl">Desbloquear</button></div>'}
+function warns(){const R=RL.R,a=A(),w=[],sec=secState();
+ if(sec.T212_KEY===false||sec.T212_SECRET===false)w.push("Faltan las claves de Trading 212: ponlas en «Ajustes de la cartera real» (abajo) y pulsa «Probar conexión».");
+ if(RL.meta&&!RL.enc)w.push("Tus datos reales se publican <b>sin cifrar</b> y el repositorio es público: cualquiera con el enlace ve tu saldo. Pon una contraseña en «Contraseña para ver tu cartera real» (Ajustes de la cartera real).");
+ if(R&&R.paused)w.push("⛔ <b>Pausa automática</b>: "+esc(R.paused.why)+". No opera hasta que pulses «Reanudar».");
+ if(!a.on)w.push("La cartera real está <b>desactivada</b>: solo guarda el valor de la cuenta. Actívala en los ajustes cuando la conexión funcione.");
+ else if(a.env==="live"&&!a.aceptoReal)w.push("Falta marcar «Entiendo que opera con dinero real» en los ajustes: sin eso no envía órdenes.");
+ if(R&&R.last&&Date.now()-Date.parse(R.last)>4*864e5)w.push("Los datos de la cartera real son del "+dt(R.last)+": hace más de 4 días que no se ejecuta. Mira Actions → «Cartera real (Trading 212)».");
+ if(S&&S.lastDate){const age=(Date.now()-Date.parse(S.lastDate+"T22:00:00Z"))/864e5;if(age>5)w.push("Los datos del simulador son del "+esc(S.lastDate)+": con datos de más de 5 días la cartera real no opera.")}
+ return w.map(x=>'<div class="mi-warn">⚠️ '+x+"</div>").join("")}
+function secState(){const c=C(),m=(RL.meta&&RL.meta.secrets)||{},o={};SECRETS.forEach(([k])=>{o[k]=c&&c.sec&&c.sec[k]!==undefined?c.sec[k]:(k in m?m[k]:null)});return o}
+function heroHtml(){const R=RL.R,a=A(),s=summary(),acc=R&&R.account;
+ const env=a.env==="demo"?badge("DEMO · dinero de práctica","b-hold"):badge("💶 DINERO REAL","b-sell");
+ const modo=badge({confirmar:"Modo: con tu confirmación",auto:"Modo: automático",pausa:"Modo: solo mira"}[a.modo]||a.modo,"b-hold");
+ const est=R&&R.paused?badge("⛔ En pausa","b-sell"):a.on?badge("Activada","b-buy"):badge("Desactivada","b-hold");
+ const v=s?s.v:acc?(+((acc.cash&&acc.cash.availableToTrade)||0)+ +((acc.investments&&acc.investments.currentValue)||0)):null;
+ return`<div class="p hero"><h2>Tu cartera real hoy</h2><div>${env}${modo}${est}</div><div class="big">${v!=null?E(v):"—"}</div>
+<div>${s&&s.res!=null?`<b class="${cls(s.res)}">${SG(s.res)} (${PC(s.pct)})</b> desde el ${esc(fd(s.d0))} · aportado ${ES(s.ap)}`:"Aún sin historial"}</div>
+<div class="m">Método: <b>${esc(NOMB[a.metodo]||(STR[a.metodo]&&STR[a.metodo].n)||a.metodo||"—")}</b> · el bot gestiona como máximo ${ES(a.limite)}${R&&R.last?" · último dato "+esc(dt(R.last)):""}</div></div>`}
+function ordCard(o,canAct){const buy=o.side==="COMPRA";
+ return`<div class="mi-card ${buy?"mi-buy":"mi-sell"}"><div class="mi-top"><div class="mi-t">${esc(o.t)}<small>${esc(o.name||"")}${o.sym?" · señal del bot: "+esc(o.sym)+" ("+esc(DESC[o.sym]||"")+")":""}</small></div><span class="mi-badge ${buy?"b-buy":"b-sell"}">${buy?"🟢 COMPRAR":"🔴 VENDER"}</span></div>
+<div class="mi-grid"><div><span>Importe aproximado</span><b>${ES(o.eur)}</b></div>${o.side==="VENTA"?`<div><span>Participaciones</span><b>${qtyT(o.qty)}${o.full?" (todo)":""}</b></div>`:""}</div><div class="mi-why">${esc(o.why||"")}</div></div>`}
+function planHtml(){const R=RL.R,P=R&&R.plan,LP=R&&R.lastPlan,c=C(),a=A();let h="";
+ if(P&&P.estado==="pendiente"){
+  h+=`<div class="mi-warn" style="background:var(--waitbg)">🟡 <b>Propuesta pendiente de tu confirmación</b> · ${esc(P.metodoNombre)} · calculada el ${esc(dt(P.ts))}. Caduca al terminar el día.</div>`;
+  h+=P.orders.map(o=>ordCard(o)).join("");
+  h+=`<div class="mi-cash"><span>Presupuesto del bot ${ES(P.presupuesto)} · invertible ${ES(P.invertible)}</span><span>Efectivo libre ${ES(P.cash)}</span></div>`;
+  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="go" id="rl-ok" ${RL.busy?"disabled":""} style="flex:2 1 200px">✅ Aprobar y ejecutar en Trading 212</button><button id="rl-no" ${RL.busy?"disabled":""} style="flex:1 1 120px">✖ Rechazar</button></div>`;
+  h+='<div class="m">Al aprobar, GitHub vuelve a calcular el plan con los precios de ese momento: si los activos a comprar o vender han cambiado, no ejecuta nada y te propone el nuevo. Las órdenes son a mercado (como pulsar «Comprar» en la app).</div>';
+  if(P.notas&&P.notas.length)h+='<details class="rd"><summary>Notas del plan ('+P.notas.length+')</summary><div class="rb m">'+P.notas.map(n=>"<div>• "+esc(n)+"</div>").join("")+"</div></details>";
+ }else if(LP){
+  h+=`<div class="mi-card mi-hold"><div class="mi-top"><div class="mi-t">Última revisión<small>${esc(dt(LP.ts))} · ${esc(LP.metodoNombre)}</small></div><span class="mi-badge b-hold">${LP.orders&&LP.orders.length?LP.orders.length+" órdenes":"Sin cambios"}</span></div><div class="mi-why">${LP.orders&&LP.orders.length?"Mira «Historial de órdenes» para ver qué se hizo.":"Tu cartera ya sigue al método. La próxima revisión es el siguiente día de bolsa hacia las 10:15 (hora de España)."}${LP.yaAplicada?" Como en la simulación, no se reajusta por pequeñas variaciones de precio hasta que el método revise su cartera.":""}</div></div>`;
+  if(LP.notas&&LP.notas.length)h+='<details class="rd"><summary>Notas de la última revisión ('+LP.notas.length+')</summary><div class="rb m">'+LP.notas.map(n=>"<div>• "+esc(n)+"</div>").join("")+"</div></details>";
+ }else h+='<div class="m">Todavía no hay ninguna revisión. Cuando la conexión funcione y actives la cartera, cada día de bolsa hacia las 10:15 (hora de España) el bot compara tu cuenta con el método y '+(a.modo==="auto"?"ejecuta las órdenes solo":a.modo==="confirmar"?"te propone las órdenes para que las apruebes aquí":"solo anota lo que haría")+".</div>";
+ const ob=(P&&P.estado==="pendiente"?P:LP);
+ if(ob&&ob.objetivo){h+=`<details class="rd"${OPENS.obj?" open":""} data-o="obj"><summary>Cartera objetivo del método (${ob.objetivo.length} activos) · del ${esc(ob.tgtD||"—")}</summary><div class="rb"><div class="tw"><table><tr><th>Señal</th><th>Peso</th><th>≈ €</th><th>Se compra en Trading 212</th></tr>${ob.objetivo.map(o=>`<tr><td><b>${esc(o.sym)}</b> <span class="m">${esc(DESC[o.sym]||"")}</span></td><td>${(o.w*100).toFixed(1)}%</td><td>${ES(o.w*(ob.invertible||0))}</td><td>${o.t?esc(o.t)+' <span class="m">'+esc(o.name||"")+"</span>":'✖ <span class="m">'+esc(o.disp||"")+"</span>"}</td></tr>`).join("")}</table></div>${ob.bull===false?'<div class="m">El método está <b>fuera del mercado</b>: lo que no está en la tabla queda en efectivo.</div>':""}</div></details>`}
+ return h}
+function posHtml(){const R=RL.R;if(!R)return"";const acc=R.account||{},ps=R.positions||[],bt=new Set(R.botTickers||[]),mapT=new Set(Object.values(R.map||{}).map(x=>x.t).filter(Boolean));
+ const cash=+((acc.cash&&acc.cash.availableToTrade)||0),inv=+((acc.investments&&acc.investments.currentValue)||0),pnl=ps.reduce((t,p)=>t+(+p.pnl||0),0),pen=(R.pending||[]).length;
+ const kv=`<div class="kv"><div>Efectivo libre<b>${E(cash)}</b></div><div>Invertido (vale)<b>${E(inv)}</b></div><div>Ganancia abierta<b class="${cls(pnl)}">${E2(pnl)}</b></div><div>Aportado neto<b>${ES(R.deposits&&R.deposits.net)}</b></div><div>Órdenes pendientes<b>${pen}</b></div><div>Posiciones<b>${ps.length}</b></div></div>`;
+ const tb=ps.length?`<div class="rl-pos">${ps.map(p=>{const g=p.cost>0?(p.pnl/p.cost)*100:null;return`<div><div class="rl-pt"><b>${esc(p.t)}</b><span>${ES(p.val)}</span></div><div class="m">${esc(p.name||"")}</div><div class="rl-pt m"><span>${qtyT(p.q)} particip. · compra media ${(+p.avg).toFixed(2)} · ahora ${(+p.px).toFixed(2)} ${esc(p.cur||"")}</span><b class="${cls(p.pnl)}" style="font-size:14px">${SG(p.pnl)}${g!=null?" ("+P2(g)+")":""}</b></div><div class="m">${bt.has(p.t)||mapT.has(p.t)?"🤖 La gestiona el bot":"👤 Tuya: el bot no la toca"}</div></div>`}).join("")}</div>`:'<div class="m">No tienes nada comprado: todo está en efectivo.</div>';
+ return kv+tb+(R.account&&R.account.at?'<div class="m">Datos de Trading 212 del '+esc(dt(R.account.at))+(R.account.currency&&R.account.currency!=="EUR"?" · ⚠️ divisa de la cuenta: "+esc(R.account.currency):"")+"</div>":"")}
+function ordHtml(){const O=(RL.R&&RL.R.orders)||[];if(!O.length)return'<div class="m">Todavía no se ha enviado ninguna orden real.</div>';
+ const ic={ejecutada:"✔",error:"✖",aplazada:"⏳",omitida:"⚪",pendiente:"⏳"};
+ return O.slice(0,80).map(o=>`<div class="ev ${o.estado==="ejecutada"?(o.side==="COMPRA"?"buy":"sell"):o.estado==="error"?"sell":"hold"}"><b>${ic[o.estado]||"·"} ${o.side==="COMPRA"?"🟢 COMPRA":"🔴 VENTA"} ${esc(o.t)}</b>${o.sym?' <span class="m">(señal '+esc(o.sym)+")</span>":""} · ${ES(o.eur)}${o.qty?" · "+qtyT(o.qty)+" particip.":""}${o.px?" a "+(+o.px).toFixed(2):""}<div class="m">${esc(dt(o.ts))} · ${esc(o.estado)}${o.modo?" · "+(o.modo==="aprobada"?"aprobada por ti":"automática"):""}${o.env==="demo"?" · DEMO":""}${o.err?" · "+esc(o.err):""}</div>${o.why?'<div class="m">'+esc(o.why)+"</div>":""}</div>`).join("")+(O.length>80?'<div class="m">… y '+(O.length-80)+" más (están en «Descargar órdenes .csv»).</div>":"")}
+function coverage(k){const M=(RL.R&&RL.R.map)||{},u=UNI[k]||Object.keys((bkOf(k)&&bkOf(k).tgt&&bkOf(k).tgt.w)||{}),ok=u.filter(s=>M[s]&&M[s].t),no=u.filter(s=>M[s]&&!M[s].t),unk=u.filter(s=>!M[s]);return{u,ok,no,unk}}
+function metHtml(){const a=A(),cur=a.metodo,ks=Object.keys(STR||{});if(!ks.length)return'<div class="m">El simulador aún no tiene métodos cargados.</div>';
+ const rows=ks.map(k=>{const B=bkOf(k),g=B?(liveEq(k)/START-1)*100:null;return{k,g}}).sort((x,y)=>(y.g??-1e9)-(x.g??-1e9));
+ return'<div class="m">La cartera real copia la <b>cartera objetivo</b> del método que elijas (los mismos activos y pesos), con equivalentes UCITS en euros. Toca uno para elegirlo.</div><div class="rk">'+rows.map(({k,g},i)=>{const cv=coverage(k),sel=k===cur;
+  const cvT=!RL.R||!Object.keys(RL.R.map||{}).length?"pulsa «Probar conexión» para saber si se puede comprar todo":cv.no.length?"✖ no disponible en tu cuenta: "+cv.no.join(", "):cv.unk.length?"sin comprobar: "+cv.unk.join(", "):"✔ todos sus activos se pueden comprar ("+cv.ok.length+")";
+  return`<div class="rk-c" data-mk="${esc(k)}" style="${sel?"border:2px solid var(--acc)":""}"><div class="rk-n">${sel?"✅":i+1}</div><div class="rk-t"><b>${esc(STR[k].n)}</b><small>${esc(STR[k].rev||"")} · ${esc(cvT)}</small><small>${esc(TESTED[k]||"⚠️ Candidato sin probar en la prueba histórica")}</small></div><div class="rk-g ${cls(g)}">${g==null?"—":P2(g)}<small>simulación</small></div></div>`}).join("")+"</div>"+
+  (RL.pick&&RL.pick!==cur?`<div class="mi-warn">Has elegido <b>${esc(STR[RL.pick].n)}</b>. ${TESTED[RL.pick]?"":"Ojo: es un candidato sin probar. "}En la próxima revisión el bot venderá lo que no esté en su cartera y comprará lo nuevo.<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="go" id="rl-mok" ${RL.busy?"disabled":""}>Usar este método con dinero real</button><button id="rl-mno">Cancelar</button></div></div>`:"")}
+function mapHtml(){const M=(RL.R&&RL.R.map)||{},xs=Object.values(M).sort((a,b)=>a.sym.localeCompare(b.sym));
+ if(!xs.length)return'<div class="m">Aún no se ha comprobado. Pon tus claves de Trading 212 y pulsa <b>«Probar conexión»</b>: el bot descarga la lista de instrumentos de tu cuenta y te dice, uno por uno, con qué ETF europeo se compra cada activo.</div>';
+ const used=new Set([].concat(...Object.keys(STR||{}).map(k=>UNI[k]||[])));
+ const tr=x=>`<tr><td><b>${esc(x.sym)}</b> <span class="m">${esc(DESC[x.sym]||"")}</span></td><td>${x.t?"✔ "+esc(x.t)+'<br><span class="m">'+esc(x.name||"")+(x.isin?" · "+esc(x.isin):"")+"</span>":"✖ "+'<span class="m">'+esc(x.why||"")+"</span>"}</td><td>${esc(x.cur||"—")}</td></tr>`;
+ const a=xs.filter(x=>used.has(x.sym)),b=xs.filter(x=>!used.has(x.sym));
+ return'<div class="m">Los ETFs de EE. UU. (XLK, QQQ…) <b>no se pueden comprar desde España</b> (normativa europea PRIIPs): el bot compra el ETF europeo (UCITS) que sigue el mismo índice. La señal sale del ETF de EE. UU.; la orden, del europeo.</div><div class="tw"><table><tr><th>Activo del bot</th><th>Se compra en Trading 212</th><th>Divisa</th></tr>'+a.map(tr).join("")+"</table></div>"+(b.length?'<details class="rd"><summary>Otros activos comprobados (no los usa ningún método actual): '+b.length+'</summary><div class="rb"><div class="tw"><table>'+b.map(tr).join("")+"</table></div></div></details>":"")+
+ (RL.R.inst?'<div class="m">Lista de instrumentos de Trading 212 del '+esc(dt(RL.R.inst.at))+" ("+RL.R.inst.n+" instrumentos). Si prefieres otro ETF para algún activo, ponlo en «Sustituciones manuales» de los ajustes.</div>":"")}
+function actHtml(){const R=RL.R,dis=RL.busy?"disabled":"";
+ return`<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rl-a-probar" ${dis}>🔌 Probar conexión</button><button id="rl-a-normal" ${dis}>🔄 Revisar ahora</button><button id="rl-a-foto" ${dis}>📸 Guardar valor de hoy</button>${R&&R.paused?`<button id="rl-a-reanudar" ${dis}>▶ Reanudar (quitar pausa)</button>`:""}<button id="rl-a-rec" ${dis}>↻ Recargar datos</button></div>
+<div class="m"><b>Probar conexión</b>: comprueba tus claves y qué ETFs se pueden comprar (no opera). <b>Revisar ahora</b>: hace la revisión del día ya (según el modo: propone, ejecuta o solo mira). Lo programado: revisión cada día de bolsa hacia las 10:15 y foto del valor hacia las 18:45 (hora de España); los viernes, informe semanal.</div>`}
+function cfgHtml(){const a=A(),sec=secState(),sel=(id,v,opts)=>`<select id="${id}" style="width:100%">${opts.map(([k,t])=>`<option value="${k}"${String(v)===String(k)?" selected":""}>${t}</option>`).join("")}</select>`;
+ const yn=(id,v)=>sel(id,v,[[1,"Sí"],[0,"No"]]),mp=Object.entries(a.mapa||{}).map(([k,v])=>k+"="+v).join("\n");
+ let h='<div class="m">Estos ajustes son <b>solo de la cartera real</b> (los del simulador están en ⚙️ Ajustes). Se guardan en <code>real-ajustes.json</code> de tu repositorio y el bot los usa desde su siguiente revisión.</div><div class="kv rl-cfg">';
+ h+=`<div>Cartera real activada${yn("rl-c-on",a.on)}</div><div>Entorno${sel("rl-c-env",a.env,[["live","💶 Real (dinero de verdad)"],["demo","Demo (práctica de Trading 212)"]])}</div>`;
+ h+=`<div>Modo${sel("rl-c-modo",a.modo,[["confirmar","Con mi confirmación (recomendado)"],["auto","Automático (ejecuta solo)"],["pausa","Solo mirar (no opera)"]])}</div>`;
+ h+=`<div>Cuándo reajusta${sel("rl-c-reaj",a.reajuste,[["revision","Igual que la simulación (solo en las revisiones del método)"],["desvio","También si un activo se desvía del umbral"]])}</div>`;
+ h+=`<div style="grid-column:1/-1">Método${sel("rl-c-met",a.metodo,Object.keys(STR||{}).map(k=>[k,STR[k].n+(TESTED[k]?" ✔":"")]))}</div>`;
+ h+=Object.entries(NUM).map(([k,[lo,hi,t,d]])=>`<div>${t}<input id="rl-c-${k}" type="number" step="any" min="${lo}" max="${hi}" value="${a[k]}" style="width:100%"><span class="m" style="display:block;font-size:12px">${d} (${lo} a ${hi})</span></div>`).join("");
+ h+=`<div>Divisa de los ETFs${sel("rl-c-div",a.divisa,[["eur","Solo en euros (sin comisión de cambio)"],["cualquiera","Cualquiera (también $ o £; 0,15% de cambio)"]])}</div><div>Permitir acciones de EE. UU.${yn("rl-c-acc",a.acciones)}</div>`;
+ h+=`<div>Avisos al móvil (ntfy)${yn("rl-c-mov",a.movil)}</div><div>Avisos por correo${yn("rl-c-cor",a.correo)}</div><div>Informe semanal (viernes)${yn("rl-c-sem",a.semanal)}</div></div>`;
+ h+=`<div style="margin-top:10px"><b>Sustituciones manuales</b> <span class="m">(opcional: una por línea, <code>XLK=QDVEd_EQ</code> para elegir otro ETF, o <code>XLC=-</code> para no comprar ese activo)</span><textarea id="rl-c-map" rows="3" placeholder="XLK=QDVEd_EQ">${esc(mp)}</textarea></div>`;
+ h+='<h3 style="margin:16px 0 6px;font-size:15px">Claves (se guardan cifradas en GitHub Secrets; aquí nunca se muestran)</h3><div class="kv">'+SECRETS.map(([k,t])=>{const ok=sec[k];return`<div>${ok===true?"✔ ":ok===false?"✖ ":"· "}${esc(t)} <span class="m">(${k})</span><input data-rk="${k}" type="password" autocomplete="off" placeholder="${ok===true?"puesta · escribe para cambiarla":"vacía"}" style="width:100%">${ok===true?`<label class="m" style="display:flex;gap:6px;margin-top:4px"><input type="checkbox" data-rd="${k}"> quitar</label>`:""}</div>`}).join("")+"</div>";
+ h+='<div class="m">Cómo crear la clave en Trading 212: en la app, <b>Ajustes → API (Beta) → Generar clave</b>. Marca los permisos <b>Account data, Portfolio, Orders (read y execute), History y Metadata</b>. <b>No</b> limites por IP (GitHub cambia de IP). Copia la <i>API key</i> y el <i>API secret</i> aquí. Si eliges «Demo», la clave tiene que ser de la cuenta demo.</div>';
+ h+=`<label class="m" style="margin-top:10px"><input type="checkbox" id="rl-c-ok" ${a.aceptoReal?"checked":""}> Entiendo que, con el entorno «Real», el bot envía órdenes con mi dinero de Trading 212, que puedo perderlo y que ningún método garantiza ganar.</label>`;
+ h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="go" id="rl-c-save" ${RL.busy?"disabled":""}>💾 Guardar ajustes de la cartera real</button></div>`;
+ return h}
+function readCfg(){const g=id=>$r("#rl-c-"+id),o={on:+g("on").value,env:g("env").value,modo:g("modo").value,reajuste:g("reaj").value,metodo:g("met").value,divisa:g("div").value,acciones:+g("acc").value,movil:+g("mov").value,correo:+g("cor").value,semanal:+g("sem").value,aceptoReal:g("ok").checked?1:0};
+ for(const [k,[lo,hi,t]] of Object.entries(NUM)){const v=+g(k).value;if(g(k).value===""||!isFinite(v)||v<lo||v>hi)return{err:t+": debe estar entre "+lo+" y "+hi};o[k]=k==="maxOrdenes"?Math.round(v):+v.toFixed(2)}
+ if(o.minOrden>o.limite)return{err:"La orden mínima no puede ser mayor que el dinero máximo."};
+ const m={};for(const l of g("map").value.split("\n").map(x=>x.trim()).filter(Boolean)){const p=l.split("=").map(x=>x.trim());if(p.length!==2||!/^[A-Z0-9.\-]{1,12}$/.test(p[0].toUpperCase())||!(p[1]==="-"||/^[A-Za-z0-9._-]{2,40}$/.test(p[1])))return{err:"Sustitución no válida: «"+l+"» (formato XLK=TICKER_EQ o XLC=-)"};m[p[0].toUpperCase()]=p[1]}
+ o.mapa=m;if(o.on&&o.env==="live"&&!o.aceptoReal)return{err:"Para activar la cartera con dinero real marca la casilla «Entiendo que…»."};return{cfg:o}}
+async function onSave(){const r=readCfg();if(r.err){say("✖ "+r.err);return}const a=A(),c=r.cfg,secs=[],dels=[];
+ document.querySelectorAll("#t-real [data-rk]").forEach(e=>{const v=(e.value||"").trim();if(v){if(/[\r\n]/.test(v)){say("✖ La clave "+e.dataset.rk+" no puede tener saltos de línea.");secs.length=0;return}secs.push([e.dataset.rk,v])}});
+ document.querySelectorAll("#t-real [data-rd]").forEach(e=>{if(e.checked&&!secs.some(s=>s[0]===e.dataset.rd))dels.push(e.dataset.rd)});
+ if(secs.some(s=>s[0]==="REAL_VIEW_PASS"&&s[1].length<8)){say("✖ La contraseña para ver la cartera debe tener al menos 8 caracteres.");return}
+ const turnOn=c.on&&(!a.on||a.env!==c.env||(a.modo!=="auto"&&c.modo==="auto"));
+ if(turnOn&&c.env==="live"&&!confirm("Vas a dejar la cartera real ACTIVADA con DINERO REAL en modo «"+({confirmar:"con tu confirmación",auto:"AUTOMÁTICO",pausa:"solo mirar"}[c.modo])+"».\n\nMétodo: "+(STR[c.metodo]?STR[c.metodo].n:c.metodo)+"\nDinero máximo que gestiona: "+c.limite+" €\n"+(c.modo==="auto"?"\nEl bot comprará y venderá SOLO, sin preguntarte.\n":"\nCada revisión te pedirá que apruebes las órdenes aquí.\n")+"\n¿Seguro?"))return;
+ if(dels.length&&!confirm("Vas a quitar estas claves: "+dels.join(", ")+". ¿Seguro?"))return;
+ const keys=secs.some(s=>/^T212_/.test(s[0]));const ok=await saveCfg(c,secs,dels,"Ajustes de la cartera real guardados");
+ if(ok&&keys&&confirm("Claves de Trading 212 guardadas. ¿Pruebo la conexión ahora? (no opera)"))runCloud("probar","","Probar conexión")}
+function repHtml(){const R=RL.R,s=summary(),rs=(R&&R.reports)||[];let h="";
+ if(s)h+=`<div class="kv"><div>Desde<b>${esc(fd(s.d0))}</b></div><div>Aportado<b>${ES(s.ap)}</b></div><div>Vale<b>${ES(s.v)}</b></div><div>Resultado<b class="${cls(s.res)}">${SG(s.res)}</b></div><div>Rentabilidad<b class="${cls(s.pct)}">${PC(s.pct)}</b></div><div>Simulación del método<b class="${cls(s.sim)}">${PC(s.sim)}</b></div><div>Peor caída<b class="${cls(s.dd)}">${PC(s.dd)}</b></div><div>Días registrados<b>${s.nd}</b></div><div>Órdenes ejecutadas · con error<b>${s.ok} · ${s.bad}</b></div></div>`;
+ h+=`<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rl-d-md">⬇️ Todos los informes (.md)</button><button id="rl-d-csv">⬇️ Órdenes (.csv)</button><button id="rl-d-days">⬇️ Valor diario (.csv)</button><button id="rl-d-json">⬇️ Todos los datos (.json)</button></div>`;
+ if(!rs.length)return h+'<div class="m">Aún no hay informes. Cada ejecución (revisión, aprobación, prueba, foto) deja aquí el suyo, con fecha y hora.</div>';
+ const ic=x=>x.estado==="error"?"✖":x.estado==="bloqueado"?"✋":/órdenes? ejecutada/.test(x.titulo||"")?"💶":/Propuesta/.test(x.titulo||"")?"🟡":/semanal/i.test(x.titulo||"")?"📊":"✔";
+ h+='<div class="m">'+rs.length+" informes, del más nuevo al más antiguo. Toca uno para leerlo.</div>";
+ h+=rs.slice(0,RL.showRep).map((x,i)=>`<details class="rd" data-ri="${i}"><summary><span>${ic(x)} ${esc(dt(x.ts))} · <b>${esc(x.titulo||x.tipo)}</b></span></summary><div class="rb"><div id="rl-rb-${i}"></div><div><button data-rdl="${i}">⬇️ Descargar este informe (.md)</button></div></div></details>`).join("");
+ if(rs.length>RL.showRep)h+=`<button id="rl-more">Ver ${Math.min(30,rs.length-RL.showRep)} más</button>`;
+ return h}
+const OPENS={};try{Object.assign(OPENS,JSON.parse(localStorage.getItem("rlop")||"{}"))}catch(e){}
+function fold(id,title,body,open){const o=OPENS[id]!=null?OPENS[id]:open;return`<details class="fold" data-o="${id}"${o?" open":""}><summary>${title}</summary><div class="fb">${body}</div></details>`}
+function helpHtml(){const r=ri(),u=r?"https://github.com/"+r.o+"/"+r.r:"";
+ return'<div class="m"><b>1.</b> Sube a tu repositorio los archivos de esta versión (incluida la carpeta <code>.github/workflows</code> con <code>real.yml</code> y <code>real-ajustes.yml</code>, y <code>real-ajustes.json</code>).</div>'+
+ '<div class="m"><b>2.</b> Crea la clave API en Trading 212 (Ajustes → API) y ponla, con su secreto, en «Ajustes de la cartera real». Pon también una <b>contraseña para ver la cartera</b>: así tus datos reales no se ven en la web pública.</div>'+
+ '<div class="m"><b>3.</b> Pulsa <b>«Probar conexión»</b>. En 1-2 minutos verás tu saldo y la tabla «¿Se puede operar todo?».</div>'+
+ '<div class="m"><b>4.</b> Elige el método, deja el modo <b>«Con mi confirmación»</b>, pon el dinero máximo (100 €), marca «Entiendo que…» y activa la cartera.</div>'+
+ '<div class="m"><b>5.</b> Al día siguiente de bolsa, hacia las 10:15, te llegará al móvil «Cartera real: confirma estas órdenes». Ábrelo, revisa y pulsa <b>«Aprobar y ejecutar»</b>. Cuando te fíes, puedes pasar a «Automático».</div>'+
+ '<div class="m"><b>Con 100 €:</b> Trading 212 no cobra comisión por orden y permite fracciones de ETF, así que con la Rotación de sectores son 3 ETFs de unos 32 € cada uno. Lo que más pesa con poco dinero es el diferencial compra-venta de cada ETF (unos céntimos por orden); por eso el modo «igual que la simulación» solo opera cuando el método cambia de cartera (normalmente una vez al mes).</div>'+
+ '<div class="m"><b>Impuestos:</b> Trading 212 no te retiene nada en España; las ganancias de cada venta se declaran en la renta. Descarga «Órdenes (.csv)» para tenerlas a mano.</div>'+(u?'<div class="m"><a href="'+u+'/actions/workflows/real.yml" target="_blank" rel="noopener">Ver las ejecuciones en GitHub Actions</a></div>':"")}
+
+function draw(){const root=$r("#rl-root");if(!root)return;const R=RL.R;let h="";
+ h+='<div class="p" id="rl-lockp"><div id="rl-lockb">'+lockHtml()+'</div><div class="m" id="rl-st" style="font-weight:700">'+esc(RL.msg||"")+"</div></div>";
+ if(RL.enc&&!R){h+=`<div class="p"><h2>🔐 Tu cartera real está cifrada</h2><div class="m">Escribe la <b>contraseña para ver la cartera</b> (la que pusiste en REAL_VIEW_PASS).${RL.err==="clave"?" <b>La contraseña guardada ya no sirve.</b>":""}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rl-vpw" type="password" placeholder="Contraseña de la cartera real" autocomplete="current-password" style="flex:1 1 180px"><button id="rl-vgo">Ver</button></div><label class="m"><input type="checkbox" id="rl-vrem"> Recordarla en este navegador</label></div>`;
+  h+=fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),false)+fold("help","❓ Cómo ponerla en marcha",helpHtml(),false);root.innerHTML=h;bind();return}
+ if(!R){h+=`<div class="p"><h2>💶 Cartera real con Trading 212</h2><div class="m">${RL.loading?"Cargando…":RL.err&&RL.err!=="nada"?esc(RL.err):"Todavía no hay datos de tu cuenta real. Sigue los pasos de abajo: pon tus claves de Trading 212 en los ajustes y pulsa «Probar conexión»."}</div></div>`;
+  h+=warns()+'<div class="p"><h2>Acciones</h2>'+actHtml()+"</div>"+fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),true)+fold("met","🧭 Elige el método",metHtml(),false)+fold("help","❓ Cómo ponerla en marcha",helpHtml(),true);root.innerHTML=h;bind();return}
+ h+=warns()+heroHtml();
+ h+='<div class="p"><div class="chtop"><h2>Rendimiento real</h2></div><div id="rl-ch">'+chartHtml()+"</div></div>";
+ h+='<div class="p"><h2>Qué va a hacer con tu dinero</h2><div style="display:grid;gap:10px">'+planHtml()+"</div></div>";
+ h+=fold("pos","Lo que tienes en Trading 212",posHtml(),true);
+ h+=fold("ord","Historial de órdenes reales ("+((R.orders||[]).length)+")",ordHtml(),false);
+ h+=fold("met","🧭 Elige el método",metHtml(),false);
+ h+=fold("map","¿Se puede comprar todo?",mapHtml(),false);
+ h+='<div class="p"><h2>Acciones</h2>'+actHtml()+"</div>";
+ h+=fold("rep","📄 Informes de la cartera real",repHtml(),true);
+ h+=fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),false);
+ h+=fold("help","❓ Cómo funciona y cómo ponerla en marcha",helpHtml(),false);
+ root.innerHTML=h;bind();setTimeout(()=>{const ch=$r("#rl-ch");if(ch&&RL.pts&&Math.abs((ch.clientWidth||0)-RL.cx.W)>40&&ch.clientWidth>=300){ch.innerHTML=chartHtml();chartBind()}},0)}
+function csvEsc(v){v=v==null?"":String(v);return/[",;\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function bind(){const R=RL.R,on=(id,f)=>{const e=$r(id);if(e)e.onclick=f};
+ document.querySelectorAll("#t-real details[data-o]").forEach(d=>d.addEventListener("toggle",()=>{OPENS[d.dataset.o]=d.open;try{localStorage.setItem("rlop",JSON.stringify(OPENS))}catch(e){}}));
+ on("#rl-lock",()=>{const c=C();if(c)c.lock();draw()});on("#rl-goaj",()=>go("ajustes"));
+ const unl=async()=>{const c=C(),pw=($r("#rl-pw")||{}).value||"";if(!c||!pw)return;say("Comprobando…");try{await c.unlock(pw);say("");await loadCfg(true);draw()}catch(e){say("Clave incorrecta.")}};
+ on("#rl-unl",unl);const pw=$r("#rl-pw");if(pw)pw.onkeydown=e=>{if(e.key==="Enter")unl()};
+ on("#rl-vgo",unlockView);const vp=$r("#rl-vpw");if(vp)vp.onkeydown=e=>{if(e.key==="Enter")unlockView()};
+ chartBind();
+ on("#rl-ok",()=>{const P=R&&R.plan;if(!P)return;const a=A();if(!confirm((a.env==="demo"?"DEMO":"💶 DINERO REAL")+" · ¿Ejecutar ahora estas órdenes en Trading 212?\n\n"+P.orders.map(o=>(o.side==="COMPRA"?"🟢 COMPRAR ":"🔴 VENDER ")+o.t+" · ≈ "+E(o.eur)).join("\n")+"\n\nSon órdenes a mercado: el precio final puede variar un poco."))return;runCloud("aprobar",P.id,"Aprobar y ejecutar")});
+ on("#rl-no",()=>{const P=R&&R.plan;if(!P)return;if(!confirm("¿Rechazar la propuesta? No se envía nada; mañana se vuelve a revisar."))return;runCloud("rechazar",P.id,"Rechazar")});
+ on("#rl-a-probar",()=>runCloud("probar","","Probar conexión"));
+ on("#rl-a-normal",()=>{const a=A();if(a.on&&a.modo==="auto"&&a.env==="live"&&!confirm("Modo AUTOMÁTICO con dinero real: si hay cambios, la revisión ejecutará las órdenes sin preguntar. ¿Seguir?"))return;runCloud("normal","","Revisar ahora")});
+ on("#rl-a-foto",()=>runCloud("foto","","Guardar valor de hoy"));
+ on("#rl-a-reanudar",()=>{if(confirm("¿Quitar la pausa automática? El freno de pérdidas se vuelve a contar desde el valor de hoy."))runCloud("reanudar","","Reanudar")});
+ on("#rl-a-rec",()=>{say("Recargando…");loadReal(true).then(()=>say("Datos recargados."))});
+ document.querySelectorAll("#t-real [data-mk]").forEach(e=>e.onclick=()=>{RL.pick=e.dataset.mk;draw();const b=$r("#rl-mok");if(b)b.scrollIntoView({block:"center"})});
+ on("#rl-mno",()=>{RL.pick=null;draw()});
+ on("#rl-mok",async()=>{const k=RL.pick;if(!k)return;if(!confirm("¿Cambiar la cartera REAL al método «"+STR[k].n+"»?\n\nEn la próxima revisión se venderá lo que no esté en su cartera y se comprará lo nuevo"+(A().modo==="confirmar"?" (te pedirá confirmación)":"")+"."))return;if(await saveCfg({metodo:k},[],[],"Método cambiado a «"+STR[k].n+"»"))RL.pick=null;draw()});
+ on("#rl-c-save",onSave);
+ document.querySelectorAll("#t-real details[data-ri]").forEach(d=>d.addEventListener("toggle",()=>{const i=+d.dataset.ri,b=$r("#rl-rb-"+i);if(d.open&&b&&!b.innerHTML)b.innerHTML=mdHtml(R.reports[i].md)}));
+ document.querySelectorAll("#t-real [data-rdl]").forEach(b=>b.onclick=()=>{const x=R.reports[+b.dataset.rdl];dl("cartera-real-"+String(x.ts).replace(/[:.]/g,"-").slice(0,19)+"-"+x.tipo+".md",x.md)});
+ on("#rl-more",()=>{RL.showRep+=30;draw()});
+ on("#rl-d-md",()=>{const rs=(R&&R.reports)||[];dl("cartera-real-informes-"+T0()+".md","# Cartera real · todos los informes ("+rs.length+")\n\nDescargado: "+new Date().toISOString()+"\n\n"+rs.map(x=>x.md).join("\n\n---\n\n"))});
+ on("#rl-d-csv",()=>{const O=(R&&R.orders)||[],cols=["ts","d","side","t","sym","name","qty","px","eur","estado","modo","env","metodo","why","err","id","plan"];dl("cartera-real-ordenes-"+T0()+".csv",cols.join(";")+"\n"+O.map(o=>cols.map(k=>csvEsc(o[k])).join(";")).join("\n"))});
+ on("#rl-d-days",()=>{const D=(R&&R.days)||[];dl("cartera-real-valor-diario-"+T0()+".csv","fecha;valor;efectivo;invertido;aportado\n"+D.map(x=>[x.d,x.v,x.cash,x.inv,x.ap].map(csvEsc).join(";")).join("\n"))});
+ on("#rl-d-json",()=>dl("cartera-real-datos-"+T0()+".json",JSON.stringify(R,null,1)))}
+
+/* ---------- integración con la app ---------- */
+function mount(){if($r("#t-real"))return;const sec=document.createElement("section");sec.className="tab";sec.id="t-real";sec.innerHTML='<div id="rl-root"></div>';const ay=$r("#t-ayuda");ay.parentNode.insertBefore(sec,ay);
+ const nav=$r("#nav"),b=document.createElement("button");b.dataset.t="real";b.innerHTML="<span>💶</span>Real";b.onclick=()=>{window.__userNav=true;go("real")};const h=nav.querySelector('button[data-t="hoy"]');nav.insertBefore(b,h?h.nextSibling:nav.firstChild)}
+mount();
+const FORCE=location.hash==="#real",T_FORCE=Date.now()+12000;
+const go0=go;
+go=function(t){if(FORCE&&t!=="real"&&!window.__userNav&&Date.now()<T_FORCE)t="real";go0(t);if(t==="real"){if(!RL.R&&!RL.enc&&!RL.loading)loadReal(false);else draw()}};
+window.__realLock=function(){const b=$r("#rl-lockb");if(b){b.innerHTML=lockHtml();bind()}};
+window.__realReload=()=>loadReal(true);
+loadReal(false);
+if(FORCE)setTimeout(()=>go("real"),300);
+setInterval(()=>{const t=$r("#t-real");if(t&&t.classList.contains("on")&&!document.hidden&&!RL.busy&&Date.now()-RL.at>5*60000&&!/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||""))loadReal(false)},60000);
+let rz=null;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{const t=$r("#t-real");if(t&&t.classList.contains("on")&&RL.R){const ch=$r("#rl-ch");if(ch){ch.innerHTML=chartHtml();chartBind()}}},250)});
 })();
 </script>
 </body></html>

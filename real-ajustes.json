@@ -1,0 +1,20 @@
+{
+  "on": 0,
+  "env": "live",
+  "modo": "confirmar",
+  "metodo": "sect",
+  "limite": 100,
+  "minOrden": 5,
+  "umbral": 5,
+  "reserva": 2,
+  "maxOrdenes": 8,
+  "maxPerdida": 25,
+  "divisa": "eur",
+  "acciones": 1,
+  "movil": 1,
+  "correo": 1,
+  "aceptoReal": 0,
+  "reajuste": "revision",
+  "semanal": 1,
+  "mapa": {}
+}

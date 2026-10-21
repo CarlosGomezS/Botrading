@@ -83,7 +83,32 @@ Solo estos: la nueva función de informes individuales y la prueba histórica di
 
 Actions → «Actualización de precios…» (o «Prueba histórica diaria…») → abre las ejecuciones de esa noche. En el paso «¿Toca… en este disparo?» el registro dice la decisión y el motivo (por ejemplo «actualización ya hecha hoy» o «aún no ha pasado una hora desde el cierre»). Si no hay ninguna ejecución esa noche, es que GitHub descartó los 5 disparos: lanza «Run workflow» a mano y avísame para revisarlo.
 
-## Cambios de esta versión (v9)
+## Cambios de esta versión (v11) · 💶 Cartera real con Trading 212
+
+Nueva pestaña **💶 Real** (al lado de Hoy): tu cuenta de Trading 212 con **dinero de verdad**, siguiendo el método que elijas. Es como la cartera simulada, pero con su propia gráfica, sus ajustes y sus informes. La web nunca habla con Trading 212: lo hace GitHub (flujo `real.yml`) con tus claves guardadas en Secrets.
+
+**Qué hay en la pestaña:** tu cartera real hoy (valor, resultado sobre lo aportado, entorno y modo) · gráfica del dinero real frente al mismo método en la simulación · «Qué va a hacer con tu dinero» (la propuesta del día con **Aprobar y ejecutar / Rechazar**) · lo que tienes en Trading 212 · historial de órdenes · elegir método · «¿Se puede comprar todo?» (qué ETF europeo se compra por cada activo del bot) · acciones (Probar conexión, Revisar ahora, Guardar valor, Reanudar) · informes (resumen, cada ejecución con fecha y hora y descargas .md / .csv / .json) · ajustes propios.
+
+**¿Puede operar todo lo que usa el bot?** Los 5 métodos actuales solo usan ETFs: los 10 sectores del S&P 500, QQQ, SMH e IWM. Los ETFs de EE. UU. no se pueden comprar desde España (normativa PRIIPs), así que el bot compra el **equivalente europeo (UCITS) en euros** que sigue el mismo índice (p. ej. XLK → iShares S&P 500 Information Technology Sector). La señal sale del ETF de EE. UU.; la orden, del europeo. «Probar conexión» lo comprueba con la lista real de tu cuenta y te enseña la tabla. Si alguno no está, esa parte queda en efectivo (o eliges otro ETF en «Sustituciones manuales»).
+
+**Puesta en marcha:**
+1. Sube a GitHub todos los archivos (cambian `index.html`, `runner/real.mjs`, `runner/real-cfg.mjs` y `real-ajustes.json`; `real.yml` y `real-ajustes.yml` tienen que estar en `.github/workflows`).
+2. En Trading 212: **Ajustes → API (Beta) → Generar clave**, con permisos Account data, Portfolio, Orders (read y execute), History y Metadata, **sin** límite de IP.
+3. En la web → 💶 Real → «Ajustes de la cartera real»: escribe tu clave (la misma de ⚙️ Ajustes), pega la *API key* y el *API secret* y pon una **contraseña para ver la cartera** (REAL_VIEW_PASS): sin ella tu saldo se vería en la web pública. Guardar → te ofrece «Probar conexión».
+4. Elige el método (por defecto **Rotación de sectores**, el único que batió al SPY en la prueba histórica), deja el modo **«Con mi confirmación»**, dinero máximo **100 €**, marca «Entiendo que…» y activa.
+5. Cada día de bolsa hacia las 10:15 (hora de España) revisa. Si hay órdenes, te llega «🟡 Cartera real: confirma estas órdenes»; ábrelo y pulsa «Aprobar y ejecutar». Foto del valor hacia las 18:45 y **informe semanal los viernes** (móvil y correo).
+
+**Ajustes nuevos de la cartera real:** «Cuándo reajusta» → **Igual que la simulación** (por defecto: solo opera cuando el método revisa su cartera, normalmente una vez al mes; no reajusta por pequeños movimientos de precio) o «También si se desvía» (el comportamiento anterior) · **Informe semanal** (sí/no).
+
+**Seguridad:** modo con confirmación por defecto; freno de pérdidas (pausa sola si cae un 25% desde lo aportado); no opera con datos del bot de más de 5 días; máximo de órdenes por vez; si se pierde la respuesta de Trading 212 al enviar una orden, comprueba antes de repetirla para no duplicarla; las posiciones que tengas tú en la cuenta no se tocan; el número de cuenta no se guarda.
+
+**Con 100 €:** Trading 212 no cobra comisión por orden y admite fracciones de ETF: son 3 ETFs de ~32 €. Lo que más cuesta con poco dinero es el diferencial compra-venta (céntimos por orden) — por eso el modo por defecto opera lo mínimo.
+
+**Mejoras del motor (`runner/real.mjs`):** búsqueda de ETFs UCITS más tolerante con los nombres de Trading 212 (y preferencia por los fondos más líquidos), segunda fuente de precios (Stooq) y último precio ejecutado como respaldo si Yahoo no responde, recuerda los decimales que acepta cada ETF, foto del valor justo después de ejecutar, resumen al final de cada informe con la comparación frente a la simulación, y revisión de la mañana desde las 9:05 (en invierno el disparo de las 9:17 ya cuenta).
+
+Probado contra un Trading 212 simulado (mismos endpoints y respuestas que la API oficial v0): prueba de conexión, propuesta → aprobación → 3 compras, rotación mensual (vende 2 sectores y compra 2), y movimientos de precio con los dos modos de reajuste. **No** se ha probado contra tu cuenta real: la primera vez usa «Probar conexión» y, si quieres, el entorno **Demo**.
+
+## Cambios de la versión v9
 
 - **Flujos separados:** `diario.yml` solo actualiza precios y deja decidir al bot (hasta ~3,5 h); `historico.yml` solo hace la prueba histórica (hasta 3 h) y se lanza sola al terminar la actualización de precios, solo si esa actualización de hoy ya se hizo. Si la actualización falla o no hay sesión (festivo), no se lanza. Los tres flujos (precios, histórico y vigilante) comparten el estado, así que GitHub los ejecuta de uno en uno. El flujo «Reiniciar todo» también para el histórico. Hay que subir `historico.yml` y los dos archivos cambiados (`diario.yml`, `reiniciar.yml`) más `runner/hecho.mjs`.
 
