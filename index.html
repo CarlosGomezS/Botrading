@@ -2253,9 +2253,9 @@ const SECT=["XLK","XLV","XLE","XLF","XLY","XLP","XLI","XLU","XLB","XLC"];
 const UNI={sect:SECT,sectx:SECT.concat(["QQQ","SMH","IWM"]),trq:["QQQ"],dmu:["QQQ","SPY","IWM","SMH"],mix:SECT.concat(["QQQ"])};
 const TESTED={sect:"✔ El único que igualó o batió al SPY en la prueba histórica"};
 const DESC={SPY:"S&P 500",QQQ:"Nasdaq 100",SMH:"Semiconductores",IWM:"Pequeñas empresas EE. UU.",XLK:"Tecnología",XLV:"Salud",XLE:"Energía",XLF:"Financiero",XLY:"Consumo discrecional",XLP:"Consumo básico",XLI:"Industrial",XLU:"Servicios públicos",XLB:"Materiales",XLC:"Comunicaciones",SHY:"Bonos 1-3 años",GLD:"Oro"};
-const DEF={on:0,env:"live",modo:"confirmar",metodo:"sect",limite:100,minOrden:5,umbral:5,reserva:2,maxOrdenes:8,maxPerdida:25,divisa:"eur",acciones:1,movil:1,correo:1,aceptoReal:0,reajuste:"revision",semanal:1,mapa:{}};
+const DEF={on:0,env:"live",modo:"confirmar",metodo:"sect",limite:100,minOrden:5,umbral:5,reserva:2,maxOrdenes:8,maxPerdida:25,divisa:"eur",acciones:1,movil:1,correo:1,avisos:"todo",aceptoReal:0,reajuste:"revision",semanal:1,mapa:{}};
 const NUM={limite:[5,100000,"Dinero máximo que gestiona el bot (€)","Aunque tengas más en la cuenta, el bot no usa más de esto. Con 100 € en la cuenta, pon 100."],minOrden:[1,1000,"Orden mínima (€)","No envía órdenes más pequeñas (evita órdenes ridículas)."],umbral:[1,50,"Desvío para reajustar (% del presupuesto)","Solo en el modo «también si se desvía»: reajusta un activo si se aparta más de esto de su peso."],reserva:[0,20,"Reserva en efectivo (%)","Margen que se deja sin invertir por si el precio sube entre el cálculo y la orden."],maxOrdenes:[1,30,"Máximo de órdenes por revisión","Freno de seguridad: si salieran más, deja el resto para el día siguiente."],maxPerdida:[5,90,"Freno de pérdidas (%)","Si la cuenta cae esto desde lo aportado, el bot se pone en PAUSA solo y te avisa."]};
-const SECRETS=[["T212_KEY","Clave API de Trading 212 (API key)"],["T212_SECRET","Secreto de la clave API (API secret)"],["REAL_VIEW_PASS","Contraseña para ver tu cartera real en esta web (cifra los datos)"]];
+const SECRETS=[["T212_KEY","Clave API de Trading 212 (API key)"],["T212_SECRET","Secreto de la clave API (API secret)"],["REAL_VIEW_PASS","Contraseña para ver tu cartera real (obligatoria · cifra todos tus datos)"]];
 const ES=n=>n==null||!isFinite(+n)?"—":E(+n),SG=n=>n==null||!isFinite(+n)?"—":E2(+n),PC=n=>n==null||!isFinite(+n)?"—":P2(+n);
 const cls=v=>v>0.004?"up":v<-0.004?"dn":"";
 const dt=t=>{try{return new Date(t).toLocaleString("es-ES",{dateStyle:"short",timeStyle:"short"})}catch(e){return String(t||"—")}};
@@ -2269,6 +2269,10 @@ function b64u(t){const s=atob(t),u=new Uint8Array(s.length);for(let i=0;i<s.leng
 async function decrypt(o,pw){const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
  const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64u(o.s),iterations:250000,hash:"SHA-256"},k,{name:"AES-GCM",length:256},false,["decrypt"]);
  return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64u(o.i)},key,b64u(o.c)))}
+function b64e(u){let s="";u=new Uint8Array(u);for(let i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);return btoa(s)}
+async function encrypt(txt,pw){const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),k=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
+ const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:250000,hash:"SHA-256"},k,{name:"AES-GCM",length:256},false,["encrypt"]);
+ return{enc:1,v:1,s:b64e(salt),i:b64e(iv),c:b64e(await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(txt)))}}
 function pwGet(){try{return sessionStorage.getItem("rlpw")||localStorage.getItem("rlpw")||""}catch(e){return""}}
 async function getJson(urls,hdr){let last=null;for(const u of urls){try{const r=await fetch(u,{headers:hdr&&/api\.github\.com/.test(u)?hdr:{},cache:"no-store"});if(r.status===404){last="404";continue}if(!r.ok){last="HTTP "+r.status;continue}return await r.json()}catch(e){last=String(e.message||e)}}throw new Error(last||"sin respuesta")}
 function hdrs(raw){const c=C(),h={Accept:raw?"application/vnd.github.raw+json":"application/vnd.github+json"};if(c&&c.tok&&c.tok())h.Authorization="Bearer "+c.tok();return h}
@@ -2285,11 +2289,15 @@ async function loadReal(fresh){if(RL.loading)return;RL.loading=true;
  await loadCfg(fresh);draw()}
 async function loadCfg(fresh){const r=ri();const urls=(fresh&&r?["https://api.github.com/repos/"+r.o+"/"+r.r+"/contents/real-ajustes.json?ref=main"]:[]).concat(["real-ajustes.json?t="+Date.now()]);
  let got=null;try{got=await getJson(urls,hdrs(true))}catch(e){}
+ RL.cfgEnc=null;
+ if(got&&got.enc){RL.cfgEnc=got;const pw=pwGet();let d=null;if(pw){try{d=JSON.parse(await decrypt(got,pw))}catch(e){}}got=d}
  /* lo recién guardado manda durante 15 min: GitHub Pages tarda en publicar la copia nueva */
  if(RL.saved&&Date.now()-RL.saved.t<15*60000&&(!got||JSON.stringify(got)!==JSON.stringify(RL.saved.cfg))){RL.cfg=RL.saved.cfg;return}
  if(got){RL.cfg=got;RL.cfgSrc="nube"}else if(!RL.saved)RL.cfg=null}
-async function unlockView(){const pw=($r("#rl-vpw")||{}).value||"";if(!pw||!RL.enc)return;say("Descifrando…");
- try{RL.R=JSON.parse(await decrypt(RL.enc,pw));RL.err=null;try{sessionStorage.setItem("rlpw",pw);if(($r("#rl-vrem")||{}).checked)localStorage.setItem("rlpw",pw)}catch(e){}say("")}catch(e){say("Contraseña incorrecta.");return}
+async function unlockView(){const pw=($r("#rl-vpw")||{}).value||"";if(!pw||!(RL.enc||RL.cfgEnc))return;say("Descifrando…");
+ let ok=false;try{if(RL.enc){RL.R=JSON.parse(await decrypt(RL.enc,pw));RL.err=null}else await decrypt(RL.cfgEnc,pw);ok=true}catch(e){}
+ if(!ok){say("Contraseña incorrecta.");return}
+ try{sessionStorage.setItem("rlpw",pw);if(($r("#rl-vrem")||{}).checked)localStorage.setItem("rlpw",pw)}catch(e){}say("");navShow()
  await loadCfg(false);draw()}
 
 /* ---------- acciones en la nube (GitHub Actions) ---------- */
@@ -2305,14 +2313,22 @@ async function runCloud(accion,plan,label){const c=needTok();if(!c||RL.busy)retu
   const rep=RL.R&&RL.R.reports&&RL.R.reports[0];
   say((res==="success"?"✔ Hecho":res===null?"Enviado, pero GitHub aún no ha terminado: recarga en unos minutos":"✖ Terminó con error")+(rep?" · "+rep.titulo+" (el informe completo está abajo, en «Informes»)":""));
  }catch(e){say("No se pudo: "+(e.message||e))}finally{RL.busy=false;draw()}}
-async function saveCfg(patch,secs,dels,why){const c=needTok();if(!c||RL.busy)return false;const r=ri();RL.busy=true;draw();let ok=false;
- try{const since=Date.now(),cfg=Object.assign({},A(),patch);delete cfg.savedAt;
-  say("Guardando ajustes de la cartera real…");
-  const x=await c.dispatch(r,"real-ajustes.yml",{json:JSON.stringify(cfg)});
-  if(x.status!==204){say(rej(x,"real-ajustes.yml"));return false}
+async function saveCfg(patch,secs,dels,why){const c=needTok();if(!c||RL.busy)return false;const r=ri();
+ secs=(secs||[]).slice();dels=dels||[];
+ /* privacidad: los ajustes viajan y se guardan CIFRADOS con la contraseña de la cartera (el repositorio es público) */
+ const nw=(secs.find(x=>x[0]==="REAL_VIEW_PASS")||[])[1]||"",cur=pwGet(),had=secState().REAL_VIEW_PASS===true,pw=nw||cur;
+ if(!pw){say("✖ Pon primero una «Contraseña para ver tu cartera real» (mínimo 8 caracteres): sin ella no se guarda nada, por privacidad.");return false}
+ if(nw&&had&&nw!==cur){if(!cur){say("✖ Para cambiar la contraseña de la cartera, primero entra con la actual (arriba).");return false}secs.push(["REAL_VIEW_PASS_OLD",cur])}
+ RL.busy=true;draw();let ok=false;
+ try{const since0=Date.now(),cfg=Object.assign({},A(),patch);delete cfg.savedAt;
   const okS=[],koS=[];
-  for(const [k,v] of secs||[]){say("Guardando la clave "+k+"…");try{await c.secret(r,k,v);okS.push(k);if(c.sec)c.sec[k]=true;if(k==="REAL_VIEW_PASS"){try{sessionStorage.setItem("rlpw",v)}catch(e){}}}catch(e){koS.push(k+" ("+(e.message||e)+")")}}
-  for(const k of dels||[]){try{await c.secretDel(r,k);okS.push(k+" (quitada)");if(c.sec)c.sec[k]=false}catch(e){koS.push(k+" ("+(e.message||e)+")")}}
+  secs.sort((a,b)=>(a[0]==="REAL_VIEW_PASS_OLD"?-2:a[0]==="REAL_VIEW_PASS"?-1:0)-(b[0]==="REAL_VIEW_PASS_OLD"?-2:b[0]==="REAL_VIEW_PASS"?-1:0));
+  for(const [k,v] of secs){say("Guardando la clave "+k+"…");try{await c.secret(r,k,v);if(k!=="REAL_VIEW_PASS_OLD")okS.push(k);if(c.sec)c.sec[k]=true}catch(e){koS.push(k+" ("+(e.message||e)+")");if(/^REAL_VIEW_PASS/.test(k)){say("✖ No se pudo guardar la contraseña de la cartera ("+(e.message||e)+"): no se guarda nada más.");return false}}}
+  if(nw){try{sessionStorage.setItem("rlpw",nw);if(localStorage.getItem("rlpw"))localStorage.setItem("rlpw",nw)}catch(e){}}
+  for(const k of dels){try{await c.secretDel(r,k);okS.push(k+" (quitada)");if(c.sec)c.sec[k]=false}catch(e){koS.push(k+" ("+(e.message||e)+")")}}
+  say("Cifrando y guardando los ajustes de la cartera real…");const since=Date.now();
+  const x=await c.dispatch(r,"real-ajustes.yml",{json:JSON.stringify(await encrypt(JSON.stringify(cfg),pw))});
+  if(x.status!==204){say(rej(x,"real-ajustes.yml"));return false}
   say("Esperando a que GitHub guarde los ajustes (1-2 minutos)…");
   const res=await c.waitRun(r,"real-ajustes.yml",since,300);
   if(res==="success"){RL.cfg=cfg;RL.saved={t:Date.now(),cfg};await loadCfg(true);ok=true}
@@ -2381,7 +2397,9 @@ function lockHtml(){const c=C();
  return'<div class="m">🔒 Escribe tu clave (la misma de Ajustes) para aprobar órdenes, lanzar acciones o cambiar ajustes. Mirar no necesita clave.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rl-pw" type="password" placeholder="Tu clave" autocomplete="current-password" style="flex:1 1 160px"><button id="rl-unl">Desbloquear</button></div>'}
 function warns(){const R=RL.R,a=A(),w=[],sec=secState();
  if(sec.T212_KEY===false||sec.T212_SECRET===false)w.push("Faltan las claves de Trading 212: ponlas en «Ajustes de la cartera real» (abajo) y pulsa «Probar conexión».");
- if(RL.meta&&!RL.enc)w.push("Tus datos reales se publican <b>sin cifrar</b> y el repositorio es público: cualquiera con el enlace ve tu saldo. Pon una contraseña en «Contraseña para ver tu cartera real» (Ajustes de la cartera real).");
+ if(sec.REAL_VIEW_PASS===false)w.push("Falta la <b>contraseña de la cartera</b>: sin ella el bot no consulta tu cuenta ni guarda nada (tu web es pública). Ponla en «Ajustes de la cartera real».");
+ const m=(RL.meta&&RL.meta.secrets)||{};if(m.NTFY_TOPIC===false)w.push("No te llegarán avisos al <b>móvil</b>: falta el tema de ntfy (⚙️ Ajustes → Avisos al móvil y por correo).");if(m.SMTP_USER===false||m.SMTP_PASS===false)w.push("No te llegarán avisos por <b>correo</b>: falta el usuario o la contraseña de aplicación de Gmail (⚙️ Ajustes → Avisos).");
+ if(a.movil===0&&a.correo===0)w.push("Tienes apagados los avisos al móvil y por correo de la cartera real (solo te avisaría de errores).");
  if(R&&R.paused)w.push("⛔ <b>Pausa automática</b>: "+esc(R.paused.why)+". No opera hasta que pulses «Reanudar».");
  if(!a.on)w.push("La cartera real está <b>desactivada</b>: solo guarda el valor de la cuenta. Actívala en los ajustes cuando la conexión funcione.");
  else if(a.env==="live"&&!a.aceptoReal)w.push("Falta marcar «Entiendo que opera con dinero real» en los ajustes: sin eso no envía órdenes.");
@@ -2449,14 +2467,14 @@ function cfgHtml(){const a=A(),sec=secState(),sel=(id,v,opts)=>`<select id="${id
  h+=`<div style="grid-column:1/-1">Método${sel("rl-c-met",a.metodo,Object.keys(STR||{}).map(k=>[k,STR[k].n+(TESTED[k]?" ✔":"")]))}</div>`;
  h+=Object.entries(NUM).map(([k,[lo,hi,t,d]])=>`<div>${t}<input id="rl-c-${k}" type="number" step="any" min="${lo}" max="${hi}" value="${a[k]}" style="width:100%"><span class="m" style="display:block;font-size:12px">${d} (${lo} a ${hi})</span></div>`).join("");
  h+=`<div>Divisa de los ETFs${sel("rl-c-div",a.divisa,[["eur","Solo en euros (sin comisión de cambio)"],["cualquiera","Cualquiera (también $ o £; 0,15% de cambio)"]])}</div><div>Permitir acciones de EE. UU.${yn("rl-c-acc",a.acciones)}</div>`;
- h+=`<div>Avisos al móvil (ntfy)${yn("rl-c-mov",a.movil)}</div><div>Avisos por correo${yn("rl-c-cor",a.correo)}</div><div>Informe semanal (viernes)${yn("rl-c-sem",a.semanal)}</div></div>`;
+ h+=`<div>Avisos al móvil (ntfy)${yn("rl-c-mov",a.movil)}</div><div>Avisos por correo${yn("rl-c-cor",a.correo)}</div><div>Informe semanal (viernes)${yn("rl-c-sem",a.semanal)}</div><div>Avisarme de${sel("rl-c-avi",a.avisos,[["todo","Todo lo que haga (cada revisión, foto, aprobación…)"],["importante","Solo lo importante (órdenes, propuestas, errores, semanal)"]])}</div></div>`;
  h+=`<div style="margin-top:10px"><b>Sustituciones manuales</b> <span class="m">(opcional: una por línea, <code>XLK=QDVEd_EQ</code> para elegir otro ETF, o <code>XLC=-</code> para no comprar ese activo)</span><textarea id="rl-c-map" rows="3" placeholder="XLK=QDVEd_EQ">${esc(mp)}</textarea></div>`;
  h+='<h3 style="margin:16px 0 6px;font-size:15px">Claves (se guardan cifradas en GitHub Secrets; aquí nunca se muestran)</h3><div class="kv">'+SECRETS.map(([k,t])=>{const ok=sec[k];return`<div>${ok===true?"✔ ":ok===false?"✖ ":"· "}${esc(t)} <span class="m">(${k})</span><input data-rk="${k}" type="password" autocomplete="off" placeholder="${ok===true?"puesta · escribe para cambiarla":"vacía"}" style="width:100%">${ok===true?`<label class="m" style="display:flex;gap:6px;margin-top:4px"><input type="checkbox" data-rd="${k}"> quitar</label>`:""}</div>`}).join("")+"</div>";
  h+='<div class="m">Cómo crear la clave en Trading 212: en la app, <b>Ajustes → API (Beta) → Generar clave</b>. Marca los permisos <b>Account data, Portfolio, Orders (read y execute), History y Metadata</b>. <b>No</b> limites por IP (GitHub cambia de IP). Copia la <i>API key</i> y el <i>API secret</i> aquí. Si eliges «Demo», la clave tiene que ser de la cuenta demo.</div>';
  h+=`<label class="m" style="margin-top:10px"><input type="checkbox" id="rl-c-ok" ${a.aceptoReal?"checked":""}> Entiendo que, con el entorno «Real», el bot envía órdenes con mi dinero de Trading 212, que puedo perderlo y que ningún método garantiza ganar.</label>`;
  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="go" id="rl-c-save" ${RL.busy?"disabled":""}>💾 Guardar ajustes de la cartera real</button></div>`;
  return h}
-function readCfg(){const g=id=>$r("#rl-c-"+id),o={on:+g("on").value,env:g("env").value,modo:g("modo").value,reajuste:g("reaj").value,metodo:g("met").value,divisa:g("div").value,acciones:+g("acc").value,movil:+g("mov").value,correo:+g("cor").value,semanal:+g("sem").value,aceptoReal:g("ok").checked?1:0};
+function readCfg(){const g=id=>$r("#rl-c-"+id),o={on:+g("on").value,env:g("env").value,modo:g("modo").value,reajuste:g("reaj").value,metodo:g("met").value,divisa:g("div").value,acciones:+g("acc").value,movil:+g("mov").value,correo:+g("cor").value,semanal:+g("sem").value,avisos:g("avi").value,aceptoReal:g("ok").checked?1:0};
  for(const [k,[lo,hi,t]] of Object.entries(NUM)){const v=+g(k).value;if(g(k).value===""||!isFinite(v)||v<lo||v>hi)return{err:t+": debe estar entre "+lo+" y "+hi};o[k]=k==="maxOrdenes"?Math.round(v):+v.toFixed(2)}
  if(o.minOrden>o.limite)return{err:"La orden mínima no puede ser mayor que el dinero máximo."};
  const m={};for(const l of g("map").value.split("\n").map(x=>x.trim()).filter(Boolean)){const p=l.split("=").map(x=>x.trim());if(p.length!==2||!/^[A-Z0-9.\-]{1,12}$/.test(p[0].toUpperCase())||!(p[1]==="-"||/^[A-Za-z0-9._-]{2,40}$/.test(p[1])))return{err:"Sustitución no válida: «"+l+"» (formato XLK=TICKER_EQ o XLC=-)"};m[p[0].toUpperCase()]=p[1]}
@@ -2464,7 +2482,8 @@ function readCfg(){const g=id=>$r("#rl-c-"+id),o={on:+g("on").value,env:g("env")
 async function onSave(){const r=readCfg();if(r.err){say("✖ "+r.err);return}const a=A(),c=r.cfg,secs=[],dels=[];
  document.querySelectorAll("#t-real [data-rk]").forEach(e=>{const v=(e.value||"").trim();if(v){if(/[\r\n]/.test(v)){say("✖ La clave "+e.dataset.rk+" no puede tener saltos de línea.");secs.length=0;return}secs.push([e.dataset.rk,v])}});
  document.querySelectorAll("#t-real [data-rd]").forEach(e=>{if(e.checked&&!secs.some(s=>s[0]===e.dataset.rd))dels.push(e.dataset.rd)});
- if(secs.some(s=>s[0]==="REAL_VIEW_PASS"&&s[1].length<8)){say("✖ La contraseña para ver la cartera debe tener al menos 8 caracteres.");return}
+ if(secs.some(s=>s[0]==="REAL_VIEW_PASS"&&s[1].length<8)){say("✖ La contraseña de la cartera debe tener al menos 8 caracteres.");return}
+ if(!secs.some(s=>s[0]==="REAL_VIEW_PASS")&&secState().REAL_VIEW_PASS!==true&&!pwGet()){say("✖ Escribe una «Contraseña para ver tu cartera real» (mínimo 8 caracteres): es obligatoria porque tu web es pública.");return}
  const turnOn=c.on&&(!a.on||a.env!==c.env||(a.modo!=="auto"&&c.modo==="auto"));
  if(turnOn&&c.env==="live"&&!confirm("Vas a dejar la cartera real ACTIVADA con DINERO REAL en modo «"+({confirmar:"con tu confirmación",auto:"AUTOMÁTICO",pausa:"solo mirar"}[c.modo])+"».\n\nMétodo: "+(STR[c.metodo]?STR[c.metodo].n:c.metodo)+"\nDinero máximo que gestiona: "+c.limite+" €\n"+(c.modo==="auto"?"\nEl bot comprará y venderá SOLO, sin preguntarte.\n":"\nCada revisión te pedirá que apruebes las órdenes aquí.\n")+"\n¿Seguro?"))return;
  if(dels.length&&!confirm("Vas a quitar estas claves: "+dels.join(", ")+". ¿Seguro?"))return;
@@ -2483,7 +2502,7 @@ const OPENS={};try{Object.assign(OPENS,JSON.parse(localStorage.getItem("rlop")||
 function fold(id,title,body,open){const o=OPENS[id]!=null?OPENS[id]:open;return`<details class="fold" data-o="${id}"${o?" open":""}><summary>${title}</summary><div class="fb">${body}</div></details>`}
 function helpHtml(){const r=ri(),u=r?"https://github.com/"+r.o+"/"+r.r:"";
  return'<div class="m"><b>1.</b> Sube a tu repositorio los archivos de esta versión (incluida la carpeta <code>.github/workflows</code> con <code>real.yml</code> y <code>real-ajustes.yml</code>, y <code>real-ajustes.json</code>).</div>'+
- '<div class="m"><b>2.</b> Crea la clave API en Trading 212 (Ajustes → API) y ponla, con su secreto, en «Ajustes de la cartera real». Pon también una <b>contraseña para ver la cartera</b>: así tus datos reales no se ven en la web pública.</div>'+
+ '<div class="m"><b>2.</b> Crea la clave API en Trading 212 (Ajustes → API) y ponla, con su secreto, en «Ajustes de la cartera real». Pon también la <b>contraseña de la cartera</b> (obligatoria): todo lo de tu cuenta real se guarda cifrado con ella, así que en tu web pública nadie más puede ver saldo, órdenes, ajustes ni informes.</div>'+
  '<div class="m"><b>3.</b> Pulsa <b>«Probar conexión»</b>. En 1-2 minutos verás tu saldo y la tabla «¿Se puede operar todo?».</div>'+
  '<div class="m"><b>4.</b> Elige el método, deja el modo <b>«Con mi confirmación»</b>, pon el dinero máximo (100 €), marca «Entiendo que…» y activa la cartera.</div>'+
  '<div class="m"><b>5.</b> Al día siguiente de bolsa, hacia las 10:15, te llegará al móvil «Cartera real: confirma estas órdenes». Ábrelo, revisa y pulsa <b>«Aprobar y ejecutar»</b>. Cuando te fíes, puedes pasar a «Automático».</div>'+
@@ -2492,8 +2511,7 @@ function helpHtml(){const r=ri(),u=r?"https://github.com/"+r.o+"/"+r.r:"";
 
 function draw(){const root=$r("#rl-root");if(!root)return;const R=RL.R;let h="";
  h+='<div class="p" id="rl-lockp"><div id="rl-lockb">'+lockHtml()+'</div><div class="m" id="rl-st" style="font-weight:700">'+esc(RL.msg||"")+"</div></div>";
- if(RL.enc&&!R){h+=`<div class="p"><h2>🔐 Tu cartera real está cifrada</h2><div class="m">Escribe la <b>contraseña para ver la cartera</b> (la que pusiste en REAL_VIEW_PASS).${RL.err==="clave"?" <b>La contraseña guardada ya no sirve.</b>":""}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rl-vpw" type="password" placeholder="Contraseña de la cartera real" autocomplete="current-password" style="flex:1 1 180px"><button id="rl-vgo">Ver</button></div><label class="m"><input type="checkbox" id="rl-vrem"> Recordarla en este navegador</label></div>`;
-  h+=fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),false)+fold("help","❓ Cómo ponerla en marcha",helpHtml(),false);root.innerHTML=h;bind();return}
+ if((RL.enc&&!R)||(RL.cfgEnc&&!RL.cfg)){h=`<div class="p"><h2>🔐 Zona privada</h2><div class="m">Esta parte solo la puede ver el dueño. Escribe la <b>contraseña de la cartera</b>.${RL.err==="clave"?" <b>La contraseña guardada ya no sirve.</b>":""}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rl-vpw" type="password" placeholder="Contraseña de la cartera real" autocomplete="current-password" style="flex:1 1 180px"><button id="rl-vgo">Entrar</button></div><label class="m"><input type="checkbox" id="rl-vrem"> Recordarla en este navegador (solo si es tu dispositivo)</label><div class="m" id="rl-st" style="font-weight:700">${esc(RL.msg||"")}</div></div>`;root.innerHTML=h;bind();return}
  if(!R){h+=`<div class="p"><h2>💶 Cartera real con Trading 212</h2><div class="m">${RL.loading?"Cargando…":RL.err&&RL.err!=="nada"?esc(RL.err):"Todavía no hay datos de tu cuenta real. Sigue los pasos de abajo: pon tus claves de Trading 212 en los ajustes y pulsa «Probar conexión»."}</div></div>`;
   h+=warns()+'<div class="p"><h2>Acciones</h2>'+actHtml()+"</div>"+fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),true)+fold("met","🧭 Elige el método",metHtml(),false)+fold("help","❓ Cómo ponerla en marcha",helpHtml(),true);root.innerHTML=h;bind();return}
  h+=warns()+heroHtml();
@@ -2537,12 +2555,15 @@ function bind(){const R=RL.R,on=(id,f)=>{const e=$r(id);if(e)e.onclick=f};
 
 /* ---------- integración con la app ---------- */
 function mount(){if($r("#t-real"))return;const sec=document.createElement("section");sec.className="tab";sec.id="t-real";sec.innerHTML='<div id="rl-root"></div>';const ay=$r("#t-ayuda");ay.parentNode.insertBefore(sec,ay);
- const nav=$r("#nav"),b=document.createElement("button");b.dataset.t="real";b.innerHTML="<span>💶</span>Real";b.onclick=()=>{window.__userNav=true;go("real")};const h=nav.querySelector('button[data-t="hoy"]');nav.insertBefore(b,h?h.nextSibling:nav.firstChild)}
-mount();
+ const nav=$r("#nav"),b=document.createElement("button");b.dataset.t="real";b.id="rl-nav";b.innerHTML="<span>💶</span>Real";b.onclick=()=>{window.__userNav=true;go("real")};const h=nav.querySelector('button[data-t="hoy"]');nav.insertBefore(b,h?h.nextSibling:nav.firstChild)}
 const FORCE=location.hash==="#real",T_FORCE=Date.now()+12000;
+/* el botón 💶 Real solo aparece en TUS dispositivos (los que tienen tu token cifrado o la contraseña de la cartera); en otro, entra con …/#real */
+function navShow(){const b=$r("#rl-nav");if(!b)return;const c=C(),mine=FORCE||!c||!!pwGet()||(c.hasEnc&&c.hasEnc());b.style.display=mine?"":"none"}
+mount();navShow();
+addEventListener("hashchange",()=>{if(location.hash==="#real"){const x=$r("#rl-nav");if(x)x.style.display="";window.__userNav=true;go("real")}});
 const go0=go;
 go=function(t){if(FORCE&&t!=="real"&&!window.__userNav&&Date.now()<T_FORCE)t="real";go0(t);if(t==="real"){if(!RL.R&&!RL.enc&&!RL.loading)loadReal(false);else draw()}};
-window.__realLock=function(){const b=$r("#rl-lockb");if(b){b.innerHTML=lockHtml();bind()}};
+window.__realLock=function(){navShow();const b=$r("#rl-lockb");if(b){b.innerHTML=lockHtml();bind()}};
 window.__realReload=()=>loadReal(true);
 loadReal(false);
 if(FORCE)setTimeout(()=>go("real"),300);
