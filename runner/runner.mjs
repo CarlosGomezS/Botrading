@@ -296,7 +296,7 @@ async function sendMail(page, subject, text) {
 // Envía móvil + correo y deja constancia en el propio informe individual.
 async function avisar(page, rep, { title, short, subject, silent = false, force = false }) {
   const body = [short, "", SITE ? "Web: " + SITE : ""].join("\n").trim();
-  const mailTxt = ["BOT TRADING PRO · simulación, sin dinero real", title, "", rep && rep.md ? rep.md : short, "", SITE ? "Web: " + SITE : ""].join("\n");
+  const mailTxt = ["BOT TRADING PRO · simulación, sin dinero real", title, "", ...(rep && rep.md ? [short, "", "—".repeat(20), "", rep.md] : [short]), "", SITE ? "Web: " + SITE : ""].join("\n");
   // silent: el turno del vigilante deja su informe en la web pero NO manda móvil ni correo (serían demasiados). Los errores sí avisan.
   const off = { ok: false, txt: "no enviado a propósito (los turnos del vigilante no avisan; solo los errores)" };
   // avisos apagados desde la web (Ajustes de la nube): los errores (force) avisan siempre
@@ -455,7 +455,7 @@ async function main() {
   const { browser, page } = await boot();
   const snapshot = async () => sanitize(await dumpAll(page));
   const t0 = Date.now(), startIso = new Date(t0).toISOString();
-  let rep = null, titleTxt = "", subj = "", shortTxt = "";
+  let rep = null, titleTxt = "", subj = "", shortTxt = "", vgOps = [];
   try {
     if (MODE === "daily") {
       log("Lanzando «Actualizar precios y que el bot decida»");
@@ -547,6 +547,17 @@ async function main() {
       titleTxt = `Bot Trading: vigilante · ${res.nScans} consultas${res.nErr ? ` (${res.nErr} con error)` : ""}`;
       subj = `Bot Trading · Vigilante · turno ${new Date(t0).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" })} · ${res.nScans} consultas`;
       shortTxt = res.summary;
+      // v48: si algún método del vigilante (los semanales / de 2-3 días) ha comprado o vendido en este turno, SÍ se avisa
+      vgOps = await page.evaluate(() => window.__VGOPS || []).catch(() => []);
+      if (vgOps.length) {
+        const by = {};
+        vgOps.forEach((o) => (by[o.n] = by[o.n] || []).push(o));
+        const eur = (n) => (+n).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+        const lines = Object.entries(by).map(([n, a]) => n + ":\n" + a.map((o) => `  ${o.side === "COMPRA" ? "🟢 COMPRA" : "🔴 VENTA"} ${o.s} · ${eur(o.eur)} a ${(+o.px).toFixed(2)} $${o.pnl != null ? ` (${o.pnl >= 0 ? "+" : ""}${eur(o.pnl)})` : ""}\n    ${String(o.why || "").slice(0, 160)}`).join("\n")).join("\n\n");
+        titleTxt = `Bot Trading: vigilante · ${vgOps.length} ${vgOps.length === 1 ? "operación" : "operaciones"} (simuladas)`;
+        subj = `Bot Trading · Vigilante · ${Object.keys(by).join(", ").slice(0, 120)}`;
+        shortTxt = lines + "\n\nSon operaciones de las cuentas ficticias del vigilante (no dinero real).";
+      }
     } else if (MODE === "test") {
       const sec = ["ALPACA_KEY", "TWELVEDATA_KEY", "POLYGON_KEY", "ALPHAVANTAGE_KEY", "FMP_KEY", "EMAIL", "SMTP_USER", "SMTP_PASS", "WEB3FORMS_KEY", "NTFY_TOPIC"];
       const L = ["# Prueba de avisos", "", `Fecha: ${new Date().toISOString()}`, "", "## Secretos configurados en GitHub (solo si existen o no; nunca su valor)", ""];
@@ -559,7 +570,7 @@ async function main() {
       shortTxt = "Si lees esto en el móvil, las notificaciones funcionan.\n" + sec.filter((k) => !env(k)).map((k) => "Falta " + k).join("\n");
     } else throw new Error("Modo desconocido: " + MODE);
 
-    await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj, silent: MODE === "vigilante" });
+    await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj, silent: MODE === "vigilante" && !vgOps.length });
   } catch (e) {
     // cualquier fallo queda registrado en un informe y avisado
     const msg = `Fallo del proceso automático (${MODE}): ${String(e && e.message || e).slice(0, 400)}`;
