@@ -4,7 +4,7 @@ Qué hace este paquete:
 
 - **Web pública** (GitHub Pages): la abres desde el móvil o el ordenador y ves el bot tal cual, con los datos más recientes. Es de solo lectura.
 - **Actualización diaria tras el cierre de Wall Street (hacia las 23:17, hora de España)**: GitHub ejecuta el botón «Actualizar precios y que el bot decida» por ti, lunes a viernes. Hay **5 disparos** (21:17, 21:47, 22:17, 22:47 y 23:17 UTC) y cada uno comprueba primero, en segundos, si el día de hoy ya está hecho; si lo está, no hace nada. Así, si GitHub retrasa o descarta un disparo, el siguiente lo recupera. Cubre horario de verano e invierno sin tocar nada. **Por qué después del cierre y no a la apertura:** el bot decide con velas diarias completas; a la apertura solo existiría la vela de ayer, que ya está procesada. Durante la sesión ya trabaja el vigilante.
-- **Prueba histórica diaria**: justo después de la actualización, con un número **aleatorio de acciones entre 200 y el máximo** (por defecto 300) elegidas al azar.
+- **Prueba histórica diaria** (flujo aparte, `historico.yml`): se lanza sola en cuanto termina la actualización de precios (y tiene 3 disparos de seguridad), solo si la actualización de ese día ya está hecha, con un número **aleatorio de acciones entre 200 y el máximo** (por defecto 300) elegidas al azar.
 - **Vigilante**: GitHub lo mantiene encendido en turnos de 55 minutos mientras Wall Street está abierto (lunes a viernes). Es lo más parecido a «siempre escuchando» que permite GitHub gratis: entre turno y turno puede haber unos minutos sin consulta (el arranque del navegador tarda 2-3 min) y GitHub no garantiza la hora exacta. Consulta **cada X minutos según el desplegable** (10, 15, 30 o 60).
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Informe → Registro). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
@@ -13,7 +13,7 @@ Qué hace este paquete:
 
 1. Crea una cuenta gratis en github.com y pulsa **New repository**. Ponle un nombre (p. ej. `bot-trading`) y márcalo **Public**.
 2. Sube el contenido de esta carpeta al repositorio (**Add file → Upload files**): `index.html`, la carpeta `runner` y la carpeta `.github`.
-   Si tu sistema oculta `.github`, créala a mano: **Add file → Create new file**, escribe `.github/workflows/diario.yml` como nombre y pega el contenido; repite con `vigilante.yml`.
+   Si tu sistema oculta `.github`, créala a mano: **Add file → Create new file**, escribe `.github/workflows/diario.yml` como nombre y pega el contenido; repite con `historico.yml` y `vigilante.yml`.
 3. **Settings → Secrets and variables → Actions → New repository secret**. Crea los que tengas (son tus claves de la pestaña Ajustes del bot; no se ven nunca en la web):
    - `ALPACA_KEY` → en formato `ID:SECRETO`. **Recomendada:** el vigilante necesita Alpaca o Twelve Data para consultar cotizaciones.
    - `TWELVEDATA_KEY`, `POLYGON_KEY`, `ALPHAVANTAGE_KEY`, `FMP_KEY` (opcionales).
@@ -23,7 +23,7 @@ Qué hace este paquete:
    - Para la prueba histórica diaria hace falta `ALPACA_KEY` (o `TWELVEDATA_KEY`, que con su cuota gratuita no llega a 200+ acciones al día).
 4. **Settings → Actions → General → Workflow permissions → Read and write permissions → Save.**
 5. **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main` / `(root)` → Save.**
-6. **Actions → «Actualización diaria» → Run workflow.** La primera vez descarga mucho histórico y puede tardar horas; si no termina, continúa por donde se quedó en la siguiente ejecución.
+6. **Actions → «Actualización de precios» → Run workflow** (y después, si quieres, «Prueba histórica diaria» → Run workflow). La primera vez descarga mucho histórico y puede tardar horas; si no termina, continúa por donde se quedó en la siguiente ejecución.
 7. Tu web quedará en `https://TU_USUARIO.github.io/NOMBRE_DEL_REPO/`. Ábrela desde el móvil y guárdala en favoritos o en la pantalla de inicio.
 
 ## Comprobar que los avisos llegan
@@ -81,9 +81,11 @@ Solo estos: la nueva función de informes individuales y la prueba histórica di
 
 ## Si un día no se ejecutó la actualización
 
-Actions → «Actualización diaria…» → abre las ejecuciones de esa noche. En el paso «¿Toca ejecutar algo en este disparo?» el registro dice la decisión y el motivo (por ejemplo «actualización ya hecha hoy» o «aún no ha pasado una hora desde el cierre»). Si no hay ninguna ejecución esa noche, es que GitHub descartó los 5 disparos: lanza «Run workflow» a mano y avísame para revisarlo.
+Actions → «Actualización de precios…» (o «Prueba histórica diaria…») → abre las ejecuciones de esa noche. En el paso «¿Toca… en este disparo?» el registro dice la decisión y el motivo (por ejemplo «actualización ya hecha hoy» o «aún no ha pasado una hora desde el cierre»). Si no hay ninguna ejecución esa noche, es que GitHub descartó los 5 disparos: lanza «Run workflow» a mano y avísame para revisarlo.
 
 ## Cambios de esta versión (v9)
+
+- **Flujos separados:** `diario.yml` solo actualiza precios y deja decidir al bot (hasta ~3,5 h); `historico.yml` solo hace la prueba histórica (hasta 3 h) y se lanza sola al terminar la actualización de precios, solo si esa actualización de hoy ya se hizo. Si la actualización falla o no hay sesión (festivo), no se lanza. Los tres flujos (precios, histórico y vigilante) comparten el estado, así que GitHub los ejecuta de uno en uno. El flujo «Reiniciar todo» también para el histórico. Hay que subir `historico.yml` y los dos archivos cambiados (`diario.yml`, `reiniciar.yml`) más `runner/hecho.mjs`.
 
 - **Cartera en dos apartados, siempre por método** (el selector de arriba): **«Datos de la cartera»** (valor, ganancia, efectivo, invertido, ganancia abierta y cerrada, ahorro, órdenes y comisiones, lo que tiene comprado y el riesgo) y **«Qué hacer con esta cartera»** (🟢 COMPRAR / 🔴 VENDER nuevos, el botón «Ya lo he hecho» y el historial de lo que ha hecho el bot). Los títulos tienen el mismo formato que el resto de pantallas.
 - **Comisión por defecto: 0,15 € por orden.** Sigue siendo editable (0 a 5 €) en Ajustes y en el recuadro de la nube.
