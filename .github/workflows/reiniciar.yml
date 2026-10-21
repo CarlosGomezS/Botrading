@@ -36,7 +36,7 @@ jobs:
       - name: Parar las ejecuciones del bot que estén en marcha
         run: |
           # si una actualización o un turno del vigilante siguiera corriendo, volvería a publicar los datos viejos encima del reinicio
-          for wf in diario.yml vigilante.yml; do
+          for wf in diario.yml historico.yml vigilante.yml; do
             for st in in_progress queued waiting pending; do
               for id in $(gh run list --workflow "$wf" --status "$st" --json databaseId --jq '.[].databaseId' 2>/dev/null); do
                 echo "Cancelando $wf #$id ($st)"; gh run cancel "$id" || true
@@ -45,7 +45,7 @@ jobs:
           done
           for i in $(seq 1 36); do
             n=0
-            for wf in diario.yml vigilante.yml; do
+            for wf in diario.yml historico.yml vigilante.yml; do
               for st in in_progress queued waiting pending; do
                 c=$(gh run list --workflow "$wf" --status "$st" --json databaseId --jq 'length' 2>/dev/null || echo 0); n=$((n + c))
               done

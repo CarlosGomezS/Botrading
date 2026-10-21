@@ -1,10 +1,10 @@
-name: Actualización diaria + prueba histórica (tras el cierre de Wall Street)
+name: Actualización de precios (tras el cierre de Wall Street)
 
+# SOLO actualiza precios y deja que el bot decida (comprar/vender). La prueba histórica es otro flujo: historico.yml.
 # Por qué hay varios disparos y no uno solo a las 23:00:
 #  - GitHub retrasa (y a veces descarta) las tareas programadas, sobre todo en punto (minuto 0).
 #    Por eso se usan minutos "raros" (17 y 47) y varios intentos seguidos.
-#  - Antes se exigía que en España fueran EXACTAMENTE las 23 h: si GitHub se retrasaba pasada la medianoche, el día se perdía.
-#  - Ahora cada disparo comprueba primero (en segundos) si ya está hecho el día de hoy; si ya está, no hace nada.
+#  - Cada disparo comprueba primero (en segundos) si ya está hecho el día de hoy; si ya está, no hace nada.
 #    Entre las 21:17 y las 23:17 UTC cubre horario de verano y de invierno (el cierre de Wall Street es a las 22:00 en España
 #    casi todo el año; se espera una hora para que los proveedores publiquen la vela diaria completa).
 on:
@@ -14,11 +14,12 @@ on:
     - cron: "17 22 * * 1-5"
     - cron: "47 22 * * 1-5"
     - cron: "17 23 * * 1-5"
-  workflow_dispatch:          # botón "Run workflow": ejecuta siempre todo
+  workflow_dispatch:          # botón "Run workflow": ejecuta siempre
 
 permissions:
   contents: write
 
+# Mismo grupo que la prueba histórica y el vigilante: los tres escriben el mismo estado, así que van de uno en uno.
 concurrency:
   group: bot-estado
   cancel-in-progress: false
@@ -26,30 +27,30 @@ concurrency:
 jobs:
   actualizar:
     runs-on: ubuntu-latest
-    timeout-minutes: 355
+    timeout-minutes: 225
     steps:
       - uses: actions/checkout@v4
-      - name: ¿Toca ejecutar algo en este disparo?
+      - name: ¿Toca actualizar precios en este disparo?
         id: hora
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node runner/hecho.mjs
-          if grep -q "any=true" "$GITHUB_OUTPUT"; then
-            echo "JOB_DEADLINE=$(( $(date +%s) + 340*60 ))" >> "$GITHUB_ENV"   # hora límite (epoch) para repartir el tiempo entre la actualización y la prueba histórica
+          node runner/hecho.mjs daily
+          if grep -q "go=true" "$GITHUB_OUTPUT"; then
+            echo "JOB_DEADLINE=$(( $(date +%s) + 210*60 ))" >> "$GITHUB_ENV"   # hora límite (epoch) de esta actualización
           fi
       - uses: actions/setup-node@v4
-        if: steps.hora.outputs.any == 'true'
+        if: steps.hora.outputs.go == 'true'
         with:
           node-version: 22
       - name: Instalar navegador
-        if: steps.hora.outputs.any == 'true'
+        if: steps.hora.outputs.go == 'true'
         working-directory: runner
         run: |
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
       - name: Actualizar precios y que el bot decida
-        if: steps.hora.outputs.daily == 'true'
+        if: steps.hora.outputs.go == 'true'
         working-directory: runner
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -66,21 +67,3 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: node runner.mjs daily
-      - name: Prueba histórica diaria (nº aleatorio de acciones, entre 200 y el máximo de ajustes.json)
-        if: ${{ !cancelled() && steps.hora.outputs.bt == 'true' }}
-        working-directory: runner
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
-          TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
-          POLYGON_KEY: ${{ secrets.POLYGON_KEY }}
-          ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE_KEY }}
-          FMP_KEY: ${{ secrets.FMP_KEY }}
-          EMAIL: ${{ secrets.EMAIL }}
-          WEB3FORMS_KEY: ${{ secrets.WEB3FORMS_KEY }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: node runner.mjs backtest

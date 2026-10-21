@@ -1,0 +1,69 @@
+name: Prueba histórica diaria (después de la actualización de precios)
+
+# SOLO la prueba histórica (nº aleatorio de acciones entre 200 y el máximo de ajustes.json). La actualización de precios es otro flujo: diario.yml.
+# Cuándo se lanza:
+#  - En cuanto termina «Actualización de precios» (workflow_run). Si ese día la actualización aún no está hecha, no hace nada (espera).
+#  - Además, 3 disparos de seguridad por si GitHub se salta el encadenado.
+#  - A mano: «Run workflow» la ejecuta siempre.
+# Cada disparo comprueba primero (en segundos) si la actualización de hoy ya está hecha y la prueba de hoy aún no.
+on:
+  workflow_run:
+    workflows: ["Actualización de precios (tras el cierre de Wall Street)"]
+    types: [completed]
+  schedule:
+    - cron: "40 22 * * 1-5"
+    - cron: "40 23 * * 1-5"
+    - cron: "40 0 * * 2-6"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bot-estado
+  cancel-in-progress: false
+
+jobs:
+  historico:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 195
+    steps:
+      - uses: actions/checkout@v4
+      - name: ¿Toca la prueba histórica en este disparo?
+        id: hora
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node runner/hecho.mjs bt
+          if grep -q "go=true" "$GITHUB_OUTPUT"; then
+            echo "JOB_DEADLINE=$(( $(date +%s) + 180*60 ))" >> "$GITHUB_ENV"   # hora límite (epoch) de la prueba histórica
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.hora.outputs.go == 'true'
+        with:
+          node-version: 22
+      - name: Instalar navegador
+        if: steps.hora.outputs.go == 'true'
+        working-directory: runner
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Prueba histórica (nº aleatorio de acciones, entre 200 y el máximo de ajustes.json)
+        if: steps.hora.outputs.go == 'true'
+        working-directory: runner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
+          POLYGON_KEY: ${{ secrets.POLYGON_KEY }}
+          ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE_KEY }}
+          FMP_KEY: ${{ secrets.FMP_KEY }}
+          EMAIL: ${{ secrets.EMAIL }}
+          WEB3FORMS_KEY: ${{ secrets.WEB3FORMS_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: node runner.mjs backtest
