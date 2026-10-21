@@ -32,12 +32,16 @@ Qué hace este paquete:
 
 ## Cambiar los ajustes desde la web (con clave)
 
-En la pestaña **Ajustes** de la web aparece el recuadro **«☁️ Ajustes de la nube»**. Desde ahí puedes editar **todos los parámetros del bot** (los 19: nº de ETFs, riesgo, frenos, comisión, deslizamiento, orden mínima, % de ahorro y los del motor de notas: tipo de operación, nota de compra/venta, stops, objetivo, sesiones máximas…), el **método principal**, el **vigilante** (intervalo, subida mínima, nº de acciones extra, operar sí/no), el **tiempo máximo por actualización** y el **máximo de la prueba histórica**. Cada valor tiene su rango seguro; si te pasas, lo rechaza.
+En la pestaña **Ajustes** de la web aparece el recuadro **«☁️ Ajustes de la nube»**. Desde ahí puedes editar **todos los parámetros del bot** (los 8 que el bot usa de verdad: nº de ETFs, riesgo por operación, frenos de pérdida diaria y de caída, comisión, deslizamiento, orden mínima y % de ahorro), el **método principal**, el **vigilante** (intervalo, subida mínima, nº de acciones extra, operar sí/no), el **tiempo máximo por actualización** y el **máximo de la prueba histórica**. Cada valor tiene su rango seguro; si te pasas, lo rechaza. Los parámetros del antiguo motor de notas (nota de compra/venta, stops, objetivo, sesiones máximas…) se han quitado de Ajustes porque ningún método actual los usa.
 
-**Lo que NO se edita desde la web, a propósito:** las claves de datos, el correo y el tema de ntfy. Viven en GitHub Secrets. El recuadro te muestra con ✔/✖ cuáles están puestos y un enlace directo a la página de Secrets. Guardar un secreto desde aquí obligaría a darle a tu token permiso para escribir secretos: mucho más riesgo que cambiar parámetros. Tampoco se cambia aquí el capital inicial (reiniciaría las cuentas).
+**Claves y avisos (nuevo en v6):** el mismo recuadro tiene un campo por cada secreto (Alpaca, Twelve Data, Polygon, Alpha Vantage, FMP, usuario/contraseña SMTP, correo de destino, servidor y puerto SMTP, tema de ntfy y Web3Forms). Dejas en blanco lo que no quieras cambiar; lo que escribas se cifra en tu navegador y se guarda en GitHub Secrets al pulsar «Aplicar en la nube». Nunca se muestran de vuelta: solo ves ✔/✖ de si están puestos. También puedes apagar los avisos al móvil y por correo (los errores avisan siempre).
+
+**También el capital inicial y el resto de casillas (v6):** capital inicial, cambio €/$, notificaciones de la app y el correo automático de la app (activar, incluir cartera, incluir vigilante). **Ojo con el capital:** si lo cambias, la web te pide confirmación y en la siguiente ejecución el bot **reinicia todas las cuentas** con ese capital (archiva antes una copia; conserva ajustes, claves, reglas e informes). Solo se reinicia una vez: cuando el capital del bot ya coincide, no hace nada.
+
+La casilla «seguir actualizando con la app minimizada» se ha eliminado de Ajustes: en la nube el bot corre solo y no hacía nada.
 
 **Primera vez en cada navegador:**
-1. En GitHub: Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate. Limítalo a **este repositorio** y dale el permiso **Actions: Read and write**.
+1. En GitHub: Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate. Limítalo a **este repositorio** y dale el permiso **Actions: Read and write** y, si quieres cambiar claves desde la web, también **Secrets: Read and write**.
 2. Pega el token en el recuadro y **elige una clave** (mínimo 8 caracteres). El token se guarda **cifrado** con tu clave en ese navegador; la clave no se guarda en ningún sitio.
 3. Pulsa «Guardar y desbloquear».
 
@@ -79,7 +83,14 @@ Solo estos: la nueva función de informes individuales y la prueba histórica di
 
 Actions → «Actualización diaria…» → abre las ejecuciones de esa noche. En el paso «¿Toca ejecutar algo en este disparo?» el registro dice la decisión y el motivo (por ejemplo «actualización ya hecha hoy» o «aún no ha pasado una hora desde el cierre»). Si no hay ninguna ejecución esa noche, es que GitHub descartó los 5 disparos: lanza «Run workflow» a mano y avísame para revisarlo.
 
-## Cambios de esta versión (v5)
+## Cambios de esta versión (v6)
+
+- Limpieza de Ajustes: se quitan los 13 parámetros del motor antiguo de notas que ningún método usa y la casilla de segundo plano.
+- Ajustes de la nube: ahora también se editan las **claves y secretos** (con permiso extra «Secrets: Read and write» en el token) y los **avisos** al móvil y por correo.
+- Ajustes de la nube: también capital inicial (con reinicio de cuentas), cambio €/$, notificaciones y correo automático de la app.
+- Corregido: `SMTP_HOST` y `SMTP_PORT` existían en el runner pero ningún workflow los pasaba, así que nunca funcionaban. Ahora sí (y se pueden poner desde la web).
+
+## Cambios de la versión v5
 
 - Actualización diaria: 5 disparos con comprobación de «ya hecho hoy» en vez de exigir las 23 h exactas (si GitHub se retrasaba pasada la medianoche, el día se perdía y tampoco corría la prueba histórica).
 - Ajustes de la web: ahora editan todos los parámetros, el método principal, el vigilante y el tiempo máximo. Corregido un fallo: los campos del recuadro salían vacíos y «Aplicar» daba «vacío» hasta que existiera un valor guardado.
