@@ -7,10 +7,9 @@
 // Uso: node real.mjs [normal | aprobar | rechazar | probar | foto | reanudar]   (PLAN_ID=… para aprobar/rechazar)
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync, rmSync, appendFileSync } from "node:fs";
-import { webcrypto } from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { load as loadCfg } from "./real-cfg.mjs";
+import { loadAsync as loadCfg, encrypt, decrypt, openAny } from "./real-cfg.mjs";
 
 const env = (k) => (process.env[k] || "").trim();
 const ACCION = (process.argv[2] || env("ACCION") || "normal").toLowerCase();
@@ -86,21 +85,8 @@ function madrid(d = new Date()) {
   return { date: `${p.year}-${p.month}-${p.day}`, min: (+p.hour % 24) * 60 + +p.minute, wk: !/^(Sat|Sun)$/.test(p.weekday), fri: p.weekday === "Fri", hm: `${p.hour}:${p.minute}` };
 }
 
-// ---------- cifrado (mismo formato que la web: PBKDF2 250 000 + AES-GCM) ----------
-const b64 = (u) => Buffer.from(u).toString("base64"), unb64 = (t) => new Uint8Array(Buffer.from(t, "base64"));
-async function kdf(pw, salt) {
-  const k = await webcrypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
-  return webcrypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 250000, hash: "SHA-256" }, k, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
-}
-export async function encrypt(txt, pw) {
-  const salt = webcrypto.getRandomValues(new Uint8Array(16)), iv = webcrypto.getRandomValues(new Uint8Array(12));
-  const ct = await webcrypto.subtle.encrypt({ name: "AES-GCM", iv }, await kdf(pw, salt), new TextEncoder().encode(txt));
-  return { s: b64(salt), i: b64(iv), c: b64(new Uint8Array(ct)) };
-}
-export async function decrypt(o, pw) {
-  const pt = await webcrypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(o.i) }, await kdf(pw, unb64(o.s)), unb64(o.c));
-  return new TextDecoder().decode(pt);
-}
+// cifrado: en real-cfg.mjs (mismo formato que la web: PBKDF2 250 000 + AES-GCM)
+export { encrypt, decrypt };
 
 // ---------- git: leer y publicar ----------
 function sh(cmd) { return execSync(cmd, { stdio: "pipe", encoding: "utf8", maxBuffer: 1 << 30 }); }
@@ -111,6 +97,7 @@ function gitShow(branch, file) {
   return sh(`git -C "${ROOT}" show FETCH_HEAD:${file}`);
 }
 const SECRET_NAMES = ["T212_KEY", "T212_SECRET", "REAL_VIEW_PASS", "NTFY_TOPIC", "SMTP_USER", "SMTP_PASS", "EMAIL"];
+// El repositorio es PÚBLICO y los registros de GitHub Actions también: aquí nunca se escriben importes, posiciones ni tickers.
 function secretsMeta() { const o = {}; for (const k of SECRET_NAMES) o[k] = !!env(k); return o; }
 
 async function loadReal() {
@@ -118,8 +105,9 @@ async function loadReal() {
   try { txt = gitShow("real", "real.json"); } catch (e) { log("Todavía no hay historial de la cartera real (rama real): se empieza de cero."); return freshReal(); }
   let j = JSON.parse(txt);
   if (j.enc) {
-    if (!env("REAL_VIEW_PASS")) throw new Error("El historial de la cartera real está cifrado y falta el secreto REAL_VIEW_PASS. Vuelve a ponerlo (el mismo de antes).");
-    try { j = JSON.parse(await decrypt(j, env("REAL_VIEW_PASS"))); } catch { throw new Error("No puedo descifrar el historial de la cartera real: REAL_VIEW_PASS no es la misma clave que se usó al guardarlo."); }
+    const r = await openAny(j, [env("REAL_VIEW_PASS"), env("REAL_VIEW_PASS_OLD")]);
+    if (r.error) throw new Error("No puedo descifrar el historial de la cartera real: la contraseña REAL_VIEW_PASS no es la que se usó al guardarlo. Si la has cambiado, pon la anterior en REAL_VIEW_PASS_OLD (la web lo hace sola al cambiarla).");
+    j = r.j;
   }
   return Object.assign(freshReal(), j);
 }
@@ -131,7 +119,8 @@ async function publishReal(R) {
   R.orders = R.orders.slice(0, 2000); R.planHist = (R.planHist || []).slice(0, 100);
   const plain = JSON.stringify(R);
   const pw = env("REAL_VIEW_PASS");
-  const out = pw ? JSON.stringify({ enc: 1, v: 1, savedAt: R.savedAt, meta: { secrets: secretsMeta() }, ...(await encrypt(plain, pw)) }) : JSON.stringify({ ...R, meta: { secrets: secretsMeta() } });
+  if (!pw) throw new Error("sin REAL_VIEW_PASS no se publica nada (privacidad)");
+  const out = JSON.stringify({ enc: 1, v: 1, savedAt: R.savedAt, meta: { secrets: secretsMeta() }, ...(await encrypt(plain, pw)) });
   const local = path.join(process.cwd(), "real.json");
   writeFileSync(local, out);
   if (!REPO || !TOKEN) { log("Ejecución local: guardado en", local); return; }
@@ -142,7 +131,7 @@ async function publishReal(R) {
   g("init -q -b real"); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"');
   g("add real.json"); g(`commit -q -m "cartera real ${new Date().toISOString()}"`);
   for (let i = 0; i < 3; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git real`); break; } catch (e) { if (i === 2) throw e; await sleep(4000); } }
-  log(`Cartera real publicada (${(out.length / 1024).toFixed(0)} KB${pw ? ", cifrada" : ", SIN cifrar: pon REAL_VIEW_PASS para que no se vea en la web pública"})`);
+  log("Cartera real publicada (cifrada).");
 }
 
 // ---------- estado del bot (rama data) ----------
@@ -178,7 +167,7 @@ function t212(which) {
       // 429 = límite de peticiones: la orden NO se ha procesado, así que reintentar es seguro también para órdenes
       if (r.status === 429 && a < 6) {
         const reset = +r.headers.get("x-ratelimit-reset"), w = reset ? reset * 1000 - Date.now() + 700 : 6000 * (a + 1);
-        log(`Límite de peticiones de Trading 212 en ${p}: espero ${Math.round(Math.max(1000, Math.min(w, 70000)) / 1000)} s`);
+        log(`Límite de peticiones de Trading 212: espero ${Math.round(Math.max(1000, Math.min(w, 70000)) / 1000)} s`);
         await sleep(Math.max(1000, Math.min(w, 70000))); continue;
       }
       if (r.status >= 500 && method === "GET" && a < 3) { await sleep(5000 * (a + 1)); continue; }
@@ -405,7 +394,7 @@ async function priceOf(t, map, positions, fx) {
   const cur = inst.cur || (pos && pos.instrument.currency) || "EUR";
   if (pos && pos.currentPrice > 0) return { px: +pos.currentPrice, cur, src: "Trading 212 (posición)" };
   const ys = yahooSym(t);
-  if (ys) { try { const y = await yahoo(ys); if (!y.cur || y.cur === cur || (cur === "GBX" && /GBp/i.test(y.cur))) return { px: y.px, cur, src: "Yahoo " + ys }; } catch (e) { log("Yahoo", ys, e.message); } }
+  if (ys) { try { const y = await yahoo(ys); if (!y.cur || y.cur === cur || (cur === "GBX" && /GBp/i.test(y.cur))) return { px: y.px, cur, src: "Yahoo " + ys }; } catch (e) { log("Precio: Yahoo no respondió; pruebo otra fuente"); } }
   if (inst.isin) {
     try {
       const r = await fetch(`${YH}/v1/finance/search?q=${encodeURIComponent(inst.isin)}&quotesCount=8&newsCount=0`, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(15000) });
@@ -420,7 +409,7 @@ async function priceOf(t, map, positions, fx) {
       const r = await fetch(`${env("STOOQ_BASE") || "https://stooq.com"}/q/l/?s=${encodeURIComponent(st.toLowerCase())}&f=sd2t2c&h&e=csv`, { signal: AbortSignal.timeout(15000) });
       const row = (await r.text()).trim().split("\n")[1] || "", c = +row.split(",")[4];
       if (r.ok && c > 0 && !(cur === "GBX" && /\.uk$/.test(st) && c < 5)) return { px: c, cur, src: "Stooq " + st };
-    } catch (e) { log("Stooq", st, e.message); }
+    } catch (e) { log("Precio: Stooq no respondió"); }
   }
   // último recurso: el precio de la última orden ejecutada de ese ETF (máx. 10 días); se compra un 3% menos por si ha subido
   const lastO = (REAL_ORDERS || []).find((o) => o.t === t && o.px > 0 && /ejecutada/.test(o.estado) && Date.now() - Date.parse(o.ts) < 10 * 864e5);
@@ -560,10 +549,24 @@ function semanaMd(R, S, A, m) {
 
 // ---------- programa principal ----------
 async function main() {
-  const A = loadCfg(path.join(ROOT, "real-ajustes.json"));
+  const PW = env("REAL_VIEW_PASS");
+  const LC = await loadCfg(path.join(ROOT, "real-ajustes.json"), [PW, env("REAL_VIEW_PASS_OLD")]);
+  const A = LC.cfg;
   const now = new Date(), m = madrid(now);
+  if (!PW) {
+    // privacidad: sin contraseña no se lee ni se publica nada de la cuenta (el repositorio es público)
+    if (EVENT === "schedule" && !A.on) { log("Cartera real sin configurar: nada que hacer."); return; }
+    const msg = "Falta la contraseña de la cartera real (REAL_VIEW_PASS). Por privacidad el bot no consulta tu cuenta ni guarda nada hasta que la pongas en 💶 Real → Ajustes de la cartera real.";
+    log(msg); await ntfy("✖ Cartera real: falta la contraseña", msg, 4); await mail("✖ Cartera real: falta la contraseña", msg);
+    process.exitCode = 1; return;
+  }
+  if (LC.error) {
+    const msg = "No puedo leer los ajustes de la cartera real: la contraseña REAL_VIEW_PASS no coincide con la que los cifró. No opero.";
+    log(msg); await ntfy("✖ Cartera real: ajustes ilegibles", msg, 4); await mail("✖ Cartera real: ajustes ilegibles", msg);
+    process.exitCode = 1; return;
+  }
   let R;
-  try { R = await loadReal(); } catch (e) { if (A.on || EVENT !== "schedule") await ntfy("✖ Cartera real: error", String(e.message), 4); throw e; }
+  try { R = await loadReal(); } catch (e) { if (A.on || EVENT !== "schedule") { await ntfy("✖ Cartera real: error", String(e.message), 4); await mail("✖ Cartera real: error", String(e.message)); } throw e; }
   R.cfg = A;
   const rep = [], head = [];
   let botC = null;
@@ -714,6 +717,7 @@ async function main() {
     try { const ps = await T.call("GET", "/equity/positions"); R.positions = ps.map((p) => ({ t: p.instrument.ticker, name: p.instrument.name, cur: p.instrument.currency, isin: p.instrument.isin, q: p.quantity, qa: p.quantityAvailableForTrading, avg: p.averagePricePaid, px: p.currentPrice, val: p.walletImpact && p.walletImpact.currentValue, cost: p.walletImpact && p.walletImpact.totalCost, pnl: p.walletImpact && p.walletImpact.unrealizedProfitLoss, fx: p.walletImpact && p.walletImpact.fxImpact, desde: p.createdAt })); } catch {}
   } catch (e) {
     estado = "error"; titulo = "Error inesperado"; rep.push("✖ " + String((e && e.stack) || e).slice(0, 800));
+    log("Error inesperado (detalle en el informe cifrado)");
     aviso = { title: "✖ Cartera real: error", msg: String((e && e.message) || e).slice(0, 500), prio: 4 };
   } finally {
     if (!titulo) titulo = estado;
@@ -721,14 +725,25 @@ async function main() {
     try { const b = R.days.length ? getBot() : {}; resu = resumenMd(R, b.S, A); } catch {}
     const md = [...head, "", `## ${titulo}`, "", ...rep].join("\n") + "\n" + (resu ? resu + "\n" : "");
     let avTxt = "";
+    if (!aviso && A.avisos !== "importante") {
+      const x = (() => { try { return resumen(R, (R.days.length ? getBot() : {}).S, A); } catch { return null; } })();
+      const ex = {
+        normal: "Revisión diaria hecha.", foto: "Foto del valor de la cuenta guardada.", aprobar: "Tu aprobación se ha procesado.", rechazar: "Propuesta rechazada: no se ha enviado nada.",
+        probar: "Prueba de conexión hecha.", reanudar: "Pausa quitada: el bot vuelve a operar.",
+      }[tipo] || "Ejecución hecha.";
+      aviso = { title: `${estado === "error" ? "✖" : "💶"} Cartera real · ${titulo}`, msg: `${ex}${x ? `\nValor ${eur(x.v)}${x.res != null ? ` · ${x.res >= 0 ? "+" : ""}${eur(x.res)} (${pct(x.pct)})` : ""}` : ""}${R.lastPlan && tipo === "normal" && R.lastPlan.notas && R.lastPlan.notas.length ? "\n" + R.lastPlan.notas[R.lastPlan.notas.length - 1].slice(0, 200) : ""}`, prio: estado === "error" ? 4 : 2, tags: [] };
+    }
     if (aviso) {
       const n = A.movil || aviso.prio >= 5 || estado === "error" ? await ntfy(aviso.title, aviso.msg, aviso.prio, aviso.tags || []) : "· móvil apagado en ajustes";
       const c = A.correo || estado === "error" ? await mail(aviso.title, md) : "· correo apagado en ajustes";
       avTxt = `\n## Avisos\n- Móvil: ${n}\n- Correo: ${c}\n`;
     }
     R.reports.unshift({ id: now.toISOString().replace(/[:.]/g, "-") + "-" + tipo, ts: now.toISOString(), tipo, estado, titulo, md: md + avTxt });
-    try { if (env("GITHUB_STEP_SUMMARY")) appendFileSync(env("GITHUB_STEP_SUMMARY"), md + avTxt); } catch {}
-    console.log(md + avTxt);
+    // los registros de GitHub Actions son públicos: solo una línea sin datos (el informe completo va cifrado a la web y por correo)
+    const pub = `Cartera real · ${tipo} · ${estado} · informe guardado cifrado en la web${aviso ? " · avisos enviados" : ""}`;
+    try { if (env("GITHUB_STEP_SUMMARY")) appendFileSync(env("GITHUB_STEP_SUMMARY"), pub + "\n"); } catch {}
+    log(pub);
+    if (env("REAL_DEBUG_LOCAL") && !REPO) console.log(md + avTxt);   // solo en pruebas en el ordenador
     await publishReal(R);
     if (estado === "error") process.exitCode = 1;
   }
@@ -737,5 +752,5 @@ function oneLine(o) { return `${o.side === "COMPRA" ? "🟢 COMPRAR" : "🔴 VEN
 
 export { resolveMap, yahooSym, madrid, loadBot };
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((e) => { console.error("ERROR:", e); process.exit(1); });
+  main().catch((e) => { console.error("ERROR:", String((e && e.message) || e).slice(0, 300)); process.exit(1); });
 }
