@@ -83,7 +83,29 @@ Solo estos: la nueva función de informes individuales y la prueba histórica di
 
 Actions → «Actualización de precios…» (o «Prueba histórica diaria…») → abre las ejecuciones de esa noche. En el paso «¿Toca… en este disparo?» el registro dice la decisión y el motivo (por ejemplo «actualización ya hecha hoy» o «aún no ha pasado una hora desde el cierre»). Si no hay ninguna ejecución esa noche, es que GitHub descartó los 5 disparos: lanza «Run workflow» a mano y avísame para revisarlo.
 
-## Cambios de esta versión (v12) · privacidad total y avisos de todo
+## Cambios de esta versión (v13)
+
+### Arreglado: «No se pudo cargar la librería de cifrado»
+Para guardar claves en GitHub Secrets la web tiene que cifrarlas antes, y hasta ahora descargaba esa librería (libsodium) de un CDN; en algunos navegadores o en la APK no cargaba y no se podía guardar ninguna clave. Ahora el cifrado va **dentro de la propia web** (tweetnacl, de dominio público, + BLAKE2b), sin descargar nada. Verificado: la libsodium real (la que usa GitHub) abre todos los secretos que cifra la web. Arregla también el guardado de claves de ⚙️ Ajustes.
+
+### Vigilante: 5 métodos nuevos con estudios publicados, sin estar pendiente cada día
+Se retiran los 5 métodos intradía (arranque, hueco, ruptura, fuerza y caída en tendencia): no tenían evidencia y obligaban a mirar cada día. Los nuevos solo revisan su cartera en sus días, a partir de las 15:00 de Nueva York (21:00 en España). Si GitHub se salta la consulta de ese día, revisan en la siguiente.
+
+| Método | Revisa | Evidencia |
+|---|---|---|
+| Tendencia S&P 500 ×2 (SPY sobre su media de 200 → SSO; si no, efectivo) | lunes y jueves | Gayed y Bilello (2016), 1928-2015: Sharpe 0,51 frente a 0,30 del índice y mucho más capital final; caída máxima −78% |
+| Tendencia Nasdaq 100 ×2 (QQQ → QLD) | viernes | adaptación de la misma regla; menos estudiada |
+| Cerca del máximo de 52 semanas (8 acciones) | viernes | George y Hwang (2004), Journal of Finance |
+| Reversión semanal en las 100 mayores (5 que más caen) | viernes | de Groot, Huij y Zhou (2012): ~0,29% semanal neto 1990-2009; efecto debilitado después |
+| Fin de mes ×2 (SPY siempre; SSO del último día al 3.º del mes) | 2 veces al mes | Lakonishok y Smidt (1988), McConnell y Xu (2008); la combinación es nueva, sin probar |
+
+Ninguno garantiza batir al S&P 500 en el futuro: por eso se miden aquí con dinero ficticio. Si quieres, más adelante se pueden añadir a la prueba histórica.
+
+**Avisos:** cuando uno de estos métodos compra o vende, el turno del vigilante te manda un aviso al móvil y un correo con las operaciones (antes el vigilante no avisaba nunca, salvo errores).
+
+Archivos que cambian respecto a v12: `index.html` y `runner/runner.mjs`.
+
+## Cambios de la versión v12 · privacidad total y avisos de todo
 
 **Solo tú puedes ver la cartera real**, aunque la web y el repositorio sean públicos:
 - La **contraseña de la cartera** (`REAL_VIEW_PASS`) es **obligatoria**. Sin ella el bot no consulta tu cuenta ni guarda nada.
