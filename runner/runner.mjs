@@ -76,7 +76,9 @@ function sanitize(dump) {
     }
     idb[name] = { version: db.version, stores };
   }
-  return { v: 1, savedAt: Date.now(), ls, idb };
+  const secretNames = ["ALPACA_KEY", "TWELVEDATA_KEY", "POLYGON_KEY", "ALPHAVANTAGE_KEY", "FMP_KEY", "SMTP_USER", "SMTP_PASS", "EMAIL", "NTFY_TOPIC", "WEB3FORMS_KEY"];
+  const secrets = {}; for (const k of secretNames) secrets[k] = !!env(k);
+  return { v: 1, savedAt: Date.now(), ls, idb, meta: { secrets } };
 }
 
 // ---------- git: rama "data" con un único commit (no crece el historial) ----------
@@ -206,7 +208,15 @@ function loadAjustes() {
   bmax = Math.min(500, bmax);
   const cfg = {};
   if (a.cfg && typeof a.cfg === "object") for (const k of Object.keys(a.cfg)) if (Number.isFinite(+a.cfg[k])) cfg[k] = +a.cfg[k];
-  return { vigilante_min: vm, bt_max: bmax, cfg };
+  const main = typeof a.main === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(a.main) ? a.main : "";
+  const vgc = {};
+  if (a.vgc && typeof a.vgc === "object") {
+    const VL = { thr: [0.5, 50], top: [0, 300], trade: [0, 1] };
+    for (const k of Object.keys(VL)) { const v = +a.vgc[k]; if (a.vgc[k] != null && Number.isFinite(v) && v >= VL[k][0] && v <= VL[k][1]) vgc[k] = v; }
+  }
+  const mv = Math.round(+a.mins);
+  const mins = Number.isFinite(mv) && mv >= 2 && mv <= 60 ? mv : null;
+  return { vigilante_min: vm, bt_max: bmax, cfg, main, vgc, mins };
 }
 // número aleatorio de acciones: entre 200 y el máximo (si el máximo es menor de 200, se usa el máximo)
 function btCount(max) { const lo = Math.min(200, max); return lo + Math.floor(Math.random() * (max - lo + 1)); }
@@ -349,6 +359,27 @@ async function boot() {
       log("Ajustes de la web aplicados:", r.done.join(", ") || "sin cambios", r.bad.length ? "· rechazados (fuera de rango): " + r.bad.join(", ") : "");
     }
   } catch (e) { log("No se pudieron aplicar los ajustes de la web:", String(e.message).slice(0, 160)); }
+  // método principal, ajustes del vigilante y tiempo máximo por actualización (también vienen de la web)
+  try {
+    const A = loadAjustes();
+    const r = await page.evaluate(async ([main, vgc, mins]) => {
+      const done = [];
+      if (main && typeof STR === "object" && STR[main] && S.main !== main) {
+        S.main = main;
+        const B = (S.books || {})[S.main];
+        if (B && Array.isArray(S.days)) S.days.forEach((z) => { const y = B.days.find((d) => d.d === z.d); if (y) z.eq = y.eq; });
+        done.push("método principal=" + main); await save();
+      }
+      let vchg = false;
+      if (vgc.thr != null && VGC.thr !== vgc.thr) { VGC.thr = vgc.thr; vchg = true; done.push("vigilante.thr=" + vgc.thr); }
+      if (vgc.top != null && VGC.top !== vgc.top) { VGC.top = vgc.top; vchg = true; done.push("vigilante.top=" + vgc.top); }
+      if (vgc.trade != null && VGC.trade !== !!vgc.trade) { VGC.trade = !!vgc.trade; vchg = true; done.push("vigilante.trade=" + !!vgc.trade); }
+      if (vchg) vgSave();
+      if (mins) { const el = document.querySelector("#mins"); if (el) { el.value = String(mins); done.push("tiempo máximo=" + mins + " min"); } }
+      return done;
+    }, [A.main, A.vgc || {}, A.mins]);
+    if (r.length) log("Ajustes de la web aplicados (método/vigilante/tiempo):", r.join(", "));
+  } catch (e) { log("No se pudieron aplicar método/vigilante/tiempo:", String(e.message).slice(0, 160)); }
   await page.evaluate(() => {
     try { localStorage.setItem("pbt", String(Date.now())); } catch {}
     // seguimiento de reintentos automáticos de "Actualizar"
