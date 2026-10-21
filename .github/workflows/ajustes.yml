@@ -31,6 +31,18 @@ on:
         description: "Tiempo máximo por actualización en minutos (2-60; vacío = no cambiar)"
         type: string
         default: ""
+      capital:
+        description: "Capital inicial en € (100-1000000; vacío = no cambiar). OJO: si cambia, el bot REINICIA todas las cuentas con ese capital (archiva antes una copia)"
+        type: string
+        default: ""
+      extra:
+        description: "Otros ajustes en JSON: mon, mc, mv, nt (1/0) y fx (cambio €/$) (lo rellena la web; déjalo en {} si lo lanzas a mano)"
+        type: string
+        default: "{}"
+      avisos:
+        description: "Avisos en JSON: movil y correo (1 = enviar, 0 = no enviar; lo rellena la web; déjalo en {} si lo lanzas a mano)"
+        type: string
+        default: "{}"
 
 permissions:
   contents: write
@@ -53,6 +65,9 @@ jobs:
           MAIN: ${{ inputs.main }}
           VGCJ: ${{ inputs.vgc }}
           MINS: ${{ inputs.mins }}
+          AVJ: ${{ inputs.avisos }}
+          CAP: ${{ inputs.capital }}
+          EXJ: ${{ inputs.extra }}
         run: |
           node -e '
           const fs = require("fs");
@@ -63,9 +78,9 @@ jobs:
           if (!Number.isFinite(bm)) { console.error("El máximo debe ser un número"); process.exit(1); }
           bm = Math.max(200, Math.min(500, bm));
           // mismos rangos seguros que la app (LIM): lo que se salga se rechaza
-          const LIM = { slots: [1, 6], mrisk: [0.001, 0.03], dloss: [0.005, 0.1], ddstop: [0.02, 0.3], fee: [0, 5], slip: [0, 0.02], minpos: [10, 200], sweep: [0, 1], mode: [0, 2], buy: [0, 101], sell: [0, 100], risk: [0.001, 0.03], stop: [0.5, 6], stopS: [0.5, 4], trail: [0.5, 8], trailS: [0.5, 5], tp: [0, 0.5], maxd: [3, 120], posNote: [1, 100] };
+          const LIM = { slots: [1, 6], mrisk: [0.001, 0.03], dloss: [0.005, 0.1], ddstop: [0.02, 0.3], fee: [0, 5], slip: [0, 0.02], minpos: [10, 200], sweep: [0, 1] };
           let inCfg = {}; try { inCfg = JSON.parse(process.env.CFGJ || "{}"); } catch { console.error("cfg no es JSON válido"); process.exit(1); }
-          const cfg = Object.assign({}, a.cfg || {});
+          const cfg = {}; for (const k of Object.keys(a.cfg || {})) if (LIM[k]) cfg[k] = a.cfg[k]; // se descartan ajustes antiguos que ya no existen
           for (const k of Object.keys(inCfg)) {
             const v = +inCfg[k];
             if (!LIM[k] || !Number.isFinite(v) || v < LIM[k][0] || v > LIM[k][1]) { console.error("Parámetro rechazado: " + k + " = " + inCfg[k]); process.exit(1); }
@@ -91,6 +106,29 @@ jobs:
           const minsIn = (process.env.MINS || "").trim();
           if (minsIn) { const mv = Math.round(+minsIn); if (!Number.isFinite(mv) || mv < 2 || mv > 60) { console.error("Tiempo máximo fuera de rango (2-60): " + minsIn); process.exit(1); } out.mins = mv; }
           else if (a.mins) out.mins = a.mins;
+          // avisos: móvil y correo se pueden apagar (los errores siempre avisan)
+          let avIn = {}; try { avIn = JSON.parse(process.env.AVJ || "{}"); } catch { console.error("avisos no es JSON válido"); process.exit(1); }
+          const av = Object.assign({}, a.avisos || {});
+          for (const k of Object.keys(avIn)) {
+            const v = +avIn[k];
+            if (!["movil", "correo"].includes(k) || ![0, 1].includes(v)) { console.error("Aviso rechazado: " + k + " = " + avIn[k]); process.exit(1); }
+            av[k] = v;
+          }
+          if (Object.keys(av).length) out.avisos = av;
+          // capital inicial: el bot reinicia las cuentas la próxima vez que se ejecute si no coincide con el actual
+          const capIn = (process.env.CAP || "").trim();
+          if (capIn) { const cv = Math.round(+capIn); if (!Number.isFinite(cv) || cv < 100 || cv > 1000000) { console.error("Capital fuera de rango (100-1000000): " + capIn); process.exit(1); } out.capital = cv; }
+          else if (a.capital) out.capital = a.capital;
+          // otros: correo automático de la app (mon, mc, mv), notificaciones (nt) y cambio €/$ (fx)
+          let exIn = {}; try { exIn = JSON.parse(process.env.EXJ || "{}"); } catch { console.error("extra no es JSON válido"); process.exit(1); }
+          const XL = { mon: [0, 1], mc: [0, 1], mv: [0, 1], nt: [0, 1], fx: [0.3, 3] };
+          const ex = Object.assign({}, a.extra || {});
+          for (const k of Object.keys(exIn)) {
+            const v = +exIn[k];
+            if (!XL[k] || !Number.isFinite(v) || v < XL[k][0] || v > XL[k][1]) { console.error("Ajuste rechazado: " + k + " = " + exIn[k]); process.exit(1); }
+            ex[k] = v;
+          }
+          if (Object.keys(ex).length) out.extra = ex;
           fs.writeFileSync("ajustes.json", JSON.stringify(out, null, 2) + "\n");
           '
           cat ajustes.json
