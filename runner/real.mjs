@@ -491,7 +491,8 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
 async function placeMarket(T, t, qty, ext, rep, dec0) {
   let q = qty, dec = dec0 != null ? dec0 : 4;
   const fmt = (x, d) => Math.floor(x * 10 ** d) / 10 ** d;
-  for (let a = 0; a < 7; a++) {
+  let nf = 0;
+  for (let a = 0; a < 12; a++) {
     const qq = q > 0 ? fmt(q, dec) : -fmt(-q, dec);
     if (!qq) return { ok: false, err: `cantidad demasiado pequeña (${qty})` };
     try {
@@ -501,7 +502,8 @@ async function placeMarket(T, t, qty, ext, rep, dec0) {
       const b = String(e.body || e.message || "");
       // 400 = Trading 212 no la ha aceptado (no se ha enviado nada): se puede corregir y reintentar
       if (e.st === 400 && /precision/i.test(b) && dec > 0) { const m = b.match(/precision\D{0,12}(\d)/i); dec = m && +m[1] < dec ? +m[1] : dec - 1; rep.push(`  · ${t}: Trading 212 pide menos decimales; reintento con ${dec}`); continue; }
-      if (e.st === 400 && /insufficient|not enough|funds|balance/i.test(b) && q > 0 && a < 3) { q = q * 0.97; rep.push(`  · ${t}: no llega el efectivo por el precio; reintento con un 3% menos`); continue; }
+      // v21: Trading 212 pide algo de margen extra en las compras a mercado: se baja de 1% en 1% (antes 3%) para invertir lo máximo posible
+      if (e.st === 400 && /insufficient|not enough|funds|balance/i.test(b) && q > 0 && nf < 8) { nf++; q = q * 0.99; await sleep(1500); rep.push(`  · ${t}: Trading 212 pide algo más de margen; reintento con un 1% menos (intento ${nf})`); continue; }
       if (e.net || e.st === 408) {
         // respuesta perdida: puede que SÍ se haya enviado. No se repite a ciegas: se comprueba.
         await sleep(4000);
