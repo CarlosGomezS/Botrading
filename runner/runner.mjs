@@ -227,10 +227,19 @@ function loadAjustes() {
   }
   // recálculo único de las comisiones ya pagadas: lo pide la web / el flujo «Ajustes de la nube» con un identificador nuevo
   const recalc = a.recalc && typeof a.recalc.id === "string" && a.recalc.id.length > 0 && a.recalc.id.length <= 80 ? a.recalc.id : "";
-  return { vigilante_min: vm, bt_max: bmax, cfg, main, vgc, mins, avisos, capital, extra, recalc };
+  // ajustes de la prueba histórica (web → ajustes.json → bt)
+  const bt = { min: Math.min(200, bmax), max: bmax, excl: 0, ini: 1999, acc: 1, auto: 1, sim: [] };
+  if (a.bt && typeof a.bt === "object") {
+    for (const [k, lo, hi] of [["min", 10, 500], ["max", 10, 500], ["ini", 1999, 2022]]) { const v = Math.round(+a.bt[k]); if (Number.isFinite(v) && v >= lo && v <= hi) bt[k] = v; }
+    for (const k of ["acc", "auto"]) if ([0, 1].includes(+a.bt[k])) bt[k] = +a.bt[k];
+    { let v = Math.round(+a.bt.excl); if (v === 1) v = 12; if (Number.isFinite(v) && v >= 0 && v <= 40) bt.excl = v; }
+    if (Array.isArray(a.bt.sim)) bt.sim = a.bt.sim.filter((k) => typeof k === "string" && /^[A-Za-z0-9_-]{1,20}$/.test(k)).slice(0, 30);
+    if (bt.min > bt.max) bt.min = bt.max;
+  }
+  return { vigilante_min: vm, bt_max: bt.max, cfg, main, vgc, mins, avisos, capital, extra, recalc, bt };
 }
 // número aleatorio de acciones: entre 200 y el máximo (si el máximo es menor de 200, se usa el máximo)
-function btCount(max) { const lo = Math.min(200, max); return lo + Math.floor(Math.random() * (max - lo + 1)); }
+function btCount(max, min) { const lo = Math.min(min != null ? min : 200, max); return lo + Math.floor(Math.random() * (max - lo + 1)); }
 
 // ---------- avisos: móvil (ntfy) y correo (Web3Forms) ----------
 const REPO_PARTS = REPO ? REPO.split("/") : [];
@@ -368,6 +377,12 @@ async function boot() {
       if (r) log("Ajustes de la web aplicados:", r);
     }
   } catch (e) { log("No se pudo aplicar el capital:", String(e.message).slice(0, 160)); }
+  // métodos que el usuario pasó de la prueba histórica a la cartera ficticia (ajustes.json → bt.sim) y ajustes de la prueba
+  try {
+    const bt = loadAjustes().bt;
+    const r = await page.evaluate(async (o) => (typeof __API !== "undefined" && __API.setBt ? (await __API.setBt(o)).sim.join(",") : ""), bt);
+    if (r) log("Métodos pasados a la cartera ficticia:", r);
+  } catch (e) { log("No se pudieron aplicar los ajustes de la prueba:", String(e.message).slice(0, 160)); }
   // correo automático de la app, notificaciones y cambio €/$ (ajustes.json → extra)
   try {
     const ex = loadAjustes().extra || {};
@@ -485,9 +500,9 @@ async function main() {
       subj = "Bot Trading · Actualización diaria · " + rep.status;
       shortTxt = shortDaily(rep);
     } else if (MODE === "backtest") {
-      const n = btCount(AJ.bt_max);
-      log(`Prueba histórica diaria: ${n} acciones al azar (entre 200 y ${AJ.bt_max})`);
-      await page.evaluate((n) => { __API.setBtMax(n); }, n);
+      const n = btCount(AJ.bt.max, AJ.bt.min);
+      log(`Prueba histórica: ${AJ.bt.acc ? n + " acciones al azar (entre " + AJ.bt.min + " y " + AJ.bt.max + ")" : "sin acciones sueltas"}${AJ.bt.excl ? " · sin las " + AJ.bt.excl + " que más subieron" : ""} · desde ${AJ.bt.ini}`);
+      await page.evaluate(async (o) => { if (__API.setBt) await __API.setBt(o); else __API.setBtMax(o.n); }, { ...AJ.bt, n });
       await page.evaluate(() => { btRun(); });
       const MAX = Math.max(10 * 60e3, DEADLINE - Date.now() - 5 * 60e3);
       let lastPub = Date.now(), timedOut = false;
@@ -502,7 +517,7 @@ async function main() {
       }
       if (!timedOut && rep && rep.id && rep.status === "prueba-historica-completada") {
         const sum = await page.evaluate(() => __API.btSummary());
-        const head = `\n## Resumen de la prueba histórica de hoy\n\n- Acciones pedidas al azar: **${n}** (cada día se sortea un número entre 200 y el máximo ${AJ.bt_max})\n`;
+        const head = `\n## Resumen de la prueba histórica de hoy\n\n- Acciones pedidas al azar: **${AJ.bt.acc ? n : 0}** (entre ${AJ.bt.min} y ${AJ.bt.max})${AJ.bt.excl ? " · sin las " + AJ.bt.excl + " que más subieron" : ""} · desde ${AJ.bt.ini}\n`;
         await page.evaluate(([id, t]) => __API.prependToReport(id, t), [rep.id, head + sum]);
         rep = (await page.evaluate((s) => __API.newestReport(s), startIso)) || rep;
       }
