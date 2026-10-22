@@ -112,7 +112,7 @@ function gitShow(branch, file) {
   sh(`git -C "${ROOT}" fetch -q --depth 1 https://x-access-token:${TOKEN}@github.com/${REPO}.git ${branch}`);
   return sh(`git -C "${ROOT}" show FETCH_HEAD:${file}`);
 }
-const SECRET_NAMES = ["T212_KEY", "T212_SECRET", "REAL_VIEW_PASS", "NTFY_TOPIC", "SMTP_USER", "SMTP_PASS", "EMAIL"];
+const SECRET_NAMES = ["T212_KEY", "T212_SECRET", "REAL_VIEW_PASS", "NTFY_TOPIC", "SMTP_USER", "SMTP_PASS", "EMAIL", "TELEGRAM_TOKEN", "TELEGRAM_CHAT"];
 // El repositorio es PÚBLICO y los registros de GitHub Actions también: aquí nunca se escriben importes, posiciones ni tickers.
 function secretsMeta() { const o = {}; for (const k of SECRET_NAMES) o[k] = !!env(k); return o; }
 
@@ -650,6 +650,20 @@ async function ntfy(title, msg, prio = 3, tags = []) {
     return r.ok ? "✔ enviado al móvil" : "✖ ntfy HTTP " + r.status;
   } catch (e) { return "✖ ntfy: " + String(e.message).slice(0, 100); }
 }
+// Telegram: mensaje privado a TU chat (TELEGRAM_CHAT) desde TU bot (TELEGRAM_TOKEN). Si hay una propuesta pendiente, lleva botones
+// «Aprobar» / «Rechazar»: los recoge el flujo telegram.yml (cada ~5 min) y lanza esta misma cartera con aprobar/rechazar.
+async function tg(text, planId) {
+  const tok = env("TELEGRAM_TOKEN"), chat = env("TELEGRAM_CHAT");
+  if (!tok || !chat) return "· Telegram sin configurar";
+  try {
+    const kb = [];
+    if (planId) kb.push([{ text: "✅ Aprobar", callback_data: "ap:" + planId }, { text: "❌ Rechazar", callback_data: "re:" + planId }]);
+    if (SITE) kb.push([{ text: "🌐 Abrir la cartera real", url: SITE + "#real" }]);
+    const body = { chat_id: chat, text: String(text).slice(0, 3900), disable_web_page_preview: true, ...(kb.length ? { reply_markup: { inline_keyboard: kb } } : {}) };
+    const r = await fetch(`https://api.telegram.org/bot${tok}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+    return r.ok ? "✔ enviado a Telegram" + (planId ? " (con botones)" : "") : "✖ Telegram HTTP " + r.status + (r.status === 400 ? " (¿TELEGRAM_CHAT correcto?)" : r.status === 401 ? " (TELEGRAM_TOKEN no válido)" : "");
+  } catch (e) { return "✖ Telegram: " + String(e.message).slice(0, 100); }
+}
 async function mail(subject, text) {
   const user = env("SMTP_USER"), pass = env("SMTP_PASS");
   if (!user || !pass) return "✖ correo sin configurar (SMTP_USER / SMTP_PASS)";
@@ -907,7 +921,7 @@ async function main() {
       if (R.plan && R.plan.estado === "pendiente") { R.plan.estado = "sustituida"; R.planHist.unshift(R.plan); }
       R.plan = plan; R.lastNormal = m.date;
       titulo = `Propuesta pendiente de confirmar (${plan.orders.length} ${plan.orders.length === 1 ? "orden" : "órdenes"})`;
-      aviso = { title: "🟡 Cartera real: confirma estas órdenes", msg: plan.orders.map(oneLine).join("\n") + `\n\nMétodo: ${plan.metodoNombre}. Toca para abrir la web y pulsa «Aprobar y ejecutar».`, prio: 4, tags: ["warning"] };
+      aviso = { title: "🟡 Cartera real: confirma estas órdenes", msg: plan.orders.map(oneLine).join("\n") + `\n\nMétodo: ${plan.metodoNombre}. Apruébala con el botón de Telegram o en la web («Aprobar y ejecutar»).`, prio: 4, tags: ["warning"] };
       return;
     } else { titulo = plan.orders.length ? `En pausa: haría ${plan.orders.length} órdenes` : "En pausa · sin cambios"; R.lastNormal = m.date; return; }
 
@@ -959,7 +973,9 @@ async function main() {
       const dMsg = A.discreto ? "Detalle completo en tu correo y en la web (pestaña 💶 Real)." : aviso.msg;
       const n = A.movil || aviso.prio >= 5 || estado === "error" ? await ntfy(dTitle, dMsg, aviso.prio, aviso.tags || []) : "· móvil apagado en ajustes";
       const c = A.correo || estado === "error" ? await mail(aviso.title, md) : "· correo apagado en ajustes";
-      avTxt = `\n## Avisos\n- Móvil: ${n}\n- Correo: ${c}\n`;
+      const pend = R.plan && R.plan.estado === "pendiente" ? R.plan.id : null;
+      const tgt = A.telegram !== 0 || estado === "error" ? await tg(`${aviso.title}\n\n${aviso.msg}${pend ? "\n\nPulsa un botón: se procesa en 5-15 minutos y te contesto aquí." : ""}`, pend) : "· Telegram apagado en ajustes";
+      avTxt = `\n## Avisos\n- Móvil: ${n}\n- Correo: ${c}\n- Telegram: ${tgt}\n`;
     }
     R.reports.unshift({ id: now.toISOString().replace(/[:.]/g, "-") + "-" + tipo, ts: now.toISOString(), tipo, estado, titulo, md: md + avTxt });
     // los registros de GitHub Actions son públicos: solo una línea sin datos (el informe completo va cifrado a la web y por correo)
