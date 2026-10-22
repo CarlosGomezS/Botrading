@@ -3,7 +3,7 @@
 // Solo usa módulos de Node (no necesita instalar navegador), así que un disparo que no toca termina en segundos.
 // Escribe en $GITHUB_OUTPUT: daily=true|false y bt=true|false.
 import { execSync } from "node:child_process";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 
 const env = (k) => (process.env[k] || "").trim();
 const EVENT = env("GITHUB_EVENT_NAME") || "local";
@@ -50,7 +50,9 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop()
     d = { daily: true, bt: true, why: "no se pudo leer el estado anterior (" + String(e.message).split("\n")[0].slice(0, 100) + "): se ejecuta por seguridad" };
   }
   const which = (process.argv[2] || "daily") === "bt" ? "bt" : "daily";
-  const go = which === "bt" ? d.bt : d.daily;
+  let go = which === "bt" ? d.bt : d.daily;
+  // la prueba automática diaria se puede apagar desde la web (ajustes.json → bt.auto = 0); a mano siempre se ejecuta
+  if (which === "bt" && go && EVENT !== "workflow_dispatch") { try { const a = JSON.parse(readFileSync("ajustes.json", "utf8")); if (a.bt && +a.bt.auto === 0) { go = false; d.why += " · prueba automática apagada en los ajustes"; } } catch {} }
   console.log(`Decisión (${which === "bt" ? "prueba histórica" : "actualización de precios"}): ${go ? "SÍ toca" : "no toca"} · ${d.why}`);
   if (env("GITHUB_OUTPUT")) appendFileSync(env("GITHUB_OUTPUT"), `go=${go}\n`);
 }
