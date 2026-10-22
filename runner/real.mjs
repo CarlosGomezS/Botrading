@@ -299,19 +299,26 @@ export function ensureLedger(R, A, positions, m, notas) {
     for (const t of R.botTickers || []) { const p = byT[t]; if (p && +p.quantity > 0) R.ledger.lots[t] = { q: +p.quantity, cost: r2(+((p.walletImpact && p.walletImpact.totalCost) || 0)), d: m.date }; }
   }
   const L = R.ledger;
+  // v21: «Sumar mis ingresos al bot»: L.limBase = último «Dinero que trabaja el bot» que pusiste; L.auto = ingresos/retiradas sumados solos desde entonces
+  if (L.limite != null && L.limBase == null) { L.limBase = L.limite; L.auto = 0; }
   // capital: el ajuste manda. La primera vez se crea; después, cada cambio es una aportación (+) o retirada (−) del bot
   if (L.limite == null) {
     const cost = Object.values(L.lots).reduce((t, x) => t + x.cost, 0);
-    L.cap = A.limite; L.cash = r2(A.limite - cost); L.limite = A.limite;
+    L.cap = A.limite; L.cash = r2(A.limite - cost); L.limite = A.limite; L.limBase = A.limite; L.auto = 0;
     hist(R, { tipo: "capital", eur: A.limite, nota: `capital inicial del bot: ${eur(A.limite)}` }); flowAdd(R, m.date, A.limite);
-  } else if (Math.abs(A.limite - L.limite) > 0.004) {
+  } else {
+    // si cambias el ajuste, manda tu cifra (y se olvidan los ingresos sumados solos); si no, es tu cifra + lo ingresado/retirado desde entonces
+    let target;
+    if (Math.abs(A.limite - L.limBase) > 0.004) { L.limBase = A.limite; L.auto = 0; target = A.limite; } else target = r2(L.limBase + (L.auto || 0));
+    if (Math.abs(target - L.limite) > 0.004) {
     // al cambiar el ajuste, el bot pasa a trabajar con ESA cantidad: la diferencia con lo que vale ahora es lo que le das (+) o le quitas (−)
     const byT0 = Object.fromEntries(positions.map((p) => [p.instrument.ticker, p]));
     const eqNow = L.cash + Object.entries(L.lots).reduce((t, [tk, l]) => { const p = byT0[tk]; return t + (p ? Math.min(l.q, +p.quantity || 0) * unitVal(p) : 0); }, 0);
-    const dlt = r2(A.limite - eqNow);
-    L.cap = r2(L.cap + dlt); L.cash = r2(L.cash + dlt); L.limite = A.limite; R.applied = null;   // se recalcula la cartera entera con el dinero nuevo (el freno de pérdidas no se ve afectado: usa la rentabilidad)
-    hist(R, { tipo: dlt > 0 ? "aportación" : "retirada", eur: dlt, nota: `has cambiado el dinero que trabaja el bot a ${eur(A.limite)}: valía ${eur(eqNow)}, así que ${dlt >= 0 ? "le das" : "le quitas"} ${eur(Math.abs(dlt))}` }); flowAdd(R, m.date, dlt);
-    notas.push(`Has cambiado el dinero que trabaja el bot a ${eur(A.limite)}. Valía ${eur(eqNow)}: ${dlt >= 0 ? "le das" : "le quitas"} ${eur(Math.abs(dlt))}. Cuenta como ${dlt >= 0 ? "aportación" : "retirada"}, no como ganancia ni pérdida.`);
+    const dlt = r2(target - eqNow);
+    L.cap = r2(L.cap + dlt); L.cash = r2(L.cash + dlt); L.limite = target; R.applied = null;   // se recalcula la cartera entera con el dinero nuevo (el freno de pérdidas no se ve afectado: usa la rentabilidad)
+    hist(R, { tipo: dlt > 0 ? "aportación" : "retirada", eur: dlt, nota: `has cambiado el dinero que trabaja el bot a ${eur(target)}: valía ${eur(eqNow)}, así que ${dlt >= 0 ? "le das" : "le quitas"} ${eur(Math.abs(dlt))}` }); flowAdd(R, m.date, dlt);
+    notas.push(`Has cambiado el dinero que trabaja el bot a ${eur(target)}. Valía ${eur(eqNow)}: ${dlt >= 0 ? "le das" : "le quitas"} ${eur(Math.abs(dlt))}. Cuenta como ${dlt >= 0 ? "aportación" : "retirada"}, no como ganancia ni pérdida.`);
+    }
   }
   return L;
 }
@@ -819,6 +826,27 @@ async function main() {
     if ((R.pendBot || []).length) { rep.push("## Órdenes que estaban pendientes", ""); await reconcile(T, R, rep); rep.push(""); try { positions = (await T.call("GET", "/equity/positions")) || positions; } catch {} }
     syncLots(R, positions, m, notasL);
     R.positions = mapPos(positions, R); noteSeen(R, positions);
+    // v21: compras y ventas que haces TÚ en la app de Trading 212: se apuntan en el historial (las del bot ya están)
+    try {
+      const h = await T.call("GET", "/equity/history/orders?limit=50");
+      const items = ((h && h.items) || []).slice().reverse(), first = !R.seenOrd;
+      R.seenOrd = R.seenOrd || [];
+      const known = new Set([...(R.orders || []).map((o) => String(o.id)), ...(R.pendBot || []).map((o) => String(o.id)), ...R.seenOrd]), nuevas = [];
+      for (const it of items) {
+        const o = it.order || it, f = it.fill || {}, id = String(o.id || "");
+        if (!id || known.has(id)) continue;
+        known.add(id); R.seenOrd.push(id);
+        if (!/FILLED/.test(String(o.status || ""))) continue;
+        const q = +o.filledQuantity || +o.quantity || 0, sell = /SELL/i.test(String(o.side || "")) || q < 0, net = f.walletImpact ? Math.abs(+f.walletImpact.netValue || 0) : null;
+        const rec = { ts: f.filledAt || o.createdAt || now.toISOString(), d: String(f.filledAt || o.createdAt || now.toISOString()).slice(0, 10), side: sell ? "VENTA" : "COMPRA", t: o.ticker || (o.instrument && o.instrument.ticker) || "?", name: (o.instrument && o.instrument.name) || "", eur: net != null ? r2(net) : null, qty: Math.abs(q) || null, px: f.price || null, estado: "ejecutada", modo: "manual", why: first ? "hecha en la app de Trading 212 antes de usar el bot" : "hecha por ti en la app de Trading 212", id: o.id };
+        R.orders.unshift(rec); if (!first) nuevas.push(rec);
+      }
+      R.orders.sort((a, b) => (a.ts < b.ts ? 1 : -1)); R.seenOrd = R.seenOrd.slice(-5000);
+      if (nuevas.length) {
+        notasL.push(...nuevas.map((x) => `Has ${x.side === "COMPRA" ? "comprado" : "vendido"} tú en la app: ${x.t}${x.qty ? " · " + qtyTxt(x.qty) + " particip." : ""}${x.eur != null ? " · " + eur(x.eur) : ""}. ${x.side === "COMPRA" ? "Es tuyo: el bot no lo toca (sale como «Tuyas»)." : "Si eran participaciones del bot, se le descuentan."}`));
+        aviso = aviso || { title: `👤 Cartera real: ${nuevas.length === 1 ? "operación tuya" : nuevas.length + " operaciones tuyas"} en la app`, msg: notasL.slice(-nuevas.length).join("\n"), prio: 3 };
+      }
+    } catch (e) { rep.push("· No pude leer tu historial de órdenes de Trading 212: " + explainT212(e)); }
     // ingresos y retiradas de TU cuenta (no cambian el dinero del bot: para eso está «Dinero que trabaja el bot»)
     try {
       const prevNet = R.deposits ? R.deposits.net : null;
@@ -829,7 +857,13 @@ async function main() {
       if (prevNet != null && Math.abs(net - prevNet) > 0.004) {
         const d = r2(net - prevNet);
         R.cuenta = (R.cuenta || []); R.cuenta.unshift({ ts: now.toISOString(), eur: d, net: r2(net) });
-        notasL.push(d > 0 ? `Has ingresado ${eur(d)} en tu cuenta de Trading 212. El bot NO lo usa: sigue trabajando con ${eur(A.limite)} más sus ganancias. Si quieres que invierta también lo nuevo, sube «Dinero que trabaja el bot».` : `Has retirado ${eur(-d)} de tu cuenta de Trading 212. Si el efectivo libre queda por debajo del del bot, este usará solo lo que haya.`);
+        if (A.sumarIngresos !== 0 && R.ledger && R.ledger.limite != null) {
+          // v21: lo que ingresas (o retiras) en Trading 212 pasa al bot (o sale de él) automáticamente
+          const L = R.ledger, dd = d < 0 ? Math.max(d, -L.cap) : d;
+          L.auto = r2((L.auto || 0) + dd); L.cap = r2(L.cap + dd); L.cash = r2(L.cash + dd); L.limite = r2(L.limite + dd); R.applied = null;
+          hist(R, { tipo: dd > 0 ? "aportación" : "retirada", eur: dd, nota: dd > 0 ? `ingreso en Trading 212 sumado al bot (${eur(dd)})` : `retirada de Trading 212 descontada del bot (${eur(-dd)})` }); flowAdd(R, m.date, dd);
+          notasL.push(dd > 0 ? `Has ingresado ${eur(dd)} en tu cuenta de Trading 212: se suma al bot, que ahora trabaja con ${eur(L.limite)}. Lo invertirá según el método en esta misma revisión (cuenta como aportación, no como ganancia).` : `Has retirado ${eur(-dd)} de tu cuenta de Trading 212: se descuenta del bot, que ahora trabaja con ${eur(L.limite)}. Si no le llega el efectivo, venderá lo necesario.`);
+        } else notasL.push(d > 0 ? `Has ingresado ${eur(d)} en tu cuenta de Trading 212. El bot NO lo usa: sigue trabajando con ${eur(A.limite)} más sus ganancias. Si quieres que invierta también lo nuevo, sube «Dinero que trabaja el bot».` : `Has retirado ${eur(-d)} de tu cuenta de Trading 212. Si el efectivo libre queda por debajo del del bot, este usará solo lo que haya.`);
         aviso = { title: d > 0 ? `💶 Cartera real: has ingresado ${eur(d)}` : `💶 Cartera real: has retirado ${eur(-d)}`, msg: notasL[notasL.length - 1], prio: 3 };
       }
     } catch (e) { rep.push("· No pude leer los ingresos y retiradas (se usa el último dato): " + explainT212(e)); }

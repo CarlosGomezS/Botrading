@@ -13,6 +13,7 @@ export const DEF = {
   modo: "confirmar",  // confirmar = propone y esperas a aprobar · auto = ejecuta solo · pausa = solo mira
   metodo: "sect",     // clave interna del método · sect = Rotación de sectores, el único que ha batido al SPY en la prueba histórica
   limite: 100,        // € como máximo que gestiona el bot (aunque haya más dinero en la cuenta)
+  sumarIngresos: 1,   // 1 = lo que ingreses (o retires) en Trading 212 se suma (o se resta) solo al dinero del bot
   minOrden: 5,        // € · no envía órdenes más pequeñas
   umbral: 5,          // % del presupuesto: solo reajusta una posición si se desvía más que esto
   reserva: 2,         // % del presupuesto que se deja siempre en efectivo (margen de precio)
@@ -32,7 +33,7 @@ export const DEF = {
 };
 
 const NUM = { limite: [5, 100000], minOrden: [1, 1000], umbral: [1, 50], reserva: [0, 20], maxOrdenes: [1, 30], maxPerdida: [5, 90] };
-const BIN = ["on", "acciones", "movil", "telegram", "correo", "aceptoReal", "semanal", "discreto"];
+const BIN = ["on", "acciones", "movil", "telegram", "correo", "sumarIngresos", "aceptoReal", "semanal", "discreto"];
 const ENUM = { env: ["live", "demo"], modo: ["confirmar", "auto", "pausa"], divisa: ["eur", "cualquiera"], reajuste: ["revision", "desvio"], avisos: ["todo", "importante"] };
 
 // ---------- cifrado (mismo formato que la web): PBKDF2-SHA256 + AES-256-GCM ----------
