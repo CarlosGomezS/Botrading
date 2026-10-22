@@ -12,7 +12,7 @@ on:
         options: ["10", "15", "30", "60"]
         default: "30"
       bt_max:
-        description: "Prueba histórica diaria: MÁXIMO de acciones (200-500). Cada día se usa un número aleatorio entre 200 y este máximo"
+        description: "Prueba histórica: máximo de acciones (10-500), o los ajustes completos en JSON (lo rellena la web: min, max, excl, ini, acc, auto, sim)"
         type: string
         default: "300"
       cfg:
@@ -80,9 +80,29 @@ jobs:
           let a = {}; try { a = JSON.parse(fs.readFileSync("ajustes.json", "utf8")); } catch {}
           const vm = +process.env.VM;
           if (![10, 15, 30, 60].includes(vm)) { console.error("Intervalo no válido: " + process.env.VM); process.exit(1); }
-          let bm = Math.round(+process.env.BM);
-          if (!Number.isFinite(bm)) { console.error("El máximo debe ser un número"); process.exit(1); }
-          bm = Math.max(200, Math.min(500, bm));
+          // prueba histórica: un número (máximo de acciones) o un JSON con todos sus ajustes
+          const bt = Object.assign({}, a.bt || {});
+          const BMs = String(process.env.BM || "").trim();
+          let bm;
+          if (BMs.startsWith("{")) {
+            let j; try { j = JSON.parse(BMs); } catch { console.error("Ajustes de la prueba: JSON no válido"); process.exit(1); }
+            const BL = { min: [10, 500], max: [10, 500], ini: [1999, 2022], excl: [0, 40], acc: [0, 1], auto: [0, 1] };
+            for (const k of Object.keys(j)) {
+              if (k === "sim") {
+                if (!Array.isArray(j.sim) || j.sim.length > 30 || j.sim.some((x) => typeof x !== "string" || !/^[A-Za-z0-9_-]{1,20}$/.test(x))) { console.error("Lista de métodos para la ficticia no válida"); process.exit(1); }
+                bt.sim = [...new Set(j.sim)]; continue;
+              }
+              const v = Math.round(+j[k]);
+              if (!BL[k] || !Number.isFinite(v) || v < BL[k][0] || v > BL[k][1]) { console.error("Ajuste de la prueba rechazado: " + k + " = " + j[k]); process.exit(1); }
+              bt[k] = v;
+            }
+            if (bt.min != null && bt.max != null && bt.min > bt.max) bt.min = bt.max;
+            bm = bt.max != null ? bt.max : (+a.bt_max || 300);
+          } else {
+            bm = Math.round(+BMs);
+            if (!Number.isFinite(bm)) { console.error("El máximo debe ser un número"); process.exit(1); }
+            bm = Math.max(10, Math.min(500, bm)); bt.max = bm; if (bt.min != null && bt.min > bm) bt.min = bm;
+          }
           // mismos rangos seguros que la app (LIM): lo que se salga se rechaza
           const LIM = { slots: [1, 6], mrisk: [0.001, 0.03], dloss: [0.005, 0.1], ddstop: [0.02, 0.3], fee: [0, 5], slip: [0, 0.02], minpos: [10, 200], sweep: [0, 1] };
           let inCfg = {}; try { inCfg = JSON.parse(process.env.CFGJ || "{}"); } catch { console.error("cfg no es JSON válido"); process.exit(1); }
@@ -93,6 +113,7 @@ jobs:
             cfg[k] = v;
           }
           const out = { vigilante_min: vm, bt_max: bm };
+          if (Object.keys(bt).length) out.bt = bt;
           if (Object.keys(cfg).length) out.cfg = cfg;
           // método principal: solo una clave interna (la app comprueba que exista)
           const mainIn = (process.env.MAIN || "").trim();
