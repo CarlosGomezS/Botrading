@@ -669,8 +669,18 @@ async function tg(text, planId) {
     if (planId) kb.push([{ text: "✅ Aprobar", callback_data: "ap:" + planId }, { text: "❌ Rechazar", callback_data: "re:" + planId }]);
     if (SITE) kb.push([{ text: "🌐 Abrir la cartera real", url: SITE + "#real" }]);
     const body = { chat_id: chat, text: String(text).slice(0, 3900), disable_web_page_preview: true, ...(kb.length ? { reply_markup: { inline_keyboard: kb } } : {}) };
-    const r = await fetch(`https://api.telegram.org/bot${tok}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
-    return r.ok ? "✔ enviado a Telegram" + (planId ? " (con botones)" : "") : "✖ Telegram HTTP " + r.status + (r.status === 400 ? " (¿TELEGRAM_CHAT correcto?)" : r.status === 401 ? " (TELEGRAM_TOKEN no válido)" : "");
+    // v23: los fallos de red («fetch failed») suelen ser momentáneos: hasta 4 intentos (0, 3, 8 y 20 s)
+    let last = "";
+    for (const w of [0, 3000, 8000, 20000]) {
+      if (w) await sleep(w);
+      try {
+        const r = await fetch(`https://api.telegram.org/bot${tok}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
+        if (r.ok) return "✔ enviado a Telegram" + (planId ? " (con botones)" : "") + (w ? " (tras reintentar)" : "");
+        if (r.status === 400 || r.status === 401 || r.status === 403) return "✖ Telegram HTTP " + r.status + (r.status === 400 ? " (¿TELEGRAM_CHAT correcto?)" : r.status === 401 ? " (TELEGRAM_TOKEN no válido)" : " (¿has bloqueado a tu bot?)");
+        last = "HTTP " + r.status;
+      } catch (e) { last = String((e.cause && (e.cause.code || e.cause.message)) || e.message).slice(0, 100); }
+    }
+    return "✖ Telegram: " + last + " (4 intentos)";
   } catch (e) { return "✖ Telegram: " + String(e.message).slice(0, 100); }
 }
 async function mail(subject, text) {

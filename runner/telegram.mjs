@@ -4,10 +4,17 @@
 const env = (k) => (process.env[k] || "").trim();
 const TOK = env("TELEGRAM_TOKEN"), CHAT = env("TELEGRAM_CHAT"), GH = env("GITHUB_TOKEN"), REPO = env("GITHUB_REPOSITORY");
 const api = async (m, body) => {
-  const r = await fetch(`https://api.telegram.org/bot${TOK}/${m}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}), signal: AbortSignal.timeout(20000) });
-  const j = await r.json().catch(() => ({}));
-  if (!j.ok) throw new Error(`Telegram ${m}: HTTP ${r.status}`);
-  return j.result;
+  let last;
+  for (const w of [0, 3000, 8000]) {   // los fallos de red suelen ser momentáneos
+    if (w) await new Promise((ok) => setTimeout(ok, w));
+    try {
+      const r = await fetch(`https://api.telegram.org/bot${TOK}/${m}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}), signal: AbortSignal.timeout(20000) });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok) return j.result;
+      last = new Error(`Telegram ${m}: HTTP ${r.status}`); if (r.status < 500 && r.status !== 429) throw last;
+    } catch (e) { last = e; if (/HTTP 4/.test(String(e.message)) && !/429/.test(String(e.message))) throw e; }
+  }
+  throw last;
 };
 const say = (chat, text) => api("sendMessage", { chat_id: chat, text, disable_web_page_preview: true }).catch(() => {});
 
