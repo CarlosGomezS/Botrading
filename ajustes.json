@@ -1,6 +1,15 @@
 {
   "vigilante_min": 30,
-  "bt_max": 300,
+  "bt_max": 200,
+  "bt": {
+    "min": 100,
+    "max": 200,
+    "excl": 40,
+    "ini": 2000,
+    "acc": 1,
+    "auto": 1,
+    "sim": []
+  },
   "cfg": {
     "fee": 0.15
   },
