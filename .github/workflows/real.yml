@@ -10,11 +10,12 @@ name: Cartera real (Trading 212)
 #  - Foto del valor tras el cierre europeo (~17:47-18:47): solo guarda el valor de la cuenta para la gráfica.
 # Desde la web (botones de la pestaña Real) se lanza con una «accion»: aprobar, rechazar, probar, foto, reanudar o normal.
 on:
+  # GitHub no garantiza los disparos programados (a veces los retrasa horas o se los salta, sobre todo justo después de
+  # subir un archivo de flujo). Por eso hay uno cada media hora en horario de bolsa: si la revisión de hoy ya está hecha,
+  # terminan en segundos sin hacer nada.
   schedule:
-    - cron: "17 8 * * 1-5"
-    - cron: "17 9 * * 1-5"
-    - cron: "47 13 * * 1-5"
-    - cron: "47 14 * * 1-5"
+    - cron: "17 7-15 * * 1-5"
+    - cron: "47 7-14 * * 1-5"
     - cron: "47 16 * * 1-5"
   workflow_dispatch:
     inputs:
