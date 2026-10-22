@@ -28,12 +28,13 @@ const seur = (n) => { const v = r2(+n || 0); return (v > 0 ? "+" : v < 0 ? "−"
 const NOMBRES = {
   sect: "Rotación de sectores (Faber)", sectx: "Rotación ampliada (sectores + QQQ + SMH + IWM)", trq: "Tendencia QQQ de 10 meses (Faber)",
   dmu: "Dual Momentum EE. UU. (QQQ, SPY, IWM, SMH)", mix: "Mezcla 50/50: sectores + QQQ en tendencia",
+  smh: "Semiconductores en tendencia (SMH)", qld: "Nasdaq x2 con filtro de tendencia", aic: "Líderes de la IA en tendencia", aim: "Momentum de líderes tecnológicos", m10: "Momentum de acciones grandes (top 10)",
 };
 const DESC = {
   SPY: "S&P 500", QQQ: "Nasdaq 100", SMH: "Semiconductores", IWM: "Pequeñas empresas EE. UU.", XLK: "Sector tecnología", XLV: "Sector salud",
   XLE: "Sector energía", XLF: "Sector financiero", XLY: "Consumo discrecional", XLP: "Consumo básico", XLI: "Sector industrial", XLU: "Servicios públicos",
   XLB: "Materiales", XLC: "Comunicaciones", SHY: "Bonos EE. UU. 1-3 años", IEF: "Bonos EE. UU. 7-10 años", TLT: "Bonos EE. UU. 20+ años",
-  AGG: "Bonos agregados EE. UU.", GLD: "Oro", EFA: "Desarrollados ex-EE. UU.", EEM: "Emergentes", URTH: "MSCI World", VNQ: "Inmobiliario EE. UU.", DIA: "Dow Jones",
+  AGG: "Bonos agregados EE. UU.", GLD: "Oro", LQD: "Bonos de empresas EE. UU.", DBC: "Materias primas", XLRE: "Inmobiliario EE. UU.", SPHQ: "Calidad EE. UU.", SPMO: "Momentum EE. UU.", QLD: "Nasdaq 100 x2", TQQQ: "Nasdaq 100 x3", SSO: "S&P 500 x2", "BRK.B": "Berkshire Hathaway", EFA: "Desarrollados ex-EE. UU.", EEM: "Emergentes", URTH: "MSCI World", VNQ: "Inmobiliario EE. UU.", DIA: "Dow Jones",
 };
 
 // ---------- ETFs de EE. UU. → equivalentes UCITS (los ETFs de EE. UU. no se pueden comprar desde la UE) ----------
@@ -74,7 +75,19 @@ const PAT = {
   URTH: [/Core MSCI World/i, /MSCI World UCITS/i],
   VNQ: [/US Property Yield/i, /US Real Estate/i],
   DIA: [/Dow Jones Industrial Average/i],
+  // v19: más equivalentes para los métodos de la prueba histórica
+  XLRE: [/Real Estate.*Select Sector|Select Sector.*Real Estate/i, /S&P 500 Real Estate/i, /US Property Yield/i, /US Real Estate/i],
+  LQD: [/\$ Corp(?:orate)? Bond(?!.*(?:0-3|1-5|Short|Interest Rate))/i, /USD Corporate Bond/i],
+  DBC: [/Diversified Commodity/i, /Bloomberg Commodity(?! ex)/i, /Broad Commodit/i],
+  SPHQ: [/MSCI USA Quality Factor/i, /USA Quality/i],
+  SPMO: [/MSCI USA Momentum Factor/i, /USA Momentum/i],
+  // apalancados (ETPs europeos): solo si tu cuenta los tiene
+  QLD: [/Nasdaq[- ]?100.*\b2x\b|\b2x\b.*Nasdaq[- ]?100|Nasdaq[- ]?100 Daily \(2x\)/i],
+  TQQQ: [/Nasdaq[- ]?100.*\b3x\b|\b3x\b.*Nasdaq[- ]?100/i],
+  SSO: [/S&P 500.*\b2x\b|\b2x\b.*S&P 500/i],
 };
+// para estos se permiten productos apalancados o de permuta (swap), que el filtro general descarta
+const LEVOK = new Set(["QLD", "TQQQ", "SSO", "DBC"]), BADL = /Short|Inverse|Hedged|ESG/i;
 const BAD = /Hedged|Leverag|Short|Daily|\b[23]x\b|Equal|ESG|SRI|Paris|Screened|Swap|Covered Call|Buffer/i;
 const BASE_UNI = Object.keys(PAT);
 
@@ -241,7 +254,7 @@ function resolveMap(insts, syms, A) {
       const cands = [];
       insts.forEach((i) => {
         const nm = normName(i.name);
-        if (i.type !== "ETF" || BAD.test(nm)) return;
+        if (LEVOK.has(sym) ? BADL.test(nm) : (i.type !== "ETF" || BAD.test(nm))) return;
         const k = PAT[sym].findIndex((re) => re.test(nm)); if (k < 0) return;
         let sc = 1000 - k * 100;
         if ((ISIN_PREF[sym] || []).includes(i.isin)) sc += 150;
@@ -854,6 +867,12 @@ async function main() {
     if (tipo === "probar") {
       titulo = "Prueba de conexión con Trading 212 ✔";
       rep.push(`Conexión correcta con Trading 212 (${A.env === "demo" ? "demo" : "cuenta real"}). Divisa de la cuenta: ${acc.currency || "—"}.`, `Posiciones: ${positions.length} · órdenes pendientes: ${pending.length} · instrumentos disponibles: ${R.inst ? R.inst.n : "—"}.`, "", "## ¿Se puede operar todo lo que usa el bot?", "", mapTable(R.map));
+      // v19: qué productos de los métodos existen en TU cuenta (para saber qué métodos se pueden usar en real)
+      try {
+        const okS = Object.values(R.map).filter((x) => x.t), noS = Object.values(R.map).filter((x) => !x.t);
+        rep.push("", "## Productos disponibles en tu cuenta", "", `- Encontrados (${okS.length}): ` + okS.map((x) => `${x.sym} → ${x.short || x.t}`).join(", "),
+          `- No encontrados (${noS.length}): ` + (noS.map((x) => `${x.sym} (${x.why})`).join("; ") || "ninguno"), "");
+      } catch {}
       aviso = aviso || { title: "✔ Cartera real: conexión correcta con Trading 212", msg: `Cuenta ${eur(total)} · efectivo libre ${eur(cash)} · el bot trabaja con ${eur(R.ledger.cap)} · ${Object.values(R.map).filter((x) => x.t).length} de ${Object.keys(R.map).length} activos disponibles.`, prio: 3 };
       return;
     }
