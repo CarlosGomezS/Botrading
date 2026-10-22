@@ -310,6 +310,9 @@ details.rd>summary .rl-tp{white-space:nowrap;flex:none}
 .btsort{display:flex;gap:6px;align-items:center;margin:4px 0}.btsort select{width:auto;font-size:13px;padding:4px 8px}
 .btmore{width:100%;margin-top:4px}
 .btc .act{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}.btc .act button{font-size:13px;padding:6px 12px}
+
+.cpy{display:inline-flex;align-items:center;gap:4px;margin:6px 0 2px;padding:4px 10px;font-size:12px;font-family:ui-monospace,Menlo,monospace;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;width:auto}
+.cpy.ok{border-color:var(--go);color:var(--go)}
 </style></head><body><div class="w">
 <div><h1>Bot Trading Pro<span class="tag">PAPER TRADING · v57</span></h1><div class="m">Precios de mercado · simulación con capital ficticio de <span class="capT">500 €</span> · y en <b>💶 Real</b>, tu cartera de Trading 212 con dinero de verdad</div></div>
 <section class="tab" id="t-hoy">
@@ -2807,9 +2810,11 @@ function heroHtml(){const R=RL.R,a=A(),s=summary(),acc=(R&&R.account)||{},L=R&&R
 <div>${s?`<b class="${cls(s.res)}">${SG(s.res)} (${PC(s.pct)})</b> sobre los ${E(s.cap)} que le has dado · desde el ${esc(fd(s.d0))}`:"Aún sin historial"}</div>
 <div class="m">Método: <b>${esc(NOMB[a.metodo]||(STR[a.metodo]&&STR[a.metodo].n)||a.metodo||"—")}</b>${s?` · invertido ${E(s.invBot)} · efectivo del bot ${E(s.cashBot)} · ganancia ya cobrada en ventas ${SG(s.real)}`:""}</div>
 <div class="m">Tu cuenta de Trading 212 entera: <b>${E(tot)}</b> · efectivo libre ${E(+((acc.cash&&acc.cash.availableToTrade)||0))}${R&&R.deposits?" · ingresado neto "+E(R.deposits.net):""}${R&&R.last?" · último dato "+esc(dt(R.last)):""}</div></div>`}
+function isinOf(t,sym,pi){if(pi)return pi;const M=(RL.R&&RL.R.map)||{};if(sym&&M[sym]&&M[sym].t===t&&M[sym].isin)return M[sym].isin;const x=Object.values(M).find(z=>z&&z.t===t&&z.isin);return x?x.isin:""}
+const isinBtn=i=>i?`<button class="cpy" data-copy="${esc(i)}" title="Copiar el ISIN">ISIN ${esc(i)} 📋</button>`:"";
 function ordCard(o,canAct){const buy=o.side==="COMPRA";
  return`<div class="mi-card ${buy?"mi-buy":"mi-sell"}"><div class="mi-top"><div class="mi-t">${esc(o.t)}<small>${esc(o.name||"")}${o.sym?" · señal del bot: "+esc(o.sym)+" ("+esc(DESC[o.sym]||"")+")":""}</small></div><span class="mi-badge ${buy?"b-buy":"b-sell"}">${buy?"🟢 COMPRAR":"🔴 VENDER"}</span></div>
-<div class="mi-grid"><div><span>Importe aproximado</span><b>${ES(o.eur)}</b></div>${o.side==="VENTA"?`<div><span>Participaciones</span><b>${qtyT(o.qty)}${o.full?" (todo)":""}</b></div>`:""}</div><div class="mi-why">${esc(o.why||"")}</div></div>`}
+${isinBtn(isinOf(o.t,o.sym,o.isin))}<div class="mi-grid"><div><span>Importe aproximado</span><b>${ES(o.eur)}</b></div>${o.side==="VENTA"?`<div><span>Participaciones</span><b>${qtyT(o.qty)}${o.full?" (todo)":""}</b></div>`:""}</div><div class="mi-why">${esc(o.why||"")}</div></div>`}
 function planHtml(){const R=RL.R,P=R&&R.plan,LP=R&&R.lastPlan,c=C(),a=A();let h="";
  if(P&&P.estado==="pendiente"){
   h+=`<div class="mi-warn" style="background:var(--waitbg)">🟡 <b>Propuesta pendiente de tu confirmación</b> · ${esc(P.metodoNombre)} · calculada el ${esc(dt(P.ts))}. Caduca al terminar el día.</div>`;
@@ -2832,7 +2837,7 @@ function posHtml(){const R=RL.R;if(!R)return"";const acc=R.account||{},ps=R.posi
  h+=`<div class="kv"><div>Tu cuenta: efectivo libre<b>${E(cash)}</b></div><div>Tu cuenta: invertido<b>${E(inv)}</b></div><div>Órdenes pendientes<b>${(R.pending||[]).length}</b></div></div>`;
  if(L.cash>cash+0.5)h+=`<div class="mi-warn">El efectivo del bot (${E(L.cash)}) es mayor que el efectivo libre de tu cuenta (${E(cash)}): el bot solo usará ${E(cash)}. Si has sacado dinero, baja «Dinero que trabaja el bot».</div>`;
  h+=ps.length?`<div class="rl-pos">${ps.map(p=>{const u=p.q>0?p.val/p.q:0,bv=p.bq*u,uq=Math.max(0,p.q-p.bq),bp=bv-(p.botCost||0),bpp=p.botCost>0?bp/p.botCost*100:null;
-  return`<div><div class="rl-pt"><b>${esc(p.t)}</b><span>${ES(p.val)}</span></div><div class="m">${esc(p.name||"")} · precio ahora ${(+p.px).toFixed(2)} ${esc(p.cur||"")}</div>
+  return`<div><div class="rl-pt"><b>${esc(p.t)}</b><span>${ES(p.val)}</span></div><div class="m">${esc(p.name||"")} · precio ahora ${(+p.px).toFixed(2)} ${esc(p.cur||"")}</div>${isinBtn(isinOf(p.t,null,p.isin))}
   ${p.bq>0?`<div class="rl-pt m"><span>🤖 <b>Del bot:</b> ${qtyT(p.bq)} particip. · costó ${E(p.botCost||0)} · vale ${E(bv)}</span><b class="${cls(bp)}" style="font-size:14px">${E2(bp)}${bpp!=null?" ("+P2(bpp)+")":""}</b></div>`:""}
   ${uq>1e-6?`<div class="m">👤 <b>Tuyas</b> (el bot no las toca): ${qtyT(uq)} particip. · valen ${E(uq*u)}</div>`:""}</div>`}).join("")}</div>`:'<div class="m">No hay nada comprado en tu cuenta: todo está en efectivo.</div>';
  const pb=R.pendBot||[];if(pb.length)h+=`<div class="mi-warn">⏳ Órdenes del bot pendientes en Trading 212 (se comprueban y apuntan en la próxima ejecución): ${pb.map(o=>esc(o.side+" "+o.t+" · "+qtyT(o.qty)+" particip. · enviada "+dt(o.ts))).join(" · ")}</div>`;
@@ -2860,7 +2865,7 @@ function metHtml(){const a=A(),cur=a.metodo,ks=Object.keys(STR||{});if(!ks.lengt
 function mapHtml(){const M=(RL.R&&RL.R.map)||{},xs=Object.values(M).sort((a,b)=>a.sym.localeCompare(b.sym));
  if(!xs.length)return'<div class="m">Aún no se ha comprobado. Pon tus claves de Trading 212 y pulsa <b>«Probar conexión»</b>: el bot descarga la lista de instrumentos de tu cuenta y te dice, uno por uno, con qué ETF europeo se compra cada activo.</div>';
  const used=new Set([].concat(...Object.keys(STR||{}).map(k=>UNI[k]||[])));
- const tr=x=>`<tr><td><b>${esc(x.sym)}</b> <span class="m">${esc(DESC[x.sym]||"")}</span></td><td>${x.t?"✔ "+esc(x.t)+'<br><span class="m">'+esc(x.name||"")+(x.isin?" · "+esc(x.isin):"")+"</span>":"✖ "+'<span class="m">'+esc(x.why||"")+"</span>"}</td><td>${esc(x.cur||"—")}</td></tr>`;
+ const tr=x=>`<tr><td><b>${esc(x.sym)}</b> <span class="m">${esc(DESC[x.sym]||"")}</span></td><td>${x.t?"✔ "+esc(x.t)+'<br><span class="m">'+esc(x.name||"")+"</span>"+(x.isin?"<br>"+isinBtn(x.isin):""):"✖ "+'<span class="m">'+esc(x.why||"")+"</span>"}</td><td>${esc(x.cur||"—")}</td></tr>`;
  const a=xs.filter(x=>used.has(x.sym)),b=xs.filter(x=>!used.has(x.sym));
  return'<div class="m">Los ETFs de EE. UU. (XLK, QQQ…) <b>no se pueden comprar desde España</b> (normativa europea PRIIPs): el bot compra el ETF europeo (UCITS) que sigue el mismo índice. La señal sale del ETF de EE. UU.; la orden, del europeo.</div><div class="tw"><table><tr><th>Activo del bot</th><th>Se compra en Trading 212</th><th>Divisa</th></tr>'+a.map(tr).join("")+"</table></div>"+(b.length?'<details class="rd"><summary>Otros activos comprobados (no los usa ningún método actual): '+b.length+'</summary><div class="rb"><div class="tw"><table>'+b.map(tr).join("")+"</table></div></div></details>":"")+
  (RL.R.inst?'<div class="m">Lista de instrumentos de Trading 212 del '+esc(dt(RL.R.inst.at))+" ("+RL.R.inst.n+" instrumentos). Si prefieres otro ETF para algún activo, ponlo en «Sustituciones manuales» de los ajustes.</div>":"")}
@@ -3015,4 +3020,6 @@ setInterval(()=>{const t=$r("#t-real");if(t&&t.classList.contains("on")&&!docume
 let rz=null;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{const t=$r("#t-real");if(t&&t.classList.contains("on")&&RL.R){const ch=$r("#rl-ch");if(ch){ch.innerHTML=chartHtml();chartBind()}}},250)});
 })();
 </script>
-</body></html>
+<script>document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&e.target.closest(".cpy[data-copy]");if(!b)return;e.preventDefault();e.stopPropagation();const v=b.dataset.copy,old=b.textContent;
+ try{await navigator.clipboard.writeText(v)}catch(_){try{const t=document.createElement("textarea");t.value=v;document.body.appendChild(t);t.select();document.execCommand("copy");t.remove()}catch(__){}}
+ b.textContent="✔ Copiado: "+v;b.classList.add("ok");setTimeout(()=>{b.textContent=old;b.classList.remove("ok")},1800)},true);</script></body></html>
