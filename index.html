@@ -1,5 +1,5 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="theme-color" content="#e9f1f3" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#080e16" media="(prefers-color-scheme: dark)"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Bot Trading Pro v55 · 5 métodos sin bonos</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="theme-color" content="#eef2fb" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#0c1224" media="(prefers-color-scheme: dark)"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Bot Trading v55 · 5 métodos sin bonos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f3f4f2;--panel:#fff;--ink:#1a2220;--muted:#5d6966;--line:#d9dedb;--acc:#0f6b5c;--accink:#fff;--go:#147a3e;--gobg:#e3f3e8;--stop:#b3261e;--stopbg:#fbe5e3;--wait:#9a6400;--waitbg:#fbf0d9;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121816;--panel:#1a2220;--ink:#e6ebe9;--muted:#9aa7a3;--line:#2c3633;--acc:#4fbfa8;--accink:#0c1312;--go:#5fd38a;--gobg:#173323;--stop:#ff8a80;--stopbg:#3a1a18;--wait:#f0b44a;--waitbg:#33280f;color-scheme:dark}}
@@ -313,15 +313,113 @@ details.rd>summary .rl-tp{white-space:nowrap;flex:none}
 
 .cpy{display:inline-flex;align-items:center;gap:4px;margin:6px 0 2px;padding:4px 10px;font-size:12px;font-family:ui-monospace,Menlo,monospace;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;width:auto}
 .cpy.ok{border-color:var(--go);color:var(--go)}
+
+/* ===== v61 · REESTRUCTURA: lo importante arriba, el detalle plegado ===== */
+header.top{display:flex;align-items:center;gap:12px;padding:2px 2px 0}
+header.top .brand{display:grid;gap:2px;min-width:0}
+header.top h1{font-size:clamp(22px,6vw,26px);gap:10px}
+header.top h1::before{width:36px;height:36px;border-radius:12px;background-size:cover}
+header.top .tag{font-size:10.5px;padding:1px 8px;opacity:.85}
+header.top .m{font-size:12.5px;line-height:1.4}
+.rl-sep{font-family:var(--fd);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:6px 4px 0;display:flex;align-items:center;gap:10px}
+.rl-sep::after{content:"";flex:1;height:1px;background:var(--line)}
+details.fold>summary{font-family:var(--fd);font-size:15px;font-weight:700;letter-spacing:-.005em;text-transform:none;color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:10px}
+details.fold>summary::after{float:none;flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:16px;background:color-mix(in srgb,var(--acc) 12%,transparent);color:var(--acc)}
+.rl-act .rl-st:empty{display:none}
+.rl-act .rl-st{padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--acc) 10%,transparent)}
+details.rl-minor{background:transparent;border-style:dashed}
+details.rl-minor>summary{color:var(--muted)}
+.steps{display:grid;gap:10px}
+.step{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;font-size:14px;line-height:1.5}
+.step>b{width:34px;height:34px;border-radius:12px;display:grid;place-items:center;color:#fff;font-family:var(--fd);background:linear-gradient(135deg,var(--g1),var(--g2))}
+.hlp .m{font-size:13.5px;line-height:1.65}
+/* ajustes de la cartera real: más compactos */
+details[data-o="cfg"] .kv{gap:8px}
+details[data-o="cfg"] .kv>div{padding:10px 12px;border-radius:14px;font-size:12.5px}
+details[data-o="cfg"] .kv>div select,details[data-o="cfg"] .kv>div input:not([type=checkbox]){width:100%;margin-top:4px}
+details[data-o="cfg"] .kv>div .m{font-size:11.5px!important;line-height:1.45}
+@media (max-width:480px){.p{padding:16px}details.fold>summary{padding:14px 16px}details.fold>.fb{padding:0 16px 16px}}
+
+.rk{gap:8px!important}
+.rk-c{gap:10px;padding:10px 12px;border-radius:14px}
+.rk-n{font-size:18px;min-width:24px}
+.rk-t b{font-size:14px;line-height:1.3}
+.rk-t small{font-size:11.5px;line-height:1.35}
+.rk-g{font-size:17px}.rk-g small{font-size:11px}
+#t-hoy #nx{font-size:12.5px;line-height:1.5}
+
+/* ===== v62 · «La libreta del inversor»: azul tinta, verde euro y oro de billete =====
+   Lo memorable es la tarjeta del dinero (como un billete); todo lo demás, tranquilo y legible. */
+:root{--fd:"Unbounded","Onest",system-ui,sans-serif;--fb:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
+--bg:#eef2fb;--panel:#ffffff;--ink:#16213e;--muted:#5b6788;--line:#dde3f2;--acc:#1a7f5a;--accink:#16213e;
+--go:#118a5c;--gobg:#dcf5ea;--stop:#d1495b;--stopbg:#fde4e8;--wait:#9a5b00;--waitbg:#fff1cf;
+--g1:#ffd166;--g2:#ffb347;--gold:#ffd166;--note:#16213e;--note2:#1f2f5c;--shadow:0 1px 0 rgba(22,33,62,.04),0 10px 28px -22px rgba(22,33,62,.45)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c1224;--panel:#141c33;--ink:#eef1fb;--muted:#97a3c4;--line:#243055;--acc:#5fdca8;--accink:#16213e;--go:#5fdca8;--gobg:#123528;--stop:#ff7a8a;--stopbg:#3a1822;--wait:#ffc857;--waitbg:#3a2c0e;--note:#1a2650;--note2:#24356e;--shadow:0 10px 28px -20px rgba(0,0,0,.7)}}
+:root[data-theme="dark"]{--bg:#0c1224;--panel:#141c33;--ink:#eef1fb;--muted:#97a3c4;--line:#243055;--acc:#5fdca8;--accink:#16213e;--go:#5fdca8;--gobg:#123528;--stop:#ff7a8a;--stopbg:#3a1822;--wait:#ffc857;--waitbg:#3a2c0e;--note:#1a2650;--note2:#24356e;--shadow:0 10px 28px -20px rgba(0,0,0,.7)}
+body{font-family:var(--fb);font-weight:450;background:var(--bg);letter-spacing:0}
+body::before{background:radial-gradient(700px 380px at 100% -80px,color-mix(in srgb,var(--gold) 22%,transparent),transparent 70%),radial-gradient(640px 420px at -10% 0,color-mix(in srgb,var(--acc) 12%,transparent),transparent 70%)}
+/* cabecera */
+header.top h1{font-family:var(--fd);font-weight:700;letter-spacing:-.02em;font-size:clamp(21px,5.6vw,25px)}
+header.top h1::before{background:var(--note) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M8 24l7-7 5 4 8-10' fill='none' stroke='%23ffd166' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/26px no-repeat;box-shadow:none}
+header.top .tag{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:600}
+/* títulos */
+h2{font-family:var(--fb);font-size:16.5px;font-weight:750;letter-spacing:-.01em;color:var(--ink)}
+h2::before{display:none}
+/* tarjetas: planas y tranquilas */
+.p{border-radius:22px;border:1px solid var(--line);box-shadow:var(--shadow);background:var(--panel)}
+details.fold{border-radius:20px;border:1px solid var(--line);box-shadow:var(--shadow)}
+details.fold>summary{font-family:var(--fb);font-size:15.5px;font-weight:700}
+details.fold>summary::after{background:color-mix(in srgb,var(--gold) 30%,transparent);color:var(--ink)}
+details.rd{border-radius:14px;background:color-mix(in srgb,var(--line) 28%,transparent);border-color:transparent}
+.m{color:var(--muted)}
+/* EL BILLETE: la tarjeta del dinero */
+.hero{color:#fff;border:0;border-radius:28px;background:
+ repeating-radial-gradient(circle at 112% -12%,transparent 0 13px,rgba(255,209,102,.10) 13px 14px),
+ repeating-radial-gradient(circle at -14% 118%,transparent 0 11px,rgba(95,220,168,.08) 11px 12px),
+ linear-gradient(150deg,var(--note2),var(--note) 60%);
+ box-shadow:inset 0 0 0 1px rgba(255,209,102,.28),inset 0 0 0 7px var(--note),inset 0 0 0 8px rgba(255,209,102,.18),0 22px 40px -26px rgba(22,33,62,.8)}
+.hero::before,.hero::after{display:none}
+.hero h2{color:var(--gold);font-weight:700;opacity:1}
+.hero .big{font-family:var(--fd);font-weight:600;letter-spacing:-.03em;text-shadow:none;color:#fff;font-size:clamp(36px,11vw,50px)}
+.hero .m{color:#d9def0;opacity:1}
+.hero .up{color:#7ef0bd}.hero .dn{color:#ffa3ae}
+.hero details.msel{background:rgba(255,255,255,.08);border-color:rgba(255,209,102,.35)}
+.hero .mi-badge,.hero .badge{border:1px solid rgba(255,255,255,.18)}
+/* números */
+.kv div{background:color-mix(in srgb,var(--line) 26%,transparent);border:0;border-radius:16px}
+.kv b{font-family:var(--fb);font-weight:750;font-size:19px;letter-spacing:-.01em}
+.chh b,.rk-g,.btc .pa{font-family:var(--fb);font-weight:800;letter-spacing:-.02em}
+.chip{background:color-mix(in srgb,var(--line) 26%,transparent);border:0}
+/* botones */
+button{font-family:var(--fb);font-weight:650;border-radius:14px}
+button.go,.rl-act button.go{background:var(--gold);color:#16213e;border:0;box-shadow:0 10px 22px -14px rgba(255,179,71,.9);font-family:var(--fb);font-weight:800}
+button.go:hover:not([disabled]){background:#ffc94d;box-shadow:0 12px 24px -12px rgba(255,179,71,.95)}
+.pills button.on,.btf button.on{background:var(--ink);color:var(--panel);box-shadow:none}
+.pills button,.btf button{background:color-mix(in srgb,var(--line) 40%,transparent);border-color:transparent}
+.step>b{background:var(--gold);color:#16213e;font-family:var(--fd);font-weight:600}
+/* ranking: el primero lleva el oro */
+.rk-c{background:var(--panel);border:1px solid var(--line)}
+.rk-c:first-child{border:1.5px solid var(--gold);background:color-mix(in srgb,var(--gold) 12%,var(--panel))}
+.btc{border-color:var(--line)}
+.bdg.ok,.b-buy{background:var(--gobg);color:var(--go)}
+/* barra de abajo */
+#nav{background:color-mix(in srgb,var(--panel) 92%,transparent);border:1px solid var(--line);box-shadow:0 18px 40px -18px rgba(22,33,62,.45)}
+#nav button.on{color:var(--ink);background:color-mix(in srgb,var(--gold) 38%,transparent)}
+#nav button span{filter:saturate(.9)}
+.rl-sep{font-family:var(--fb);letter-spacing:.02em;text-transform:none;font-size:13px;color:var(--muted)}
+.rl-sep::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--gold)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.hero-mood{font-size:14px;font-weight:600;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,209,102,.25);border-radius:14px;padding:8px 12px;line-height:1.4}
 </style></head><body><div class="w">
-<div><h1>Bot Trading Pro<span class="tag">PAPER TRADING · v60</span></h1><div class="m">Precios de mercado · simulación con capital ficticio de <span class="capT">500 €</span> · y en <b>💶 Real</b>, tu cartera de Trading 212 con dinero de verdad</div></div>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v62</span></h1><div class="m">Tu cartera real en Trading 212, la ficticia para probar y las pruebas con 26 años de datos.</div></div></header>
 <section class="tab" id="t-hoy">
-<div class="p" id="chpanel"><div class="chtop"><h2>Rendimiento</h2><button id="chtog" type="button">⤢ Agrandar</button></div><div id="ch"></div></div>
-<div class="p hero"><h2>Tu cartera ficticia hoy</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
-<div class="p" id="mi-panel"><h2>Qué hacer con esta cartera</h2><div id="mi-box"></div></div>
-<details class="fold" id="hd-pos"><summary>Lo que tiene comprado</summary><div class="fb"><div class="kv" id="kv"></div><div class="tw" id="pos"></div></div></details>
-<details class="fold" id="hd-tr"><summary>Historial de operaciones</summary><div class="fb"><div id="tr"></div></div></details>
+<div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
+<div class="p" id="chpanel"><div class="chtop"><h2>Rendimiento</h2><button id="chtog" type="button">⤢ Agrandar</button></div><div id="ch"></div></div>
+<details class="fold" id="hd-mi"><summary>📋 Qué tiene y qué ha hecho el método elegido</summary><div class="fb"><div id="mi-panel"><div id="mi-box"></div></div></div></details>
+<details class="fold" id="hd-pos"><summary>💼 Lo que tiene comprado</summary><div class="fb"><div class="kv" id="kv"></div><div class="tw" id="pos"></div></div></details>
+<details class="fold" id="hd-tr"><summary>🧾 Historial de operaciones</summary><div class="fb"><div id="tr"></div></div></details>
 <div class="p"><div class="m" id="nx"></div><button class="go" id="run">Actualizar precios y que el bot decida</button><div class="m" id="st">Cargando…</div></div>
 <div class="p adv"><h2>Qué ha hecho el bot (en cristiano)</h2><div id="ev"></div></div>
 <div class="adv"><div id="sel-cart"></div><div id="rk"></div></div>
@@ -353,15 +451,15 @@ details.rd>summary .rl-tp{white-space:nowrap;flex:none}
 <div class="p"><h2>Informes y descargas</h2><div class="m"><b>Cada informe con fecha y hora</b> tiene su .md y su .json con todos sus datos: en la prueba histórica, todas las operaciones y la curva diaria de cada método y tramo; en una actualización, las cotizaciones, las señales, las carteras objetivo, las operaciones y el diagnóstico de ese día. <b>«Informe GENERAL de todo»</b> descarga todo junto: todos los informes, las cuentas con todas sus operaciones y curvas, el vigilante de todos los días y, si quieres, las velas de precios. «Informe completo» junta en un solo archivo todos los informes archivados de todas las fechas y horas. Cada informe individual (más abajo) descarga solo el de esa fecha y hora. «Estado actual del bot» lleva todo lo que hace el bot ahora mismo, sus resultados y la prueba histórica: súbelo a la conversación para mejorar el bot.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="ej">Descargar informes (.json)</button><button id="im">Importar informes (.json)</button><button id="vaciarInf">Vaciar todos los informes</button><button id="fr">Descargar informe completo (todos los informes, .md)</button><button id="fs">Estado actual del bot (.md)</button><button id="fgm">Informe GENERAL de todo (.md)</button><button id="fgj">Informe GENERAL de todo (.json)</button><textarea id="ta" readonly style="display:none;width:100%;height:160px;font-size:12px"></textarea><input id="imf" type="file" accept=".json" hidden></div><div class="m">Historial automático: cada intento de actualización se guarda con fecha y hora, estado, fecha de mercado y una copia del informe. Se conserva separado de la cartera activa.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rref">Actualizar lista</button></div><div id="rlist"><div class="m">Cargando historial…</div></div></div>
 </section>
 <section class="tab" id="t-vigia">
-<div class="p"><h2>Vigilante · métodos semanales y de 2-3 días</h2><div class="m">El vigilante prueba, cada uno con su cuenta ficticia de <span class="capT">500 €</span>, <b>5 métodos con estudios publicados</b> que solo revisan su cartera <b>los lunes y jueves, los viernes o a fin de mes</b>, siempre a partir de las 15:00 de Nueva York (21:00 en España), una hora antes del cierre. Entre revisiones no hacen nada, así que no hay que estar pendiente: si alguno compra o vende, te llega un aviso. Los 5 métodos intradía anteriores (arranque, hueco, ruptura, fuerza y caída en tendencia) se han retirado porque no tenían evidencia. Que un método funcionara en el pasado no garantiza que funcione ahora: por eso se prueban aquí con dinero ficticio antes de usarlos de verdad.</div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button id="vgb">▶ Iniciar vigilancia</button><button id="vgs">Consultar ahora</button>
+<div class="p"><h2>👁️ Vigilante · métodos de revisión semanal</h2><details class="rd"><summary><span>ℹ️ Qué es el vigilante y cómo revisa</span></summary><div class="rb"><div class="m">El vigilante prueba, cada uno con su cuenta ficticia de <span class="capT">500 €</span>, <b>5 métodos con estudios publicados</b> que solo revisan su cartera <b>los lunes y jueves, los viernes o a fin de mes</b>, siempre a partir de las 15:00 de Nueva York (21:00 en España), una hora antes del cierre. Entre revisiones no hacen nada, así que no hay que estar pendiente: si alguno compra o vende, te llega un aviso. Los 5 métodos intradía anteriores (arranque, hueco, ruptura, fuerza y caída en tendencia) se han retirado porque no tenían evidencia. Que un método funcionara en el pasado no garantiza que funcione ahora: por eso se prueban aquí con dinero ficticio antes de usarlos de verdad.</div></div></details>
+<details class="rd"><summary><span>⚙️ Controles de vigilancia en este dispositivo</span></summary><div class="rb"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button id="vgb">▶ Iniciar vigilancia</button><button id="vgs">Consultar ahora</button>
 <label class="m">Cada <select id="vgi"><option value="10">10 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label>
 <label class="m" style="display:none">Subida mínima hoy (%) <input id="vgt" type="number" step="0.5" min="0.5" value="3" style="width:70px"></label>
 <label class="m" style="display:none">Acciones a vigilar <input id="vgn" type="number" min="0" max="300" placeholder="auto" style="width:80px"></label></div>
 <label class="m"><input type="checkbox" id="vgw" checked style="width:auto"> Evitar que el ordenador apague la pantalla mientras vigila</label>
 <label class="m"><input type="checkbox" id="vgx" checked style="width:auto"> Comprar y vender en las cuentas ficticias de los métodos (si lo desmarcas, solo calcula y avisa)</label>
 <label class="m"><input type="checkbox" id="vge" style="width:auto"> Tras el cierre del mercado, ejecutar también la actualización diaria (el bot decide y registra sus operaciones ficticias)</label>
-<div id="vgo"></div><div id="vgx2"></div></div>
+</div></details><div id="vgo"></div><div id="vgx2"></div></div>
 <div class="p"><h2>Registros e informes</h2><div class="m" id="vgl">—</div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="vgd"></select><button id="vgrd">⬇ Informe del día</button><button id="vgrt">⬇ Informe total</button><button id="vgrj">⬇ Datos crudos (JSON)</button></div><div class="m">El informe del día lleva cada consulta, las candidatas con sus motivos, las operaciones y qué hizo cada acción después. El total resume todos los días y añade estadísticas de la cuenta. Los datos crudos incluyen todos los precios vigilados en cada consulta.</div></div></section>
 <section class="tab" id="t-ajustes">
 <div class="p"><h2>Conexión de datos</h2><div class="m">Pega las claves que tengas (todas opcionales). Sin clave ya funcionan Yahoo Finance y Stooq (acciones/ETFs, como respaldo) y Binance/Coinbase (criptos). Financial Modeling Prep tiene clave gratuita en financialmodelingprep.com. Las fuentes con clave tienen prioridad para que los precios no se mezclen entre proveedores.</div>
@@ -392,36 +490,23 @@ details.rd>summary .rl-tp{white-space:nowrap;flex:none}
 <div class="p adv"><h2>Diagnóstico técnico</h2><pre id="dg">—</pre></div>
 </section>
 <section class="tab" id="t-ayuda">
-<div class="p"><h2>Cómo usar este bot</h2>
-<div class="m"><b>Qué es.</b> Un simulador: varios <b>métodos</b> (estrategias) invierten cada uno <span class="capT">500 €</span> ficticios con las mismas reglas. Con el tiempo ves cuál gana más. No mueve dinero real.</div>
-<div class="m"><b>Cuándo trabaja.</b> Cada día de bolsa, después del cierre de Wall Street, actualiza precios y cada método decide si compra o vende. La prueba histórica corre aparte, después.</div>
-</div>
-<div class="p"><h2>Qué mirar, en orden</h2>
-<div class="m"><b>1. 🏠 Hoy</b> (es tu cartera, todo en una pantalla). Arriba, la <b>gráfica</b> en pequeño: toca «Agrandar» para verla entera. Debajo, lo que vale tu cartera ficticia. Luego <b>«Qué hacer con esta cartera»</b>: qué comprar, qué vender, a qué precio y con qué stop. Más abajo, lo que tienes comprado y el historial de operaciones (plegados), <b>qué método va ganando</b> y, al final, el botón para actualizar precios.</div>
-<div class="m"><b>2. 📈 Histórico:</b> la prueba histórica de todos los métodos (años de datos, en tres tramos) para ver cuáles aguantan de verdad, y los informes descargables.</div>
-<div class="m"><b>3. 👁️ Vigilante:</b> una cuenta ficticia aparte para probar la regla intradía, día a día.</div>
-<div class="m"><b>4. 💶 Real:</b> tu cuenta de Trading 212 con dinero de verdad. Sigue el método que elijas (sus mismos ETFs y pesos, con los equivalentes europeos), con sus propios ajustes, su gráfica frente a la simulación, la propuesta de órdenes para aprobar y sus informes. Por defecto te pide confirmación antes de cada orden.</div>
-<div class="m"><b>Cambiar de método:</b> toca el selector de «Tu cartera ficticia hoy» o una tarjeta del ranking. La gráfica y «Qué hacer» siguen siempre al método elegido.</div>
-</div>
-<div class="p"><h2>Cómo replicarlo en tu app de trading</h2>
-<div class="m"><b>Comprar:</b> en «Qué hacer» aparece 🟢 COMPRAR con el activo, el precio y el peso. Compra ese activo a mercado en la siguiente apertura, sin pasarte del peso (% de tu dinero).</div>
-<div class="m"><b>Stop loss:</b> es el precio al que sale automáticamente para limitar la pérdida. Si la tarjeta lo muestra, ponlo como orden stop en tu app. Si dice «sin precio fijo», ese método no usa stop: vende cuando su regla lo indica y entonces verás 🔴 VENDER.</div>
-<div class="m"><b>Objetivo (take profit):</b> si lo hay, es un precio de venta para asegurar ganancia. Muchos métodos no lo usan: dejan correr la ganancia.</div>
-<div class="m"><b>Vender:</b> cuando salga 🔴 VENDER, véndelo en la siguiente apertura. Pulsa «Ya lo he hecho» y solo verás lo nuevo.</div>
-<div class="m">El precio real puede ser algo distinto del simulado. Empieza con poco dinero y solo cuando un método lleve semanas ganando de forma estable.</div>
-</div>
-<div class="p"><h2>Costes y ajustes</h2>
-<div class="m">Cada orden paga una comisión (0,15 € por defecto) y un pequeño deslizamiento (compras algo más caro, vendes algo más barato). Todo se cambia en <b>Ajustes</b>. Si cambias la comisión, marca «Recalcular también la cartera ya hecha» para corregir lo pasado.</div>
-<div class="m"><b>Si los datos tienen más de 4 días</b>, el bot no se está actualizando: mira la pestaña Actions de GitHub.</div>
-</div>
-<div class="p"><h2>Palabras que verás</h2>
-<div class="m"><b>Método:</b> una estrategia con su propia cuenta ficticia. <b>ETF:</b> fondo que compra muchas empresas a la vez. <b>Peso:</b> parte de tu dinero en un activo. <b>Efectivo:</b> dinero sin invertir. <b>Caída máxima:</b> lo más que ha bajado desde un máximo. <b>Neto / bruto:</b> con / sin comisiones.</div>
-<div class="m">Es una simulación con dinero ficticio, no asesoramiento financiero. Los resultados pasados no garantizan los futuros.</div>
-</div>
+<div class="p hlp"><h2>Cómo funciona, en 1 minuto</h2>
+<div class="steps">
+<div class="step"><b>1</b><div><b>📈 Histórico</b> · prueba ~60 métodos con datos reales desde 1999 y los compara con el S&amp;P 500. De aquí sale el candidato ganador.</div></div>
+<div class="step"><b>2</b><div><b>🧪 Ficticia</b> · el candidato opera cada día con <span class="capT">500 €</span> ficticios y datos de hoy. Así ves si se comporta como en la prueba.</div></div>
+<div class="step"><b>3</b><div><b>💶 Real</b> · el método que elijas invierte tu dinero en Trading 212 con ETFs europeos en euros. Te avisa por Telegram y, si quieres, te pide aprobación.</div></div>
+</div></div>
+<div class="p hlp"><h2>Lo que hace solo, cada día</h2>
+<div class="m">• <b>Cada noche</b> (tras el cierre de Wall Street) descarga precios y cada método de la ficticia decide.<br>• <b>Por la mañana</b> (desde las 9:17, cada media hora si GitHub se retrasa) la cartera real copia la decisión del método elegido: propone o ejecuta las órdenes.<br>• <b>Por la tarde</b> guarda la foto del valor para la gráfica. Los viernes, informe semanal.</div></div>
+<div class="p hlp"><h2>La cartera real, en pocas palabras</h2>
+<div class="m">• El bot solo usa su <b>«Dinero que trabaja el bot»</b>. Si activas «Sumar al bot lo que ingrese», lo que ingreses en Trading 212 se le suma solo.<br>• Lo que compres tú en la app es <b>tuyo</b>: sale en el historial como «hecha por ti» y el bot no lo toca.<br>• <b>Freno de pérdidas</b>: si cae más de lo que pongas (20 % por defecto), se pausa y te avisa.<br>• Todo va <b>cifrado</b> con tu contraseña: la web es pública, pero nadie más ve tu dinero.<br>• Trading 212 no cobra comisión; las ganancias de cada venta se declaran en la renta (descarga «Órdenes .csv»).</div></div>
+<div class="p hlp"><h2>Palabras que verás</h2>
+<div class="m"><b>Método</b>: una regla fija para decidir qué comprar y cuándo. · <b>ETF</b>: un fondo que compra muchas empresas a la vez. · <b>Tendencia / media de 10 meses</b>: si el precio está por encima de su media, el mercado va hacia arriba. · <b>Caída máxima</b>: lo máximo que llegó a bajar desde un máximo. · <b>%/año</b>: rentabilidad media anual compuesta. · <b>ISIN</b>: el «DNI» del fondo, para buscarlo en la app.</div></div>
+<div class="p hlp"><div class="m">Rentabilidades pasadas no garantizan las futuras. No es asesoramiento financiero: tú decides qué método usar y con cuánto dinero.</div></div>
 </section>
 
 </div>
-<nav id="nav"><button data-t="hoy"><span>🏠</span>Hoy</button><button data-t="informe"><span>📈</span>Histórico</button><button data-t="vigia"><span>👁️</span>Vigilante</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
+<nav id="nav"><button data-t="hoy"><span>🧪</span>Ficticia</button><button data-t="informe"><span>📈</span>Histórico</button><button data-t="vigia"><span>👁️</span>Vigilante</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
 <script id="viewer-shim">
 /* Modo VISOR (solo en la web publicada). En el ordenador (file://) y en el proceso automático NO hace nada.
    Carga la última copia de datos que dejó el proceso automático en GitHub y la muestra tal cual. */
@@ -1929,7 +2014,7 @@ function hoyRank(){const A=document.getElementById("hoy-rank");if(!A)return;
   return`<div class="rk-c" data-go="${k}"><div class="rk-n">${med[j]||(j+1)+"."}</div><div class="rk-t"><b>${esc(STR[k].n)}</b><small>${np} ${np===1?"activo":"activos"} en cartera · ${cl} ventas cerradas · ${act}</small></div><div class="rk-g ${g>=0?"up":"dn"}">${P2(pc)}<small>${E2(g)}</small></div></div>`}).join("");
  const dias=(S.days||[]).length,pocas=ks.every(k=>((bkOf(k).trades)||[]).filter(t=>t.pnl!=null).length<30);
  A.innerHTML=`<div class="rk">${rows}</div><div class="m">Toca un método para ver qué hacer con él. Llevas ${dias} ${dias===1?"día":"días"} de datos${pocas?": todavía hay pocas ventas cerradas (menos de 30 por método), así que el ranking aún no demuestra nada. Sigue unas semanas.":"."}</div>`}
-document.addEventListener("click",e=>{const c=e.target&&e.target.closest&&e.target.closest("[data-go]");if(!c||!STR[c.dataset.go])return;VM.cart=c.dataset.go;VM.hoy=c.dataset.go;try{localStorage.setItem("pbvm",JSON.stringify(VM))}catch{}draw();const q=document.getElementById("mi-panel");if(q)q.scrollIntoView({behavior:"smooth",block:"start"})});
+document.addEventListener("click",e=>{const c=e.target&&e.target.closest&&e.target.closest("[data-go]");if(!c||!STR[c.dataset.go])return;VM.cart=c.dataset.go;VM.hoy=c.dataset.go;try{localStorage.setItem("pbvm",JSON.stringify(VM))}catch{}draw();const d=document.getElementById("hd-mi");if(d)d.open=true;const q=document.getElementById("hd-mi")||document.getElementById("mi-panel");if(q)q.scrollIntoView({behavior:"smooth",block:"start"})});
 const gtxt=g=>`<b class="${g>=0?"up":"dn"}">${E2(g)} (${P2(g/START*100)})</b>`;
 const hmL=t=>t?new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"";
 const hmS=t=>new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
@@ -1978,9 +2063,9 @@ function miDraw(){
  const pos=Object.entries(B.pos||{}).map(([s,p])=>{const c=pxOf(s,p),v=p.q*c/fx;return{s,p,c,v,pc:(c/p.avg-1)*100}}).sort((a,b)=>b.v-a.v);
  const val=pos.reduce((t,x)=>t+x.v,0),tot=Math.max(1e-9,(B.cash||0)+val),W=x=>x/tot,posMap={};pos.forEach(x=>posMap[x.s]=x);
  const desc=s=>MI_NAME[s]?`<small>${esc(MI_NAME[s])}</small>`:"";
- const levels=x=>{const st=x.p.stop?+x.p.stop:null,tp=x.p.tp?+x.p.tp:null;
-  return`<div class="mi-lv">${st?`<div class="mi-sl">🛑 Stop loss<b>${miUsd(st)}</b>Si baja hasta aquí (${P2((st/x.p.avg-1)*100)} desde la compra), el bot vende.</div>`:`<div class="mi-no">🛑 Stop loss<b>Sin precio fijo</b>Este método no usa stop: vende cuando su regla lo indica.</div>`}
-  ${tp?`<div class="mi-no">🎯 Objetivo (take profit)<b>${miUsd(tp)}</b>Si sube hasta aquí, el bot vende y asegura la ganancia.</div>`:`<div class="mi-no">🎯 Objetivo (take profit)<b>Sin objetivo</b>Deja correr la ganancia mientras la regla la mantenga.</div>`}</div>`};
+ const levels=x=>{const st=x.p.stop?+x.p.stop:null,tp=x.p.tp?+x.p.tp:null;if(!st&&!tp)return"";
+  return`<div class="mi-lv">${st?`<div class="mi-sl">🛑 Stop loss<b>${miUsd(st)}</b>Si baja hasta aquí (${P2((st/x.p.avg-1)*100)} desde la compra), el bot vende.</div>`:""}
+  ${tp?`<div class="mi-no">🎯 Objetivo (take profit)<b>${miUsd(tp)}</b>Si sube hasta aquí, el bot vende y asegura la ganancia.</div>`:""}</div>`};
  const whyBuy=s=>{const t=(B.trades||[]).find(z=>z.s===s&&z.side==="COMPRA"),w=(B.tgt&&B.tgt.why&&B.tgt.why[s])||"";return w?"Por qué la tiene: "+w+".":(t?"Por qué la compró: "+plainWhy("COMPRA",t.why).slice(0,220):"")};
  MIS.seen=MIS.seen||{};const seen=MIS.seen[k]||null,days=[...new Set((B.trades||[]).map(t=>t.d))].sort().reverse();
  const chg=(B.trades||[]).filter(t=>seen?t.d>seen:days.slice(0,3).includes(t.d));
@@ -2155,7 +2240,7 @@ const vgRowsTxt=(m,k)=>{const a=(m&&m.rows)||[];return a.length?`<table><tr><th>
 function vgExtra(){const el=$("#vgx2");if(!el)return;
  const rows=VGALL().map(([k,V])=>{const B=vgAcc(k),e=B?vgEq(B):START,cl=B?B.trades.filter(t=>t.pnl!=null):[],w=cl.filter(t=>t.pnl>0);return{k,V,B,e,g:e-START,n:cl.length,w:w.length,np:B?Object.keys(B.pos).length:0}}).sort((a,b)=>b.g-a.g),fx=S.fx||1;
  let h=`<div class="ev hold"><b>🔎 Qué está haciendo ahora</b><br>${esc(VG.now||"Sin actividad todavía. Pulsa «Iniciar vigilancia» o «Consultar ahora».")}</div>`;
- h+=`<div class="m"><b>Ranking de métodos del vigilante</b> · cada uno opera su cuenta ficticia de ${E(START)} con la misma gestión de riesgo (ordenado por ganancia)</div><div class="tw"><table><tr><th>#</th><th>Método</th><th>Valor</th><th>Ganancia</th><th>Ops</th><th>Acierto</th><th>Pos.</th></tr>${rows.map((x,j)=>`<tr><td>${j+1}</td><td>${esc(x.V.n)}</td><td class="n">${E(x.e)}</td><td class="n ${x.g>=0?"up":"dn"}">${E2(x.g)}<br>${P2(x.g/START*100)}</td><td class="n">${x.n}</td><td class="n">${x.n?Math.round(x.w/x.n*100)+"%":"—"}</td><td class="n">${x.np}</td></tr>`).join("")}</table></div>`;
+ h+=`<details class="rd"><summary><span>📊 Tabla del ranking (valor, operaciones, acierto)</span></summary><div class="rb"><div class="m">Cada uno opera su cuenta ficticia de ${E(START)} con la misma gestión de riesgo (ordenado por ganancia)</div><div class="tw"><table><tr><th>#</th><th>Método</th><th>Valor</th><th>Ganancia</th><th>Ops</th><th>Acierto</th><th>Pos.</th></tr>${rows.map((x,j)=>`<tr><td>${j+1}</td><td>${esc(x.V.n)}</td><td class="n">${E(x.e)}</td><td class="n ${x.g>=0?"up":"dn"}">${E2(x.g)}<br>${P2(x.g/START*100)}</td><td class="n">${x.n}</td><td class="n">${x.n?Math.round(x.w/x.n*100)+"%":"—"}</td><td class="n">${x.np}</td></tr>`).join("")}</table></div></div></details>`;
  h+=rows.map(x=>{const B=x.B,mv=(VG.mv||{})[x.k];return`<details class="rd" data-id="vgm:${x.k}"${opn("vgm:"+x.k,false)}><summary><span>${esc(x.V.n)}</span>${gtxt(x.g)}</summary><div class="rb"><div class="m"><b>${esc(x.V.ev||"")}</b> · revisa ${esc(VS_TXT[x.V.cad]||"")}${B&&B.lastRev?" · última revisión "+esc(fdLong(B.lastRev.d))+": "+esc(B.lastRev.why):""}${mv&&mv.next?" · próxima: "+esc(fdLong(mv.next)):""}</div><div class="m">${esc(x.V.d)}</div><div class="m" style="opacity:.8">Fuente: ${esc(x.V.src||"")}</div>`+
   (B&&Object.keys(B.pos).length?`<table><tr><th>Acción</th><th>Compra $</th><th>Ahora $</th><th>Vale</th><th>Ganancia</th><th>Stop $</th></tr>${Object.entries(B.pos).map(([s,p])=>{const v=p.q*(p.lastMark||p.avg)/fx;return`<tr><td><b>${esc(s)}</b><br><span class="m">${esc(p.d)}</span></td><td class="n">${p.avg.toFixed(2)}</td><td class="n">${(p.lastMark||p.avg).toFixed(2)}</td><td class="n">${E(v)}</td><td class="n ${v>=p.cost?"up":"dn"}">${E2(v-p.cost)}<br>${P2((v/p.cost-1)*100)}</td><td class="n">${p.stop?p.stop.toFixed(2):"—"}</td></tr>`}).join("")}</table>`:'<div class="m">Sin posiciones abiertas (en efectivo).</div>')+
   (B&&B.trades.length?`<div class="m"><b>Últimas operaciones</b></div><table><tr><th>Fecha · hora</th><th></th><th>Acción</th><th>Importe</th><th>Resultado</th></tr>${B.trades.slice(0,10).map(t=>`<tr><td>${esc(t.d)}${t.t?" · "+hmL(t.t):""}</td><td>${esc(t.side)}</td><td>${esc(t.s)}</td><td class="n">${E(t.eur)}</td><td class="n ${t.pnl>0?"up":t.pnl<0?"dn":""}">${t.pnl==null?"—":E2(t.pnl)}</td></tr>`).join("")}</table>`:"")+
@@ -2686,7 +2771,7 @@ async function unlockView(){const pw=($r("#rl-vpw")||{}).value||"";if(!pw||!(RL.
  await loadCfg(false);draw()}
 
 /* ---------- acciones en la nube (GitHub Actions) ---------- */
-function needTok(){const c=C();if(!c){say("Para esto abre la web publicada en GitHub Pages.");return null}if(!c.tok()){say("🔒 Primero desbloquea arriba con tu clave.");const e=$r("#rl-pw");if(e){e.focus();e.scrollIntoView({block:"center"})}return null}c.touch();return c}
+function needTok(){const c=C();if(!c){say("Para esto abre la web publicada en GitHub Pages.");return null}if(!c.tok()){say("🔒 Primero desbloquea con tu clave de ⚙️ Ajustes (abajo, en «Configuración»).");const e=$r("#rl-pw");if(e){e.focus();e.scrollIntoView({block:"center"})}return null}c.touch();return c}
 function rej(r,wf){return r.status===401||r.status===403?"GitHub rechazó el token (HTTP "+r.status+"): comprueba que sea de este repositorio, con «Actions: Read and write», y que no haya caducado.":r.status===404?"No existe el flujo «"+wf+"» en el repositorio: sube .github/workflows/"+wf+".":r.status===422?"GitHub no acepta esa acción (HTTP 422): sube la versión nueva de .github/workflows/"+wf+".":"No se pudo enviar (HTTP "+r.status+")."}
 async function runCloud(accion,plan,label){const c=needTok();if(!c||RL.busy)return;const r=ri();RL.busy=true;draw();
  try{const since=Date.now();say((label||accion)+": enviando a GitHub…");
@@ -2790,7 +2875,7 @@ function warns(){const R=RL.R,a=A(),w=[],sec=secState();
  if(RL.cfgEnc&&!RL.cfg)w.push("No puedo descifrar el archivo de ajustes con esta contraseña (¿la cambiaste hace poco?): muestro los ajustes de la última ejecución del bot. Al pulsar «Guardar todos los ajustes» se vuelven a cifrar con la contraseña actual.");
  if(sec.T212_KEY===false||sec.T212_SECRET===false)w.push("Faltan las claves de Trading 212: ponlas en «Ajustes de la cartera real» (abajo) y pulsa «Probar conexión».");
  if(sec.REAL_VIEW_PASS===false)w.push("Falta la <b>contraseña de la cartera</b>: sin ella el bot no consulta tu cuenta ni guarda nada (tu web es pública). Ponla en «Ajustes de la cartera real».");
- const m=(RL.meta&&RL.meta.secrets)||{};if(m.NTFY_TOPIC===false)w.push("No te llegarán avisos al <b>móvil</b>: falta el tema de ntfy (⚙️ Ajustes → Avisos al móvil y por correo).");if(m.SMTP_USER===false||m.SMTP_PASS===false)w.push("No te llegarán avisos por <b>correo</b>: falta el usuario o la contraseña de aplicación de Gmail (⚙️ Ajustes → Avisos).");
+ const m=(RL.meta&&RL.meta.secrets)||{};if(m.NTFY_TOPIC===false&&!(m.TELEGRAM_TOKEN&&m.TELEGRAM_CHAT))w.push("No te llegarán avisos al <b>móvil</b>: falta el tema de ntfy (⚙️ Ajustes → Avisos al móvil y por correo).");if(m.SMTP_USER===false||m.SMTP_PASS===false)w.push("No te llegarán avisos por <b>correo</b>: falta el usuario o la contraseña de aplicación de Gmail (⚙️ Ajustes → Avisos).");
  if(a.movil===0&&a.correo===0)w.push("Tienes apagados los avisos al móvil y por correo de la cartera real (solo te avisaría de errores).");
  if(R&&(R.pendBot||[]).length)w.push("⏳ Hay "+R.pendBot.length+" "+(R.pendBot.length===1?"orden del bot pendiente":"órdenes del bot pendientes")+" en Trading 212: se comprobarán y apuntarán en la próxima ejecución.");
  if(R&&R.approved)w.push("✅ Aprobaste órdenes el "+esc(R.approved.d)+" con la bolsa europea cerrada: se ejecutarán solas en la próxima revisión con la bolsa abierta (hacia las 10:15). Si cambian los activos, te pedirá aprobarlas de nuevo.");
@@ -2799,14 +2884,16 @@ function warns(){const R=RL.R,a=A(),w=[],sec=secState();
  else if(a.env==="live"&&!a.aceptoReal)w.push("Falta marcar «Entiendo que opera con dinero real» en los ajustes: sin eso no envía órdenes.");
  if(R&&R.last&&Date.now()-Date.parse(R.last)>4*864e5)w.push("Los datos de la cartera real son del "+dt(R.last)+": hace más de 4 días que no se ejecuta. Mira Actions → «Cartera real (Trading 212)».");
  if(S&&S.lastDate){const age=(Date.now()-Date.parse(S.lastDate+"T22:00:00Z"))/864e5;if(age>5)w.push("Los datos del simulador son del "+esc(S.lastDate)+": con datos de más de 5 días la cartera real no opera.")}
- return w.map(x=>'<div class="mi-warn">⚠️ '+x+"</div>").join("")}
+ const minor=x=>/No te llegarán avisos|Tienes apagados los avisos/.test(x),imp=w.filter(x=>!minor(x)),mn=w.filter(minor);
+ return imp.map(x=>'<div class="mi-warn">⚠️ '+x+"</div>").join("")+(mn.length?'<details class="rd rl-minor"><summary><span>ℹ️ '+mn.length+(mn.length===1?" aviso menor":" avisos menores")+' de configuración</span></summary><div class="rb">'+mn.map(x=>'<div class="m">• '+x+"</div>").join("")+"</div></details>":"")}
 function secState(){const c=C(),m=(RL.meta&&RL.meta.secrets)||{},o={};SECRETS.forEach(([k])=>{o[k]=c&&c.sec&&c.sec[k]!==undefined?c.sec[k]:(k in m?m[k]:null)});return o}
 function heroHtml(){const R=RL.R,a=A(),s=summary(),acc=(R&&R.account)||{},L=R&&R.ledger;
  const env=a.env==="demo"?badge("DEMO · dinero de práctica","b-hold"):badge("💶 DINERO REAL","b-sell");
  const modo=badge({confirmar:"Modo: con tu confirmación",auto:"Modo: automático",pausa:"Modo: solo mira"}[a.modo]||a.modo,"b-hold");
  const est=R&&R.paused?badge("⛔ En pausa","b-sell"):a.on?badge("Activada","b-buy"):badge("Desactivada","b-hold");
  const tot=+((acc.cash&&acc.cash.availableToTrade)||0)+ +((acc.investments&&acc.investments.currentValue)||0)+ +((acc.cash&&acc.cash.reservedForOrders)||0);
- return`<div class="p hero"><h2>Dinero del bot hoy</h2><div>${env}${modo}${est}</div><div class="big">${s?E(s.be):L?E(L.cap):"—"}</div>
+ const mood=R&&R.paused?"⛔ El bot está en pausa: mira los avisos.":R&&R.plan&&R.plan.estado==="pendiente"?"🟡 Tienes una propuesta esperando tu aprobación.":R&&R.approved?"✅ Órdenes aprobadas: se hacen en la próxima revisión con la bolsa abierta.":!a.on?"💤 La cartera real está desactivada.":"✅ Todo en orden: el bot sigue a «"+esc(NOMB[a.metodo]||(STR[a.metodo]&&STR[a.metodo].n)||a.metodo)+"».";
+ return`<div class="p hero"><h2>Dinero del bot hoy</h2><div class="hero-mood">${mood}</div><div>${env}${modo}${est}</div><div class="big">${s?E(s.be):L?E(L.cap):"—"}</div>
 <div>${s?`<b class="${cls(s.res)}">${SG(s.res)} (${PC(s.pct)})</b> sobre los ${E(s.cap)} que le has dado · desde el ${esc(fd(s.d0))}`:"Aún sin historial"}</div>
 <div class="m">Método: <b>${esc(NOMB[a.metodo]||(STR[a.metodo]&&STR[a.metodo].n)||a.metodo||"—")}</b>${s?` · invertido ${E(s.invBot)} · efectivo del bot ${E(s.cashBot)} · ganancia ya cobrada en ventas ${SG(s.real)}`:""}</div>
 <div class="m">Tu cuenta de Trading 212 entera: <b>${E(tot)}</b> · efectivo libre ${E(+((acc.cash&&acc.cash.availableToTrade)||0))}${R&&R.deposits?" · ingresado neto "+E(R.deposits.net):""}${R&&R.last?" · último dato "+esc(dt(R.last)):""}</div></div>`}
@@ -2872,8 +2959,8 @@ function mapHtml(){const M=(RL.R&&RL.R.map)||{},xs=Object.values(M).sort((a,b)=>
  return'<div class="m">Los ETFs de EE. UU. (XLK, QQQ…) <b>no se pueden comprar desde España</b> (normativa europea PRIIPs): el bot compra el ETF europeo (UCITS) que sigue el mismo índice. La señal sale del ETF de EE. UU.; la orden, del europeo.</div><div class="tw"><table><tr><th>Activo del bot</th><th>Se compra en Trading 212</th><th>Divisa</th></tr>'+a.map(tr).join("")+"</table></div>"+(b.length?'<details class="rd"><summary>Otros activos comprobados (no los usa ningún método actual): '+b.length+'</summary><div class="rb"><div class="tw"><table>'+b.map(tr).join("")+"</table></div></div></details>":"")+
  (RL.R.inst?'<div class="m">Lista de instrumentos de Trading 212 del '+esc(dt(RL.R.inst.at))+" ("+RL.R.inst.n+" instrumentos). Si prefieres otro ETF para algún activo, ponlo en «Sustituciones manuales» de los ajustes.</div>":"")}
 function actHtml(){const R=RL.R,dis=RL.busy?"disabled":"";
- return`<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rl-a-probar" ${dis}>🔌 Probar conexión</button><button id="rl-a-normal" ${dis}>🔄 Revisar ahora</button><button id="rl-a-foto" ${dis}>📸 Guardar valor de hoy</button>${R&&R.paused?`<button id="rl-a-reanudar" ${dis}>▶ Reanudar (quitar pausa)</button>`:""}<button id="rl-a-rec" ${dis}>↻ Recargar datos</button></div>
-<div class="m"><b>Probar conexión</b>: comprueba tus claves y qué ETFs se pueden comprar (no opera). <b>Revisar ahora</b>: hace la revisión del día ya (según el modo: propone, ejecuta o solo mira). Lo programado: revisión cada día de bolsa hacia las 10:15 y foto del valor hacia las 18:45 (hora de España); los viernes, informe semanal.</div>`}
+ return`<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rl-a-normal" class="go" ${dis}>🔄 Revisar ahora</button><button id="rl-a-probar" ${dis}>🔌 Probar conexión</button><button id="rl-a-foto" ${dis}>📸 Guardar valor de hoy</button>${R&&R.paused?`<button id="rl-a-reanudar" ${dis}>▶ Reanudar (quitar pausa)</button>`:""}<button id="rl-a-rec" ${dis}>↻ Recargar datos</button></div>
+<div class="m"><b>Revisar ahora</b>: hace ya la revisión del día (propone, ejecuta o solo mira, según tus ajustes) · <b>Probar conexión</b>: comprueba claves y ETFs, sin operar. Lo automático: revisión cada día de bolsa desde las 9:17, foto del valor por la tarde e informe los viernes.</div>`}
 function cfgHtml(){const a=A(),sec=secState(),sel=(id,v,opts)=>`<select id="${id}" style="width:100%">${opts.map(([k,t])=>`<option value="${k}"${String(v)===String(k)?" selected":""}>${t}</option>`).join("")}</select>`;
  const yn=(id,v)=>sel(id,v,[[1,"Sí"],[0,"No"]]),mp=Object.entries(a.mapa||{}).map(([k,v])=>k+"="+v).join("\n");
  let h='<div class="m">Estos ajustes son <b>solo de la cartera real</b> (los del simulador están en ⚙️ Ajustes). Se guardan en <code>real-ajustes.json</code> de tu repositorio y el bot los usa desde su siguiente revisión.</div><div class="kv rl-cfg">';
@@ -2938,36 +3025,41 @@ function secHtml(){const c=C(),tok=!!(c&&c.hasEnc&&c.hasEnc()),rem=remHas(),ses=
 <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rl-s-lock">🔒 Bloquear ahora (pedirá la contraseña)</button><button id="rl-s-forget">Olvidar la contraseña en este dispositivo</button><button id="rl-s-tok">Olvidar el token de GitHub en este dispositivo</button></div>
 <div class="m"><b>Recomendaciones (importantes):</b> activa la <b>verificación en dos pasos</b> en GitHub, en Trading 212 y en tu Gmail · token de GitHub «fine-grained», solo de este repositorio, con caducidad · contraseña de la cartera distinta de todas las demás (mejor una frase larga) · tema de ntfy largo y raro · si pierdes el móvil, cambia la contraseña de la cartera y borra el token en GitHub (Settings → Developer settings).</div>`}
 function helpHtml(){const r=ri(),u=r?"https://github.com/"+r.o+"/"+r.r:"";
- return'<div class="m"><b>1.</b> Sube a tu repositorio los archivos de esta versión (incluida la carpeta <code>.github/workflows</code> con <code>real.yml</code> y <code>real-ajustes.yml</code>, y <code>real-ajustes.json</code>).</div>'+
- '<div class="m"><b>2.</b> Crea la clave API en Trading 212 (Ajustes → API) y ponla, con su secreto, en «Ajustes de la cartera real». Pon también la <b>contraseña de la cartera</b> (obligatoria): todo lo de tu cuenta real se guarda cifrado con ella, así que en tu web pública nadie más puede ver saldo, órdenes, ajustes ni informes.</div>'+
- '<div class="m"><b>3.</b> Pulsa <b>«Probar conexión»</b>. En 1-2 minutos verás tu saldo y la tabla «¿Se puede operar todo?».</div>'+
- '<div class="m"><b>4.</b> Elige el método, deja <b>sin marcar</b> «Invertir sin mi aprobación», pon el dinero máximo (100 €), marca «Entiendo que…» y activa la cartera.</div>'+
- '<div class="m"><b>5.</b> Al día siguiente de bolsa, hacia las 10:15, te llegará al móvil «Cartera real: confirma estas órdenes». Ábrelo, revisa y pulsa <b>«Aprobar y ejecutar»</b>. Cuando te fíes, puedes pasar a «Automático».</div>'+
- '<div class="m"><b>Si ingresas o sacas dinero:</b> el bot tiene su propia «subcuenta» dentro de tu cuenta: su capital («Dinero que trabaja el bot»), su efectivo y las participaciones que ha comprado él. Lo que ingreses en Trading 212 no lo usa hasta que subas ese número; tus otras posiciones (aunque sean del mismo ETF) nunca las vende; y si un día vendes tú a mano participaciones del bot, lo detecta y lo descuenta. La rentabilidad no cuenta como ganancia lo que le das ni como pérdida lo que le quitas.</div>'+
- '<div class="m"><b>Con 100 €:</b> Trading 212 no cobra comisión por orden y permite fracciones de ETF, así que con la Rotación de sectores son 3 ETFs de unos 32 € cada uno. Lo que más pesa con poco dinero es el diferencial compra-venta de cada ETF (unos céntimos por orden); por eso el modo «igual que la simulación» solo opera cuando el método cambia de cartera (normalmente una vez al mes).</div>'+
- '<div class="m"><b>Impuestos:</b> Trading 212 no te retiene nada en España; las ganancias de cada venta se declaran en la renta. Descarga «Órdenes (.csv)» para tenerlas a mano.</div>'+(u?'<div class="m"><a href="'+u+'/actions/workflows/real.yml" target="_blank" rel="noopener">Ver las ejecuciones en GitHub Actions</a></div>':"")}
+ return'<div class="steps">'+
+ '<div class="step"><b>1</b><div>En Trading 212: <b>Ajustes → API</b> → crea una clave (permisos de cuenta, cartera, órdenes, historial y metadatos). Ponla con su secreto en <b>«Ajustes de la cartera real»</b>, junto con la <b>contraseña de la cartera</b> (lo cifra todo: tu web es pública).</div></div>'+
+ '<div class="step"><b>2</b><div>Pulsa <b>«Probar conexión»</b>: en 1-2 minutos verás tu saldo y qué ETFs encuentra en tu cuenta.</div></div>'+
+ '<div class="step"><b>3</b><div>Elige el método, pon el dinero del bot, marca «Entiendo que…» y activa la cartera. Deja <b>sin marcar</b> «Invertir sin mi aprobación» hasta que te fíes.</div></div>'+
+ '<div class="step"><b>4</b><div>Cada día de bolsa (desde las 9:17) te llega por <b>Telegram</b> lo que propone, con botones para <b>Aprobar</b> o <b>Rechazar</b>. Con la bolsa cerrada, lo aprobado se compra en la siguiente apertura.</div></div>'+
+ '</div>'+
+ '<div class="m"><b>Tu dinero y el del bot:</b> el bot tiene su «subcuenta» (su capital, su efectivo y lo que compra él). Lo que compras tú en la app es tuyo y nunca lo vende. Con «Sumar al bot lo que ingrese», tus ingresos pasan al bot solos. Ni lo que aportas cuenta como ganancia ni lo que retiras como pérdida.</div>'+
+ '<div class="m"><b>Costes:</b> Trading 212 no cobra comisión; solo pierdes unos céntimos por la diferencia de precio. Por eso el bot solo opera cuando el método cambia de cartera.</div>'+
+ '<div class="m"><b>Impuestos:</b> Trading 212 no retiene nada en España; las ganancias de cada venta se declaran en la renta. Descarga «Órdenes (.csv)» en Informes.</div>'+(u?'<div class="m"><a href="'+u+'/actions/workflows/real.yml" target="_blank" rel="noopener">Ver las ejecuciones en GitHub Actions</a></div>':"")}
 
 function draw(){const keep={};if(RL.dirty)document.querySelectorAll('#t-real [id^="rl-c-"],#t-real [data-rk],#t-real [data-rd]').forEach(e=>{const k=e.id||(e.dataset.rk?"rk:"+e.dataset.rk:"rd:"+e.dataset.rd);if(e.id==="rl-c-pw")return;keep[k]=e.type==="checkbox"?{c:e.checked}:{v:e.value}});
  draw0();
  for(const [k,x] of Object.entries(keep)){const e=k.startsWith("rk:")?document.querySelector('#t-real [data-rk="'+k.slice(3)+'"]'):k.startsWith("rd:")?document.querySelector('#t-real [data-rd="'+k.slice(3)+'"]'):document.getElementById(k);if(!e)continue;if("c" in x)e.checked=x.c;else e.value=x.v}}
 function draw0(){const root=$r("#rl-root");if(!root)return;const R=RL.R;let h="";
- h+='<div class="p" id="rl-lockp"><div id="rl-lockb">'+lockHtml()+'</div><div class="m" id="rl-st" style="font-weight:700">'+esc(RL.msg||"")+"</div></div>";
+ const lockP='<div class="p" id="rl-lockp"><div id="rl-lockb">'+lockHtml()+'</div></div>',stP='<div class="m rl-st" id="rl-st" style="font-weight:700">'+esc(RL.msg||"")+"</div>";
  if((RL.enc&&!R)||(RL.cfgEnc&&!RL.cfg&&!R)){h=`<div class="p"><h2>🔐 Zona privada</h2><div class="m">Esta parte solo la puede ver el dueño. Escribe la <b>contraseña de la cartera</b>.${RL.err==="clave"?" <b>La contraseña guardada ya no sirve.</b>":""}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rl-vpw" type="password" placeholder="Contraseña de la cartera real" autocomplete="current-password" style="flex:1 1 180px"><button id="rl-vgo">Entrar</button></div><label class="m"><input type="checkbox" id="rl-vrem"> Recordarla en este dispositivo (se guarda cifrada con una clave propia del navegador; márcalo solo en tus dispositivos)</label><div class="m" id="rl-st" style="font-weight:700">${esc(RL.msg||"")}</div></div>`;root.innerHTML=h;bind();return}
  if(!R){h+=`<div class="p"><h2>💶 Cartera real con Trading 212</h2><div class="m">${RL.loading?"Cargando…":RL.err&&RL.err!=="nada"?esc(RL.err):"Todavía no hay datos de tu cuenta real. Sigue los pasos de abajo: pon tus claves de Trading 212 en los ajustes y pulsa «Probar conexión»."}</div></div>`;
-  h+=warns()+'<div class="p"><h2>Acciones</h2>'+actHtml()+"</div>"+fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),true)+fold("met","🧭 Elige el método",metHtml(),false)+fold("help","❓ Cómo ponerla en marcha",helpHtml(),true);root.innerHTML=h;bind();return}
- h+=warns()+heroHtml();
- h+='<div class="p"><div class="chtop"><h2>Rendimiento real</h2></div><div id="rl-ch">'+chartHtml()+"</div></div>";
+  h=lockP+h+warns()+'<div class="p"><h2>Acciones</h2>'+actHtml()+stP+"</div>"+fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),true)+fold("met","🧭 Elige el método",metHtml(),false)+fold("help","❓ Cómo ponerla en marcha",helpHtml(),true);root.innerHTML=h;bind();return}
+ // v61: lo importante arriba (cuánto vale, qué va a hacer, botones); el detalle, plegado debajo
+ h+=heroHtml()+warns();
  h+='<div class="p"><h2>Qué va a hacer con tu dinero</h2><div style="display:grid;gap:10px">'+planHtml()+"</div></div>";
- h+=fold("pos","Lo que tiene el bot y lo que es tuyo",posHtml(),true);
- h+=fold("ord","Historial de órdenes reales ("+((R.orders||[]).length)+")",ordHtml(),false);
+ h+='<div class="p rl-act"><h2>Acciones</h2>'+actHtml()+stP+'</div>';
+ h+='<div class="p"><div class="chtop"><h2>Rendimiento real</h2></div><div id="rl-ch">'+chartHtml()+"</div></div>";
+ h+=fold("pos","💼 Lo que tiene el bot y lo que es tuyo",posHtml(),true);
+ h+='<div class="rl-sep">Detalle</div>';
+ h+=fold("ord","🧾 Historial de órdenes ("+((R.orders||[]).length)+")",ordHtml(),false);
+ h+=fold("rep","📄 Informes",repHtml(),false);
  h+=fold("mov","📒 Movimientos del bot (contabilidad)",movHtml(),false);
+ h+='<div class="rl-sep">Configuración</div>';
  h+=fold("met","🧭 Elige el método",metHtml(),false);
- h+=fold("map","¿Se puede comprar todo?",mapHtml(),false);
- h+='<div class="p"><h2>Acciones</h2>'+actHtml()+"</div>";
- h+=fold("rep","📄 Informes de la cartera real",repHtml(),true);
  h+=fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),false);
+ h+=fold("map","🔎 ¿Se puede comprar todo?",mapHtml(),false);
  h+=fold("sec","🛡️ Seguridad",secHtml(),false);
- h+=fold("help","❓ Cómo funciona y cómo ponerla en marcha",helpHtml(),false);
+ h+=lockP;
+ h+=fold("help","❓ Cómo funciona",helpHtml(),false);
  root.innerHTML=h;bind();setTimeout(()=>{const ch=$r("#rl-ch");if(ch&&RL.pts&&Math.abs((ch.clientWidth||0)-RL.cx.W)>40&&ch.clientWidth>=300){ch.innerHTML=chartHtml();chartBind()}},0)}
 function csvEsc(v){v=v==null?"":String(v);return/[",;\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
 function bind(){const R=RL.R,on=(id,f)=>{const e=$r(id);if(e)e.onclick=f};
@@ -3006,14 +3098,14 @@ function bind(){const R=RL.R,on=(id,f)=>{const e=$r(id);if(e)e.onclick=f};
 
 /* ---------- integración con la app ---------- */
 function mount(){if($r("#t-real"))return;const sec=document.createElement("section");sec.className="tab";sec.id="t-real";sec.innerHTML='<div id="rl-root"></div>';const ay=$r("#t-ayuda");ay.parentNode.insertBefore(sec,ay);
- const nav=$r("#nav"),b=document.createElement("button");b.dataset.t="real";b.id="rl-nav";b.innerHTML="<span>💶</span>Real";b.onclick=()=>{window.__userNav=true;go("real")};const h=nav.querySelector('button[data-t="hoy"]');nav.insertBefore(b,h?h.nextSibling:nav.firstChild)}
+ const nav=$r("#nav"),b=document.createElement("button");b.dataset.t="real";b.id="rl-nav";b.innerHTML="<span>💶</span>Real";b.onclick=()=>{window.__userNav=true;go("real")};const h=nav.querySelector('button[data-t="hoy"]');nav.insertBefore(b,h||nav.firstChild)}
 const FORCE=location.hash==="#real",T_FORCE=Date.now()+12000;
 /* el botón 💶 Real solo aparece en TUS dispositivos (los que tienen tu token cifrado o la contraseña de la cartera); en otro, entra con …/#real */
 function navShow(){const b=$r("#rl-nav");if(!b)return;const c=C(),mine=FORCE||!c||!!pwGet()||remHas()||(c.hasEnc&&c.hasEnc());b.style.display=mine?"":"none"}
 mount();navShow();
 addEventListener("hashchange",()=>{if(location.hash==="#real"){const x=$r("#rl-nav");if(x)x.style.display="";window.__userNav=true;go("real")}});
-const go0=go;
-go=function(t){if(FORCE&&t!=="real"&&!window.__userNav&&Date.now()<T_FORCE)t="real";go0(t);if(t==="real"){if(!RL.R&&!RL.enc&&!RL.loading)loadReal(false);else draw()}};
+const go0=go;let goFirst=true;
+go=function(t){if(goFirst&&!window.__userNav){goFirst=false;if(t==="hoy"){const nb=$r("#rl-nav"),realOk=nb&&nb.style.display!=="none";let last="";try{last=localStorage.getItem("pbtab")||""}catch(e){}if(last&&document.getElementById("t-"+last)&&(last!=="real"||realOk))t=last;else if(realOk)t="real"}}else goFirst=false;try{localStorage.setItem("pbtab",t)}catch(e){}if(FORCE&&t!=="real"&&!window.__userNav&&Date.now()<T_FORCE)t="real";go0(t);if(t==="real"){if(!RL.R&&!RL.enc&&!RL.loading)loadReal(false);else draw()}};
 window.__realLock=function(){navShow();const b=$r("#rl-lockb");if(b){b.innerHTML=lockHtml();bind()}};
 window.__realReload=()=>loadReal(true);
 loadReal(false);
