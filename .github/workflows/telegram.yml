@@ -1,0 +1,32 @@
+name: Telegram (botones de la cartera real)
+
+# Cada ~5 minutos mira si has pulsado «Aprobar» o «Rechazar» en Telegram y, si es así, lanza «Cartera real» con esa acción.
+# También contesta a /start con tu número de chat (para configurarlo la primera vez).
+# Solo obedece a TU chat (secreto TELEGRAM_CHAT). Si no hay TELEGRAM_TOKEN, termina en segundos sin hacer nada.
+on:
+  schedule:
+    - cron: "*/5 5-21 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: telegram
+  cancel-in-progress: false
+
+jobs:
+  telegram:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: runner
+      - name: Leer Telegram
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node runner/telegram.mjs
