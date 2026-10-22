@@ -791,7 +791,7 @@ async function main() {
 
   try {
     if (tipo === "rechazar") {
-      if (R.plan && R.plan.estado === "pendiente" && (!env("PLAN_ID") || env("PLAN_ID") === R.plan.id)) { R.plan.estado = "rechazada"; R.plan.fin = now.toISOString(); R.planHist.unshift(R.plan); R.plan = null; titulo = "Propuesta rechazada"; rep.push("Has rechazado la propuesta: no se envía nada. Mañana se vuelve a revisar."); R.lastNormal = m.date; }
+      if (R.plan && R.plan.estado === "pendiente" && env("PLAN_ID") === R.plan.id) { R.plan.estado = "rechazada"; R.plan.fin = now.toISOString(); R.planHist.unshift(R.plan); R.plan = null; titulo = "Propuesta rechazada"; rep.push("Has rechazado la propuesta: no se envía nada. Mañana se vuelve a revisar."); R.lastNormal = m.date; }
       else { titulo = "No había propuesta pendiente"; rep.push("No había ninguna propuesta pendiente con ese identificador."); }
       return;
     }
@@ -906,7 +906,7 @@ async function main() {
     let ejecutar = false;
     if (tipo === "aprobar") {
       const P = R.plan;
-      if (!P || P.estado !== "pendiente" || (env("PLAN_ID") && env("PLAN_ID") !== P.id)) { titulo = "No hay esa propuesta"; rep.push("", "No hay una propuesta pendiente con ese identificador (quizá ya se ejecutó o caducó)."); return; }
+      if (!P || P.estado !== "pendiente" || env("PLAN_ID") !== P.id) { titulo = "No hay esa propuesta"; rep.push("", "No hay una propuesta pendiente con ese identificador (quizá ya se ejecutó o caducó)."); return; }
       if (P.d !== m.date) { P.estado = "caducada"; R.planHist.unshift(P); R.plan = null; titulo = "Propuesta caducada"; rep.push("", `La propuesta era del ${P.d}: ha caducado. Se ha vuelto a calcular: mírala de nuevo.`); if (plan.orders.length) { R.plan = plan; aviso = { title: "🟡 Cartera real: propuesta nueva", msg: plan.orders.map(oneLine).join("\n") + "\n\nConfírmala en la web.", prio: 4 }; } return; }
       if (plan.firma !== P.firma) { P.estado = "sustituida"; R.planHist.unshift(P); R.plan = plan.orders.length ? plan : null; titulo = "La propuesta ha cambiado"; rep.push("", "Desde que se hizo la propuesta han cambiado los activos a comprar o vender. No se ejecuta: revisa la nueva."); if (plan.orders.length) aviso = { title: "🟡 Cartera real: la propuesta ha cambiado", msg: plan.orders.map(oneLine).join("\n") + "\n\nConfírmala de nuevo en la web.", prio: 4 }; return; }
       ejecutar = plan.orders.length > 0; P.estado = "aprobada"; R.planHist.unshift({ ...P, fin: now.toISOString() }); R.plan = null;
