@@ -8,7 +8,9 @@
     "ini": 2000,
     "acc": 1,
     "auto": 1,
-    "sim": []
+    "sim": [
+      "qldm"
+    ]
   },
   "cfg": {
     "fee": 0.15
