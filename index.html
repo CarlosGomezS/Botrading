@@ -472,7 +472,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v81</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v82</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3428,6 +3428,31 @@ let rz=null;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{c
 (function(){var b=document.getElementById("simpleB");function lab(){var on=document.body.classList.contains("simple");b.textContent=on?"👓 Ver todo":"✨ Modo sencillo";b.setAttribute("aria-pressed",on?"true":"false")}
  lab();b.onclick=function(){var on=!document.body.classList.contains("simple");document.body.classList.toggle("simple",on);try{localStorage.setItem("pbsimple",on?"1":"0")}catch(e){}lab();try{btmDraw0()}catch(e){}
   }})();
+</script>
+<script id="minimizar">
+/* v82 · TODOS los recuadros se pueden minimizar (botón arriba a la derecha). Se recuerda en este dispositivo. */
+(function(){
+ var KEY="pbcz",st={};try{st=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){st={}}
+ function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
+ function clean(t){return String(t||"").replace(/\(.*?\)/g,"").replace(/[0-9.,%€+−-]+/g,"").replace(/\s+/g," ").trim().slice(0,60)}
+ function head(p){var c=p.children;for(var i=0;i<c.length;i++){var e=c[i];if(e.classList.contains("czb"))continue;if(e.tagName==="H2"||e.classList.contains("chtop")||e.classList.contains("hero-top"))return e;break}return null}
+ function label(p){var h=head(p);if(h){var t=h.querySelector("h2")||h;return clean(t.textContent)}if(p.classList.contains("rl-act"))return"🔄 Revisar y actualizar";if(p.id==="rl-lockp")return"🔐 Bloqueo";var b=p.querySelector("b,h3");return clean(b?b.textContent:p.textContent)||"Recuadro"}
+ function keyOf(p){var tab=p.closest(".tab");return(tab?tab.id:"x")+"|"+label(p)}
+ function apply(p){var k=keyOf(p);p.classList.toggle("cz",!!st[k]);var b=p.querySelector(":scope>.czb");if(b){b.textContent=st[k]?"+":"–";b.setAttribute("aria-label",st[k]?"Mostrar":"Minimizar");b.setAttribute("aria-expanded",st[k]?"false":"true")}}
+ function prep(p){if(p.dataset.cz)return apply(p);p.dataset.cz="1";var h=head(p);if(h)h.classList.add("czh");else{var l=document.createElement("div");l.className="czh czlab";l.textContent=label(p);p.insertBefore(l,p.firstChild)}
+  var b=document.createElement("button");b.type="button";b.className="czb";b.setAttribute("data-nobusy","");b.onclick=function(e){e.preventDefault();e.stopPropagation();var k=keyOf(p);if(st[k])delete st[k];else st[k]=1;save();apply(p)};p.insertBefore(b,p.firstChild);apply(p)}
+ function scan(){document.querySelectorAll(".tab .p").forEach(function(p){if(p.closest("[hidden]"))return;prep(p)})}
+ var t=null;new MutationObserver(function(){clearTimeout(t);t=setTimeout(scan,60)}).observe(document.body,{childList:true,subtree:true});
+ try{var css=document.createElement("style");css.textContent=
+  ".tab .p{position:relative}.tab .p>.czh{padding-right:40px}.tab .p>h2.czh{display:block}"+
+  ".czb{position:absolute;top:12px;right:12px;z-index:2;width:30px;height:30px;min-height:0;padding:0;border-radius:99px;font-size:18px;line-height:1;font-weight:700;display:grid;place-items:center;background:color-mix(in srgb,var(--line) 45%,transparent);border:1px solid var(--line);color:inherit}"+
+  ".hero .czb{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff}"+
+  ".czlab{display:none;font-weight:700;font-size:15px}"+
+  ".p.cz>*:not(.czh):not(.czb){display:none!important}.p.cz>.czlab{display:block}.p.cz{gap:0;padding-top:14px;padding-bottom:14px}.p.cz>.czh{margin:0}"+
+  ".p.cz>.chtop>*:not(h2){display:none}.p.cz>.hero-top>*:not(h2){display:none}";
+  document.head.appendChild(css)}catch(e){}
+ scan();setTimeout(scan,1500);
+})();
 </script>
 <script id="working">
 /* v65 · cada botón enseña que está trabajando mientras dura su proceso */
