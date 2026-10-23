@@ -463,7 +463,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .btstk{display:none!important}
 .rl-better .row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 12px;border-radius:14px;background:color-mix(in srgb,var(--line) 26%,transparent);margin:6px 0}.rl-better .row b{display:block;font-size:14px}.rl-better .row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}.rl-better .row span{font-weight:800;white-space:nowrap;text-align:right}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v74</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v75</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -898,13 +898,21 @@ function mainBT(BT,LG,M,fxAt,i0,sp,cuts){
  }
  return out
 }
+/* v75 · impuestos en España (aprox.): 19 % sobre la ganancia neta de cada año (las pérdidas compensan y se arrastran);
+   lo que se paga deja de crecer; al final se supone que lo vendes todo y pagas el 19 % de lo que quede sin tributar. */
+const TAXR=0.19;
+function taxAfter(PF){try{const D=PF.days;if(!D||!D.length)return null;const last=D[D.length-1].eq,ye={};for(const x of D)ye[x.d.slice(0,4)]=x.eq;
+ const byY={};for(const t of PF.trades||[])if(t.pnl!=null&&t.d){const y=t.d.slice(0,4);byY[y]=(byY[y]||0)+t.pnl}
+ let carry=0,taxed=0,lost=0;for(const y of Object.keys(byY).sort()){const net=byY[y]+carry;if(net>0){taxed+=net;carry=0;const e=ye[y]||last;lost+=TAXR*net*(e>0?last/e:1)}else carry=net}
+ const fin=TAXR*Math.max(0,last-START-taxed+Math.min(0,carry));return(last-lost-fin)/START-1}catch(e){return null}}
+const annualTaxOf=(r,cuts)=>{let g=1,y=0;for(let j=0;j<3;j++){if(!r[j]||r[j].atax==null)return null;g*=1+r[j].atax;y+=(dayN(cuts[j+1])-dayN(cuts[j]))/365.25}return y>0&&g>0?Math.pow(g,1/y)-1:-1};
 function segmentSummary(PF){
  const D=PF.days;if(!D.length)return null;const first=D[0].eq||START,last=D[D.length-1].eq||START;
  let peak=START,dd=Math.min(0,first/START-1);for(const x of D){peak=Math.max(peak,x.eq);dd=Math.min(dd,x.eq/peak-1)}
  const closed=PF.trades.filter(t=>t.pnl!=null),wins=closed.filter(t=>t.pnl>0),losses=closed.filter(t=>t.pnl<0);
  const fees=PF.trades.reduce((n,t)=>n+(t.fee||0),0),gross=last+fees;
  const ret=last/START-1,gret=gross/START-1;
- return{ret,gret,dd,n:closed.length,win:closed.length?wins.length/closed.length:null,exp:closed.length?closed.reduce((n,t)=>n+t.pnl,0)/closed.length:null,fees,days:D.length,from:D[0].d,to:D[D.length-1].d,omitSize:PF.omitSize||0,t0:PF.t0||null,valid:closed.length>=30?"muestra orientativa":"muestra insuficiente (<30 operaciones cerradas)"}
+ return{ret,gret,atax:taxAfter(PF),dd,n:closed.length,win:closed.length?wins.length/closed.length:null,exp:closed.length?closed.reduce((n,t)=>n+t.pnl,0)/closed.length:null,fees,days:D.length,from:D[0].d,to:D[D.length-1].d,omitSize:PF.omitSize||0,t0:PF.t0||null,valid:closed.length>=30?"muestra orientativa":"muestra insuficiente (<30 operaciones cerradas)"}
 }
 function annualOf(r,cuts){let g=1,y=0;for(let j=0;j<3;j++){if(!r[j])return null;g*=1+r[j].ret;y+=(dayN(cuts[j+1])-dayN(cuts[j]))/365.25}return y>0&&g>0?Math.pow(g,1/y)-1:-1}
 const annualCell=(r,cuts)=>{const v=annualOf(r,cuts);return v==null?"—":`<b class="${v>=0?"up":"dn"}">${P(v*100)}</b>`};
@@ -1539,7 +1547,7 @@ const ML0=MOM_UNI.length;if((+($("#btn")&&$("#btn").value)||0)>ML0){const ex0=ne
    const firstI=i0+1+from,baseI=Math.max(0,firstI-1),baseFx=fxAt(sp[baseI].d),basePx=sp[baseI].c/baseFx;
    const days=[];for(let k=from;k<to;k++){const i=i0+1+k,fxD=fxAt(sp[i].d);days.push({d:sp[i].d,eq:START*(sp[i].c/fxD)/basePx})};(DET.spy=DET.spy||[])[segIdx]={operaciones:[],curva:days.map(z=>[z.d,+(+z.eq).toFixed(2)])};
    let peak=START,dd=0;for(const z of days){peak=Math.max(peak,z.eq);dd=Math.min(dd,z.eq/peak-1)}
-   const last=days.at(-1).eq;return{ret:last/START-1,gret:last/START-1,dd,n:0,win:null,exp:null,fees:0,days:days.length,from:days[0].d,to:days.at(-1).d,valid:"referencia pasiva"};
+   const last=days.at(-1).eq;return{ret:last/START-1,gret:last/START-1,atax:(last-TAXR*Math.max(0,last-START))/START-1,dd,n:0,win:null,exp:null,fees:0,days:days.length,from:days[0].d,to:days.at(-1).d,valid:"referencia pasiva"};
   });
   const mainRows=null;
     S.btm={cfg:{...BTC,n:btStocks()?nS:0,excl:ex,exList:[...EXC]},lev:SPLD,nAcc:btStocks()?pool.length:0,excl:ex,main:mainRows,d:T0(),from:sp[i0+1].d,to:sp[sp.length-1].d,basket:BT,rows,cuts:cuts.map(c=>sp[Math.min(i0+1+c,sp.length-1)].d),fxMode,omitidos:SKIPB,omit:Object.fromEntries(Object.keys(AM).map(m=>[m,rows[m].reduce((n,x)=>n+(x&&x.omitSize||0),0)]))};await save();btmDraw();$("#btst").textContent="Listo.";await archiveReport("prueba-historica-completada",`Prueba histórica completada: ${S.btm.from} a ${S.btm.to}; ${BT.length} activos (muestra aleatoria de ${nS} acciones pedidas${ex?", sin las "+ex+" que más subieron":""}); divisa: ${fxMode}.`,{detalle:DET})}
@@ -1591,11 +1599,14 @@ async function btCloud(pw){const st=$("#btst"),c=window.__CLOUD;if(!pw&&!btCloud
   const res=await c.waitRun(ri,"historico.yml",since,40*60);
   st.textContent=res==="success"?"✔ Prueba terminada. Si aún no ves los resultados nuevos, toca la barra de arriba para actualizar.":res==null?"Sigue en marcha en GitHub: vuelve en un rato.":"✖ La prueba terminó con error: míralo en GitHub → Actions → «Prueba histórica diaria».";
  }catch(e){st.textContent="No se pudo: "+(e.message||e)}finally{$("#btr").disabled=false}}
-function btmVerd(b,k){const r=b.rows[k],sp=b.rows.spy;if(!r||!sp)return null;const ok=[0,1,2].filter(j=>r[j]&&sp[j]);if(!ok.length)return null;const n=ok.length,beat=ok.filter(j=>r[j].ret>sp[j].ret).length,less=ok.filter(j=>r[j].dd>sp[j].dd).length,pos=ok.filter(j=>r[j].ret>0).length,ar=annualOf(r,b.cuts),as=annualOf(sp,b.cuts);
+function btmVerd(b,k){const r=b.rows[k],sp=b.rows.spy;if(!r||!sp)return null;const ok=[0,1,2].filter(j=>r[j]&&sp[j]);if(!ok.length)return null;
+ /* v75: si la prueba trae el cálculo con impuestos, se compara después de impuestos (lo que de verdad te quedaría) */
+ const tx=ok.every(j=>r[j].atax!=null&&sp[j].atax!=null),RV=j=>tx?r[j].atax:r[j].ret,SV=j=>tx?sp[j].atax:sp[j].ret;
+ const n=ok.length,beat=ok.filter(j=>RV(j)>SV(j)).length,less=ok.filter(j=>r[j].dd>sp[j].dd).length,pos=ok.filter(j=>r[j].ret>0).length,ar=tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts),as=tx?annualTaxOf(sp,b.cuts):annualOf(sp,b.cuts);
  const ddm=Math.min(...ok.map(j=>r[j].dd)),yrs=(dayN(b.cuts[3])-dayN(b.cuts[0]))/365.25,opy=ok.reduce((t,j)=>t+(r[j].n||0),0)/(yrs||1),late=!!(r[0]&&r[0].t0&&r[0].from&&dayN(r[0].t0)-dayN(r[0].from)>120);
  /* v74 · filtro para la cartera real: ≥2 puntos al año más que el SPY, le gana en ≥2 de 3 tramos, peor caída no peor del −35 %, ≤12 ventas al año y datos desde el principio */
- if(ar!=null&&as!=null&&ar-as>=0.02&&beat>=2&&ddm>=-0.35&&opy<=12&&pos===n&&!late)return{c:"ok",t:"✅ Ganador",x:`Gana ${((ar-as)*100).toFixed(1).replace(".",",")} puntos al año más que el SPY, le gana en ${beat} de ${n} tramos, su peor caída es del ${(ddm*100).toFixed(0)} % y hace unas ${Math.max(1,Math.round(opy))} ventas al año. Pasa el filtro para tu cartera real.`,beat,less,pos,n,opy,ddm};
- if(ar!=null&&as!=null&&ar>as)return{c:"mid",t:"🟡 Gana poco al SPY",x:`Gana algo más que el SPY (${((ar-as)*100).toFixed(1).replace(".",",")} puntos al año), pero no pasa el filtro para tu cartera real: hace falta ≥2 puntos, ganarle en 2 de 3 tramos, caídas no peores del −35 % y pocas operaciones.`,beat,less,pos,n,opy,ddm};
+ if(ar!=null&&as!=null&&ar-as>=0.02&&beat>=2&&ddm>=-0.35&&opy<=12&&pos===n&&!late)return{tx,c:"ok",t:"✅ Ganador",x:`Gana ${((ar-as)*100).toFixed(1).replace(".",",")} puntos al año más que el SPY${tx?" después de impuestos":""}, le gana en ${beat} de ${n} tramos, su peor caída es del ${(ddm*100).toFixed(0)} % y hace unas ${Math.max(1,Math.round(opy))} ventas al año. Pasa el filtro para tu cartera real.`,beat,less,pos,n,opy,ddm};
+ if(ar!=null&&as!=null&&ar>as)return{tx,c:"mid",t:"🟡 Gana poco al SPY",x:`Gana algo más que el SPY (${((ar-as)*100).toFixed(1).replace(".",",")} puntos al año${tx?" después de impuestos":""}), pero no pasa el filtro para tu cartera real: hace falta ≥2 puntos, ganarle en 2 de 3 tramos, caídas no peores del −35 % y pocas operaciones.`,beat,less,pos,n,opy,ddm};
  if(ar!=null&&as!=null&&ar>as)return{c:"mid",t:"🟡 Gana más, cae más",x:`Gana más que el SPY en el total, pero con caídas iguales o mayores en ${n-less} de ${n} tramos.`,beat,less,pos,n};
  if(less===n&&pos===n)return{c:"mid",t:"🟡 Cae menos",x:"Gana algo menos que el SPY, pero con caídas menores en todos los tramos.",beat,less,pos,n};
  return{c:"no",t:"❌ No compensa",x:"No gana al SPY ni reduce las caídas lo suficiente.",beat,less,pos,n}}
@@ -1615,7 +1626,7 @@ function btmDraw0(){const b=S.btm,el=$("#bt2");try{btFormInit()}catch{}if(!b){el
  const yrs=x=>Math.max(1,(dayN(b.to)-dayN(x.late&&x.t0?x.t0:b.from))/365.25);
  const card=x=>{const ref=x.k==="spy",d=as!=null&&x.a!=null&&!ref?(x.a-as)*100:null;if(!ref)rank++;const vb=ref?'<span class="bdg t">listón</span>':x.v?`<span class="bdg ${x.late?"mid":x.v.c}">${x.late?"⚠️ datos desde "+y(x.t0):x.v.t}</span>`:"";
   const act=ref?"":x.sim&&!x.M.promo?'<div class="m">✔ Ya está en la cartera ficticia.</div>':x.M.promo||(BTC.sim||[]).includes(x.k)?`<div class="act"><span class="m">🧪 En la ficticia (o lo estará tras la próxima actualización).</span><button class="ghost" data-btdemote="${x.k}">Quitar de la ficticia</button></div>`:`<div class="act"><button data-btpromo="${x.k}">🧪 Pasar a la cartera ficticia</button></div>`;
-  return`<details class="btc${ref?" ref":""}"><summary><span class="rk">${ref?"📏":rank}</span><span class="nm">${esc(nm(x.k))}</span><span class="pa ${x.a==null?"":x.a>=0?"up":"dn"}">${x.a==null?"—":P(x.a*100)}<small style="font-size:11px;font-weight:400;color:var(--muted)">/año</small></span><span class="sb">${vb}${x.k===S.main?'<span class="bdg ok">en uso</span>':""}${ref?"":T212B[t212Of(x.k)]||""}</span><span class="vs">${SIMPLE()&&x.a!=null?`<span class="sim1">100 € → <b>${Math.round(100*Math.pow(1+x.a,yrs(x))).toLocaleString("es-ES")} €</b>${x.dd==null?"":" · peor bajada "+P(x.dd*100)}</span>`:""}<span class="sim0">${x.dd==null?"":"caída "+P(x.dd*100)}${d==null?"":` · <span class="${d>=0?"up":"dn"}">${d>=0?"+":""}${d.toFixed(1).replace(".",",")}</span>`}</span></span></summary>
+  return`<details class="btc${ref?" ref":""}"><summary><span class="rk">${ref?"📏":rank}</span><span class="nm">${esc(nm(x.k))}</span><span class="pa ${x.a==null?"":x.a>=0?"up":"dn"}">${x.a==null?"—":P(x.a*100)}<small style="font-size:11px;font-weight:400;color:var(--muted)">/año</small></span><span class="sb">${vb}${x.k===S.main?'<span class="bdg ok">en uso</span>':""}${ref?"":T212B[t212Of(x.k)]||""}</span><span class="vs">${SIMPLE()&&x.a!=null?`<span class="sim1">100 € → <b>${Math.round(100*Math.pow(1+x.a,yrs(x))).toLocaleString("es-ES")} €</b>${x.dd==null?"":" · peor bajada "+P(x.dd*100)}${(()=>{const t=annualTaxOf(x.r,b.cuts);return t==null?"":" · tras impuestos ≈ "+P(t*100)+"/año"})()}</span>`:""}<span class="sim0">${x.dd==null?"":"caída "+P(x.dd*100)}${d==null?"":` · <span class="${d>=0?"up":"dn"}">${d>=0?"+":""}${d.toFixed(1).replace(".",",")}</span>`}</span></span></summary>
   <div class="bd">${x.v?`<div>${esc(x.v.x)}${x.late?" Ojo: empieza en "+y(x.t0)+" por falta de datos, así que no es del todo comparable.":""}</div>`:""}<div class="trs">${x.r.map(tr).join("")}</div><div class="m">${ref?"Comprar el S&P 500 y no tocarlo. Es el listón a batir.":esc(x.M.d||"")}</div>${!ref?`<div class="m" style="margin-top:4px">${esc(x.M.rev||"")} · ${x.r.reduce((t,z)=>t+(z?z.n:0),0)} operaciones · comisiones ${E(x.r.reduce((t,z)=>t+(z&&z.fees||0),0))}${x.M.fam&&FAMN[x.M.fam]?" · "+FAMN[x.M.fam]:""}</div>`:""}${x.M.src?`<div class="m" style="margin-top:4px;font-style:italic">${esc(x.M.src)}</div>`:""}${act}</div></details>`};
  const best=all.filter(x=>x.k!=="spy"&&x.v&&x.v.c==="ok"&&!x.late).sort(SO.a[1])[0]||meth.slice().sort(SO.a[1])[0],cf=b.cfg||{};
  el.innerHTML=`<div class="bthd"><div><small>Periodo</small><b>${y(b.from)}–${y(b.to)}</b></div><div><small>SPY</small><b class="${as>=0?"up":"dn"}">${as==null?"—":P(as*100)}/año</b></div><div><small>Ganadores</small><b>${nOk} de ${meth.length}</b></div></div>
@@ -3017,17 +3028,24 @@ ${Math.abs(own)>=1?`<div class="hero-live">🤖 El bot maneja ${E(botMon)}; el r
 <div class="hero-mood">${mood}</div>
 <div class="hero-live">${lv?`<i class="${ago!=null&&ago<40?"on":""}"></i> Actualizado ${agoT}`:""} · ${a.modo==="auto"?"invierte solo":a.modo==="pausa"?"solo mira":"te pide aprobación"}</div></div>`}
 /* v74 · ¿hay algo mejor que el método de tu cartera real? (según el filtro de la prueba histórica y la ficticia) */
-function betterHtml(){try{const b=S&&S.btm;if(!b||!b.rows||!b.rows.spy)return"";const cur=A().metodo,as=annualOf(b.rows.spy,b.cuts),pc=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",",")+" %";
- const L=Object.keys(b.rows).filter(k=>k!=="spy"&&MX(k)).map(k=>{const r=b.rows[k];return{k,v:btmVerd(b,k),an:annualOf(r,b.cuts),dd:r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null}}).filter(x=>x.an!=null);
- const win=L.filter(x=>x.v&&x.v.c==="ok").sort((x,y)=>y.an-x.an),me=L.find(x=>x.k===cur),nm=k=>(MX(k)||{}).n||NOMB[k]||k;
- const fw=k=>{const B=bkOf(k);if(!B||!B.days||B.days.length<2)return"";const e0=B.days[0].eq,e1=liveEq(k);return e0>0?" · en la ficticia "+pc(e1/e0-1)+" desde el "+fd(B.days[0].d):""};
- const row=x=>`<div class="row"><div><b>${esc(nm(x.k))}${x.k===cur?" (el tuyo)":""}</b><small>peor caída ${pc(x.dd)} · ${x.v&&x.v.opy!=null?"~"+Math.max(1,Math.round(x.v.opy))+" ventas/año":""}${esc(fw(x.k))}</small></div><span class="${x.an>=as?"up":"dn"}">${pc(x.an)}/año</span></div>`;
- const meOk=me&&me.v&&me.v.c==="ok",best=win[0];let head,btn="";
- if(!win.length)head=`Ningún candidato pasa ahora el filtro. Lo más sensato es seguir con tu método o con el SPY (comprar y mantener).`;
- else if(meOk&&best.k===cur)head=`✅ <b>Tu método es el mejor ganador ahora mismo.</b> No hace falta cambiar.`;
- else if(meOk)head=`✅ <b>Tu método pasa el filtro.</b> Hay otro que ganó más en la prueba, pero cambiar cuesta operaciones: solo merece la pena si también va mejor en la ficticia durante unos meses.`;
- else{head=`🟡 <b>Tu método no pasa el filtro</b>${me?` (${pc(me.an)}/año frente al ${pc(as)}/año del SPY)`:""}. ${win.length===1?"Este sí lo pasa":"Estos sí lo pasan"}:`;btn=`<button class="go" id="rl-bt-go" data-k="${esc(best.k)}">🧭 Cambiar a «${esc(nm(best.k))}»</button><div class="m" style="font-size:12px">Te lleva a «Elige el método»; no cambia nada hasta que guardes los ajustes. En la siguiente revisión el bot vendería lo de ahora y compraría lo nuevo.</div>`}
- return`<div class="p rl-better"><h2>🔎 ¿Hay algo mejor?</h2><div class="m">${head}</div>${win.slice(0,3).map(row).join("")}${!meOk&&me?row(me):""}<div class="m" style="font-size:12px">Prueba histórica ${esc(b.from.slice(0,4))}–${esc(b.to.slice(0,4))} · SPY ${pc(as)}/año. Filtro: ≥2 puntos al año más que el SPY, le gana en 2 de 3 tramos, caída no peor del −35 % y pocas operaciones.</div>${btn}</div>`}catch(e){return""}}
+function betterHtml(){try{const b=S&&S.btm;if(!b||!b.rows||!b.rows.spy)return"";const cur=A().metodo,pc=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",",")+" %";
+ const tx=!!(b.rows.spy[0]&&b.rows.spy[0].atax!=null),AN=r=>tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts),as=AN(b.rows.spy);
+ const L=Object.keys(b.rows).filter(k=>k!=="spy"&&MX(k)).map(k=>{const r=b.rows[k];return{k,v:btmVerd(b,k),an:AN(r),dd:r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null}}).filter(x=>x.an!=null);
+ const nm=k=>(MX(k)||{}).n||NOMB[k]||k,today=T0();
+ /* v75 · confirmación en la ficticia: al menos 3 meses y sin ir peor que tu método ni que el SPY en ese tiempo */
+ const H=hG(),spyAt=d=>{const h=H.SPY;if(!h||!h.r)return null;const n=dayN(d);let v=null;for(const x of h.r){if(x[0]<=n)v=x[4];else break}return v},spyNow=()=>{const h=H.SPY;return h&&h.r&&h.r.length?h.r[h.r.length-1][4]:null};
+ const fwd=k=>{const B=bkOf(k);if(!B||!B.days||B.days.length<2)return null;const d0=B.days[0].d,e0=B.days[0].eq,g=e0>0?liveEq(k)/e0-1:null,C=bkOf(cur),c0=C&&C.days?(C.days.find(z=>z.d>=d0)||{}).eq:null,gc=c0>0?liveEq(cur)/c0-1:null,s0=spyAt(d0),s1=spyNow(),gs=s0&&s1?s1/s0-1:null,nd=dayN(today)-dayN(d0);
+  const st=nd<91?"obs":(g!=null&&(gc==null||g>=gc-1e-9)&&(gs==null||g>=gs-1e-9))?"ok":"bad";return{d0,g,gc,gs,nd,st}};
+ const W=L.filter(x=>x.v&&x.v.c==="ok").sort((x,y)=>y.an-x.an).map(x=>({...x,f:x.k===cur?null:fwd(x.k)})),me=L.find(x=>x.k===cur),meOk=me&&me.v&&me.v.c==="ok";
+ const conf=W.filter(x=>x.k!==cur&&x.f&&x.f.st==="ok"),obs=W.filter(x=>x.k!==cur&&(!x.f||x.f.st==="obs"));
+ const fwT=x=>{const f=x.f;if(!f)return x.k===cur?"es el tuyo":"aún no está en la ficticia";const t=`en la ficticia ${f.g!=null?pc(f.g):"—"} desde el ${fd(f.d0)}${f.gs!=null?" (SPY "+pc(f.gs)+")":""}`;return f.st==="obs"?`⏳ en observación: ${t} · faltan ${91-f.nd} días para confirmarlo`:f.st==="ok"?`✅ confirmado: ${t}`:`⚠️ ${t}: va peor que tu método o que el SPY`};
+ const row=x=>`<div class="row"><div><b>${esc(nm(x.k))}${x.k===cur?" (el tuyo)":""}</b><small>peor caída ${pc(x.dd)}${x.v&&x.v.opy!=null?" · ~"+Math.max(1,Math.round(x.v.opy))+" ventas/año":""}</small><small>${esc(fwT(x))}</small></div><span class="${x.an>=as?"up":"dn"}">${pc(x.an)}/año</span></div>`;
+ let head,btn="";const best=conf[0];
+ if(!W.length)head="Ningún candidato pasa ahora el filtro. Lo más sensato es seguir con tu método (o con el SPY, comprar y mantener).";
+ else if(meOk&&!best)head="✅ <b>Tu método pasa el filtro.</b> No hace falta cambiar.";
+ else if(best)head=`${meOk?"✅ Tu método pasa el filtro, pero":"🟡 Tu método no pasa el filtro y"} <b>«${esc(nm(best.k))}»</b> ya lo ha confirmado en la ficticia durante más de 3 meses. Puedes plantearte el cambio:`,btn=`<button class="go" id="rl-bt-go" data-k="${esc(best.k)}">🧭 Cambiar a «${esc(nm(best.k))}»</button><div class="m" style="font-size:12px">Te lleva a «Elige el método»; no cambia nada hasta que guardes los ajustes. En la siguiente revisión el bot vendería lo de ahora y compraría lo nuevo (las ventas con ganancia tributan).</div>`;
+ else head=`${meOk?"✅ <b>Tu método pasa el filtro.</b>":"🟡 <b>Tu método no pasa el filtro</b>"+(me?` (${pc(me.an)}/año frente al ${pc(as)}/año del SPY${tx?", tras impuestos":""})`:"")+"."} ${obs.length?"Hay "+(obs.length===1?"un candidato mejor":obs.length+" candidatos mejores")+" <b>en observación</b> en la ficticia: <b>de momento no cambies</b>; cuando lleve 3 meses sin ir peor que tu método ni que el SPY, aquí aparecerá el botón para cambiar.":"Los que pasan el filtro van peor en la ficticia: de momento no cambies."}`;
+ return`<div class="p rl-better"><h2>🔎 ¿Hay algo mejor?</h2><div class="m">${head}</div>${W.slice(0,3).map(row).join("")}${!meOk&&me?row(me):""}<div class="m" style="font-size:12px">Prueba histórica ${esc(b.from.slice(0,4))}–${esc(b.to.slice(0,4))}${tx?", después de impuestos (19 %, como si lo vendieras todo al final)":""} · SPY ${pc(as)}/año. Filtro: ≥2 puntos al año más que el SPY, le gana en 2 de 3 tramos, caída no peor del −35 % y pocas operaciones; y después, 3 meses en la ficticia sin ir peor.</div>${btn}</div>`}catch(e){return""}}
 /* v72 · resultado de cada método que has tenido en la cartera real (por periodos) */
 function metResHtml(){const R=RL.R,D=days();if(D.length<2)return"";const H=((R&&R.metHist)||[]).slice().sort((x,y)=>x.d<y.d?-1:1);
  const cur=A().metodo,nm=k=>NOMB[k]||(STR[k]&&STR[k].n)||k,P=[];const at=d=>{let j=-1;H.forEach((h,i)=>{if(h.d<=d)j=i});return j<0?0:j};

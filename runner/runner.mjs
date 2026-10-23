@@ -28,14 +28,22 @@ const LS_OK = (k) => k === "pb19" || k === "pbh3" || k === "pbi1" || k === "vgid
 function scrubState(S) {
   try {
     if (S && S.mail) { delete S.mail.key; delete S.mail.to; }
+    // v75: restos del vigilante retirado
+    if (S) { delete S.vix; delete S.ivs; delete S.intra; }
   } catch {}
   return S;
 }
 // Los informes de más de 30 días conservan su texto (.md) pero pierden los datos pesados (cotizaciones, detalle de operaciones y curvas de la
 // prueba histórica), para que el archivo publicado no crezca sin límite (GitHub rechaza archivos de más de 100 MB).
-const OLD_MS = 30 * 864e5;
+const OLD_MS = 7 * 864e5;   // v75: antes 30 días (el archivo publicado llegó a 60 MB)
 function slimReport(v) {
   try {
+    // v75: las pruebas históricas guardaban todas las operaciones y curvas de cada método (hasta 26 MB por informe): se publica solo el resumen
+    if (v && /^prueba-historica/.test(String(v.status || ""))) {
+      const o = { ...v }; delete o.state; delete o.detalle; delete o.markdown;
+      if (typeof o.mdInforme === "string" && o.mdInforme.length > 150000) o.mdInforme = o.mdInforme.slice(0, 150000) + "\n\n[… recortado: el detalle completo de operaciones no se publica para que la web cargue rápido]\n";
+      return o;
+    }
     if (!v || !v.ts || Date.now() - Date.parse(v.ts) < OLD_MS) return v;
     const o = { ...v };
     delete o.state; delete o.detalle; delete o.markdown;
@@ -68,10 +76,10 @@ function sanitize(dump) {
       let rows = sc.rows;
       if (sn === "kv") {
         // "btl:*" (histórico largo descargado para la prueba) y "btpool" solo valen para el día en que se bajan: no se publican
-        rows = rows.filter(([k]) => k !== "keys" && !String(k).startsWith("btl:") && k !== "btpool");
+        rows = rows.filter(([k]) => k !== "keys" && !String(k).startsWith("btl:") && k !== "btpool" && !String(k).startsWith("vgd:") && k !== "vgidx");
         rows = rows.map(([k, v]) => [k, k === "S" ? scrubState(v) : String(k).startsWith("vgd:") ? slimDay(k, v) : v]);
       }
-      if (sn === "reports") rows = rows.map(([k, v]) => [k, slimReport(v)]);
+      if (sn === "reports") rows = rows.map(([k, v]) => [k, slimReport(v)]).sort((a, b) => String(a[0]) < String(b[0]) ? -1 : 1).slice(-150);   // v75: como mucho los 150 informes más recientes
       stores[sn] = { ...sc, rows };
     }
     idb[name] = { version: db.version, stores };

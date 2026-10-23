@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v36 (web v75): web más ligera, cambios solo confirmados e impuestos
+- **Web ~6 veces más ligera** (de ~60 MB a ~10 MB): los informes de la prueba histórica ya no publican todas las operaciones y curvas de cada método, los informes de más de 7 días se resumen, se guardan como mucho 150, y se borran los restos del vigilante.
+- **«¿Hay algo mejor?» solo recomienda cambiar** cuando un ganador lleva **3 meses en la ficticia** sin ir peor que tu método ni que el SPY. Antes sale como «⏳ en observación».
+- **Impuestos (España, 19 % aprox.)**: la prueba histórica calcula también la rentabilidad después de impuestos (los que venden mucho pagan cada año; comprar y mantener aplaza el pago). El filtro de ✅ Ganador compara después de impuestos desde la próxima prueba.
+
 ## Novedades v35 (web v74): la app, ordenada para encontrar métodos para la cartera real
 - **Histórico = buscador.** Prueba cada noche unos 40 candidatos: ETF europeos en euros (sin comisión ni cambio de divisa en Trading 212), revisión mensual o más lenta y sin apalancar. Fuera las acciones sueltas (dólares: 0,15 % de cambio por operación y sesgo de supervivencia), los métodos semanales o diarios y los apalancados. Mucho más rápido: ya no baja cientos de acciones.
 - **Filtro de ✅ Ganador**: ≥2 puntos al año más que el SPY, le gana en 2 de 3 tramos, peor caída no peor del −35 %, ≤12 ventas al año y datos desde el principio.
