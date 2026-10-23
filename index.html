@@ -472,7 +472,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v85</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v86</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1441,6 +1441,19 @@ for(const k of DROPM){delete STR[k];delete BTX[k]}
 /* En la ficticia solo queda el método base (sect) y entran solos los que la prueba histórica marque como ✅ Ganador (applySimx). */
 for(const k of Object.keys(STR))if(k!=="sect"){BTX[k]={...STR[k],bt:true};delete STR[k]}
 for(const [k,M] of Object.entries(FWDKEEP)){STR[k]=M;delete BTX[k]}
+/* v86 · MIXTOS Y CRIPTO, también en prueba en vivo (ficticia): el bitcoin solo tiene ~10 años de historia y los ETF de bitcoin de EE. UU.
+   desde 2024, así que no puede pasar el examen de dos épocas desde 2000. Se usa IBIT (ETF de bitcoin de BlackRock) como precio;
+   en Trading 212 se compraría su versión europea (un ETP de bitcoin en euros), si tu cuenta la tiene. */
+if(!WL.includes("IBIT"))WL.push("IBIT");try{ETFS.add("IBIT")}catch(e){}
+const btcT=({D})=>{const q=D.IBIT;if(!q||q.i<120)return null;const n=Math.min(210,q.i-1),up=upS(q.b,q.i,n);if(up==null)return null;return up?{w:{IBIT:1},why:{IBIT:`bitcoin (IBIT) sobre su media de ${n>=210?"10 meses":n+" sesiones"}`},bull:true}:{w:{},why:{},bull:false,out:"el bitcoin cae bajo su media: a efectivo"}};
+const mixT=(parts)=>({D,held,date})=>{const out={w:{},why:{},bull:false};for(const [f,wt,lbl] of parts){const t=f({D,held,date});if(!t)return null;for(const s in t.w){out.w[s]=(out.w[s]||0)+t.w[s]*wt;out.why[s]=(out.why[s]?out.why[s]+"; ":"")+lbl+": "+(t.why[s]||"")}if(t.bull!==false)out.bull=true}out.out="sale de alguna de las partes";return out};
+const FWX=(n,target,syms,d,src)=>({n,v:"1.0",tg:true,fwd:true,N:4,per:"m",target,syms,cat:"🔭 Mixtos y cripto · prueba en vivo",rev:"Revisión mensual",d,src});
+Object.assign(STR,{
+ btc:FWX("₿ Bitcoin en tendencia",btcT,["IBIT"],"Cada mes: 100 % en bitcoin mientras esté sobre su media de 10 meses; si cae por debajo, todo a efectivo. Muy volátil.","Regla de tendencia de Faber (2007) aplicada al bitcoin; los estudios sobre momentum en criptomonedas (Liu y Tsyvinski, 2021, Review of Financial Studies) encuentran tendencia fuerte, con caídas enormes."),
+ mxqb:FWX("🧩 Tendencia QQQ 80 % + bitcoin en tendencia 20 %",mixT([[TG.trq,0.8,"80 % Nasdaq 100 en tendencia"],[btcT,0.2,"20 % bitcoin en tendencia"]]),["QQQ","IBIT"],"El 80 % sigue la Tendencia QQQ de 10 meses y el 20 % el bitcoin en tendencia: un poco de cripto para buscar más rentabilidad sin jugárselo todo.","Combinación de dos reglas de tendencia de Faber (2007)."),
+ mxqs:FWX("🧩 Tendencia QQQ 50 % + momentum de 10 acciones 50 %",mixT([[TG.trq,0.5,"50 % Nasdaq 100 en tendencia"],[TG.m10,0.5,"50 % las 10 acciones con más momentum"]]),["QQQ","SPY"],"La mitad sigue la Tendencia QQQ (ETF) y la otra mitad las 10 acciones grandes con más fuerza de 12 meses, con filtro de mercado.","Faber (2007) y Jegadeesh y Titman (1993)."),
+ mxsb:FWX("🧩 Sectores 70 % + bitcoin en tendencia 30 %",mixT([[TG.sect,0.7,"70 % rotación de sectores"],[btcT,0.3,"30 % bitcoin en tendencia"]]),["XLK","IBIT"],"El 70 % sigue la Rotación de sectores y el 30 % el bitcoin en tendencia.","Faber (2007, 2010).")
+});
 // ETFs apalancados: antes de existir se simulan con el índice (k × rentabilidad diaria − costes de ~3% al año)
 const SPL={QLD:["QQQ",2],SSO:["SPY",2],TQQQ:["QQQ",3]};
 function spliceLev(L){const out=[];for(const [s,[base,k]] of Object.entries(SPL)){const B=L[base];if(!B||B.length<300)continue;const X=L[s]||[],d0=X.length?X[0].d:"9999",drag=(0.0095+0.02*(k-1))/252;
@@ -1560,7 +1573,7 @@ function livM(g){const X=LIVSC[g.sc];return{n:`🔭 Acciones · las ${g.n} ${X.n
 function livReg(){try{const L=labS();L.live=L.live||{};for(const [k,x] of Object.entries(L.live))if(!STR[k])STR[k]=livM(x.g)}catch(e){}}
 function livStep(){try{const L=labS();L.live=L.live||{};const today=T0();if(L.livT&&dayN(today)-dayN(L.livT)<91)return;
  const H=hG(),sr=H.SPY&&H.SPY.r||[],spyAt=d=>{const n=dayN(d);let v=null;for(const x of sr){if(x[0]<=n)v=x[4];else break}return v},sNow=sr.length?sr[sr.length-1][4]:null;
- const F=Object.keys(STR).filter(k=>STR[k].fwd).map(k=>{const B=S.books&&S.books[k];if(!B||!B.days||B.days.length<2)return null;const d0=B.days[0].d,e0=B.days[0].eq,e1=B.days[B.days.length-1].eq,s0=spyAt(d0);return{k,nd:dayN(today)-dayN(d0),ex:e0>0&&s0&&sNow?(e1/e0-1)-(sNow/s0-1):null}}).filter(x=>x&&x.ex!=null);
+ const F=Object.keys(STR).filter(k=>STR[k].fwd&&(LIVBASE[k]||(L.live&&L.live[k]))).map(k=>{const B=S.books&&S.books[k];if(!B||!B.days||B.days.length<2)return null;const d0=B.days[0].d,e0=B.days[0].eq,e1=B.days[B.days.length-1].eq,s0=spyAt(d0);return{k,nd:dayN(today)-dayN(d0),ex:e0>0&&s0&&sNow?(e1/e0-1)-(sNow/s0-1):null}}).filter(x=>x&&x.ex!=null);
  if(!L.livT){L.livT=today;return}
  const ripe=F.filter(x=>x.nd>=182).sort((a,b)=>a.ex-b.ex);if(ripe.length<2){L.livT=today;return}
  const worst=ripe[0],best=F.slice().sort((a,b)=>b.ex-a.ex)[0];if(!best||best.k===worst.k||(S.promo||[]).includes(worst.k)){L.livT=today;return}
@@ -2270,7 +2283,7 @@ function hoyRank(){const A=document.getElementById("hoy-rank");if(!A)return;
   const act=(nb||ns)?`🟢 ${nb} · 🔴 ${ns} en el último día`:"sin cambios en el último día";
   return`<div class="rk-c" data-go="${k}"><div class="rk-n">${med[j]||(j+1)+"."}</div><div class="rk-t"><b>${esc(STR[k].n)}${STR[k].fwd?' <span class="bdg t">🔭 en vivo</span>':""}</b><small>${np} ${np===1?"activo":"activos"} en cartera · ${cl} ventas cerradas · ${act}</small></div><div class="rk-g ${g>=0?"up":"dn"}">${P2(pc)}<small>${E2(g)}</small></div></div>`}).join("");
  const dias=(S.days||[]).length,pocas=ks.every(k=>((bkOf(k).trades)||[]).filter(t=>t.pnl!=null).length<30);
- A.innerHTML=`<div class="rk">${rows}</div><div class="m">Aquí operan, con precios de hoy, los <b>✅ Ganadores</b> del histórico (entran solos), el método base y los métodos de <b>acciones 🔭 en prueba en vivo</b> (con acciones la prueba histórica hace trampa: solo cuentan sus resultados desde hoy y necesitan 12 meses ganando al SPY para proponerse). Toca uno para ver qué hacer con él. Llevas ${dias} ${dias===1?"día":"días"} de datos${pocas?": todavía hay pocas ventas cerradas (menos de 30 por método), así que el ranking aún no demuestra nada. Sigue unas semanas.":"."}</div>`}
+ A.innerHTML=`<div class="rk">${rows}</div><div class="m">Aquí operan, con precios de hoy, los <b>✅ Ganadores</b> del histórico (entran solos), el método base y los métodos de <b>acciones, mixtos y bitcoin 🔭 en prueba en vivo</b> (con acciones la prueba histórica hace trampa: solo cuentan sus resultados desde hoy y necesitan 12 meses ganando al SPY para proponerse). Toca uno para ver qué hacer con él. Llevas ${dias} ${dias===1?"día":"días"} de datos${pocas?": todavía hay pocas ventas cerradas (menos de 30 por método), así que el ranking aún no demuestra nada. Sigue unas semanas.":"."}</div>`}
 document.addEventListener("click",e=>{const c=e.target&&e.target.closest&&e.target.closest("[data-go]");if(!c||!STR[c.dataset.go])return;VM.cart=c.dataset.go;VM.hoy=c.dataset.go;try{localStorage.setItem("pbvm",JSON.stringify(VM))}catch{}draw();const d=document.getElementById("hd-mi");if(d)d.open=true;const q=document.getElementById("hd-mi")||document.getElementById("mi-panel");if(q)q.scrollIntoView({behavior:"smooth",block:"start"})});
 const gtxt=g=>`<b class="${g>=0?"up":"dn"}">${E2(g)} (${P2(g/START*100)})</b>`;
 const hmL=t=>t?new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"";
@@ -2973,7 +2986,7 @@ const cls=v=>v>0.004?"up":v<-0.004?"dn":"";
 const dt=t=>{try{return new Date(t).toLocaleString("es-ES",{dateStyle:"short",timeStyle:"short"})}catch(e){return String(t||"—")}};
 const ri=()=>{const c=C();return c&&c.ri?c.ri():null};
 const qtyT=q=>(+q).toLocaleString("es-ES",{maximumFractionDigits:4});
-function A(){const o=Object.assign({},DEF,(RL.R&&RL.R.cfg)||{},RL.cfg||{}),ov=RL.R&&RL.R.metOv;if(ov&&ov.k&&!(RL.cfg&&RL.cfg.savedAt&&Date.parse(RL.cfg.savedAt)>=Date.parse(ov.ts))){o.metodo=ov.k;if(ov.acc)o.acciones=1}return o}
+function A(){const o=Object.assign({},DEF,(RL.R&&RL.R.cfg)||{},RL.cfg||{}),ov=RL.R&&RL.R.metOv;if(ov&&ov.k&&!(RL.cfg&&RL.cfg.savedAt&&Date.parse(RL.cfg.savedAt)>=Date.parse(ov.ts))){o.metodo=ov.k;if(ov.acc){o.acciones=1;o.divisa="cualquiera"}}return o}
 function say(t){RL.msg=t;["#rl-st","#rl-st2"].forEach(id=>{const e=$r(id);if(e)e.textContent=t})}
 
 /* ---------- datos: real.json (rama real) y real-ajustes.json (rama main) ---------- */

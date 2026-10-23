@@ -50,6 +50,7 @@ const ISIN_PREF = {
 };
 const normName = (s) => String(s || "").replace(/U\.\s?S\.?/g, "US").replace(/\s+/g, " ");
 const PAT = {
+  IBIT: [/iShares Bitcoin/i, /Bitcoin.*(ETP|ETC|ETN)|(ETP|ETC|ETN).*Bitcoin/i, /Physical Bitcoin/i, /Core Bitcoin|Bitcoin Core/i],
   SPY: [/^iShares Core S&P 500/i, /^Vanguard S&P 500/i, /SPDR S&P 500 UCITS/i, /S&P 500 UCITS/i],
   QQQ: [/EQQQ|Invesco.*Nasdaq[- ]?100/i, /iShares Nasdaq[- ]?100/i, /Nasdaq[- ]?100/i],
   SMH: [/VanEck Semiconductor/i, /Semiconductor/i],
@@ -87,7 +88,7 @@ const PAT = {
   SSO: [/S&P 500.*\b2x\b|\b2x\b.*S&P 500/i],
 };
 // para estos se permiten productos apalancados o de permuta (swap), que el filtro general descarta
-const LEVOK = new Set(["QLD", "TQQQ", "SSO", "DBC"]), BADL = /Short|Inverse|Hedged|ESG/i;
+const LEVOK = new Set(["QLD", "TQQQ", "SSO", "DBC", "IBIT"]), BADL = /Short|Inverse|Hedged|ESG/i;   // IBIT: ETP de bitcoin (no es un ETF UCITS)
 const BAD = /Hedged|Leverag|Short|Daily|\b[23]x\b|Equal|ESG|SRI|Paris|Screened|Swap|Covered Call|Buffer/i;
 const BASE_UNI = Object.keys(PAT);
 
@@ -254,7 +255,7 @@ function resolveMap(insts, syms, A) {
       const cands = [];
       insts.forEach((i) => {
         const nm = normName(i.name);
-        if (LEVOK.has(sym) ? BADL.test(nm) : (i.type !== "ETF" || BAD.test(nm))) return;
+        if (sym === "IBIT" ? /Short|Inverse|Leverag|\b[2-5]x\b|Hedged|Basket|Staking/i.test(nm) : LEVOK.has(sym) ? BADL.test(nm) : (i.type !== "ETF" || BAD.test(nm))) return;
         const k = PAT[sym].findIndex((re) => re.test(nm)); if (k < 0) return;
         let sc = 1000 - k * 100;
         if ((ISIN_PREF[sym] || []).includes(i.isin)) sc += 150;
@@ -421,7 +422,7 @@ export function sugerencia(S, cur, map) {
   const fw = (d0) => { if (!Bc || !Bc.days || !Bc.days.length) return null; const a = Bc.days.find((z) => z.d >= d0), b = Bc.days[Bc.days.length - 1]; return a && a.eq > 0 ? b.eq / a.eq - 1 : null; };
   // v78: solo métodos que se pueden comprar enteros en tu cuenta (si un ETF no está en Trading 212, esa parte se quedaría en efectivo)
   // v80: «acc» = solo falla porque tienes desactivada la compra de acciones en los ajustes (se te avisa, sin botón de cambiar)
-  const buyable = (k) => { if (!map || !Object.keys(map).length) return true; const B = (S.books || {})[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})), bad = sy.filter((s) => map[s] && !map[s].t); return !bad.length ? true : bad.every((s) => /acciones desactivadas/.test(map[s].why || "")) ? "acc" : false; };
+  const buyable = (k) => { if (!map || !Object.keys(map).length) return true; const B = (S.books || {})[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})), bad = sy.filter((s) => map[s] && !map[s].t); return !bad.length ? true : bad.every((s) => /acciones desactivadas|Divisa: solo euros/.test(map[s].why || "")) ? "acc" : false; };
   const L = S.labConf.filter((x) => x && x.ok && x.k !== cur && (S.books || {})[x.k] && (x.fwd || an == null || x.an > an + 0.005) && buyable(x.k)).filter((x) => { const gc = fw(x.d0); return gc == null || x.g >= gc; }).sort((a, b) => b.an - a.an);
   const best = L[0] || null;
   return best ? { ...best, needAcc: buyable(best.k) === "acc" } : null;
@@ -817,7 +818,7 @@ async function main() {
   try { R = await loadReal(); } catch (e) { if (A.on || EVENT !== "schedule") { await avisa("✖ Cartera real: error", String(e.message), { prio: 4 }); } throw e; }
   R.cfg = A;
   // v77: método cambiado por Telegram («✅ Cambiar»): manda hasta que guardes los ajustes desde la web
-  if (R.metOv && R.metOv.k) { if (LC.savedAt && Date.parse(LC.savedAt) >= Date.parse(R.metOv.ts)) R.metOv = null; else { A.metodo = R.metOv.k; if (R.metOv.acc) A.acciones = 1; } }
+  if (R.metOv && R.metOv.k) { if (LC.savedAt && Date.parse(LC.savedAt) >= Date.parse(R.metOv.ts)) R.metOv = null; else { A.metodo = R.metOv.k; if (R.metOv.acc) { A.acciones = 1; A.divisa = "cualquiera"; } } }
   const rep = [], head = [];
   let botC = null;
   const getBot = () => botC || (botC = loadBot());
@@ -869,7 +870,7 @@ async function main() {
       if (!P || P.estado !== "pendiente" || env("PLAN_ID") !== P.id) { titulo = "No había esa propuesta de cambio"; rep.push("No hay ninguna propuesta de cambio de método pendiente con ese identificador (quizá ya la contestaste)."); return; }
       P.fin = now.toISOString();
       if (tipo === "metodo-no") { P.estado = "rechazada"; titulo = "Cambio de método rechazado"; rep.push(`Sigues con «${NOMBRES[A.metodo] || A.metodo}». No te volveré a proponer «${P.n}» en 60 días.`); aviso = { title: "❌ Cambio de método rechazado", msg: rep.join("\n"), prio: 2 }; return; }
-      P.estado = "aprobada"; R.metOv = { k: P.k, n: P.n, ts: now.toISOString(), de: A.metodo, acc: P.needAcc ? 1 : undefined }; A.metodo = P.k; if (P.needAcc) A.acciones = 1; R.lastNormal = null;
+      P.estado = "aprobada"; R.metOv = { k: P.k, n: P.n, ts: now.toISOString(), de: A.metodo, acc: P.needAcc ? 1 : undefined }; A.metodo = P.k; if (P.needAcc) { A.acciones = 1; A.divisa = "cualquiera"; } R.lastNormal = null;
       titulo = "Cambio de método aprobado"; rep.push(`A partir de la próxima revisión con la bolsa abierta, la cartera real sigue «${P.n}»: venderá lo que no esté en su cartera objetivo y comprará lo nuevo${A.modo === "confirmar" ? " (te pedirá aprobar las órdenes, como siempre)" : ""}.`, "Si guardas los ajustes desde la web, manda el método que tengas elegido allí.");
       aviso = { title: "✅ Cambio de método aprobado", msg: rep.join("\n"), prio: 3 }; return;
     }
@@ -1072,7 +1073,7 @@ async function main() {
           const pc = (x) => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1).replace(".", ",") + " %";
           const txt = `Tu cartera real sigue «${NOMBRES[A.metodo] || A.metodo}». El bot ha encontrado uno que lo hace mejor y ya está confirmado:\n\n🏆 ${sg.n}${sg.fwd ? "\n· Método de acciones en prueba en vivo (sin prueba histórica, que con acciones hace trampa)" : `\n· Prueba histórica (después de impuestos): ${pc(sg.an)}/año${(b.S.labAn || {})[A.metodo] != null ? " (el tuyo " + pc(b.S.labAn[A.metodo]) + "/año)" : ""}`}\n· En la ficticia desde el ${sg.d0}: ${pc(sg.g)} (SPY ${pc(sg.gs)})${sg.fwd ? "" : `\n· Peor caída histórica ${pc(sg.dd || 0)} · ~${Math.max(1, Math.round(sg.opy || 1))} ventas al año`}\n\nSi lo cambias, en la próxima revisión el bot venderá lo de ahora y comprará lo nuevo (las ventas con ganancia tributan).`;
           rep.push("", "## Propuesta de cambio de método", "", txt);
-          await avisa("🔎 Cartera real: hay un método mejor", txt + (sg.needAcc ? "\n\nCompra acciones de EE. UU.: si pulsas «✅ Cambiar» se activa también la compra de acciones. Cotizan en dólares (0,15 % de cambio por operación, salvo que tengas saldo en dólares en Trading 212)." : ""), { prio: 3, kb: [[{ text: "✅ Cambiar", callback_data: "mc:" + id }, { text: "❌ No cambiar", callback_data: "mr:" + id }]] });
+          await avisa("🔎 Cartera real: hay un método mejor", txt + (sg.needAcc ? "\n\nCompra acciones de EE. UU.: si pulsas «✅ Cambiar» se activa también la compra de acciones y de productos en dólares. Cotizan en dólares (0,15 % de cambio por operación, salvo que tengas saldo en dólares en Trading 212)." : ""), { prio: 3, kb: [[{ text: "✅ Cambiar", callback_data: "mc:" + id }, { text: "❌ No cambiar", callback_data: "mr:" + id }]] });
         }
       }
     } catch (e) { log("No pude revisar si hay un método mejor:", String(e.message).slice(0, 120)); }

@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v47 (web v86): mixtos y bitcoin en prueba en vivo
+- 4 métodos más en la ficticia, marcados 🔭: **bitcoin en tendencia**, **Tendencia QQQ 80 % + bitcoin 20 %**, **Tendencia QQQ 50 % + 10 acciones con momentum 50 %** y **sectores 70 % + bitcoin 30 %**. El bitcoin no tiene historia desde 2000, así que se prueban desde hoy (12 meses ganando al SPY por ≥2 puntos para proponerse).
+- Precio del bitcoin: IBIT (ETF de bitcoin de BlackRock). En Trading 212 se compraría un ETP de bitcoin en euros (sin apalancar), si tu cuenta lo tiene; el bot lo comprueba antes de proponerlo.
+- Al aprobar un método con acciones o productos en dólares se activa también la compra de acciones y de productos en dólares.
+
 ## Novedades v46 (web v85): ETF o acciones, gana el mejor
 - Si el método confirmado es de acciones y tienes desactivada su compra, la propuesta llega igual con «✅ Cambiar»; al aprobarla se activa también la compra de acciones (te avisa del 0,15 % de cambio de divisa salvo saldo en dólares).
 
