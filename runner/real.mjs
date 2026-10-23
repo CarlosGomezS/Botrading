@@ -813,6 +813,30 @@ async function main() {
     if (R.lastNormal === m.date) { log(R.plan && R.plan.estado === "pendiente" ? "Hay una propuesta pendiente de hoy: se espera a que la apruebes o la rechaces en la web." : "La revisión de hoy ya está hecha."); return; }
   }
   if (scheduled && tipo === "foto" && R.days.some((x) => x.d === m.date && x.foto)) { log("La foto de hoy ya está hecha."); return; }
+  // v25: «pulso» cada ~15 min con la bolsa abierta: solo LEE tu cuenta y actualiza el valor del bot para la web (sin órdenes, sin avisos, sin informe)
+  if (tipo === "pulso") {
+    if (scheduled && (!m.wk || m.min < 9 * 60 || m.min > 18 * 60 + 15)) { log(`Pulso: fuera del horario de bolsa (${m.hm} en Madrid).`); return; }
+    if (!env("T212_KEY") || !R.ledger || R.ledger.limite == null) { log("Pulso: todavía no hay cartera real que seguir."); return; }
+    const T = t212(A.env);
+    let account, positions;
+    try { account = await T.call("GET", "/equity/account/summary"); positions = (await T.call("GET", "/equity/positions")) || []; }
+    catch (e) { log("Pulso: Trading 212 no responde ahora; se intenta en el siguiente."); return; }
+    const { id: _id, ...acc } = account || {};
+    R.account = { ...acc, at: now.toISOString() }; R.positions = mapPos(positions, R);
+    const cash = +((acc.cash && acc.cash.availableToTrade) || 0), inv = +((acc.investments && acc.investments.currentValue) || 0), resv = +((acc.cash && acc.cash.reservedForOrders) || 0) + +((acc.cash && acc.cash.inPies) || 0);
+    const BE = botEquity(R, positions, cash), prev = R.days.find((x) => x.d === m.date);
+    if (!(prev && prev.foto)) {
+      R.days = R.days.filter((x) => x.d !== m.date);
+      R.days.push({ ...(prev || {}), d: m.date, t: now.toISOString(), v: r2(cash + inv + resv), cash: r2(cash), inv: r2(inv), ap: R.deposits ? R.deposits.net : null, be: BE.eq, bc: R.ledger.cap, bf: (R.flows || {})[m.date] || 0, bcash: R.ledger.cash, live: true });
+      R.days.sort((a, b) => (a.d < b.d ? -1 : 1));
+    }
+    if (!R.intra || R.intra.d !== m.date) R.intra = { d: m.date, p: [] };
+    R.intra.p.push([m.hm, BE.eq]); R.intra.p = R.intra.p.slice(-120);
+    R.live = now.toISOString();
+    await publishReal(R);
+    log("Pulso: valor del bot actualizado (detalle cifrado en la web).");
+    return;
+  }
 
   head.push(`# Cartera real · ${tipo} · ${m.date} ${m.hm} (hora de España)`, "", `- Entorno: **${A.env === "demo" ? "DEMO (dinero de práctica)" : "REAL (dinero de verdad)"}** · modo: **${{ confirmar: "con confirmación", auto: "automático", pausa: "en pausa (solo mira)" }[A.modo]}** · ${A.on ? "activada" : "DESACTIVADA"}`, `- Lanzado: ${scheduled ? "programado" : EVENT === "workflow_dispatch" ? "a mano / desde la web" : EVENT}`);
 

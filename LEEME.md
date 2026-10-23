@@ -9,6 +9,12 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v25 (web v64): valor en directo y pantalla más simple en el móvil
+- Nuevo flujo **«Cartera real · valor en directo»** (`real-pulso.yml`): cada ~15 min con la bolsa abierta (lunes a viernes, 9:00–18:15 de Madrid) lee tu cuenta de Trading 212 **solo para mirar** (no compra ni vende ni manda avisos) y guarda el valor del bot.
+- La gráfica tiene la opción **«Hoy»**: cómo va el dinero del bot durante el día frente al cierre de ayer.
+- La tarjeta principal enseña cifra, resultado, «Invertido / Efectivo» y «Actualizado hace N min». La web se recarga sola cada ~2 min con la pestaña abierta.
+- Orden en la Real: tarjeta → gráfica → qué va a hacer → botones → posiciones → detalle → configuración.
+
 ## Novedades v24 (web v63): todos los avisos por Telegram
 
 - La cartera real y el simulador (actualización diaria, prueba histórica, vigilante con operaciones y errores) avisan **solo por Telegram**, con importes, órdenes y, si hay propuesta, botones para aprobar o rechazar.

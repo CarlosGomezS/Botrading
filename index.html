@@ -411,8 +411,21 @@ button.go:hover:not([disabled]){background:#ffc94d;box-shadow:0 12px 24px -12px 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 .hero-mood{font-size:14px;font-weight:600;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,209,102,.25);border-radius:14px;padding:8px 12px;line-height:1.4}
+
+/* v64 · móvil: lo esencial grande y claro */
+.hero-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.hero-tags{display:flex;gap:6px;flex-wrap:wrap}.hero-tags .mi-badge{font-size:11px;padding:3px 9px}
+.hero-chg{font-size:15px;color:#e8ecf8}
+.hero-row{display:flex;gap:10px;flex-wrap:wrap}.hero-row span{flex:1 1 120px;background:rgba(255,255,255,.07);border-radius:14px;padding:8px 12px;font-size:12.5px;color:#cfd6ec}.hero-row b{display:block;font-size:17px;color:#fff;font-weight:750}
+.hero-live{font-size:12px;color:#b9c2de;display:flex;align-items:center;gap:6px}
+.hero-live i{width:8px;height:8px;border-radius:50%;background:#8a93ad;display:inline-block}.hero-live i.on{background:#5fdca8;box-shadow:0 0 0 4px rgba(95,220,168,.18)}
+.rl-plan1{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-radius:16px;background:color-mix(in srgb,var(--line) 28%,transparent)}
+.rl-plan1 b{display:block;font-size:15px}.rl-plan1 small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.rl-btns{display:grid;gap:8px}.rl-btns>button.go{width:100%}
+.rl-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.rl-mini button{font-size:12.5px;padding:8px 4px;min-height:40px;background:color-mix(in srgb,var(--line) 30%,transparent);border-color:transparent}
+#rl-rng{margin-bottom:2px;display:flex;flex-wrap:nowrap;gap:5px}#rl-rng button{flex:1 1 0;min-width:0;padding:7px 2px;font-size:12.5px;white-space:nowrap}
 </style></head><body><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v63</span></h1><div class="m">Tu cartera real en Trading 212, la ficticia para probar y las pruebas con 26 años de datos.</div></div></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v64</span></h1><div class="m">Tu cartera real en Trading 212, la ficticia para probar y las pruebas con 26 años de datos.</div></div></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2832,17 +2845,23 @@ function summary(){const R=RL.R,D=days();if(!D.length)return null;const T=twr(D)
  const L=R.ledger||{},acc=(R.days||[]).filter(x=>x.v>0).pop()||{};
  return{d0:T[0].d,cap:l.bc,be:l.be,res:l.be-l.bc,pct:(l.i-1)*100,dia:prev?l.be-prev.be-(l.bf||0):null,dd:dd*100,green,nd:T.length,ok:O.filter(o=>o.estado==="ejecutada").length,bad:O.filter(o=>/error|rechazada/.test(o.estado)).length,sim,cashBot:l.bcash,invBot:l.be-(l.bcash||0),real:L.real||0,acc:acc.v,accCash:acc.cash,ap:acc.ap}}
 /* ---------- gráfica: tu dinero real frente al mismo método en simulación ---------- */
-function chartHtml(){const D=days();if(D.length<2)return'<div class="m">Aquí verás, día a día, cuánto gana o pierde el dinero del bot (sin contar lo que le das o le quitas) y, en discontinua, lo que hizo el mismo método en la simulación. Necesita al menos 2 días de datos: el bot guarda una foto del valor cada tarde.</div>';
- const T=twr(D),nd={w:5,m:21,q:63}[RL.rng],sl=nd?T.slice(-(nd+1)):T,B=bkOf(simKey());
- const i0=sl[0].i,e0=B?simEqAt(B,sl[0].d):null;
- const pts=sl.map(x=>({d:x.d,v:x.be,ap:x.bc,p:(x.i/i0-1)*100,s:e0&&B?((simEqAt(B,x.d)||e0)/e0-1)*100:null}));
+const fdx=d=>/:/.test(String(d))?String(d):fd(d);
+function chartHtml(){const D=days(),R0=RL.R||{},IN=(R0.intra&&R0.intra.p)||[],hasIn=IN.length>=2;
+ if(D.length<2&&!hasIn)return'<div class="m">Aquí verás cuánto gana o pierde el dinero del bot. Con la bolsa abierta se actualiza cada ~15 minutos; necesita al menos 2 lecturas.</div>';
+ if(!RL.rngSet&&hasIn&&D.length<6)RL.rng="d";
+ const B=bkOf(simKey());let pts,sl;
+ if((RL.rng==="d"||D.length<2)&&hasIn){const pv=(R0.days||[]).filter(x=>x.d<R0.intra.d&&x.be>0).pop(),base=pv?pv.be:IN[0][1];
+  pts=IN.map(([h,v])=>({d:h,v,ap:null,p:base>0?(v/base-1)*100:0,s:null}));sl=[{d:R0.intra.d}];RL.rng="d"}
+ else{if(RL.rng==="d")RL.rng="all";const T=twr(D),nd={w:5,m:21,q:63}[RL.rng];sl=nd?T.slice(-(nd+1)):T;
+  const i0=sl[0].i,e0=B?simEqAt(B,sl[0].d):null;
+  pts=sl.map(x=>({d:x.d,v:x.be,ap:x.bc,p:(x.i/i0-1)*100,s:e0&&B?((simEqAt(B,x.d)||e0)/e0-1)*100:null}))}
  const host=$r("#rl-ch"),W=Math.max(300,Math.min(900,(host&&host.clientWidth)||640)),H=220,pl=46,pr=14,pt=14,pb=26,pw=W-pl-pr,N=pts.length,xs=i=>pl+(N>1?i/(N-1)*pw:pw/2);
  const vals=pts.flatMap(x=>[x.p,x.s]).filter(v=>v!=null).concat([0]);let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<1){const m=(hi+lo)/2;lo=m-.5;hi=m+.5}const pad=(hi-lo)*.14;lo-=pad;hi+=pad;
  const ys=v=>pt+(hi-v)/(hi-lo)*(H-pt-pb),stp=[.25,.5,1,2,5,10,20,50,100].find(s=>(hi-lo)/s<=5)||100,tk=[];for(let v=Math.ceil(lo/stp)*stp;v<=hi;v+=stp)tk.push(+v.toFixed(4));
  const P0=pts.map((x,i)=>[xs(i),ys(x.p)]),line=smoothPath(P0),y0=ys(0),area=line+` L${xs(N-1).toFixed(1)} ${y0.toFixed(1)} L${xs(0).toFixed(1)} ${y0.toFixed(1)} Z`;
  const sp=pts.map((x,i)=>x.s==null?null:[xs(i),ys(x.s)]).filter(Boolean),simP=sp.length>1?`<path d="${smoothPath(sp)}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 5" opacity=".85"/>`:"";
  const grid=tk.map(v=>`<line x1="${pl}" x2="${W-pr}" y1="${ys(v).toFixed(1)}" y2="${ys(v).toFixed(1)}" stroke="var(--line)" ${v===0?'stroke-width="1.6" stroke-dasharray="5 4"':'opacity=".7"'}/><text x="${pl-7}" y="${(ys(v)+4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--muted)">${v>0?"+":""}${v}%</text>`).join("");
- const xl=[[0,"start"],...(N>=5?[[Math.round((N-1)/2),"middle"]]:[]),[N-1,"end"]].map(([i,a])=>`<text x="${xs(i).toFixed(1)}" y="${H-7}" text-anchor="${a}" font-size="11" fill="var(--muted)">${esc(fd(pts[i].d))}</text>`).join("");
+ const xl=[[0,"start"],...(N>=5?[[Math.round((N-1)/2),"middle"]]:[]),[N-1,"end"]].map(([i,a])=>`<text x="${xs(i).toFixed(1)}" y="${H-7}" text-anchor="${a}" font-size="11" fill="var(--muted)">${esc(fdx(pts[i].d))}</text>`).join("");
  const last=pts[N-1],col=last.p>=0?"var(--go)":"var(--stop)",[px,py]=P0[N-1];
  const mh=(RL.R.metHist||[]).filter(m=>m.d>sl[0].d).map(m=>{const i=pts.findIndex(x=>x.d>=m.d);return i<0?"":`<line x1="${xs(i).toFixed(1)}" x2="${xs(i).toFixed(1)}" y1="${pt}" y2="${H-pb}" stroke="var(--wait)" stroke-dasharray="2 3"/><text x="${(xs(i)+3).toFixed(1)}" y="${pt+10}" font-size="10" fill="var(--wait)">cambio de método</text>`}).join("");
  const svg=`<svg id="rl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Rentabilidad de la cartera real frente a la simulación"><defs><clipPath id="rlU"><rect x="0" y="0" width="${W}" height="${y0.toFixed(1)}"/></clipPath><clipPath id="rlD"><rect x="0" y="${y0.toFixed(1)}" width="${W}" height="${H}"/></clipPath>
@@ -2853,13 +2872,13 @@ ${grid}${xl}${mh}<g clip-path="url(#rlU)"><path d="${area}" fill="url(#rlgU)"/><
 <line id="rl-x" x1="0" x2="0" y1="${pt}" y2="${H-pb}" stroke="var(--ink)" stroke-dasharray="3 3" opacity="0"/><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="5.5" fill="${col}" stroke="var(--panel)" stroke-width="3"/><circle id="rl-d" r="5.5" fill="var(--panel)" stroke="var(--ink)" stroke-width="2.5" opacity="0"/></svg>`;
  const s=summary(),chip=(t,v,c)=>`<div class="chip"><small>${t}</small><b class="${c||""}">${v}</b></div>`,gap=s&&s.sim!=null&&s.pct!=null?s.pct-s.sim:null;
  RL.pts=pts;RL.cx={W,pl,pw,N,ys};
- return`<div class="pills" id="rl-rng">${[["w","1 sem"],["m","1 mes"],["q","3 meses"],["all","Todo"]].map(([k,t])=>`<button data-r="${k}" class="${RL.rng===k?"on":""}">${t}</button>`).join("")}</div>
+ return`<div class="pills" id="rl-rng">${[...(hasIn?[["d","Hoy"]]:[]),...(D.length>=2?[["w","1 sem"],["m","1 mes"],["q","3 meses"],["all","Todo"]]:[])].map(([k,t])=>`<button data-r="${k}" class="${RL.rng===k?"on":""}">${t}</button>`).join("")}</div>
 <div class="chh" id="rl-chh"></div><div id="rl-chw" style="touch-action:pan-y;cursor:crosshair">${svg}</div>
-<div class="m"><span style="color:var(--go)">━</span><span style="color:var(--stop)">━</span> Dinero del bot (rentabilidad: lo que le das o le quitas no cuenta como ganancia ni pérdida) · <span>╌╌</span> el mismo método en la simulación. Pasa el dedo para ver cada día.</div>
-<div class="chips">${s?chip("Último día",SG(s.dia),cls(s.dia))+chip("Resultado",SG(s.res),cls(s.res))+chip("Rentabilidad",PC(s.pct),cls(s.pct))+chip("Simulación",PC(s.sim),cls(s.sim))+chip("Real − simulación",PC(gap),cls(gap))+chip("Peor caída",PC(s.dd),cls(s.dd)):""}</div>`}
-function chartBind(){const w=$r("#rl-chw");document.querySelectorAll("#rl-rng button").forEach(b=>b.onclick=()=>{RL.rng=b.dataset.r;draw()});if(!w||!RL.pts)return;
+<div class="m" style="font-size:12px">${RL.rng==="d"?"Hoy, cada ~15 min, frente al cierre de ayer.":"<span>╌╌</span> el mismo método en la ficticia."} Pasa el dedo por la gráfica.</div>
+<div class="chips">${s?chip("Hoy",SG(s.dia),cls(s.dia))+chip("Rentabilidad",PC(s.pct),cls(s.pct))+chip("Peor caída",PC(s.dd),cls(s.dd)):""}</div>`}
+function chartBind(){const w=$r("#rl-chw");document.querySelectorAll("#rl-rng button").forEach(b=>b.onclick=()=>{RL.rng=b.dataset.r;RL.rngSet=true;draw()});if(!w||!RL.pts)return;
  const {W,pl,pw,N,ys}=RL.cx,pts=RL.pts,xs=i=>pl+(N>1?i/(N-1)*pw:pw/2);
- const setH=i=>{const x=pts[i],h=$r("#rl-chh");if(!h)return;h.innerHTML=`<span class="m">${esc(fd(x.d))}</span><br><b class="${cls(x.p)}">${P2(x.p)}</b> <span class="m">· el bot vale ${E(x.v)}${x.ap!=null?" · capital "+E(x.ap):""}${x.s!=null?" · simulación "+P2(x.s):""}</span>`};
+ const setH=i=>{const x=pts[i],h=$r("#rl-chh");if(!h)return;h.innerHTML=`<span class="m">${esc(fdx(x.d))}</span><br><b class="${cls(x.p)}">${P2(x.p)}</b> <span class="m">· el bot vale ${E(x.v)}${x.ap!=null?" · capital "+E(x.ap):""}${x.s!=null?" · simulación "+P2(x.s):""}</span>`};
  const show=i=>{i=Math.max(0,Math.min(N-1,i));const l=$r("#rl-x"),c=$r("#rl-d");if(l){l.setAttribute("x1",xs(i));l.setAttribute("x2",xs(i));l.setAttribute("opacity",".55")}if(c){c.setAttribute("cx",xs(i));c.setAttribute("cy",ys(pts[i].p));c.setAttribute("opacity","1")}setH(i)};
  const hide=()=>{["#rl-x","#rl-d"].forEach(s=>{const e=$r(s);if(e)e.setAttribute("opacity","0")});setH(N-1)};
  const mv=ev=>{const r=w.getBoundingClientRect(),x=(ev.clientX-r.left)/r.width*W;show(Math.round((x-pl)/pw*(N-1)))};
@@ -2893,10 +2912,13 @@ function heroHtml(){const R=RL.R,a=A(),s=summary(),acc=(R&&R.account)||{},L=R&&R
  const est=R&&R.paused?badge("⛔ En pausa","b-sell"):a.on?badge("Activada","b-buy"):badge("Desactivada","b-hold");
  const tot=+((acc.cash&&acc.cash.availableToTrade)||0)+ +((acc.investments&&acc.investments.currentValue)||0)+ +((acc.cash&&acc.cash.reservedForOrders)||0);
  const mood=R&&R.paused?"⛔ El bot está en pausa: mira los avisos.":R&&R.plan&&R.plan.estado==="pendiente"?"🟡 Tienes una propuesta esperando tu aprobación.":R&&R.approved?"✅ Órdenes aprobadas: se hacen en la próxima revisión con la bolsa abierta.":!a.on?"💤 La cartera real está desactivada.":"✅ Todo en orden: el bot sigue a «"+esc(NOMB[a.metodo]||(STR[a.metodo]&&STR[a.metodo].n)||a.metodo)+"».";
- return`<div class="p hero"><h2>Dinero del bot hoy</h2><div class="hero-mood">${mood}</div><div>${env}${modo}${est}</div><div class="big">${s?E(s.be):L?E(L.cap):"—"}</div>
-<div>${s?`<b class="${cls(s.res)}">${SG(s.res)} (${PC(s.pct)})</b> sobre los ${E(s.cap)} que le has dado · desde el ${esc(fd(s.d0))}`:"Aún sin historial"}</div>
-<div class="m">Método: <b>${esc(NOMB[a.metodo]||(STR[a.metodo]&&STR[a.metodo].n)||a.metodo||"—")}</b>${s?` · invertido ${E(s.invBot)} · efectivo del bot ${E(s.cashBot)} · ganancia ya cobrada en ventas ${SG(s.real)}`:""}</div>
-<div class="m">Tu cuenta de Trading 212 entera: <b>${E(tot)}</b> · efectivo libre ${E(+((acc.cash&&acc.cash.availableToTrade)||0))}${R&&R.deposits?" · ingresado neto "+E(R.deposits.net):""}${R&&R.last?" · último dato "+esc(dt(R.last)):""}</div></div>`}
+ const lv=R&&(R.live||R.last),ago=lv?Math.max(0,Math.round((Date.now()-Date.parse(lv))/60000)):null,agoT=ago==null?"":ago<1?"ahora mismo":ago<60?"hace "+ago+" min":ago<1440?"hace "+Math.round(ago/60)+" h":"el "+dt(lv);
+ return`<div class="p hero"><div class="hero-top"><h2>Dinero del bot</h2><span class="hero-tags">${env}${est}</span></div>
+<div class="big">${s?E(s.be):L?E(L.cap):"—"}</div>
+<div class="hero-chg">${s?`<b class="${cls(s.res)}">${SG(s.res)} (${PC(s.pct)})</b> desde el ${esc(fd(s.d0))}${s.dia!=null?` · hoy <b class="${cls(s.dia)}">${SG(s.dia)}</b>`:""}`:"Aún sin historial"}</div>
+<div class="hero-row"><span>Invertido <b>${s?E(s.invBot):"—"}</b></span><span>Efectivo <b>${s?E(s.cashBot):"—"}</b></span></div>
+<div class="hero-mood">${mood}</div>
+<div class="hero-live">${lv?`<i class="${ago!=null&&ago<40?"on":""}"></i> Actualizado ${agoT}`:""} · ${a.modo==="auto"?"invierte solo":a.modo==="pausa"?"solo mira":"te pide aprobación"}</div></div>`}
 function isinOf(t,sym,pi){if(pi)return pi;const M=(RL.R&&RL.R.map)||{};if(sym&&M[sym]&&M[sym].t===t&&M[sym].isin)return M[sym].isin;const x=Object.values(M).find(z=>z&&z.t===t&&z.isin);return x?x.isin:""}
 const isinBtn=i=>i?`<button class="cpy" data-copy="${esc(i)}" title="Copiar el ISIN">ISIN ${esc(i)} 📋</button>`:"";
 function ordCard(o,canAct){const buy=o.side==="COMPRA";
@@ -2911,8 +2933,10 @@ function planHtml(){const R=RL.R,P=R&&R.plan,LP=R&&R.lastPlan,c=C(),a=A();let h=
   h+='<div class="m">Al aprobar, GitHub vuelve a calcular el plan con los precios de ese momento: si los activos a comprar o vender han cambiado, no ejecuta nada y te propone el nuevo. Las órdenes son a mercado (como pulsar «Comprar» en la app).</div>';
   if(P.notas&&P.notas.length)h+='<details class="rd"><summary>Notas del plan ('+P.notas.length+')</summary><div class="rb m">'+P.notas.map(n=>"<div>• "+esc(n)+"</div>").join("")+"</div></details>";
  }else if(LP){
-  h+=`<div class="mi-card mi-hold"><div class="mi-top"><div class="mi-t">Última revisión<small>${esc(dt(LP.ts))} · ${esc(LP.metodoNombre)}</small></div><span class="mi-badge b-hold">${LP.orders&&LP.orders.length?LP.orders.length+" órdenes":"Sin cambios"}</span></div><div class="mi-why">${LP.orders&&LP.orders.length?"Mira «Historial de órdenes» para ver qué se hizo.":"Tu cartera ya sigue al método. La próxima revisión es el siguiente día de bolsa hacia las 10:15 (hora de España)."}${LP.yaAplicada?" Como en la simulación, no se reajusta por pequeñas variaciones de precio hasta que el método revise su cartera.":""}</div></div>`;
-  if(LP.orders&&LP.orders.length)h+=(R.approved&&R.approved.firma===LP.firma?'<div class="m" style="margin:6px 0">✅ <b>Aprobadas por ti</b>: se ejecutan en la próxima revisión con la bolsa abierta (si el método no cambia).</div>':'<div class="m" style="margin:6px 0">Órdenes de la última revisión:</div>')+LP.orders.map(o=>ordCard(o)).join("");
+  const apr=R.approved&&LP.orders&&LP.orders.length&&R.approved.firma===LP.firma;
+  h+=`<div class="rl-plan1"><div><b>${apr?"⏳ Aprobado, se hace en la próxima apertura":LP.orders&&LP.orders.length?"✔ Hecho en la última revisión":"✔ Nada que cambiar"}</b><small>${esc(dt(LP.ts))} · ${esc(LP.metodoNombre)}</small></div><span class="mi-badge b-hold">${LP.orders&&LP.orders.length?LP.orders.length+(LP.orders.length===1?" orden":" órdenes"):"Sin cambios"}</span></div>`;
+  if(false)h+=`<div class="mi-card mi-hold"><div class="mi-top"><div class="mi-t">Última revisión<small>${esc(dt(LP.ts))} · ${esc(LP.metodoNombre)}</small></div><span class="mi-badge b-hold">${LP.orders&&LP.orders.length?LP.orders.length+" órdenes":"Sin cambios"}</span></div><div class="mi-why">${LP.orders&&LP.orders.length?"Mira «Historial de órdenes» para ver qué se hizo.":"Tu cartera ya sigue al método. La próxima revisión es el siguiente día de bolsa hacia las 10:15 (hora de España)."}${LP.yaAplicada?" Como en la simulación, no se reajusta por pequeñas variaciones de precio hasta que el método revise su cartera.":""}</div></div>`;
+  if(LP.orders&&LP.orders.length)h+=apr?LP.orders.map(o=>ordCard(o)).join(""):'<details class="rd"><summary><span>Ver las órdenes de esa revisión</span></summary><div class="rb">'+LP.orders.map(o=>ordCard(o)).join("")+"</div></details>";
   if(LP.notas&&LP.notas.length)h+='<details class="rd"><summary>Notas de la última revisión ('+LP.notas.length+')</summary><div class="rb m">'+LP.notas.map(n=>"<div>• "+esc(n)+"</div>").join("")+"</div></details>";
  }else h+='<div class="m">Todavía no hay ninguna revisión. Cuando la conexión funcione y actives la cartera, cada día de bolsa hacia las 10:15 (hora de España) el bot compara tu cuenta con el método y '+(a.modo==="auto"?"ejecuta las órdenes solo":a.modo==="confirmar"?"te propone las órdenes para que las apruebes aquí":"solo anota lo que haría")+".</div>";
  const ob=(P&&P.estado==="pendiente"?P:LP);
@@ -2959,8 +2983,8 @@ function mapHtml(){const M=(RL.R&&RL.R.map)||{},xs=Object.values(M).sort((a,b)=>
  return'<div class="m">Los ETFs de EE. UU. (XLK, QQQ…) <b>no se pueden comprar desde España</b> (normativa europea PRIIPs): el bot compra el ETF europeo (UCITS) que sigue el mismo índice. La señal sale del ETF de EE. UU.; la orden, del europeo.</div><div class="tw"><table><tr><th>Activo del bot</th><th>Se compra en Trading 212</th><th>Divisa</th></tr>'+a.map(tr).join("")+"</table></div>"+(b.length?'<details class="rd"><summary>Otros activos comprobados (no los usa ningún método actual): '+b.length+'</summary><div class="rb"><div class="tw"><table>'+b.map(tr).join("")+"</table></div></div></details>":"")+
  (RL.R.inst?'<div class="m">Lista de instrumentos de Trading 212 del '+esc(dt(RL.R.inst.at))+" ("+RL.R.inst.n+" instrumentos). Si prefieres otro ETF para algún activo, ponlo en «Sustituciones manuales» de los ajustes.</div>":"")}
 function actHtml(){const R=RL.R,dis=RL.busy?"disabled":"";
- return`<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rl-a-normal" class="go" ${dis}>🔄 Revisar ahora</button><button id="rl-a-probar" ${dis}>🔌 Probar conexión</button><button id="rl-a-foto" ${dis}>📸 Guardar valor de hoy</button>${R&&R.paused?`<button id="rl-a-reanudar" ${dis}>▶ Reanudar (quitar pausa)</button>`:""}<button id="rl-a-rec" ${dis}>↻ Recargar datos</button></div>
-<div class="m"><b>Revisar ahora</b>: hace ya la revisión del día (propone, ejecuta o solo mira, según tus ajustes) · <b>Probar conexión</b>: comprueba claves y ETFs, sin operar. Lo automático: revisión cada día de bolsa desde las 9:17, foto del valor por la tarde e informe los viernes.</div>`}
+ return`<div class="rl-btns"><button id="rl-a-normal" class="go" ${dis}>🔄 Revisar ahora</button>${R&&R.paused?`<button id="rl-a-reanudar" class="go" ${dis}>▶ Reanudar (quitar pausa)</button>`:""}<div class="rl-mini"><button id="rl-a-rec" ${dis}>↻ Actualizar</button><button id="rl-a-probar" ${dis}>🔌 Probar conexión</button><button id="rl-a-foto" ${dis}>📸 Guardar valor</button></div></div>
+<div class="m" style="font-size:12px">«Revisar ahora» aplica ya el método. Lo automático: revisión cada día de bolsa desde las 9:17 y el valor cada ~15 min con la bolsa abierta.</div>`}
 function cfgHtml(){const a=A(),sec=secState(),sel=(id,v,opts)=>`<select id="${id}" style="width:100%">${opts.map(([k,t])=>`<option value="${k}"${String(v)===String(k)?" selected":""}>${t}</option>`).join("")}</select>`;
  const yn=(id,v)=>sel(id,v,[[1,"Sí"],[0,"No"]]),mp=Object.entries(a.mapa||{}).map(([k,v])=>k+"="+v).join("\n");
  let h='<div class="m">Estos ajustes son <b>solo de la cartera real</b> (los del simulador están en ⚙️ Ajustes). Se guardan en <code>real-ajustes.json</code> de tu repositorio y el bot los usa desde su siguiente revisión.</div><div class="kv rl-cfg">';
@@ -3045,9 +3069,9 @@ function draw0(){const root=$r("#rl-root");if(!root)return;const R=RL.R;let h=""
   h=lockP+h+warns()+'<div class="p"><h2>Acciones</h2>'+actHtml()+stP+"</div>"+fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),true)+fold("met","🧭 Elige el método",metHtml(),false)+fold("help","❓ Cómo ponerla en marcha",helpHtml(),true);root.innerHTML=h;bind();return}
  // v61: lo importante arriba (cuánto vale, qué va a hacer, botones); el detalle, plegado debajo
  h+=heroHtml()+warns();
- h+='<div class="p"><h2>Qué va a hacer con tu dinero</h2><div style="display:grid;gap:10px">'+planHtml()+"</div></div>";
- h+='<div class="p rl-act"><h2>Acciones</h2>'+actHtml()+stP+'</div>';
- h+='<div class="p"><div class="chtop"><h2>Rendimiento real</h2></div><div id="rl-ch">'+chartHtml()+"</div></div>";
+ h+='<div class="p"><div class="chtop"><h2>¿Va ganando?</h2></div><div id="rl-ch">'+chartHtml()+"</div></div>";
+ h+='<div class="p"><h2>Qué va a hacer</h2><div style="display:grid;gap:10px">'+planHtml()+"</div></div>";
+ h+='<div class="p rl-act">'+actHtml()+stP+'</div>';
  h+=fold("pos","💼 Lo que tiene el bot y lo que es tuyo",posHtml(),true);
  h+='<div class="rl-sep">Detalle</div>';
  h+=fold("ord","🧾 Historial de órdenes ("+((R.orders||[]).length)+")",ordHtml(),false);
@@ -3110,7 +3134,7 @@ window.__realLock=function(){navShow();const b=$r("#rl-lockb");if(b){b.innerHTML
 window.__realReload=()=>loadReal(true);
 loadReal(false);
 if(FORCE)setTimeout(()=>go("real"),300);
-setInterval(()=>{const t=$r("#t-real");if(t&&t.classList.contains("on")&&!document.hidden&&!RL.busy&&!RL.dirty&&Date.now()-RL.at>5*60000&&!/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||""))loadReal(false)},60000);
+setInterval(()=>{const t=$r("#t-real");if(t&&t.classList.contains("on")&&!document.hidden&&!RL.busy&&!RL.dirty&&Date.now()-RL.at>2*60000&&!/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||""))loadReal(false)},60000);
 let rz=null;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{const t=$r("#t-real");if(t&&t.classList.contains("on")&&RL.R){const ch=$r("#rl-ch");if(ch){ch.innerHTML=chartHtml();chartBind()}}},250)});
 })();
 </script>

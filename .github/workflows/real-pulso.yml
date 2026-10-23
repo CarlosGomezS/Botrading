@@ -1,0 +1,36 @@
+name: Cartera real · valor en directo (cada 15 min)
+
+# Con la bolsa abierta, cada ~15 minutos LEE tu cuenta de Trading 212 y actualiza el valor del bot para la web
+# (gráfica y «Dinero del bot hoy»). No envía órdenes, no avisa y no crea informes. Va cifrado igual que todo lo demás.
+on:
+  schedule:
+    - cron: "*/15 7-16 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# mismo grupo que «Cartera real»: nunca escriben a la vez
+concurrency:
+  group: cartera-real
+  cancel-in-progress: false
+
+jobs:
+  pulso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Leer el valor de la cuenta
+        working-directory: runner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACCION: pulso
+          T212_KEY: ${{ secrets.T212_KEY }}
+          T212_SECRET: ${{ secrets.T212_SECRET }}
+          REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
+        run: node real.mjs

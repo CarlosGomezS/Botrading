@@ -167,6 +167,15 @@ test("ESCENARIOS: un año de uso con dinero real (simulado) de principio a fin",
       assert.ok(!/€|_EQ|QDVE|SXL/.test(r.so), "el registro (público en GitHub) no lleva importes ni tickers:\n" + r.so);
       assert.equal(r.R.orders.filter((o) => o.estado === "ejecutada").length, 3);
     });
+    await t.test("1b · pulso (valor en directo): solo lee la cuenta, sin órdenes, sin informe, guarda el punto del día", async () => {
+      const n0 = W.mk.calls.filter((c) => c.m === "POST").length, before = (await W.step("foto", "2026-10-22T16:50:00Z")).R.reports.length;
+      for (const k of Object.keys(K.px)) K.px[k] *= 1.01;
+      const r = await W.step("pulso", "2026-10-23T09:30:00Z");
+      assert.equal(r.code, 0, r.so); assert.equal(W.mk.calls.filter((c) => c.m === "POST").length, n0, "ninguna orden");
+      assert.equal(r.R.reports.length, before, "no añade informes"); assert.ok(r.R.intra && r.R.intra.d === "2026-10-23" && r.R.intra.p.length === 1);
+      const d = r.R.days.find((x) => x.d === "2026-10-23"); assert.ok(d && d.live && d.be > 0);
+      for (const k of Object.keys(K.px)) K.px[k] /= 1.01;
+    });
     await t.test("2 · rotación mensual: vende energía y financiero, compra industrial y servicios", async () => {
       W.setTgt("2026-11-02", ["XLK", "XLI", "XLU"]);
       const r = await W.step("normal", "2026-11-03T09:20:00Z");
