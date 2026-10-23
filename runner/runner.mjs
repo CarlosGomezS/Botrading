@@ -577,12 +577,13 @@ async function main() {
       // v79: lo que ha hecho el laboratorio esta noche; si hay un ganador nuevo, el aviso lo dice en el título
       try {
         const lab = await page.evaluate(() => { try { const L = S.lab || {}, d = T0(), ev = (L.log || []).filter((x) => x.d === d), sp = S.btm && S.btm.rows && S.btm.rows.spy, tx = sp && sp[0] && sp[0].atax != null, as = sp ? (tx ? annualTaxOf(sp, S.btm.cuts) : annualOf(sp, S.btm.cuts)) : null;
-          return { last: L.last || null, ev: ev.map((x) => ({ ev: x.ev, n: x.n, why: x.why, an: (L.pop[x.k] || L.pend[x.k] || {}).an })), as, pop: Object.keys(L.pop || {}).length, pend: Object.keys(L.pend || {}).length }; } catch (e) { return null; } });
+          return { last: L.last || null, ev: ev.map((x) => ({ ev: x.ev, n: x.n, why: x.why, an: (L.pop[x.k] || L.pend[x.k] || {}).an })), as, pop: Object.keys(L.pop || {}).length, pend: Object.keys(L.pend || {}).length, near: (L.near || []).filter((x) => x.why).slice(0, 1).map((x) => ({ n: labName(x.g), an: x.an, sc: x.sc, why: x.why })) }; } catch (e) { return null; } });
         if (lab && lab.last) {
           const pc = (x) => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1).replace(".", ",") + " %";
           const nuevos = lab.ev.filter((x) => x.ev === "nace" || x.ev === "a la ficticia"), top = nuevos.filter((x) => x.an != null && lab.as != null && x.an - lab.as >= 0.04);
           const L2 = [`🤖 Laboratorio: ${lab.last.n} métodos nuevos probados · ${lab.last.ok} aprueban el examen · liga ${lab.pop}/20${lab.pend ? " · " + lab.pend + " en prueba de estabilidad" : ""}`];
           for (const x of lab.ev.slice(0, 6)) L2.push(`${{ nace: "🌱", aprueba: "📝", descartado: "🎲", sale: "🗑️", "a la ficticia": "🧪", apartado: "⛔", evoluciona: "🔄" }[x.ev] || "•"} ${x.n.replace(/^🤖 /, "")}: ${x.ev}${x.an != null ? " (" + pc(x.an) + "/año)" : ""}`);
+          if (!lab.last.ok && lab.near && lab.near[0]) { const z = lab.near[0]; L2.push(`🎯 El que más se acerca: ${z.n.replace(/^🤖 /, "")} (${pc(z.an)}/año, nota ${Math.round((z.sc || 0) * 10)}/10). Le falta: ${z.why}.`); }
           if (nuevos.length) L2.push("", `Los nuevos ganadores se prueban ahora 3 meses en la ficticia con precios de hoy. Si siguen ganando al SPY y a tu método, te llegará aquí la propuesta con «✅ Cambiar».`);
           shortTxt = L2.join("\n") + "\n\n" + shortTxt;
           labNews = nuevos.length > 0;

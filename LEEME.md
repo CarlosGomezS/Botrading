@@ -9,6 +9,12 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v49 (web v88): el laboratorio aprende a aprobar, no solo a ganar más
+- Antes, lo que aprendía el laboratorio premiaba solo ganar más que el SPY. Eso le empujaba a métodos muy rentables pero con caídas enormes (−45 %), que luego suspendían el examen.
+- Ahora cada método saca una **nota de 0 a 10** según lo cerca que se queda de cada condición del examen (2 puntos más que el SPY, caída no peor del −35 %, ganar en 2000-2015 y en 2016-hoy, pocas ventas). El laboratorio aprende de esa nota y cría a partir de los que más se acercan.
+- Pieza nueva: **alarma del S&P 500** (si el S&P 500 cae bajo su media de 10 meses, todo al refugio). Sirve para recortar las caídas grandes.
+- La web y el aviso de Telegram dicen cuál se ha quedado más cerca y **qué le falta** para aprobar.
+
 ## Novedades v48 (web v87): mezclas que evolucionan solas (ETF + acciones + bitcoin)
 - Siempre hay 4 mezclas compitiendo en la ficticia (al principio: bitcoin en tendencia, QQQ 80 % + bitcoin 20 %, QQQ 50 % + 10 acciones 50 %, sectores 70 % + bitcoin 30 %).
 - Cada 2 meses, la que peor va frente al SPY (con ≥4 meses de datos) se sustituye por una **variación de la mejor**: cambia porcentajes, cambia una pieza o añade o quita una. Piezas: Nasdaq 100 en tendencia, rotación de sectores, bitcoin en tendencia, estrategias de acciones y **el mejor ganador del laboratorio de ETF**.
