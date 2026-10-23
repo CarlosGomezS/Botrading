@@ -9,6 +9,10 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v50 (web v89): métodos inventados por Claude y piezas nuevas
+- Tres métodos nuevos diseñados a mano. Por ejemplo, el primero: «los 2 mejores ETF de crecimiento, con alarma del S&P 500, freno de volatilidad y refugio dinámico». Pasan el mismo examen que todos y, si no aprueban, no se quedan.
+- Piezas nuevas para el laboratorio: **freno de volatilidad** (si el Nasdaq está muy nervioso, solo media posición) y **refugio dinámico** (va al más fuerte de oro, bonos o liquidez en los últimos 3 meses).
+
 ## Novedades v49 (web v88): el laboratorio aprende a aprobar, no solo a ganar más
 - Antes, lo que aprendía el laboratorio premiaba solo ganar más que el SPY. Eso le empujaba a métodos muy rentables pero con caídas enormes (−45 %), que luego suspendían el examen.
 - Ahora cada método saca una **nota de 0 a 10** según lo cerca que se queda de cada condición del examen (2 puntos más que el SPY, caída no peor del −35 %, ganar en 2000-2015 y en 2016-hoy, pocas ventas). El laboratorio aprende de esa nota y cría a partir de los que más se acercan.
