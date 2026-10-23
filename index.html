@@ -454,7 +454,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .bdg.no{background:color-mix(in srgb,var(--line) 40%,transparent);color:var(--muted)}
 #vi-per{margin:2px 0 4px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v69</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v70</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3281,10 +3281,11 @@ const viSl=ms=>new Promise(r=>setTimeout(r,ms));
 function viHd(){const k=String((typeof readKeys==="function"?readKeys().al:"")||"").split(":");const id=(k[0]||"").trim(),sec=(k.slice(1).join(":")||"").trim();if(!id||!sec)return null;return{"APCA-API-KEY-ID":id,"APCA-API-SECRET-KEY":sec}}
 async function viBars(st,syms,tf,a,b){const out={};let tok=null,n=0;
  for(;;){const u="https://data.alpaca.markets/v2/stocks/bars?symbols="+encodeURIComponent(syms.join(","))+"&timeframe="+tf+"&start="+viIso(a)+"&end="+viIso(b)+"&limit=10000&adjustment=split&feed="+(st.feed||"sip")+"&sort=asc"+(tok?"&page_token="+encodeURIComponent(tok):"");
-  let r,t,j;for(let k=0;k<4;k++){r=await fetch(u,{headers:st.hd});st.calls++;t=await r.text();try{j=JSON.parse(t)}catch{j=null}if(r.status===429){await viSl(20000);continue}break}
+  let r,t,j;for(let k=0;k<4;k++){const q0=Date.now();r=await fetch(u,{headers:st.hd});st.calls++;t=await r.text();const dq=Date.now()-q0;st.ms=(st.ms||0)+dq;st.max=Math.max(st.max||0,dq);try{j=JSON.parse(t)}catch{j=null}if(r.status===429){st.n429=(st.n429||0)+1;await viSl(15000);continue}break}
   if(!r.ok){if((r.status===403||r.status===422)&&(st.feed||"sip")==="sip"){st.feed="iex";return viBars(st,syms,tf,a,b)}const e=new Error("Alpaca HTTP "+r.status+": "+String((j&&j.message)||t||"").slice(0,120));e.st=r.status;throw e}
-  for(const s in((j&&j.bars)||{}))(out[s]=out[s]||[]).push(...j.bars[s]);tok=j&&j.next_page_token;await viSl(320);if(!tok)break;if(++n>60)break}
+  for(const s in((j&&j.bars)||{}))(out[s]=out[s]||[]).push(...j.bars[s]);tok=j&&j.next_page_token;await viSl(120);if(!tok)break;if(++n>60)break}
  return out}
+async function viPool(items,n,fn){let i=0;const run=async()=>{while(i<items.length){const k=i++;await fn(items[k],k)}};await Promise.all(Array.from({length:Math.min(n,items.length)},run))}
 /* datos diarios de las acciones (ATR y volumen medio de 14 días hasta el día anterior), del histórico del bot */
 function viDaily(H,s,d){const h=H[s];if(!h||!h.r||h.r.length<20)return null;const dn=dayN(d);let i=h.r.length-1;while(i>=0&&h.r[i][0]>=dn)i--;if(i<15)return null;let a=0,v=0;for(let j=i-13;j<=i;j++){const r=h.r[j],pc=h.r[j-1][4];a+=Math.max(r[2]-r[3],Math.abs(r[2]-pc),Math.abs(r[3]-pc));v+=r[5]||0}return{atr:a/14,vol:v/14}}
 
@@ -3300,22 +3301,23 @@ async function viUpdate(o){o=o||{};const VX=S.vix=(S.vix&&S.vix.v===3)?S.vix:{v:
   const H=hG(),U=(typeof MOM_UNI!=="undefined"?MOM_UNI:[]).filter(s=>!VI_ETF.includes(s));
   /* tramos de ~30 días naturales, del más antiguo al más nuevo */
   let D={},cur=dayN(first);const endN=dayN(ny.d);
-  while(cur<=endN){if(Date.now()-t0>budget){res.parcial=true;break}
+  while(cur<=endN&&!res.parcial){if(Date.now()-t0>budget){res.parcial=true;break}
    const a=Math.max(cur,0),b=Math.min(endN,a+29),preA=a-(Object.keys(D).length?0:VI_HIST*1.5|0);
    say((res.backfill?"Rehaciendo el último año con velas de 1 minuto: ":"Actualizando: ")+fd(dayS(a))+" → "+fd(dayS(b))+"…");
    const endMs=Math.min(viUtc(dayS(b),391),Date.now()-16*60000);if(endMs<=viUtc(dayS(preA),0)){cur=b+1;continue}
    const bars=await viBars(st,VI_ETF,"1Min",viUtc(dayS(preA),0),endMs);viPut(D,bars);
    const days=Object.keys(D).filter(d=>D[d].SPY).sort();
    /* volumen de los 5 primeros minutos de cada acción (para «acciones en juego») */
-   for(const d of days){if(dayN(d)>b)break;if(dayN(d)<a-25||VX.rv[d]||Date.now()-t0>budget)continue;if(!(Date.now()>viUtc(d,5+16)))continue;
-    const fb=await viBars(st,U,"5Min",viUtc(d,0),viUtc(d,1));VX.rv[d]={};for(const s in fb){const z=fb[s].find(x=>viNY(Date.parse(x.t)).m===0);if(z)VX.rv[d][s]=[+(+z.o).toFixed(3),+(+z.h).toFixed(3),+(+z.l).toFixed(3),+(+z.c).toFixed(3),+z.v]}}
-   for(let i=0;i<days.length;i++){const d=days[i],dn=dayN(d);if(dn<a||dn>b)continue;if(VX.days.some(z=>z.d===d))continue;if(Date.now()-t0>budget){res.parcial=true;break}
+   const needRv=days.filter(d=>dayN(d)<=b&&dayN(d)>=a-25&&!VX.rv[d]&&Date.now()>viUtc(d,5+16));
+   await viPool(needRv,4,async d=>{if(Date.now()-t0>budget)return;const fb=await viBars(st,U,"5Min",viUtc(d,0),viUtc(d,1)),o={};for(const s in fb){const z=fb[s].find(x=>viNY(Date.parse(x.t)).m===0);if(z)o[s]=[+(+z.o).toFixed(3),+(+z.h).toFixed(3),+(+z.l).toFixed(3),+(+z.c).toFixed(3),+z.v]}VX.rv[d]=o});
+   /* las 20 «en juego» de cada día y sus velas de 1 minuto, en paralelo */
+   const mkU=d=>{const rvD=Object.keys(VX.rv).filter(x=>x<d).sort().slice(-14),f0=VX.rv[d]||{},univ={f:{},hv:{},dly:{}};for(const s in f0){if(!Array.isArray(f0[s]))continue;univ.f[s]={o:f0[s][0],h:f0[s][1],l:f0[s][2],c:f0[s][3],v:f0[s][4]};univ.hv[s]=rvD.map(x=>{const z=VX.rv[x]&&VX.rv[x][s];return Array.isArray(z)?z[4]:z}).filter(v=>v>0);univ.dly[s]=viDaily(H,s,d)}return Object.keys(univ.f).length?univ:null};
+   const todo=days.filter(d=>{const dn=dayN(d);return dn>=a&&dn<=b&&!VX.days.some(z=>z.d===d)&&(d<ny.d||d===ny.d)&&VX.rv[d]}),SDs={},UNs={};
+   for(const d of todo){UNs[d]=mkU(d);const top=UNs[d]?(viSel({univ:UNs[d]})||[]).map(c=>c.s):[];SDs[d]=top.length?top:{}}
+   await viPool(todo.filter(d=>Array.isArray(SDs[d])),4,async d=>{if(Date.now()-t0>budget)return;const sb=await viBars(st,SDs[d],"1Min",viUtc(d,0),Math.min(viUtc(d,391),Date.now()-16*60000)),SD={};viPut(SD,sb);SDs[d]=SD[d]||{}});
+   for(let i=0;i<days.length;i++){const d=days[i],dn=dayN(d);if(dn<a||dn>b)continue;if(VX.days.some(z=>z.d===d))continue;if(!VX.rv[d]&&Date.now()>viUtc(d,5+16)){res.parcial=true;break}if(Array.isArray(SDs[d])){res.parcial=true;break}
     const fin=d<ny.d||(d===ny.d&&todayFinal);if(!fin&&d!==ny.d)continue;
-    const rvD=Object.keys(VX.rv).filter(x=>x<d).sort().slice(-14),f0=VX.rv[d]||{},univ={f:{},hv:{},dly:{}};
-    for(const s in f0){if(!Array.isArray(f0[s]))continue;univ.f[s]={o:f0[s][0],h:f0[s][1],l:f0[s][2],c:f0[s][3],v:f0[s][4]};univ.hv[s]=rvD.map(x=>{const z=VX.rv[x]&&VX.rv[x][s];return Array.isArray(z)?z[4]:z}).filter(v=>v>0);univ.dly[s]=viDaily(H,s,d)}
-    let sd=null;const pre=viDay(D,days,i,Object.keys(f0).length?univ:null,{});
-    if(pre.top&&pre.top.length){const sb=await viBars(st,pre.top,"1Min",viUtc(d,0),Math.min(viUtc(d,391),Date.now()-16*60000));const SD={};viPut(SD,sb);sd=SD[d]||{}}
-    const out=viDay(D,days,i,Object.keys(f0).length?univ:null,sd||{});
+    const univ=UNs[d]!==undefined?UNs[d]:mkU(d),out=viDay(D,days,i,univ,SDs[d]&&!Array.isArray(SDs[d])?SDs[d]:{});
     if(fin){if(VX.rv[d])for(const s in VX.rv[d])if(Array.isArray(VX.rv[d][s]))VX.rv[d][s]=VX.rv[d][s][4];VX.days.push({d,spy:out.spy,r:out.r});VX.days.sort((x,y)=>x.d<y.d?-1:1);for(const k in out.t)if(out.t[k].length){(VX.tr[k]=VX.tr[k]||[]).unshift({d,t:out.t[k]});VX.tr[k]=VX.tr[k].slice(0,8)}res.nuevos.push(d);if(VX.hoy&&VX.hoy.d===d)VX.hoy=null}
     else{VX.hoy={d,spy:out.spy,r:out.r,t:out.t,hasta:viNY(Math.min(Date.now()-16*60000,viUtc(d,390))).m,at:new Date().toISOString()};res.hoy=true}}
    /* conservar solo los últimos días necesarios para las medias */
@@ -3323,11 +3325,11 @@ async function viUpdate(o){o=o||{};const VX=S.vix=(S.vix&&S.vix.v===3)?S.vix:{v:
    cur=b+1;VX.prog={hasta:dayS(Math.min(b,endN)),de:VX.start};await save()}
   for(const d of Object.keys(VX.rv).sort().slice(0,-18))delete VX.rv[d];
   if(VX.hoy&&VX.hoy.d!==ny.d)VX.hoy=null;
-  VX.feed=st.feed;VX.at=new Date().toISOString();VX.calls=st.calls;VX.msg=res.parcial?"Sigue en la próxima actualización (queda una parte del año por calcular).":"";
+  VX.feed=st.feed;VX.at=new Date().toISOString();VX.calls=st.calls;VX.dbg={calls:st.calls,seg:Math.round((Date.now()-t0)/1000),espera:Math.round((st.ms||0)/1000),max:Math.round((st.max||0)/1000),n429:st.n429||0,dias:res.nuevos.length};VX.msg=res.parcial?"Sigue en la próxima actualización (queda una parte del año por calcular).":"";
   if(!res.parcial)VX.prog=null}
  catch(e){VX.err="No se pudo actualizar: "+(typeof mask==="function"?mask(String(e.message||e)):String(e.message||e));res.err=VX.err;VX.msg=""}
  finally{viUpdate.on=false;try{await save()}catch{}try{viDraw()}catch{}}
- res.calls=st.calls;return res}
+ res.calls=st.calls;res.dbg=VX.dbg;return res}
 
 /* ---------- resumen de resultados ---------- */
 function viStats(VX,from){const days=(VX&&VX.days||[]).filter(z=>!from||z.d>=from),out={};let spy=1,spyPk=1,spyDD=0;
@@ -3354,14 +3356,14 @@ function viDraw(){const el=document.getElementById("vi-root");if(!el)return;cons
  <button id="vi-go" class="go">🔄 Actualizar ahora</button></div>`;
  if(!s.days.length){el.innerHTML=h+`<div class="p"><div class="m">Cuando termine la primera actualización verás aquí la clasificación de los métodos frente al SPY.</div></div>`;viBind();return}
  h+=`<div class="p"><div class="chtop"><h2>🏆 ¿Cuál bate al SPY?</h2></div><div class="pills" id="vi-per">${[["m1","1 mes"],["m3","3 meses"],["all","Todo"]].map(([k,t])=>`<button data-vp="${k}" class="${VIV.p===k?"on":""}">${t}</button>`).join("")}</div><div class="vi-l">`;
- h+=R.map((x,j)=>{const M=VIM[x.k],beat=x.g>s.spy,ht=hoy&&hoy.r[x.k],tr=(VX.tr[x.k]||[]);return`<details class="vi-c${beat?" ok":""}"><summary><span class="rk">${["🥇","🥈","🥉"][j]||j+1}</span><span class="nm">${esc(M.n)}<small>${beat?'<span class="bdg ok">✅ Bate al SPY</span>':'<span class="bdg no">Por debajo del SPY</span>'}${ht?` · hoy <b style="white-space:nowrap" class="${ht[0]>=0?"up":"dn"}">${pc(ht[0])}</b>`:""}</small></span><span class="pa ${x.g>=0?"up":"dn"}">${pc(x.g)}<small>${E(START*(1+x.g))}</small></span></summary>
+ h+=R.map((x,j)=>{const M=VIM[x.k],beat=x.g>s.spy,ht=hoy&&hoy.r[x.k],tr=(VX.tr[x.k]||[]);return`<details class="vi-c${beat?" ok":""}"><summary><span class="rk">${["🥇","🥈","🥉"][j]||j+1}</span><span class="nm">${esc(M.n)}<small>${beat?'<span class="bdg ok">✅ Mejor que el SPY</span>':'<span class="bdg no">Por debajo del SPY</span>'}${ht?` · hoy <b style="white-space:nowrap" class="${ht[0]>=0?"up":"dn"}">${pc(ht[0])}</b>`:""}</small></span><span class="pa ${x.g>=0?"up":"dn"}">${pc(x.g)}<small>${E(START*(1+x.g))}</small></span></summary>
   <div class="bd">${viSpark(x.cur,spyCur)}<div class="m vi-leg"><i class="u"></i> el método · <i class="b"></i> SPY</div>
   <div class="vi-kv"><div><small>Pagando el cambio € → $ en cada operación</small><b class="${x.lo>=0?"up":"dn"}">${pc(x.lo)}</b></div><div><small>Peor bajada</small><b class="dn">${pc(x.dd)}</b></div><div><small>Operaciones</small><b>${x.n}</b></div><div><small>Aciertos</small><b>${x.n?Math.round(x.w/x.n*100)+" %":"—"}</b></div></div>
   <div class="m">${esc(M.d)}</div><div class="m"><b>Qué dice el estudio:</b> ${esc(M.res)}</div><div class="m">✅ ${esc(VI_T212_TXT)}</div>
   ${tr.length?`<details class="rd"><summary><span>Últimas operaciones</span></summary><div class="rb">${tr.slice(0,5).map(z=>`<div class="m"><b>${esc(fd(z.d))}</b>: ${z.t.slice(0,6).map(t=>`🟢 ${esc(t.s)} ${viHM(t.a)}→${viHM(Math.min(t.b,390))} (${pc(t.sd*(t.pb/t.pa-1))})`).join(" · ")}${z.t.length>6?" · …":""}</div>`).join("")}</div></details>`:""}
   <div class="m" style="opacity:.75;font-style:italic">${esc(M.src)}</div></div></details>`}).join("");
  h+=`</div><div class="m">SPY en el mismo periodo: <b class="${s.spy>=0?"up":"dn"}">${pc(s.spy)}</b> (peor bajada ${pc(s.spyDD)}). Toca un método para ver cómo funciona y qué dice su estudio.</div></div>`;
- h+=`<details class="fold"><summary>ℹ️ Cómo se calcula</summary><div class="fb"><div class="m">• Velas reales de <b>1 minuto</b> de Alpaca${VX.feed==="iex"?" (fuente IEX)":""}, de 9:30 a 16:00 de Nueva York (15:30 a 22:00 en España). Cada método opera con las reglas del estudio, pero <b>solo compras y sin apalancar</b> (lo que permite Trading 212), y vende todo antes del cierre.</div><div class="m">• Costes: Trading 212 no cobra comisión; se descuenta un 0,03 % por lado de deslizamiento. El resultado principal supone saldo en dólares; también se muestra pagando el 0,15 % de cambio de divisa en cada compra y venta.</div><div class="m">• Se actualiza solo cada hora con la bolsa abierta y tras el cierre; los días ya cerrados no cambian. Sesgo a tener en cuenta: la lista de ~280 acciones es la de hoy (las que sobrevivieron).</div><div class="m">• Ojo: que un método ganara en un estudio no garantiza que siga ganando. Para eso está el vigilante: ver si funciona con días nuevos que el estudio no conocía.</div><button id="vi-md" class="ghost">⬇️ Descargar resultados (.md)</button></div></details>`;
+ h+=`<details class="fold"><summary>ℹ️ Cómo se calcula</summary><div class="fb"><div class="m">• Velas reales de <b>1 minuto</b> de Alpaca${VX.feed==="iex"?" (fuente IEX)":""}, de 9:30 a 16:00 de Nueva York (15:30 a 22:00 en España). Cada método opera con las reglas del estudio, pero <b>solo compras y sin apalancar</b> (lo que permite Trading 212), y vende todo antes del cierre.</div><div class="m">• Costes: Trading 212 no cobra comisión; se descuenta un 0,03 % por lado de deslizamiento. El resultado principal supone saldo en dólares; también se muestra pagando el 0,15 % de cambio de divisa en cada compra y venta.</div><div class="m">• Se actualiza solo cada hora con la bolsa abierta y tras el cierre; los días ya cerrados no cambian. Sesgo a tener en cuenta: la lista de ~280 acciones es la de hoy (las que sobrevivieron).</div><div class="m">• Ojo: que un método ganara en un estudio no garantiza que siga ganando. Para eso está el vigilante: ver si funciona con días nuevos que el estudio no conocía.</div>${VX.dbg?`<div class="m" style="opacity:.7">Última actualización: ${VX.dbg.dias} días nuevos · ${VX.dbg.calls} consultas a Alpaca en ${VX.dbg.seg} s (${VX.dbg.espera} s esperando respuestas, la más lenta ${VX.dbg.max} s${VX.dbg.n429?", "+VX.dbg.n429+" veces frenado por límite":""}).</div>`:""}<button id="vi-md" class="ghost">⬇️ Descargar resultados (.md)</button></div></details>`;
  el.innerHTML=h;viBind()}
 function viMd(){const VX=S.vix;if(!VX||!VX.days.length)return"# Vigilante intradía\n\nSin datos todavía.\n";const s=viStats(VX),pc=x=>(x*100).toFixed(2).replace(".",",")+" %",L=["# Vigilante intradía · resultados","",`Periodo: ${s.from} → ${s.to} (${s.days.length} días de bolsa) · generado ${new Date().toISOString()}`,"",`SPY (comprar y mantener): ${pc(s.spy)} · peor bajada ${pc(s.spyDD)}`,"","| # | método | resultado | con cambio € → $ por operación | peor bajada | operaciones | aciertos | ¿bate al SPY? |","|---|---|---|---|---|---|---|---|"];
  Object.values(s.m).filter(x=>x.nd).sort((a,b)=>b.g-a.g).forEach((x,j)=>L.push(`| ${j+1} | ${VIM[x.k].n} | ${pc(x.g)} | ${pc(x.lo)} | ${pc(x.dd)} | ${x.n} | ${x.n?Math.round(x.w/x.n*100)+" %":"—"} | ${x.g>s.spy?"sí":"no"} |`));

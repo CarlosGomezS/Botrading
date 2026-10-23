@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v31 (web v70): vigilante más rápido
+- Pide los datos a Alpaca de 4 en 4 (en paralelo): rehacer el año pasa de varias horas a una o dos ejecuciones. Mientras falte año por calcular, cada ejecución trabaja hasta 32 minutos.
+- En «Cómo se calcula» se ve cuántas consultas hizo y cuánto tardó.
+- La etiqueta pasa a «Mejor que el SPY» (puede serlo perdiendo dinero, si el SPY cae más).
+
 ## Novedades v30 (web v69): el Vigilante, solo con lo que se puede hacer en Trading 212
 - Quedan 4 métodos: «acciones en juego» de Zarattini, Barbon y Aziz (2024) con rango de apertura de 5, 15, 30 y 60 minutos. Acciones de EE. UU., **solo compras y sin apalancar** (Trading 212 no permite cortos ni apalancamiento), todo vendido antes del cierre.
 - Costes: sin comisión, 0,03 % de deslizamiento por lado. Se muestra también el resultado pagando el 0,15 % de cambio € → $ en cada operación (con saldo en dólares no se paga).

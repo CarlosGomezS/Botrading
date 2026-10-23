@@ -565,10 +565,12 @@ async function main() {
       shortTxt = shortBt(rep);
     } else if (MODE === "vigilante") {
       // v68: vigilante intradía con velas de 1 minuto (10 métodos de day trading). La 1.ª vez rehace el último año.
-      const budget = Math.max(60e3, Math.min((+env("TURN_MAX_MIN") || 14) * 60e3, DEADLINE - Date.now() - 3 * 60e3));
+      const pend = await page.evaluate(() => !(S.vix && S.vix.v === 3 && S.vix.days.length && !S.vix.prog)).catch(() => true);
+      const budget = Math.max(60e3, Math.min((+env("TURN_MAX_MIN") || (pend ? 32 : 12)) * 60e3, DEADLINE - Date.now() - 3 * 60e3));
       log(`Vigilante intradía: actualizando (máx. ${Math.round(budget / 60e3)} min)`);
       const r = await page.evaluate(async (b) => { const x = await viUpdate({ budget: b }); return { ...x, n: (S.vix && S.vix.days || []).length, txt: viSummaryTxt(S.vix || { days: [] }), md: viMd(), prog: S.vix && S.vix.prog, err: S.vix && S.vix.err }; }, budget);
       log(`Vigilante: ${r.nuevos.length} días nuevos · ${r.n} días en total · ${r.calls} llamadas a Alpaca${r.parcial ? " · queda parte por calcular" : ""}${r.err ? " · ERROR: " + String(r.err).slice(0, 160) : ""}`);
+      if (r.dbg) log("Vigilante · tiempos:", JSON.stringify(r.dbg));
       const it = await page.evaluate(([m, md]) => __API.custom("vigilante-intradia", m, md, null), [r.err ? "Vigilante intradía con error" : `Vigilante intradía · ${r.n} días calculados`, r.md]);
       rep = { id: it && it.id, status: r.err ? "vigilante-error" : "vigilante-intradia", message: r.err || "Vigilante intradía", md: r.md };
       titleTxt = r.err ? "Bot Trading: vigilante · ERROR" : "Bot Trading: vigilante intradía";
