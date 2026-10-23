@@ -472,7 +472,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v77</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v78</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1466,37 +1466,73 @@ function btcClean(o){const r={...BTC},n=(v,a,b)=>{v=Math.round(+v);return Number
  for(const [k,a,b] of [["min",10,500],["max",10,500],["ini",1999,2022]]){const v=n(o[k],a,b);if(v!=null)r[k]=v}for(const k of ["acc","auto"])if(o[k]!=null)r[k]=+!!+o[k];if(o.excl!=null){let v=Math.round(+o.excl);if(v===1)v=12;if(Number.isFinite(v))r.excl=Math.max(0,Math.min(40,v))}
  if(Array.isArray(o.sim))r.sim=o.sim.filter(k=>typeof k==="string"&&/^[A-Za-z0-9_-]{1,20}$/.test(k)).slice(0,30);if(r.min>r.max)r.min=r.max;return r}
 
-/* ===================== v77 · LABORATORIO: el bot inventa métodos nuevos cada noche =====================
-   Combina piezas con base (qué ETF, cómo mide la fuerza, cuántos compra, filtro de tendencia, mensual o trimestral) y los
-   somete a un EXAMEN CONTRA LA SUERTE: tiene que ser ✅ Ganador (después de impuestos) y además ganar al SPY en 2000-2015
-   («lo que aprende») y, por separado, en 2016-hoy («el examen que no ha visto»). Los que aprueban entran en la liga (máx. 20);
-   los que dejan de pasar el filtro salen solos. Los ganadores pasan a la ficticia (máx. 5 a la vez) y, si en 12 meses van
-   claramente peor que el SPY, se apartan. Nada de esto toca tu dinero: la cartera real solo cambia si tú lo apruebas.        */
-const LABU={sec:{n:"los 10 sectores",U:SECU},sec11:{n:"11 sectores (con inmobiliario)",U:SECU11},secg:{n:"sectores + Nasdaq, semiconductores y pequeñas",U:SECU.concat(["QQQ","SMH","IWM"])},grw:{n:"5 ETF de crecimiento de EE. UU.",U:["QQQ","SMH","XLK","SPY","IWM"]},mix:{n:"8 activos (bolsa, oro, bonos y materias primas)",U:["SPY","QQQ","IWM","EEM","GLD","IEF","DBC","XLRE"]}};
-const LABLB=[[63],[126],[252],[63,126,252],[21,63,126,189,252],[126,252]],LABMAX=20,LABFIC=5;
-const labKey=g=>"g_"+g.u+g.l+(g.s?1:0)+g.t+(g.f?1:0)+(g.i?1:0)+g.p;
+/* ===================== v78 · LABORATORIO QUE APRENDE: el bot inventa métodos nuevos cada noche =====================
+   Piezas con estudios detrás (qué ETF, cómo mide la fuerza, cuántos compra, filtro de tendencia, refugio, mensual o trimestral) y
+   mezclas 50/50 de dos buenos. Cada noche: la mitad son VARIACIONES de los mejores (evolución) y la otra mitad exploración, eligiendo
+   más a menudo las piezas que más aciertan (aprende de lo que funciona). Un método nuevo tiene que:
+   1) aprobar el EXAMEN CONTRA LA SUERTE (✅ Ganador: ≥2 puntos/año más que el SPY después de impuestos, gana en 2000-2015 y en 2016-hoy,
+      caída no peor del −35 %, pocas operaciones) y
+   2) pasar la PRUEBA DE ESTABILIDAD: la noche siguiente se prueban 2 variantes cercanas y al menos una tiene que ganar al SPY
+      (si solo funciona con esos números exactos, era suerte).
+   Liga de 20 que se renueva sola; los ganadores pasan a la ficticia (máx. 5). Nunca toca tu dinero sin tu «✅ Cambiar». */
+const LABU={sec:{n:"los 10 sectores",U:SECU},sec11:{n:"11 sectores (con inmobiliario)",U:SECU11},secg:{n:"sectores + Nasdaq, semiconductores y pequeñas",U:SECU.concat(["QQQ","SMH","IWM"])},secd:{n:"sectores + oro y bonos",U:SECU.concat(["GLD","IEF"])},grw:{n:"5 ETF de crecimiento de EE. UU.",U:["QQQ","SMH","XLK","SPY","IWM"]},core4:{n:"S&P 500, Nasdaq, bonos y oro",U:["SPY","QQQ","IEF","GLD"]},mix:{n:"8 activos (bolsa, oro, bonos y materias primas)",U:["SPY","QQQ","IWM","EEM","GLD","IEF","DBC","XLRE"]}};
+const LABLB=[[63],[126],[252],[63,126,252],[21,63,126,189,252],[126,252],[21,63,126],[42,126],[189]],LABMAX=20,LABFIC=5;
+const LABV={u:Object.keys(LABU),l:LABLB.map((x,i)=>i),s:[0,1],t:[1,2,3,4],f:[1,0],i:[0,1],a:[0,1],r:["","IEF","GLD"],p:["m","q"]};
+const LABPN={u:"grupo de ETF",l:"plazo de la fuerza",s:"sin el último mes",t:"cuántos compra",f:"filtro de tendencia",i:"pesos por riesgo",a:"fuerza ajustada por riesgo",r:"refugio",p:"revisión"};
+const labHash=t=>{let h=5381;for(let i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))>>>0;return h.toString(36)};
+const labNorm=g=>g.bl?{bl:g.bl.map(labNorm).sort((x,y)=>JSON.stringify(x)<JSON.stringify(y)?-1:1)}:g.base?{base:g.base}:{u:g.u,l:g.l,s:+!!g.s,t:Math.max(1,Math.min(g.t,Math.floor(LABU[g.u].U.length/2))),f:+!!g.f,i:+!!g.i,a:+!!g.a,r:g.r||"",p:g.p==="q"?"q":"m"};
+const labKey=g=>{const n=labNorm(g);return(n.bl?"b_":"g_")+labHash(JSON.stringify(n))};
 const labLbT=g=>LABLB[g.l].map(x=>Math.round(x/21)).join("/");
-function labName(g){return`🤖 ${g.t===1?"El mejor":"Los "+g.t+" mejores"} de ${LABU[g.u].n} · fuerza ${labLbT(g)} meses${g.s?" sin el último":""}${g.f?" · con filtro de tendencia":""}${g.i?" · pesos por riesgo":""}${g.p==="q"?" · trimestral":""}`}
-function labM(g){const U=LABU[g.u].U;return{n:labName(g),v:"1.0",tg:true,bt:true,lab:g,fam:"lab",N:g.t,per:g.p,syms:U,cat:"🤖 Creado por el laboratorio",rev:g.p==="q"?"Revisión trimestral":"Revisión mensual",
- src:"Creado por el laboratorio del bot combinando reglas con estudios: fuerza relativa (Faber 2010; Jegadeesh y Titman 1993) y tendencia de 10 meses (Faber 2007).",
- d:`Cada ${g.p==="q"?"trimestre":"mes"} elige ${g.t===1?"el más fuerte":"los "+g.t+" más fuertes"} de ${LABU[g.u].n} según su subida de ${labLbT(g)} meses${g.s?" (sin contar el último mes)":""}${g.f?"; solo compra los que están sobre su media de 10 meses (si no, ese hueco queda en efectivo)":""}${g.i?"; pone menos dinero en los más volátiles":""}.`,
- target:({D})=>rotV(D,{U,lb:LABLB[g.l],skip:g.s?21:0,top:g.t,nofilt:!g.f,iv:!!g.i,minN:Math.min(5,U.length-1),lbl:"laboratorio"})}}
-function labS(){S.lab=S.lab&&typeof S.lab==="object"?S.lab:{};const L=S.lab;L.pop=L.pop||{};L.keep=L.keep||{};L.tried=Array.isArray(L.tried)?L.tried:[];L.log=Array.isArray(L.log)?L.log:[];L.off=L.off||{};return L}
-function labReg(){try{const L=labS();for(const [k,x] of Object.entries(L.pop))if(!BTX[k]&&!STR[k])BTX[k]=labM(x.g);for(const [k,g] of Object.entries(L.keep))if(!BTX[k]&&!STR[k])BTX[k]=labM(g)}catch(e){}}
-function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],us=Object.keys(LABU);let guard=0;
- while(out.length<n&&guard++<500){const u=us[Math.floor(Math.random()*us.length)],U=LABU[u].U,g={u,l:Math.floor(Math.random()*LABLB.length),s:Math.random()<0.3,t:1+Math.floor(Math.random()*Math.min(4,Math.floor(U.length/2))),f:Math.random()<0.75,i:Math.random()<0.25,p:Math.random()<0.25?"q":"m"};
-  const k=labKey(g);if(T.has(k)||L.pop[k]||BTX[k]||STR[k]||out.some(x=>x.k===k))continue;BTX[k]=labM(g);out.push({k,g})}
+function labName(g){if(g.base)return(MX(g.base)||{n:g.base}).n;if(g.bl)return"🤖 Mezcla 50/50: «"+labName(g.bl[0]).replace(/^🤖 /,"")+"» + «"+labName(g.bl[1]).replace(/^🤖 /,"")+"»";
+ return`🤖 ${g.t===1?"El mejor":"Los "+g.t+" mejores"} de ${LABU[g.u].n} · fuerza ${labLbT(g)} meses${g.s?" sin el último":""}${g.a?" ajustada por riesgo":""}${g.f?" · con filtro de tendencia":""}${g.i?" · pesos por riesgo":""}${g.r?" · refugio en "+(g.r==="GLD"?"oro":"bonos"):""}${g.p==="q"?" · trimestral":""}`}
+function labTgt(g){if(g.base){const M=MX(g.base);return M&&M.target?M.target:()=>null}if(g.bl){const A=labTgt(g.bl[0]),B=labTgt(g.bl[1]);return(x)=>{const a=A(x),b=B(x);if(!a||!b)return null;const w={},why={};for(const[t,lbl]of[[a,"1.ª mitad"],[b,"2.ª mitad"]])for(const s in t.w){w[s]=(w[s]||0)+t.w[s]/2;why[s]=(why[s]?why[s]+"; ":"")+lbl+": "+(t.why[s]||"")}return{w,why,bull:a.bull!==false||b.bull!==false,out:"sale de alguna de las dos mitades"}}}
+ const U=LABU[g.u].U;return({D})=>{const t=rotV(D,{U,lb:LABLB[g.l],skip:g.s?21:0,top:g.t,nofilt:!g.f,iv:!!g.i,adj:!!g.a,minN:Math.min(5,U.length-1),lbl:"laboratorio"});if(!t)return null;
+  if(g.r&&D[g.r]){const tot=Object.values(t.w).reduce((x,y)=>x+y,0);if(tot<0.999){t.w[g.r]=(t.w[g.r]||0)+(1-tot);t.why[g.r]=(t.why[g.r]?t.why[g.r]+"; ":"")+"refugio: los huecos sin candidato fuerte van a "+(g.r==="GLD"?"oro":"bonos")}}return t}}
+function labSyms(g){return g.base?((MX(g.base)||{}).syms||[]):g.bl?[...new Set(g.bl.flatMap(labSyms))]:LABU[g.u].U.concat(g.r?[g.r]:[])}
+function labM(g){g=labNorm(g);const per=g.bl||g.base?"m":g.p;return{n:labName(g),v:"1.0",tg:true,bt:true,lab:g,fam:"lab",N:g.bl?6:g.t+(g.r?1:0),per,syms:labSyms(g),cat:"🤖 Creado por el laboratorio",rev:per==="q"?"Revisión trimestral":"Revisión mensual",
+ src:"Creado por el laboratorio del bot combinando reglas con estudios: fuerza relativa (Faber 2010; Jegadeesh y Titman 1993), tendencia de 10 meses (Faber 2007) y momentum ajustado por riesgo (Barroso y Santa-Clara 2015).",
+ d:g.bl?"La mitad del dinero sigue un método y la otra mitad el otro: dos reglas que funcionan por separado suelen dar menos sustos juntas.":`Cada ${g.p==="q"?"trimestre":"mes"} elige ${g.t===1?"el más fuerte":"los "+g.t+" más fuertes"} de ${LABU[g.u].n} según su subida de ${labLbT(g)} meses${g.s?" (sin contar el último mes)":""}${g.a?", dividida por su volatilidad":""}${g.f?"; solo compra los que están sobre su media de 10 meses":""}${g.r?"; lo que no se invierte va a "+(g.r==="GLD"?"oro":"bonos de EE. UU. a 7-10 años"):"; lo que no se invierte queda en efectivo"}${g.i?"; pone menos dinero en los más volátiles":""}.`,
+ target:labTgt(g)}}
+function labS(){S.lab=S.lab&&typeof S.lab==="object"?S.lab:{};const L=S.lab;L.pop=L.pop||{};L.keep=L.keep||{};L.pend=L.pend||{};L.near=Array.isArray(L.near)?L.near:[];L.tried=Array.isArray(L.tried)?L.tried:[];L.log=Array.isArray(L.log)?L.log:[];L.off=L.off||{};L.st=L.st||{};return L}
+function labReg(){try{const L=labS();for(const [k,x] of Object.entries(L.pop))if(!BTX[k]&&!STR[k])BTX[k]=labM(x.g);for(const [k,x] of Object.entries(L.pend))if(!BTX[k]&&!STR[k])BTX[k]=labM(x.g);for(const [k,g] of Object.entries(L.keep))if(!BTX[k]&&!STR[k])BTX[k]=labM(g)}catch(e){}}
+/* aprende: elige cada pieza con más probabilidad cuanto más ha acertado (aciertos+1)/(probados+2) */
+function labPick(L,pc){const vs=LABV[pc],st=L.st[pc]||{},w=vs.map(v=>{const x=st[String(v)]||[0,0];return(x[1]+1)/(x[0]+2)}),t=w.reduce((a,b)=>a+b,0);let r=Math.random()*t;for(let i=0;i<vs.length;i++){r-=w[i];if(r<=0)return vs[i]}return vs[vs.length-1]}
+function labRand(L){const g={};for(const pc of Object.keys(LABV))g[pc]=labPick(L,pc);return labNorm(g)}
+function labMut(L,g){const n={...g},pcs=Object.keys(LABV).filter(x=>x!=="u"||Math.random()<0.3),pc=pcs[Math.floor(Math.random()*pcs.length)],vs=LABV[pc].filter(v=>String(v)!==String(n[pc]));n[pc]=vs[Math.floor(Math.random()*vs.length)];return labNorm(n)}
+/* 2 variantes cercanas para la prueba de estabilidad: plazo vecino y uno más / menos */
+function labNbrs(g){const a={...g,l:g.l===3?5:g.l===5?3:g.l===0?6:g.l===6?0:(g.l+1)%LABLB.length},b={...g,t:g.t>1?g.t-1:g.t+1};return[labNorm(a),labNorm(b)]}
+function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],add=(g,why)=>{g=labNorm(g);const k=labKey(g);if(T.has(k)||L.pop[k]||L.pend[k]||BTX[k]||STR[k]||out.some(x=>x.k===k))return false;BTX[k]=labM(g);out.push({k,g,why});return true};
+ // 1) variantes cercanas de los aprobados provisionales (prueba de estabilidad)
+ for(const [k,x] of Object.entries(L.pend))for(const g of labNbrs(x.g)){const kk=labKey(g);if(T.has(kk)||L.pop[kk])continue;add(g,"vecino:"+k)}
+ const par=[...Object.values(L.pop).map(x=>x.g),...L.near.map(x=>x.g)].filter(g=>g&&!g.bl&&!g.base);let guard=0;
+ // 2) evolución: variaciones de los mejores y de los que casi aprueban
+ while(out.length<n*0.5&&par.length&&guard++<200)add(labMut(L,par[Math.floor(Math.random()*Math.min(par.length,8))]),"variación");
+ // 3) una mezcla 50/50 de dos buenos (o de uno bueno con la Tendencia QQQ)
+ const good=Object.values(L.pop).map(x=>x.g).filter(g=>!g.bl);if(good.length&&Math.random()<0.6){const A=good[Math.floor(Math.random()*good.length)],Bs=good.filter(g=>g!==A),B=Bs.length&&Math.random()<0.6?Bs[Math.floor(Math.random()*Bs.length)]:{base:"trq"};if(MX(B.base||"x")||!B.base)add({bl:[A,B]},"mezcla")}
+ // 4) exploración guiada por lo aprendido
+ guard=0;while(out.length<n&&guard++<400)add(labRand(L),"nuevo");
  return out}
-/* examen: ✅ Ganador + gana al SPY en 2000-2015 y, por separado, en 2016-hoy (después de impuestos si la prueba lo trae) */
-function labExam(b,k){const v=btmVerd(b,k),r=b.rows[k],sp=b.rows.spy;if(!v||!r||!sp||!r[0]||!r[1]||!r[2]||!sp[0]||!sp[1]||!sp[2])return{ok:false,why:"faltan datos"};
- const tx=[0,1,2].every(j=>r[j].atax!=null&&sp[j].atax!=null),RV=j=>tx?r[j].atax:r[j].ret,SV=j=>tx?sp[j].atax:sp[j].ret;
- const early=RV(0)>SV(0),late=(1+RV(1))*(1+RV(2))>(1+SV(1))*(1+SV(2)),an=tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts);
- if(v.c!=="ok")return{ok:false,an,why:v.t.replace(/^[^ ]+ /,"")};if(!early)return{ok:false,an,why:"no gana al SPY en 2000-2015"};if(!late)return{ok:false,an,why:"no gana al SPY en 2016-hoy (el examen)"};return{ok:true,an,v}}
-function labJudge(b,trials){const L=labS(),d=T0();let born=0;
- for(const {k,g} of trials){L.tried.push(k);const e=labExam(b,k);if(e.ok){L.pop[k]={g,born:d,an:e.an};born++;L.log.unshift({d,k,n:labName(g),ev:"nace",why:`aprueba el examen (${P(e.an*100)}/año)`})}else{delete BTX[k];delete b.rows[k];if(b.rec&&b.rec.v)delete b.rec.v[k]}}
+/* examen contra la suerte = ✅ Ganador (btmVerd ya exige ganar en 2000-2015 y en 2016-hoy) */
+function labExam(b,k){const v=btmVerd(b,k),r=b.rows[k],sp=b.rows.spy;if(!v||!r||!sp||!r.every(Boolean))return{ok:false,why:"faltan datos",an:null,beat:false};
+ const tx=r.every(x=>x.atax!=null)&&sp.every(x=>x&&x.atax!=null),an=tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts),as=tx?annualTaxOf(sp,b.cuts):annualOf(sp,b.cuts);
+ return v.c==="ok"?{ok:true,an,v,beat:true}:{ok:false,an,beat:an!=null&&as!=null&&an>as,why:v.t.replace(/^[^ ]+ /,"")}}
+function labLearn(L,g,good){if(!g||g.bl||g.base)return;for(const pc of Object.keys(LABV)){const st=L.st[pc]=L.st[pc]||{},x=st[String(g[pc])]=st[String(g[pc])]||[0,0];x[0]++;if(good)x[1]++}}
+function labJudge(b,trials){const L=labS(),d=T0();let born=0;const keepRow=new Set();
+ for(const {k,g,why} of trials){L.tried.push(k);const e=labExam(b,k);labLearn(L,g,e.beat);
+  if(why&&why.startsWith("vecino:")){const pk=why.slice(7),P=L.pend[pk];if(P){P.nb=P.nb||[];P.nb.push(e.beat?1:0)}}
+  if(e.ok&&!(why||"").startsWith("vecino:")){L.pend[k]={g,born:d,an:e.an,nb:[]};born++;keepRow.add(k);L.log.unshift({d,k,n:labName(g),ev:"aprueba",why:`examen aprobado (${P(e.an*100)}/año): mañana prueba de estabilidad`})}
+  else{if(e.an!=null&&!g.bl&&!g.base){L.near.push({g,an:e.an});L.near.sort((x,y)=>y.an-x.an);L.near=L.near.slice(0,15)}if(!L.pend[k]&&!L.pop[k]&&!L.keep[k]){delete BTX[k];delete b.rows[k];if(b.rec&&b.rec.v)delete b.rec.v[k]}}}
+ // prueba de estabilidad: al menos 1 de sus 2 variantes cercanas gana al SPY
+ for(const [k,x] of Object.entries(L.pend)){if(keepRow.has(k))continue;const nb=x.nb||[];
+  if(nb.some(Boolean)){const e=labExam(b,k);if(e.ok){L.pop[k]={g:x.g,born:x.born,an:e.an};L.log.unshift({d,k,n:labName(x.g),ev:"nace",why:"pasa la prueba de estabilidad: entra en la liga"})}delete L.pend[k]}
+  else if(nb.length>=2||dayN(d)-dayN(x.born)>7){L.log.unshift({d,k,n:labName(x.g),ev:"descartado",why:"sus variantes cercanas no ganan al SPY: era suerte"});delete L.pend[k];if(!L.keep[k]){delete BTX[k];delete b.rows[k]}}}
+ // la liga se revisa cada noche con los datos nuevos
  for(const k of Object.keys(L.pop)){if(trials.some(x=>x.k===k))continue;const e=labExam(b,k);if(!e.ok){L.log.unshift({d,k,n:labName(L.pop[k].g),ev:"sale",why:"ya no aprueba: "+e.why});delete L.pop[k];if(!L.keep[k]){delete BTX[k];delete b.rows[k]}}else L.pop[k].an=e.an}
  const ks=Object.keys(L.pop).sort((x,y)=>(L.pop[y].an||0)-(L.pop[x].an||0));for(const k of ks.slice(LABMAX)){L.log.unshift({d,k,n:labName(L.pop[k].g),ev:"sale",why:"hay "+LABMAX+" mejores en la liga"});delete L.pop[k];if(!L.keep[k]){delete BTX[k];delete b.rows[k]}}
- L.tried=L.tried.slice(-3000);L.log=L.log.slice(0,80);L.last={d,n:trials.length,ok:born};S.promo=Array.isArray(S.promo)?S.promo:[]}
+ L.tried=L.tried.slice(-4000);L.log=L.log.slice(0,80);L.last={d,n:trials.length,ok:born};S.promo=Array.isArray(S.promo)?S.promo:[]}
+/* lo que va aprendiendo: las piezas que más aciertan (con al menos 6 pruebas) */
+function labLearnt(){const L=labS(),out=[];for(const pc of Object.keys(LABV)){for(const [v,[n,ok]] of Object.entries(L.st[pc]||{}))if(n>=6)out.push({pc,v,n,ok,r:ok/n})}return out.sort((a,b)=>b.r-a.r)}
+function labValTxt(pc,v){if(pc==="u")return LABU[v]?LABU[v].n:v;if(pc==="l")return(LABLB[+v]||[]).map(x=>Math.round(x/21)).join("/")+" meses";if(pc==="t")return v==="1"?"1":"los "+v+" mejores";if(pc==="r")return v===""?"efectivo":v==="GLD"?"oro":"bonos";if(pc==="p")return v==="q"?"trimestral":"mensual";return v==="1"?"sí":"no"}
 /* seguimiento en la ficticia: datos para la tarjeta «¿Hay algo mejor?» y para la cartera real (S.labConf, S.labAn) */
 function labConfUpdate(){try{const b=S.btm,L=labS();if(!b||!b.rows||!b.rows.spy)return;const tx=!!(b.rows.spy[0]&&b.rows.spy[0].atax!=null),AN=r=>tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts);
  const H=hG(),spyRows=H.SPY&&H.SPY.r||[],spyAt=d=>{const n=dayN(d);let v=null;for(const x of spyRows){if(x[0]<=n)v=x[4];else break}return v},spyNow=spyRows.length?spyRows[spyRows.length-1][4]:null,today=T0();
@@ -1689,13 +1725,14 @@ function btmVerd(b,k){const r=b.rows[k],sp=b.rows.spy;if(!r||!sp)return null;con
 let BTV={f:"ok",sort:"a",all:false};try{Object.assign(BTV,JSON.parse(localStorage.getItem("pbbtv2")||"{}"))}catch{}
 const btvSave=()=>{try{localStorage.setItem("pbbtv2",JSON.stringify(BTV))}catch{}};
 function labHtml(){try{const L=S.lab;if(!L||!L.last&&!Object.keys(L.pop||{}).length)return`<div class="p lab0"><b>🤖 Laboratorio</b><div class="m">Cada noche el bot inventará 12 métodos nuevos y los examinará. Aparecerán aquí los que aprueben.</div></div>`;
- const pop=Object.entries(L.pop||{}).sort((a,b)=>(b[1].an||0)-(a[1].an||0)),ic={nace:"🌱","sale":"🗑️","a la ficticia":"🧪",apartado:"⛔"};
- return`<div class="lab0"><b>🤖 Laboratorio</b><div class="m">Cada noche inventa 12 métodos nuevos combinando reglas con estudios y los examina: tienen que ganar al SPY en 2000-2015 <b>y</b>, por separado, en 2016-hoy (si no, fue suerte). ${L.last?`Última noche (${esc(fd(L.last.d))}): ${L.last.n} probados, <b>${L.last.ok} aprobados</b>.`:""} En total ha probado ${(L.tried||[]).length}; en la liga quedan <b>${pop.length}</b> (máx. ${LABMAX}).</div>
+ const pop=Object.entries(L.pop||{}).sort((a,b)=>(b[1].an||0)-(a[1].an||0)),ic={aprueba:"📝",nace:"🌱","sale":"🗑️",descartado:"🎲","a la ficticia":"🧪",apartado:"⛔"};
+ return`<div class="lab0"><b>🤖 Laboratorio</b><div class="m">Cada noche inventa 12 métodos: la mitad son variaciones de los mejores y el resto exploración guiada por lo que más acierta. Para quedarse tienen que ganar al SPY en 2000-2015 <b>y</b> en 2016-hoy, y después pasar la <b>prueba de estabilidad</b> (sus variantes cercanas también tienen que ganar al SPY; si no, fue suerte). ${L.last?`Última noche (${esc(fd(L.last.d))}): ${L.last.n} probados, <b>${L.last.ok} aprobados</b>.`:""} En total ha probado ${(L.tried||[]).length}; en la liga quedan <b>${pop.length}</b> (máx. ${LABMAX})${Object.keys(L.pend||{}).length?` y ${Object.keys(L.pend).length} en prueba de estabilidad`:""}.</div>
+ ${(()=>{const lt=labLearnt();if(!lt.length)return"";const best=lt.slice(0,3),worst=lt.slice(-2).reverse();return`<div class="m">🧠 <b>Lo que va aprendiendo</b> (qué piezas ganan más al SPY): ${best.map(x=>`${esc(LABPN[x.pc])}: <b>${esc(labValTxt(x.pc,x.v))}</b> (${Math.round(x.r*100)} % de ${x.n})`).join(" · ")}. Lo que peor funciona: ${worst.map(x=>`${esc(LABPN[x.pc])}: ${esc(labValTxt(x.pc,x.v))} (${Math.round(x.r*100)} %)`).join(" · ")}.</div>`})()}
  ${(L.log||[]).length?`<details class="rd"><summary><span>Últimos movimientos (${Math.min(10,L.log.length)})</span></summary><div class="rb">${L.log.slice(0,10).map(x=>`<div class="m">${ic[x.ev]||"•"} <b>${esc(fd(x.d))}</b> · ${esc(x.n)}: ${esc(x.ev)} (${esc(x.why)})</div>`).join("")}</div></details>`:""}</div>`}catch(e){return""}}
 function btmDraw0(){const b=S.btm,el=$("#bt2");try{btFormInit()}catch{}if(!b){el.innerHTML='<div class="m" style="margin-top:8px">Aún no hay resultados. Pulsa «Ejecutar prueba».</div>';return}
  const nm=k=>k==="spy"?"SPY (comprar y no tocar)":(MX(k)||{n:k}).n,y=d=>String(d||"").slice(0,4),as=b.rows.spy?annualOf(b.rows.spy,b.cuts):null;
  const all=Object.keys(b.rows).filter(k=>k==="spy"||(MX(k)&&t212Of(k)!=="no")).map(k=>{const r=b.rows[k],a=annualOf(r,b.cuts),M=MX(k)||{},dd=r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null,t0=r[0]&&r[0].t0,late=!!(t0&&r[0].from&&dayN(t0)-dayN(r[0].from)>120);
-  return{k,r,a,dd,M,late,t0,v:k==="spy"?null:btmVerd(b,k),fam:k==="spy"?"ref":(M.fam||"otros"),eff:a!=null&&dd?a/Math.abs(dd):null,sim:!!(STR[k]&&!STR[k].bt)}});
+  const pend=!!(S.lab&&S.lab.pend&&S.lab.pend[k]);return{k,r,a,dd,M,late,t0,v:k==="spy"?null:pend?{c:"mid",t:"📝 En prueba de estabilidad",x:"Aprobó el examen. Ahora se prueban dos variantes cercanas: si alguna también gana al SPY, entra en la liga; si no, fue suerte y se descarta."}:btmVerd(b,k),fam:k==="spy"?"ref":(M.fam||"otros"),eff:a!=null&&dd?a/Math.abs(dd):null,sim:!!(STR[k]&&!STR[k].bt)}});
  const meth=all.filter(x=>x.k!=="spy"),nOk=meth.filter(x=>x.v&&x.v.c==="ok"&&!x.late).length;
  const fams=[...new Set(meth.map(x=>x.fam))].filter(f=>FAMN[f]);
  const F=[["all","Todos ("+meth.length+")",()=>true],["ok","✅ Ganadores ("+nOk+")",x=>x.v&&x.v.c==="ok"&&!x.late],["t212","🇪🇺 Directos en T212",x=>t212Of(x.k)==="si"],["sim","🧪 En la ficticia",x=>x.sim],...fams.map(f=>[f,FAMN[f]+" ("+meth.filter(x=>x.fam===f).length+")",x=>x.fam===f])];

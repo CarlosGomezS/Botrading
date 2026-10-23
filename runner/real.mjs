@@ -415,11 +415,13 @@ export const euOpen = (m) => m.wk && !xetraHoliday(m.date) && m.min >= 9 * 60 + 
 // ---------- v77 · ¿hay un método confirmado mejor que el de la cartera real? (lo calcula el bot cada noche en S.labConf) ----------
 // Candidato: ✅ Ganador en la prueba histórica (después de impuestos), ≥3 meses en la ficticia sin ir peor que el SPY,
 // y en ese tiempo no peor que tu método; además, más rentabilidad histórica que tu método. Solo se PROPONE: tú apruebas por Telegram.
-export function sugerencia(S, cur) {
+export function sugerencia(S, cur, map) {
   if (!S || !Array.isArray(S.labConf)) return null;
   const Bc = (S.books || {})[cur], an = (S.labAn || {})[cur];
   const fw = (d0) => { if (!Bc || !Bc.days || !Bc.days.length) return null; const a = Bc.days.find((z) => z.d >= d0), b = Bc.days[Bc.days.length - 1]; return a && a.eq > 0 ? b.eq / a.eq - 1 : null; };
-  const L = S.labConf.filter((x) => x && x.ok && x.k !== cur && (S.books || {})[x.k] && (an == null || x.an > an + 0.005)).filter((x) => { const gc = fw(x.d0); return gc == null || x.g >= gc; }).sort((a, b) => b.an - a.an);
+  // v78: solo métodos que se pueden comprar enteros en tu cuenta (si un ETF no está en Trading 212, esa parte se quedaría en efectivo)
+  const buyable = (k) => { if (!map || !Object.keys(map).length) return true; const B = (S.books || {})[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})); return sy.every((s) => !map[s] || !!map[s].t); };
+  const L = S.labConf.filter((x) => x && x.ok && x.k !== cur && (S.books || {})[x.k] && (an == null || x.an > an + 0.005) && buyable(x.k)).filter((x) => { const gc = fw(x.d0); return gc == null || x.g >= gc; }).sort((a, b) => b.an - a.an);
   return L[0] || null;
 }
 
@@ -1059,7 +1061,7 @@ async function main() {
     // v77: propuesta de cambio de método (una vez; si la rechazas, no se repite en 60 días)
     try {
       if ((tipo === "normal" || tipo === "foto") && estado !== "error" && A.on) {
-        const b = getBot(), sg = b && b.S ? sugerencia(b.S, A.metodo) : null, P = R.metSug;
+        const b = getBot(), sg = b && b.S ? sugerencia(b.S, A.metodo, R.map) : null, P = R.metSug;
         const busy = P && P.k === (sg && sg.k) && (P.estado === "pendiente" || (P.estado === "rechazada" && now - Date.parse(P.fin || P.ts) < 60 * 864e5));
         if (sg && !busy) {
           const id = "m" + now.getTime().toString(36);

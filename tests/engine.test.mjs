@@ -133,6 +133,9 @@ test("¿hay un método mejor?: solo si está confirmado, va mejor en la ficticia
   S.labConf[0].ok = false; assert.equal(sugerencia(S, "sect"), null, "sin confirmar no se propone");
   S.labConf[0].ok = true; S.labAn.sect = 0.112; assert.equal(sugerencia(S, "sect"), null, "si no gana más que el tuyo en la prueba, no se propone");
   assert.equal(sugerencia({}, "sect"), null);
+  S.labAn.sect = 0.09; books.trq.tgt = { w: { GLD: 1 } };
+  assert.equal(sugerencia(S, "sect", { GLD: { sym: "GLD", t: null } }), null, "si un ETF no se puede comprar en tu cuenta, no se propone");
+  assert.equal(sugerencia(S, "sect", { GLD: { sym: "GLD", t: "SGLN_EQ" } }).k, "trq");
 });
 
 // ============================== ESCENARIOS COMPLETOS ==============================

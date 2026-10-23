@@ -9,6 +9,12 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v39 (web v78): el laboratorio aprende de verdad y no se agota
+- **Aprende**: apunta qué piezas ganan más al SPY y las elige más a menudo (sin dejar de explorar). Cada noche: variaciones de los mejores y de los que casi aprueban (evolución), mezclas 50/50 de dos buenos (o de uno bueno con la Tendencia QQQ) y exploración guiada. En el Histórico: «🧠 Lo que va aprendiendo».
+- **~40.000 combinaciones** (7 grupos de ETF, 9 plazos, ajuste por riesgo, refugio en bonos u oro, mensual o trimestral…) más las mezclas: no se agota.
+- **Prueba de estabilidad**: el que aprueba el examen queda «📝 en prueba de estabilidad»; la noche siguiente se prueban dos variantes cercanas y al menos una tiene que ganar al SPY. Si no, se descarta («era suerte»).
+- **Cartera real**: solo te propone métodos que se pueden comprar enteros en tu Trading 212.
+
 ## Novedades v38 (web v77): el bot aprende solo (laboratorio) y te propone cambios por Telegram
 - **🤖 Laboratorio**: cada noche, con la prueba histórica, inventa 12 métodos nuevos combinando piezas con estudios (qué ETF, fuerza de 1 a 12 meses, cuántos compra, filtro de tendencia, mensual o trimestral). Solo se quedan los que aprueban el **examen contra la suerte**. La liga tiene como mucho 20; los que dejan de aprobar salen solos. Todo queda en el Histórico («🤖 Laboratorio» y «Últimos movimientos»).
 - **Examen contra la suerte para todos**: ✅ Ganador = ≥2 puntos al año más que el SPY (después de impuestos), le gana en 2000-2015 **y** en 2016-hoy, peor caída no peor del −35 %, pocas operaciones y datos desde el principio.
