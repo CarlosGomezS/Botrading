@@ -472,7 +472,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v89</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v90</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1512,7 +1512,7 @@ const labLbT=g=>LABLB[g.l].map(x=>Math.round(x/21)).join("/");
 function labName(g){if(g.base)return(MX(g.base)||{n:g.base}).n;if(g.bl)return"🤖 Mezcla 50/50: «"+labName(g.bl[0]).replace(/^🤖 /,"")+"» + «"+labName(g.bl[1]).replace(/^🤖 /,"")+"»";
  return`🤖 ${g.t===1?"El mejor":"Los "+g.t+" mejores"} de ${LABU[g.u].n} · fuerza ${labLbT(g)} meses${g.s?" sin el último":""}${g.a?" ajustada por riesgo":""}${g.f?" · con filtro de tendencia":""}${g.i?" · pesos por riesgo":""}${g.c?" · alarma del S&P 500":""}${g.v?" · freno de volatilidad":""}${g.r==="dyn"?" · refugio dinámico (oro, bonos o liquidez)":g.r?" · refugio en "+(g.r==="GLD"?"oro":"bonos"):""}${g.p==="q"?" · trimestral":""}`}
 function labTgt(g){if(g.base){const M=MX(g.base);return M&&M.target?M.target:()=>null}if(g.bl){const A=labTgt(g.bl[0]),B=labTgt(g.bl[1]);return(x)=>{const a=A(x),b=B(x);if(!a||!b)return null;const w={},why={};for(const[t,lbl]of[[a,"1.ª mitad"],[b,"2.ª mitad"]])for(const s in t.w){w[s]=(w[s]||0)+t.w[s]/2;why[s]=(why[s]?why[s]+"; ":"")+lbl+": "+(t.why[s]||"")}return{w,why,bull:a.bull!==false||b.bull!==false,out:"sale de alguna de las dos mitades"}}}
- const U=LABU[g.u].U;return({D})=>{const t=rotV(D,{U,lb:LABLB[g.l],skip:g.s?21:0,top:g.t,nofilt:!g.f,iv:!!g.i,adj:!!g.a,minN:Math.min(5,U.length-1),lbl:"laboratorio"});if(!t)return null;
+ const U=LABU[g.u].U;return({D})=>{const t=rotV(D,{U,lb:LABLB[g.l],skip:g.s?21:0,top:g.t,nofilt:!g.f,iv:!!g.i,adj:!!g.a,minN:Math.min(5,U.length-2),lbl:"laboratorio"});if(!t)return null;
   if(g.c){const q=D.SPY;if(q&&upS(q.b,q.i,210)===false){for(const s in t.w)delete t.w[s];t.why={};t.bull=false;t.out="el S&P 500 cae bajo su media de 10 meses (alarma)"}}
   if(g.v){const q=D.QQQ||D.SPY,vv=q?vol63(q.b,q.i):null;if(vv>0.28){for(const s in t.w){t.w[s]/=2;t.why[s]=(t.why[s]||"")+" · freno: el mercado está muy nervioso, solo media posición"}}}
   if(g.r==="dyn"){const tot=Object.values(t.w).reduce((x,y)=>x+y,0);if(tot<0.999){const c=["GLD","IEF","SHY"].filter(s=>D[s]).map(s=>({s,m:rtSk(D[s].b,D[s].i,63,0)})).filter(x=>x.m!=null&&x.m>0).sort((x,y)=>y.m-x.m)[0];if(c){t.w[c.s]=(t.w[c.s]||0)+(1-tot);t.why[c.s]=(t.why[c.s]?t.why[c.s]+"; ":"")+"refugio dinámico: el más fuerte de oro, bonos y liquidez en los últimos 3 meses"}}return t}
@@ -1549,11 +1549,11 @@ function labExam(b,k){const v=btmVerd(b,k),r=b.rows[k],sp=b.rows.spy;if(!v||!r||
  const tx=r.every(x=>x.atax!=null)&&sp.every(x=>x&&x.atax!=null),an=tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts),as=tx?annualTaxOf(sp,b.cuts):annualOf(sp,b.cuts);
  const c=v.ck||{},cl=x=>Math.max(0,Math.min(1,x)),pt=x=>(x*100).toFixed(1).replace(".",","),fl=[];
  /* v88 · nota del examen (0 a 1): cuánto le falta en cada condición. Así el laboratorio aprende a ACERCARSE al aprobado (antes solo premiaba ganar más, y eso le llevaba a métodos con caídas enormes) */
- const parts=[c.gap==null?0:cl(c.gap/0.02),cl((c.ddm+0.6)/0.25),cl((c.beat||0)/2),c.ep?1:0,c.lp?1:0,c.opy>12?cl(12/c.opy):1,c.pos===c.n?1:0],sc=parts.reduce((x,y)=>x+y,0)/parts.length;
+ const parts=[c.gap==null?0:cl(c.gap/0.02),cl((c.ddm+0.6)/0.25),cl((c.beat||0)/2),c.ep?1:0,c.lp?1:0,c.opy>12?cl(12/c.opy):1,c.pos===c.n?1:0,c.late?0:1],sc=parts.reduce((x,y)=>x+y,0)/parts.length;
  if(c.gap!=null&&c.gap<0.02)fl.push(c.gap>0?`solo gana ${pt(c.gap)} puntos al SPY (hacen falta 2)`:"no gana al SPY");
  if(c.ddm<-0.35)fl.push(`se llega a caer un ${pt(c.ddm).replace("-","−")} % (máximo −35 %)`);
  if(!c.ep)fl.push("pierde contra el SPY en 2000-2015");if(!c.lp)fl.push("pierde contra el SPY en 2016-hoy");
- if((c.beat||0)<2)fl.push(`solo le gana en ${c.beat||0} de 3 tramos`);if(c.opy>12)fl.push(`demasiadas ventas (${Math.round(c.opy)} al año)`);if(c.pos!==c.n)fl.push("pierde dinero en algún tramo");
+ if((c.beat||0)<2)fl.push(`solo le gana en ${c.beat||0} de 3 tramos`);if(c.opy>12)fl.push(`demasiadas ventas (${Math.round(c.opy)} al año)`);if(c.pos!==c.n)fl.push("pierde dinero en algún tramo");if(c.late)fl.push("empieza tarde: le faltan datos de 2000-2001 (cuando la bolsa se hundía), así que no se puede comparar limpio");
  return v.c==="ok"?{ok:true,an,v,beat:true,sc:1,fl:[],dd:c.ddm}:{ok:false,an,beat:an!=null&&as!=null&&an>as,sc,fl,dd:c.ddm,why:fl.length?fl.join(", "):v.t.replace(/^[^ ]+ /,"")}}
 function labLearn(L,g,good){if(!g||g.bl||g.base)return;const q=typeof good==="number"?good:good?1:0;for(const pc of Object.keys(LABV)){const st=L.st[pc]=L.st[pc]||{},x=st[String(g[pc]??0)]=st[String(g[pc]??0)]||[0,0];x[0]++;x[1]=+(x[1]+q).toFixed(3)}}
 function labJudge(b,trials){const L=labS(),d=T0();let born=0;const keepRow=new Set();
