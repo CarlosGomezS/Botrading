@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { startMock, PX0 } from "./mock-t212.mjs";
 import { validate, encrypt, decrypt, openAny, DEF } from "../runner/real-cfg.mjs";
-import { makePlan, resolveMap, ensureLedger, syncLots, applyFill, botEquity, twr, xetraHoliday, euOpen, madrid } from "../runner/real.mjs";
+import { makePlan, resolveMap, ensureLedger, syncLots, applyFill, botEquity, twr, xetraHoliday, euOpen, madrid, sugerencia } from "../runner/real.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), RUNNER = path.join(HERE, "..", "runner");
 const near = (a, b, tol = 0.02, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg || ""} esperaba ${b} ± ${tol} y salió ${a}`);
@@ -126,6 +126,15 @@ test("rentabilidad del bot: lo que aportas no cuenta como ganancia", () => {
   near((T[3].i - 1) * 100, 21, 0.001, "+10% y luego +10% = +21%");
 });
 
+test("¿hay un método mejor?: solo si está confirmado, va mejor en la ficticia que el tuyo y gana más en la prueba", () => {
+  const books = { sect: { days: [{ d: "2026-01-01", eq: 500 }, { d: "2026-06-01", eq: 520 }] }, trq: { days: [{ d: "2026-01-01", eq: 500 }] }, mix: { days: [{ d: "2026-01-01", eq: 500 }] } };
+  const S = { books, labAn: { sect: 0.09 }, labConf: [{ k: "trq", n: "T", an: 0.11, d0: "2026-01-01", g: 0.06, ok: true }, { k: "mix", n: "M", an: 0.12, d0: "2026-01-01", g: 0.02, ok: true }] };
+  assert.equal(sugerencia(S, "sect").k, "trq", "mix va peor que el tuyo en la ficticia (2 % < 4 %)");
+  S.labConf[0].ok = false; assert.equal(sugerencia(S, "sect"), null, "sin confirmar no se propone");
+  S.labConf[0].ok = true; S.labAn.sect = 0.112; assert.equal(sugerencia(S, "sect"), null, "si no gana más que el tuyo en la prueba, no se propone");
+  assert.equal(sugerencia({}, "sect"), null);
+});
+
 // ============================== ESCENARIOS COMPLETOS ==============================
 const PW = "Prueba-Larga-2026!";
 async function world() {
@@ -135,8 +144,10 @@ async function world() {
   const setCfg = (o) => { cfg = { ...cfg, ...o }; writeFileSync(path.join(root, "real-ajustes.json"), JSON.stringify(cfg)); }; setCfg({});
   let tgt = { d: "2026-10-01", w: { XLK: 1 / 3, XLE: 1 / 3, XLF: 1 / 3 }, bull: true };
   const setTgt = (d, syms, bull = true) => { tgt = { d, w: Object.fromEntries(syms.map((x) => [x, 1 / syms.length])), why: {}, bull }; };
+  let sx = null; const setSx = (o) => { sx = o; };
   async function step(accion, now, extra = {}) {
     const S = { savedAt: 1, main: "sect", lastDate: new Date(Date.parse(now) - 864e5).toISOString().slice(0, 10), books: { sect: { cash: 0, pos: {}, trades: [], days: [{ d: "2026-10-01", eq: 500 }], tgt } } };
+    if (sx) { Object.assign(S, JSON.parse(JSON.stringify(sx)), { books: { ...S.books, ...JSON.parse(JSON.stringify(sx.books || {})) } }); }
     writeFileSync(path.join(dir, "state.json"), JSON.stringify({ ls: { pb19: JSON.stringify(S) }, idb: {} }));
     const env = { PATH: process.env.PATH, HOME: process.env.HOME, REAL_TEST: "1", REAL_NOW: now, T212_KEY: "k", T212_SECRET: "s", T212_BASE: `http://127.0.0.1:${mk.port}/api/v0`, YH_BASE: `http://127.0.0.1:${mk.port}`, STOOQ_BASE: `http://127.0.0.1:${mk.port}`,
       LOCAL_DATA: path.join(dir, "state.json"), REAL_VIEW_PASS: PW, GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_REPOSITORY: "", GITHUB_TOKEN: "", ...extra };
@@ -145,7 +156,7 @@ async function world() {
     const R = existsSync(path.join(run, "real.json")) ? (await openAny(JSON.parse(readFileSync(path.join(run, "real.json"), "utf8")), [PW, extra.REAL_VIEW_PASS || ""])).j : null;
     return { ...out, R, rep: R && R.reports[0] };
   }
-  return { mk, dir, step, setCfg, setTgt, close: () => mk.close() };
+  return { mk, dir, step, setCfg, setTgt, setSx, close: () => mk.close() };
 }
 const lotQ = (R, t) => (R.ledger.lots[t] ? R.ledger.lots[t].q : 0);
 
@@ -286,6 +297,27 @@ test("ESCENARIOS: un año de uso con dinero real (simulado) de principio a fin",
     });
     await t.test("15 · Trading 212 caído → error claro, sin órdenes", async () => {
       K.down = true; const r = await W.step("normal", "2027-03-08T08:20:00Z"); assert.match(r.rep.titulo, /No pude conectar/); K.down = false;
+    });
+    await t.test("16 · el bot encuentra un método confirmado mejor → te lo PROPONE (no cambia nada) → lo apruebas → la siguiente revisión lo sigue", async () => {
+      const trqT = { d: "2027-03-01", w: { XLK: 1 }, why: {}, bull: true };
+      W.setSx({ labAn: { sect: 0.09, trq: 0.11 }, labConf: [{ k: "trq", n: "Tendencia QQQ de 10 meses (Faber)", an: 0.11, dd: -0.34, opy: 1, d0: "2026-11-01", g: 0.06, gs: 0.03, nd: 120, ok: true }],
+        books: { sect: { cash: 0, pos: {}, trades: [], days: [{ d: "2026-10-01", eq: 500 }, { d: "2026-11-01", eq: 500 }, { d: "2027-03-08", eq: 510 }], tgt: { d: "2027-03-01", w: { XLK: 1 / 3, XLE: 1 / 3, XLF: 1 / 3 }, bull: true } },
+          trq: { cash: 0, pos: {}, trades: [], days: [{ d: "2026-11-01", eq: 500 }, { d: "2027-03-08", eq: 530 }], tgt: trqT } } });
+      const n0 = W.mk.calls.filter((c) => c.m === "POST").length;
+      const r1 = await W.step("foto", "2027-03-09T16:50:00Z");
+      assert.equal(r1.code, 0, r1.so); assert.ok(r1.R.metSug && r1.R.metSug.estado === "pendiente" && r1.R.metSug.k === "trq", "propuesta creada");
+      assert.equal(W.mk.calls.filter((c) => c.m === "POST").length, n0, "proponer no envía órdenes"); assert.ok(!r1.R.metOv, "no cambia nada sin tu sí");
+      const r1b = await W.step("foto", "2027-03-09T17:50:00Z", { GITHUB_EVENT_NAME: "schedule" });
+      assert.equal(r1b.R.metSug.id, r1.R.metSug.id, "no repite la propuesta");
+      const bad = await W.step("metodo-si", "2027-03-09T18:00:00Z", { PLAN_ID: "otro" }); assert.ok(!bad.R.metOv, "identificador equivocado: nada");
+      const r2 = await W.step("metodo-si", "2027-03-09T18:05:00Z", { PLAN_ID: r1.R.metSug.id });
+      assert.equal(r2.R.metOv.k, "trq"); assert.equal(r2.R.metSug.estado, "aprobada"); assert.match(r2.rep.titulo, /aprobado/);
+      const r3 = await W.step("normal", "2027-03-10T08:20:00Z");
+      assert.equal(r3.code, 0, r3.so); assert.equal(r3.R.lastPlan && r3.R.lastPlan.metodo, "trq", "la revisión sigue el método aprobado");
+      W.setCfg({ metodo: "sect", savedAt: "2027-03-11T09:00:00Z" });
+      const r4 = await W.step("foto", "2027-03-11T16:50:00Z");
+      assert.ok(!r4.R.metOv, "si guardas los ajustes en la web, manda lo que tengas elegido allí");
+      W.setSx(null);
     });
   } finally { await W.close(); }
 });

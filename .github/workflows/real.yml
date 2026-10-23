@@ -22,7 +22,7 @@ on:
       accion:
         description: "Qué hacer: normal (revisar y operar según el modo), aprobar, rechazar, probar (conexión), foto (solo guardar el valor), reanudar (quitar la pausa), pulso (solo leer el valor de la cuenta)"
         type: choice
-        options: ["normal", "aprobar", "rechazar", "probar", "foto", "reanudar", "pulso"]
+        options: ["normal", "aprobar", "rechazar", "probar", "foto", "reanudar", "pulso", "metodo-si", "metodo-no"]
         default: "probar"
       plan:
         description: "Identificador de la propuesta (solo para aprobar/rechazar; lo rellena la web)"

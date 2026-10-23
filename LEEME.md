@@ -9,6 +9,13 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v38 (web v77): el bot aprende solo (laboratorio) y te propone cambios por Telegram
+- **🤖 Laboratorio**: cada noche, con la prueba histórica, inventa 12 métodos nuevos combinando piezas con estudios (qué ETF, fuerza de 1 a 12 meses, cuántos compra, filtro de tendencia, mensual o trimestral). Solo se quedan los que aprueban el **examen contra la suerte**. La liga tiene como mucho 20; los que dejan de aprobar salen solos. Todo queda en el Histórico («🤖 Laboratorio» y «Últimos movimientos»).
+- **Examen contra la suerte para todos**: ✅ Ganador = ≥2 puntos al año más que el SPY (después de impuestos), le gana en 2000-2015 **y** en 2016-hoy, peor caída no peor del −35 %, pocas operaciones y datos desde el principio.
+- **Ficticia**: entran solos los ganadores (como mucho 5 a la vez); si en 12 meses van más de 5 puntos peor que el SPY, se apartan.
+- **Cartera real**: si un ganador lleva 3 meses en la ficticia sin ir peor que tu método ni que el SPY, y ganó más en la prueba, **te llega a Telegram con «✅ Cambiar» / «❌ No cambiar»**. Sin tu sí no cambia nada; si dices que no, no se repite en 60 días. Si guardas los ajustes desde la web, manda el método que tengas elegido allí.
+- Pruebas nuevas del motor: propuesta, aprobación y cambio de método (`node tests/engine.test.mjs`, 39 pruebas).
+
 ## Novedades v37 (web v76): vuelve el Vigilante, sencillo: «¿funcionan ahora?»
 - Pestaña **👁️ Vigilante**: cómo les va a los ~40 candidatos en el último mes, 3 meses, 6 meses o 1 año, frente al SPY, con una minigráfica de cada uno. Arriba, los ✅ Ganadores; debajo, todos de más a menos.
 - Sale de la prueba histórica de cada noche (guarda los últimos 12 meses de cada método en `S.btm.rec`): no hace consultas nuevas ni operaciones. Aparece después de la próxima prueba.

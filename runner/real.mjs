@@ -412,6 +412,17 @@ export function xetraHoliday(d) {
 }
 export const euOpen = (m) => m.wk && !xetraHoliday(m.date) && m.min >= 9 * 60 + 5 && m.min <= 17 * 60 + 20;
 
+// ---------- v77 · ¿hay un método confirmado mejor que el de la cartera real? (lo calcula el bot cada noche en S.labConf) ----------
+// Candidato: ✅ Ganador en la prueba histórica (después de impuestos), ≥3 meses en la ficticia sin ir peor que el SPY,
+// y en ese tiempo no peor que tu método; además, más rentabilidad histórica que tu método. Solo se PROPONE: tú apruebas por Telegram.
+export function sugerencia(S, cur) {
+  if (!S || !Array.isArray(S.labConf)) return null;
+  const Bc = (S.books || {})[cur], an = (S.labAn || {})[cur];
+  const fw = (d0) => { if (!Bc || !Bc.days || !Bc.days.length) return null; const a = Bc.days.find((z) => z.d >= d0), b = Bc.days[Bc.days.length - 1]; return a && a.eq > 0 ? b.eq / a.eq - 1 : null; };
+  const L = S.labConf.filter((x) => x && x.ok && x.k !== cur && (S.books || {})[x.k] && (an == null || x.an > an + 0.005)).filter((x) => { const gc = fw(x.d0); return gc == null || x.g >= gc; }).sort((a, b) => b.an - a.an);
+  return L[0] || null;
+}
+
 // ---------- plan: qué comprar y vender para parecerse al método ----------
 export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
   const notas = [], orders = [], m = madrid(now);
@@ -661,12 +672,13 @@ async function ntfy(title, msg, prio = 3, tags = []) {
 }
 // Telegram: mensaje privado a TU chat (TELEGRAM_CHAT) desde TU bot (TELEGRAM_TOKEN). Si hay una propuesta pendiente, lleva botones
 // «Aprobar» / «Rechazar»: los recoge el flujo telegram.yml (cada ~5 min) y lanza esta misma cartera con aprobar/rechazar.
-async function tg(text, planId) {
+async function tg(text, planId, kbx) {
   const tok = env("TELEGRAM_TOKEN"), chat = env("TELEGRAM_CHAT");
   if (!tok || !chat) return "· Telegram sin configurar";
   try {
     const kb = [];
-    if (planId) kb.push([{ text: "✅ Aprobar", callback_data: "ap:" + planId }, { text: "❌ Rechazar", callback_data: "re:" + planId }]);
+    if (kbx) kb.push(...kbx);
+    else if (planId) kb.push([{ text: "✅ Aprobar", callback_data: "ap:" + planId }, { text: "❌ Rechazar", callback_data: "re:" + planId }]);
     if (SITE) kb.push([{ text: "🌐 Abrir la cartera real", url: SITE + "#real" }]);
     const body = { chat_id: chat, text: String(text).slice(0, 3900), disable_web_page_preview: true, ...(kb.length ? { reply_markup: { inline_keyboard: kb } } : {}) };
     // v23: los fallos de red («fetch failed») suelen ser momentáneos: hasta 4 intentos (0, 3, 8 y 20 s)
@@ -684,9 +696,9 @@ async function tg(text, planId) {
   } catch (e) { return "✖ Telegram: " + String(e.message).slice(0, 100); }
 }
 // v24: TODO va a Telegram. El móvil (ntfy) y el correo solo se usan si Telegram no está configurado o falla (para no perder un aviso).
-async function avisa(title, msg, { planId = null, prio = 3, tags = [], fullMd = "" } = {}) {
+async function avisa(title, msg, { planId = null, prio = 3, tags = [], fullMd = "", kb = null } = {}) {
   const hasTg = !!(env("TELEGRAM_TOKEN") && env("TELEGRAM_CHAT"));
-  const t = hasTg ? await tg(`${title}\n\n${msg}${planId ? "\n\nPulsa un botón: se procesa en 5-15 minutos y te contesto aquí." : ""}`, planId) : "· Telegram sin configurar";
+  const t = hasTg ? await tg(`${title}\n\n${msg}${planId || kb ? "\n\nPulsa un botón: se procesa en 5-15 minutos y te contesto aquí." : ""}`, planId, kb) : "· Telegram sin configurar";
   if (/^✔/.test(t)) return `- Telegram: ${t}`;
   const n = await ntfy(title, msg, prio, tags), c = await mail(title, (fullMd || msg));
   return `- Telegram: ${t}\n- Respaldo (porque Telegram no llegó): móvil ${n} · correo ${c}`;
@@ -800,6 +812,8 @@ async function main() {
   let R;
   try { R = await loadReal(); } catch (e) { if (A.on || EVENT !== "schedule") { await avisa("✖ Cartera real: error", String(e.message), { prio: 4 }); } throw e; }
   R.cfg = A;
+  // v77: método cambiado por Telegram («✅ Cambiar»): manda hasta que guardes los ajustes desde la web
+  if (R.metOv && R.metOv.k) { if (LC.savedAt && Date.parse(LC.savedAt) >= Date.parse(R.metOv.ts)) R.metOv = null; else A.metodo = R.metOv.k; }
   const rep = [], head = [];
   let botC = null;
   const getBot = () => botC || (botC = loadBot());
@@ -845,6 +859,15 @@ async function main() {
       if (R.plan && R.plan.estado === "pendiente" && env("PLAN_ID") === R.plan.id) { R.plan.estado = "rechazada"; R.plan.fin = now.toISOString(); R.planHist.unshift(R.plan); R.plan = null; titulo = "Propuesta rechazada"; rep.push("Has rechazado la propuesta: no se envía nada. Mañana se vuelve a revisar."); R.lastNormal = m.date; }
       else { titulo = "No había propuesta pendiente"; rep.push("No había ninguna propuesta pendiente con ese identificador."); }
       return;
+    }
+    if (tipo === "metodo-si" || tipo === "metodo-no") {
+      const P = R.metSug;
+      if (!P || P.estado !== "pendiente" || env("PLAN_ID") !== P.id) { titulo = "No había esa propuesta de cambio"; rep.push("No hay ninguna propuesta de cambio de método pendiente con ese identificador (quizá ya la contestaste)."); return; }
+      P.fin = now.toISOString();
+      if (tipo === "metodo-no") { P.estado = "rechazada"; titulo = "Cambio de método rechazado"; rep.push(`Sigues con «${NOMBRES[A.metodo] || A.metodo}». No te volveré a proponer «${P.n}» en 60 días.`); aviso = { title: "❌ Cambio de método rechazado", msg: rep.join("\n"), prio: 2 }; return; }
+      P.estado = "aprobada"; R.metOv = { k: P.k, n: P.n, ts: now.toISOString(), de: A.metodo }; A.metodo = P.k; R.lastNormal = null;
+      titulo = "Cambio de método aprobado"; rep.push(`A partir de la próxima revisión con la bolsa abierta, la cartera real sigue «${P.n}»: venderá lo que no esté en su cartera objetivo y comprará lo nuevo${A.modo === "confirmar" ? " (te pedirá aprobar las órdenes, como siempre)" : ""}.`, "Si guardas los ajustes desde la web, manda el método que tengas elegido allí.");
+      aviso = { title: "✅ Cambio de método aprobado", msg: rep.join("\n"), prio: 3 }; return;
     }
     if (tipo === "reanudar") { const p = R.paused; R.paused = null; R.rearm = true; titulo = "Cartera real reanudada"; rep.push(p ? `Se quita la pausa automática (${p.why}).` : "No estaba en pausa."); }
 
@@ -1033,6 +1056,22 @@ async function main() {
     aviso = { title: "✖ Cartera real: error", msg: String((e && e.message) || e).slice(0, 500), prio: 4 };
   } finally {
     if (!titulo) titulo = estado;
+    // v77: propuesta de cambio de método (una vez; si la rechazas, no se repite en 60 días)
+    try {
+      if ((tipo === "normal" || tipo === "foto") && estado !== "error" && A.on) {
+        const b = getBot(), sg = b && b.S ? sugerencia(b.S, A.metodo) : null, P = R.metSug;
+        const busy = P && P.k === (sg && sg.k) && (P.estado === "pendiente" || (P.estado === "rechazada" && now - Date.parse(P.fin || P.ts) < 60 * 864e5));
+        if (sg && !busy) {
+          const id = "m" + now.getTime().toString(36);
+          if (P && P.estado === "pendiente") { P.estado = "sustituida"; P.fin = now.toISOString(); }
+          R.metSug = { id, k: sg.k, n: sg.n, ts: now.toISOString(), estado: "pendiente", an: sg.an, g: sg.g, gs: sg.gs, d0: sg.d0 };
+          const pc = (x) => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1).replace(".", ",") + " %";
+          const txt = `Tu cartera real sigue «${NOMBRES[A.metodo] || A.metodo}». El bot ha encontrado uno que lo hace mejor y ya está confirmado:\n\n🏆 ${sg.n}\n· Prueba histórica (después de impuestos): ${pc(sg.an)}/año${(b.S.labAn || {})[A.metodo] != null ? " (el tuyo " + pc(b.S.labAn[A.metodo]) + "/año)" : ""}\n· En la ficticia desde el ${sg.d0}: ${pc(sg.g)} (SPY ${pc(sg.gs)})\n· Peor caída histórica ${pc(sg.dd || 0)} · ~${Math.max(1, Math.round(sg.opy || 1))} ventas al año\n\nSi lo cambias, en la próxima revisión el bot venderá lo de ahora y comprará lo nuevo (las ventas con ganancia tributan).`;
+          rep.push("", "## Propuesta de cambio de método", "", txt);
+          await avisa("🔎 Cartera real: hay un método mejor", txt, { prio: 3, kb: [[{ text: "✅ Cambiar", callback_data: "mc:" + id }, { text: "❌ No cambiar", callback_data: "mr:" + id }]] });
+        }
+      }
+    } catch (e) { log("No pude revisar si hay un método mejor:", String(e.message).slice(0, 120)); }
     let resu = "";
     try { const b = R.days.length ? getBot() : {}; resu = resumenMd(R, b.S, A); } catch {}
     const md = [...head, "", `## ${titulo}`, "", ...rep].join("\n") + "\n" + (resu ? resu + "\n" : "");

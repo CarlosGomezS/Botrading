@@ -103,7 +103,7 @@ export async function loadAsync(file, pws) {
   try { a = JSON.parse(readFileSync(file, "utf8")); } catch {}
   if (a && a.enc) { const r = await openAny(a, pws); if (r.error) return { cfg: { ...DEF }, error: "ajustes: " + r.error }; a = r.j; }
   const r = validate(clean(a), {});
-  return { cfg: r.cfg || { ...DEF } };
+  return { cfg: r.cfg || { ...DEF }, savedAt: a && a.savedAt ? String(a.savedAt) : null };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
