@@ -9,6 +9,9 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v44 (web v83): el laboratorio prueba 48 métodos por noche (antes 12)
+- Aprende 4 veces más rápido. La prueba de cada noche tardará algo más (~20-30 min).
+
 ## Novedades v43 (web v82): todos los recuadros se pueden minimizar
 - Cada recuadro de todas las pestañas tiene un botón «–» arriba a la derecha para minimizarlo (y «+» para abrirlo). Se recuerda en cada dispositivo, también tras recargar.
 

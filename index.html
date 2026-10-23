@@ -472,7 +472,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v82</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v83</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -555,7 +555,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <section class="tab" id="t-ayuda">
 <div class="p hlp"><h2>Cómo funciona, en 1 minuto</h2>
 <div class="steps">
-<div class="step"><b>1</b><div><b>📈 Histórico</b> · cada noche prueba unos 40 candidatos (ETF europeos, revisión mensual o más lenta, sin apalancar) desde 2000 contra el S&amp;P 500. Solo pasa el que gana por ≥2 puntos al año, en 2 de 3 tramos y sin caer más del −35 %. Además, el <b>🤖 laboratorio</b> inventa 12 métodos nuevos cada noche y solo se quedan los que ganan al SPY en 2000-2015 <b>y</b> en 2016-hoy; los que dejan de funcionar salen solos. El <b>👁️ Vigilante</b> enseña cómo les va a todos en los últimos meses.</div></div>
+<div class="step"><b>1</b><div><b>📈 Histórico</b> · cada noche prueba unos 40 candidatos (ETF europeos, revisión mensual o más lenta, sin apalancar) desde 2000 contra el S&amp;P 500. Solo pasa el que gana por ≥2 puntos al año, en 2 de 3 tramos y sin caer más del −35 %. Además, el <b>🤖 laboratorio</b> inventa 48 métodos nuevos cada noche y solo se quedan los que ganan al SPY en 2000-2015 <b>y</b> en 2016-hoy; los que dejan de funcionar salen solos. El <b>👁️ Vigilante</b> enseña cómo les va a todos en los últimos meses.</div></div>
 <div class="step"><b>2</b><div><b>🧪 Ficticia</b> · los ganadores entran solos y operan cada día con <span class="capT">500 €</span> ficticios y datos de hoy. Así ves si siguen ganando con días que la prueba no conocía.</div></div>
 <div class="step"><b>3</b><div><b>💶 Real</b> · el método que elijas invierte tu dinero en Trading 212 con ETF europeos en euros (sin comisión ni cambio de divisa). Si un método confirmado (✅ Ganador + 3 meses en la ficticia) es mejor que el tuyo, te llega por Telegram con «✅ Cambiar» / «❌ No cambiar»: sin tu sí no cambia nada.</div></div>
 </div></div>
@@ -1481,6 +1481,7 @@ function btcClean(o){const r={...BTC},n=(v,a,b)=>{v=Math.round(+v);return Number
       (si solo funciona con esos números exactos, era suerte).
    Liga de 20 que se renueva sola; los ganadores pasan a la ficticia (máx. 5). Nunca toca tu dinero sin tu «✅ Cambiar». */
 const LABU={sec:{n:"los 10 sectores",U:SECU},sec11:{n:"11 sectores (con inmobiliario)",U:SECU11},secg:{n:"sectores + Nasdaq, semiconductores y pequeñas",U:SECU.concat(["QQQ","SMH","IWM"])},secd:{n:"sectores + oro y bonos",U:SECU.concat(["GLD","IEF"])},grw:{n:"5 ETF de crecimiento de EE. UU.",U:["QQQ","SMH","XLK","SPY","IWM"]},core4:{n:"S&P 500, Nasdaq, bonos y oro",U:["SPY","QQQ","IEF","GLD"]},mix:{n:"8 activos (bolsa, oro, bonos y materias primas)",U:["SPY","QQQ","IWM","EEM","GLD","IEF","DBC","XLRE"]}};
+const LABN=48; /* v83: métodos nuevos por noche (antes 12): aprende 4 veces más rápido */
 const LABLB=[[63],[126],[252],[63,126,252],[21,63,126,189,252],[126,252],[21,63,126],[42,126],[189]],LABMAX=20,LABFIC=5;
 const LABV={u:Object.keys(LABU),l:LABLB.map((x,i)=>i),s:[0,1],t:[1,2,3,4],f:[1,0],i:[0,1],a:[0,1],r:["","IEF","GLD"],p:["m","q"]};
 const LABPN={u:"grupo de ETF",l:"plazo de la fuerza",s:"sin el último mes",t:"cuántos compra",f:"filtro de tendencia",i:"pesos por riesgo",a:"fuerza ajustada por riesgo",r:"refugio",p:"revisión"};
@@ -1649,7 +1650,7 @@ const ML0=MOM_UNI.length;if((+($("#btn")&&$("#btn").value)||0)>ML0){const ex0=ne
   // División cronológica 60/20/20. Cada tramo empieza con 500 € nuevos y sin posiciones
   // heredadas. El histórico anterior solo sirve para calentar indicadores (evita usar futuro).
   const N=sp.length-i0-1,cuts=[0,Math.floor(N*.6),Math.floor(N*.8),N],rows={},DET={};
-  const LT=window.__VIEWER?[]:labTrial(12);const AM=activeM();for(const m in AM){$("#btst").textContent="Calculando "+AM[m].n+" ("+(Object.keys(rows).length+1)+"/"+Object.keys(AM).length+")…";await sleep(30);rows[m]=[0,1,2].map(segIdx=>{
+  const LT=window.__VIEWER?[]:labTrial(LABN);const AM=activeM();for(const m in AM){$("#btst").textContent="Calculando "+AM[m].n+" ("+(Object.keys(rows).length+1)+"/"+Object.keys(AM).length+")…";await sleep(30);rows[m]=[0,1,2].map(segIdx=>{
    const from=cuts[segIdx],to=cuts[segIdx+1],Bseg=newBook();
    for(let k=from;k<to;k++){
     const i=i0+1+k,d=sp[i].d,D={};
@@ -1751,9 +1752,9 @@ function btmVerd(b,k){const r=b.rows[k],sp=b.rows.spy;if(!r||!sp)return null;con
  return{c:"no",t:"❌ No compensa",x:"No gana al SPY ni reduce las caídas lo suficiente.",beat,less,pos,n}}
 let BTV={f:"ok",sort:"a",all:false};try{Object.assign(BTV,JSON.parse(localStorage.getItem("pbbtv2")||"{}"))}catch{}
 const btvSave=()=>{try{localStorage.setItem("pbbtv2",JSON.stringify(BTV))}catch{}};
-function labHtml(){try{const L=S.lab;if(!L||!L.last&&!Object.keys(L.pop||{}).length)return`<div class="p lab0"><b>🤖 Laboratorio</b><div class="m">Cada noche el bot inventará 12 métodos nuevos y los examinará. Aparecerán aquí los que aprueben.</div></div>`;
+function labHtml(){try{const L=S.lab;if(!L||!L.last&&!Object.keys(L.pop||{}).length)return`<div class="p lab0"><b>🤖 Laboratorio</b><div class="m">Cada noche el bot inventará 48 métodos nuevos y los examinará. Aparecerán aquí los que aprueben.</div></div>`;
  const pop=Object.entries(L.pop||{}).sort((a,b)=>(b[1].an||0)-(a[1].an||0)),ic={aprueba:"📝",nace:"🌱","sale":"🗑️",descartado:"🎲","a la ficticia":"🧪",apartado:"⛔",evoluciona:"🔄"};
- return`<div class="lab0"><b>🤖 Laboratorio</b><div class="m">Cada noche inventa 12 métodos: la mitad son variaciones de los mejores y el resto exploración guiada por lo que más acierta. Para quedarse tienen que ganar al SPY en 2000-2015 <b>y</b> en 2016-hoy, y después pasar la <b>prueba de estabilidad</b> (sus variantes cercanas también tienen que ganar al SPY; si no, fue suerte). ${L.last?`Última noche (${esc(fd(L.last.d))}): ${L.last.n} probados, <b>${L.last.ok} aprobados</b>.`:""} En total ha probado ${(L.tried||[]).length}; en la liga quedan <b>${pop.length}</b> (máx. ${LABMAX})${Object.keys(L.pend||{}).length?` y ${Object.keys(L.pend).length} en prueba de estabilidad`:""}.</div>
+ return`<div class="lab0"><b>🤖 Laboratorio</b><div class="m">Cada noche inventa ${LABN} métodos: la mitad son variaciones de los mejores y el resto exploración guiada por lo que más acierta. Para quedarse tienen que ganar al SPY en 2000-2015 <b>y</b> en 2016-hoy, y después pasar la <b>prueba de estabilidad</b> (sus variantes cercanas también tienen que ganar al SPY; si no, fue suerte). ${L.last?`Última noche (${esc(fd(L.last.d))}): ${L.last.n} probados, <b>${L.last.ok} aprobados</b>.`:""} En total ha probado ${(L.tried||[]).length}; en la liga quedan <b>${pop.length}</b> (máx. ${LABMAX})${Object.keys(L.pend||{}).length?` y ${Object.keys(L.pend).length} en prueba de estabilidad`:""}.</div>
  ${(()=>{const lt=labLearnt();if(!lt.length)return"";const best=lt.slice(0,3),worst=lt.slice(-2).reverse();return`<div class="m">🧠 <b>Lo que va aprendiendo</b> (qué piezas ganan más al SPY): ${best.map(x=>`${esc(LABPN[x.pc])}: <b>${esc(labValTxt(x.pc,x.v))}</b> (${Math.round(x.r*100)} % de ${x.n})`).join(" · ")}. Lo que peor funciona: ${worst.map(x=>`${esc(LABPN[x.pc])}: ${esc(labValTxt(x.pc,x.v))} (${Math.round(x.r*100)} %)`).join(" · ")}.</div>`})()}
  ${(L.log||[]).length?`<details class="rd"><summary><span>Últimos movimientos (${Math.min(10,L.log.length)})</span></summary><div class="rb">${L.log.slice(0,10).map(x=>`<div class="m">${ic[x.ev]||"•"} <b>${esc(fd(x.d))}</b> · ${esc(x.n)}: ${esc(x.ev)} (${esc(x.why)})</div>`).join("")}</div></details>`:""}</div>`}catch(e){return""}}
 function btmDraw0(){const b=S.btm,el=$("#bt2");try{btFormInit()}catch{}if(!b){el.innerHTML='<div class="m" style="margin-top:8px">Aún no hay resultados. Pulsa «Ejecutar prueba».</div>';return}
