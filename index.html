@@ -462,8 +462,14 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v74 · buscador sin acciones sueltas; ¿hay algo mejor? */
 .btstk{display:none!important}
 .rl-better .row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 12px;border-radius:14px;background:color-mix(in srgb,var(--line) 26%,transparent);margin:6px 0}.rl-better .row b{display:block;font-size:14px}.rl-better .row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}.rl-better .row span{font-weight:800;white-space:nowrap;text-align:right}
+
+/* v76 · vigilante: ¿funcionan ahora? */
+.vw-l{display:grid;gap:6px}.vw-r{display:grid;grid-template-columns:24px 1fr 64px auto;gap:8px;align-items:center;padding:9px 10px;border-radius:14px;border:1px solid var(--line);background:var(--panel)}
+.vw-r.win{border-color:color-mix(in srgb,#22a565 50%,var(--line))}.vw-r .rk{font-weight:800;text-align:center;color:var(--muted)}.vw-r .nm{font-size:13.5px;font-weight:650;line-height:1.25}.vw-r .nm small{display:block;font-weight:400;font-size:11.5px;margin-top:3px}
+.vw-r .pa{font-weight:800;font-size:15px;white-space:nowrap;text-align:right}.vw-sp{width:64px;height:18px}.vw-sp path{fill:none;stroke-width:1.6}.vw-sp .u{stroke:#22a565}.vw-sp .d{stroke:#e0475a}
+#vw-per{display:flex;gap:5px}#vw-per button{flex:1 1 0;min-width:0;padding:7px 2px;font-size:12.5px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v75</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v76</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -502,6 +508,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <div class="p xadv"><h2>Informes y descargas</h2><div class="m"><b>Cada informe con fecha y hora</b> tiene su .md y su .json con todos sus datos: en la prueba histórica, todas las operaciones y la curva diaria de cada método y tramo; en una actualización, las cotizaciones, las señales, las carteras objetivo, las operaciones y el diagnóstico de ese día. <b>«Informe GENERAL de todo»</b> descarga todo junto: todos los informes, las cuentas con todas sus operaciones y curvas, el vigilante de todos los días y, si quieres, las velas de precios. «Informe completo» junta en un solo archivo todos los informes archivados de todas las fechas y horas. Cada informe individual (más abajo) descarga solo el de esa fecha y hora. «Estado actual del bot» lleva todo lo que hace el bot ahora mismo, sus resultados y la prueba histórica: súbelo a la conversación para mejorar el bot.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="ej">Descargar informes (.json)</button><button id="im">Importar informes (.json)</button><button id="vaciarInf">Vaciar todos los informes</button><button id="fr">Descargar informe completo (todos los informes, .md)</button><button id="fs">Estado actual del bot (.md)</button><button id="fgm">Informe GENERAL de todo (.md)</button><button id="fgj">Informe GENERAL de todo (.json)</button><textarea id="ta" readonly style="display:none;width:100%;height:160px;font-size:12px"></textarea><input id="imf" type="file" accept=".json" hidden></div><div class="m">Historial automático: cada intento de actualización se guarda con fecha y hora, estado, fecha de mercado y una copia del informe. Se conserva separado de la cartera activa.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rref">Actualizar lista</button></div><div id="rlist"><div class="m">Cargando historial…</div></div></div>
 </section>
 <section class="tab" id="t-vigia">
+<div id="vw-root"><div class="p"><div class="m">Cargando…</div></div></div>
 <div id="vg-old" hidden>
 <div class="p"><h2>👁️ Vigilante · métodos de revisión semanal</h2><details class="rd"><summary><span>ℹ️ Qué es el vigilante y cómo revisa</span></summary><div class="rb"><div class="m">El vigilante prueba, cada uno con su cuenta ficticia de <span class="capT">500 €</span>, <b>5 métodos con estudios publicados</b> que solo revisan su cartera <b>los lunes y jueves, los viernes o a fin de mes</b>, siempre a partir de las 15:00 de Nueva York (21:00 en España), una hora antes del cierre. Entre revisiones no hacen nada, así que no hay que estar pendiente: si alguno compra o vende, te llega un aviso. Los 5 métodos intradía anteriores (arranque, hueco, ruptura, fuerza y caída en tendencia) se han retirado porque no tenían evidencia. Que un método funcionara en el pasado no garantiza que funcione ahora: por eso se prueban aquí con dinero ficticio antes de usarlos de verdad.</div></div></details>
 <details class="rd"><summary><span>⚙️ Controles de vigilancia en este dispositivo</span></summary><div class="rb"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button id="vgb">▶ Iniciar vigilancia</button><button id="vgs">Consultar ahora</button>
@@ -545,7 +552,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <section class="tab" id="t-ayuda">
 <div class="p hlp"><h2>Cómo funciona, en 1 minuto</h2>
 <div class="steps">
-<div class="step"><b>1</b><div><b>📈 Histórico</b> · cada noche prueba unos 40 candidatos (ETF europeos, revisión mensual o más lenta, sin apalancar) desde 2000 contra el S&amp;P 500. Solo pasa el que gana por ≥2 puntos al año, en 2 de 3 tramos y sin caer más del −35 %.</div></div>
+<div class="step"><b>1</b><div><b>📈 Histórico</b> · cada noche prueba unos 40 candidatos (ETF europeos, revisión mensual o más lenta, sin apalancar) desde 2000 contra el S&amp;P 500. Solo pasa el que gana por ≥2 puntos al año, en 2 de 3 tramos y sin caer más del −35 %. El <b>👁️ Vigilante</b> enseña cómo les va a todos en los últimos meses, con los precios de cada día.</div></div>
 <div class="step"><b>2</b><div><b>🧪 Ficticia</b> · los ganadores entran solos y operan cada día con <span class="capT">500 €</span> ficticios y datos de hoy. Así ves si siguen ganando con días que la prueba no conocía.</div></div>
 <div class="step"><b>3</b><div><b>💶 Real</b> · el método que elijas invierte tu dinero en Trading 212 con ETF europeos en euros (sin comisión ni cambio de divisa). La tarjeta «¿Hay algo mejor?» te dice si conviene cambiar. Te avisa por Telegram.</div></div>
 </div></div>
@@ -559,7 +566,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 </section>
 
 </div>
-<nav id="nav"><button data-t="hoy"><span>🧪</span>Ficticia</button><button data-t="informe"><span>📈</span>Histórico</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
+<nav id="nav"><button data-t="hoy"><span>🧪</span>Ficticia</button><button data-t="informe"><span>📈</span>Histórico</button><button data-t="vigia"><span>👁️</span>Vigilante</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
 <script id="viewer-shim">
 /* Modo VISOR (solo en la web publicada). En el ordenador (file://) y en el proceso automático NO hace nada.
    Carga la última copia de datos que dejó el proceso automático en GitHub y la muestra tal cual. */
@@ -1550,7 +1557,9 @@ const ML0=MOM_UNI.length;if((+($("#btn")&&$("#btn").value)||0)>ML0){const ex0=ne
    const last=days.at(-1).eq;return{ret:last/START-1,gret:last/START-1,atax:(last-TAXR*Math.max(0,last-START))/START-1,dd,n:0,win:null,exp:null,fees:0,days:days.length,from:days[0].d,to:days.at(-1).d,valid:"referencia pasiva"};
   });
   const mainRows=null;
-    S.btm={cfg:{...BTC,n:btStocks()?nS:0,excl:ex,exList:[...EXC]},lev:SPLD,nAcc:btStocks()?pool.length:0,excl:ex,main:mainRows,d:T0(),from:sp[i0+1].d,to:sp[sp.length-1].d,basket:BT,rows,cuts:cuts.map(c=>sp[Math.min(i0+1+c,sp.length-1)].d),fxMode,omitidos:SKIPB,omit:Object.fromEntries(Object.keys(AM).map(m=>[m,rows[m].reduce((n,x)=>n+(x&&x.omitSize||0),0)]))};await save();btmDraw();$("#btst").textContent="Listo.";await archiveReport("prueba-historica-completada",`Prueba histórica completada: ${S.btm.from} a ${S.btm.to}; ${BT.length} activos (muestra aleatoria de ${nS} acciones pedidas${ex?", sin las "+ex+" que más subieron":""}); divisa: ${fxMode}.`,{detalle:DET})}
+    const REC=(()=>{try{const base=DET.spy&&DET.spy[2]&&DET.spy[2].curva;if(!base||base.length<30)return null;const n=Math.min(253,base.length),d=base.slice(-n).map(x=>x[0]),v={};
+     for(const k of Object.keys(DET)){const c=DET[k]&&DET[k][2]&&DET[k][2].curva;if(!c||c.length<n)continue;v[k]=c.slice(-n).map(x=>+(+x[1]).toFixed(2))}return{d,v}}catch(e){return null}})();
+    S.btm={rec:REC,cfg:{...BTC,n:btStocks()?nS:0,excl:ex,exList:[...EXC]},lev:SPLD,nAcc:btStocks()?pool.length:0,excl:ex,main:mainRows,d:T0(),from:sp[i0+1].d,to:sp[sp.length-1].d,basket:BT,rows,cuts:cuts.map(c=>sp[Math.min(i0+1+c,sp.length-1)].d),fxMode,omitidos:SKIPB,omit:Object.fromEntries(Object.keys(AM).map(m=>[m,rows[m].reduce((n,x)=>n+(x&&x.omitSize||0),0)]))};await save();btmDraw();$("#btst").textContent="Listo.";await archiveReport("prueba-historica-completada",`Prueba histórica completada: ${S.btm.from} a ${S.btm.to}; ${BT.length} activos (muestra aleatoria de ${nS} acciones pedidas${ex?", sin las "+ex+" que más subieron":""}); divisa: ${fxMode}.`,{detalle:DET})}
  catch(e){btOk=false;const dly=isDaily(e),prog0=Object.keys(LONG).length+" de "+BT.length+" activos ya descargados y guardados",again=isTransient(e)&&!dly&&BTA.n<3;
   if(again){btAgain=true;BTA.n++;$("#btst").textContent="Fallo temporal ("+mask(e.message||e)+"). "+prog0+". Reintento automático en 2 min (intento "+BTA.n+" de 3); continúa por donde se quedó, no hace falta que hagas nada."}
   else{BTA.n=0;const msg=mask(e.message||"Error desconocido")+" · Progreso guardado: "+prog0+"."+(dly?" La cuota diaria del proveedor está agotada: mañana (o con otra clave) al pulsar de nuevo continúa por donde se quedó.":" Al pulsar de nuevo continúa por donde se quedó.");$("#btst").textContent="Error: "+msg;await archiveReport("prueba-historica-error",msg)}}
@@ -1599,6 +1608,25 @@ async function btCloud(pw){const st=$("#btst"),c=window.__CLOUD;if(!pw&&!btCloud
   const res=await c.waitRun(ri,"historico.yml",since,40*60);
   st.textContent=res==="success"?"✔ Prueba terminada. Si aún no ves los resultados nuevos, toca la barra de arriba para actualizar.":res==null?"Sigue en marcha en GitHub: vuelve en un rato.":"✖ La prueba terminó con error: míralo en GitHub → Actions → «Prueba histórica diaria».";
  }catch(e){st.textContent="No se pudo: "+(e.message||e)}finally{$("#btr").disabled=false}}
+/* ===== v76 · VIGILANTE: ¿funcionan AHORA? Últimos 12 meses de cada candidato con los precios de cada día (sale de la prueba de cada noche) ===== */
+let VWP="m6";try{VWP=localStorage.getItem("pbvw")||"m6"}catch(e){}
+function vwSpark(a,up){if(!a||a.length<2)return"";const W=64,H=18,mn=Math.min(...a),mx=Math.max(...a),y=v=>H-1-(v-mn)/((mx-mn)||1)*(H-2);return`<svg class="vw-sp" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${a.map((v,i)=>(i?"L":"M")+(i/(a.length-1)*W).toFixed(1)+" "+y(v).toFixed(1)).join("")}" class="${up?"u":"d"}"/></svg>`}
+function vwDraw(){const el=document.getElementById("vw-root");if(!el)return;const b=S&&S.btm,R=b&&b.rec;
+ let h=`<div class="p hero"><h2>👁️ Vigilante · ¿funcionan ahora?</h2><div class="m">Cómo les va a los ${R?Object.keys(R.v).filter(k=>k!=="spy"&&MX(k)).length:"~40"} métodos candidatos en los <b>últimos meses</b>, con los precios reales de cada día. Se actualiza solo cada noche. Así ves si un método sigue funcionando hoy, no solo en el pasado.</div>`;
+ if(!R||!R.d||R.d.length<30){el.innerHTML=h+`<div class="m">Aparecerá después de la próxima prueba histórica (cada noche).</div></div>`;return}
+ const P={m1:21,m3:63,m6:126,y1:252},n=Math.min(P[VWP]||126,R.d.length-1),i1=R.d.length-1,i0=i1-n,rt=a=>a&&a[i0]>0?a[i1]/a[i0]-1:null,sp=rt(R.v.spy),pc=x=>x==null?"—":(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",",")+" %";
+ const L=Object.keys(R.v).filter(k=>k!=="spy"&&MX(k)).map(k=>{const v=btmVerd(b,k);return{k,r:rt(R.v[k]),a:R.v[k].slice(i0),win:v&&v.c==="ok",fic:!!STR[k]}}).filter(x=>x.r!=null).sort((x,y)=>y.r-x.r);
+ const nb=L.filter(x=>sp!=null&&x.r>sp).length,W=L.filter(x=>x.win);
+ h+=`<div class="vi-kpi"><div><small>Periodo</small><b>${{m1:"1 mes",m3:"3 meses",m6:"6 meses",y1:"1 año"}[VWP]}</b><small>hasta el ${esc(fd(R.d[i1]))}</small></div><div><small>SPY</small><b class="${sp>=0?"up":"dn"}">${pc(sp)}</b><small>el listón</small></div><div><small>Mejor que el SPY</small><b>${nb} de ${L.length}</b><small>métodos</small></div></div></div>`;
+ h+=`<div class="p"><div class="pills" id="vw-per">${[["m1","1 mes"],["m3","3 meses"],["m6","6 meses"],["y1","1 año"]].map(([k,t])=>`<button data-vp="${k}" class="${VWP===k?"on":""}">${t}</button>`).join("")}</div>`;
+ if(W.length)h+=`<div class="m" style="margin:8px 0 4px"><b>Los ✅ Ganadores del histórico, ahora:</b></div><div class="vw-l">${W.map(x=>vwRow(x,L.indexOf(x)+1,sp,pc)).join("")}</div>`;
+ h+=`<div class="m" style="margin:10px 0 4px"><b>Todos los candidatos</b> (de más a menos en este periodo):</div><div class="vw-l">${L.slice(0,VWALL?L.length:12).map((x,j)=>vwRow(x,j+1,sp,pc)).join("")}</div>${L.length>12?`<button class="ghost btmore" id="vw-all">${VWALL?"Ver menos":"Ver los "+(L.length-12)+" restantes"}</button>`:""}
+ <div class="m" style="margin-top:8px">Un mes bueno o malo no dice nada: fíjate en <b>6 meses y 1 año</b>. Para pasar a tu cartera real, un método tiene que ser <b>✅ Ganador</b> en el histórico y confirmarse <b>3 meses en la ficticia</b> (te lo dice «¿Hay algo mejor?» en la pestaña Real).</div></div>`;
+ el.innerHTML=h;
+ el.querySelectorAll("#vw-per button").forEach(x=>x.onclick=()=>{VWP=x.dataset.vp;try{localStorage.setItem("pbvw",VWP)}catch(e){}vwDraw()});
+ const va=document.getElementById("vw-all");if(va)va.onclick=()=>{VWALL=!VWALL;vwDraw()}}
+let VWALL=false;
+function vwRow(x,j,sp,pc){const better=sp!=null&&x.r>sp;return`<div class="vw-r${x.win?" win":""}"><span class="rk">${j}</span><span class="nm">${esc(MX(x.k).n)}<small>${x.win?'<span class="bdg ok">✅ Ganador</span> ':""}${x.fic?'<span class="bdg t">🧪 en la ficticia</span> ':""}${better?'<span class="up">mejor que el SPY</span>':'<span class="dn">peor que el SPY</span>'}</small></span>${vwSpark(x.a,x.r>=0)}<span class="pa ${x.r>=0?"up":"dn"}">${pc(x.r)}</span></div>`}
 function btmVerd(b,k){const r=b.rows[k],sp=b.rows.spy;if(!r||!sp)return null;const ok=[0,1,2].filter(j=>r[j]&&sp[j]);if(!ok.length)return null;
  /* v75: si la prueba trae el cálculo con impuestos, se compara después de impuestos (lo que de verdad te quedaría) */
  const tx=ok.every(j=>r[j].atax!=null&&sp[j].atax!=null),RV=j=>tx?r[j].atax:r[j].ret,SV=j=>tx?sp[j].atax:sp[j].ret;
@@ -2387,7 +2415,7 @@ $("#run").onclick=run;
 $("#fx").onchange=async()=>{const v=+$("#fx").value;if(v>0.3&&v<3){S.fx=v;await save();draw()}};
 $("#rs").onclick=async()=>{if(busy)return;if(!confirm("¿Reiniciar la cuenta ficticia a "+E(START)+"?\n\nSe borran ganancias, pérdidas, operaciones, posiciones y gráficas de TODAS las cuentas (métodos y vigilante).\nSe conservan: ajustes, claves, reglas, informes archivados y datos de precios."))return;await resetAccounts(START)};
 {const tg=document.getElementById("chtog");if(tg)tg.onclick=()=>{CHMINI=!CHMINI;try{localStorage.setItem("pbchm",CHMINI?"1":"0")}catch{}try{chartDraw()}catch{}}}
-function go(t){document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x.id==="t-"+t));document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));try{scrollTo(0,0)}catch{}if(t==="hoy"){try{chartDraw()}catch{}}}
+function go(t){if(t==="vigia"){try{vwDraw()}catch(e){}}document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x.id==="t-"+t));document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));try{scrollTo(0,0)}catch{}if(t==="hoy"){try{chartDraw()}catch{}}}
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>go(b.dataset.t));
 try{$("#bg").checked=false}catch{}
 const autoRun=()=>{try{if(!$("#bg")||!$("#bg").checked)return;if(busy||document.hidden)return;if(S.runDay===T0())return;if(Date.now()-(+localStorage.getItem("pbt")||0)<20*60000)return;localStorage.setItem("pbt",Date.now());run()}catch{}};
@@ -3267,7 +3295,7 @@ function navShow(){const b=$r("#rl-nav");if(!b)return;const c=C(),mine=FORCE||!c
 mount();navShow();
 addEventListener("hashchange",()=>{if(location.hash==="#real"){const x=$r("#rl-nav");if(x)x.style.display="";window.__userNav=true;go("real")}});
 const go0=go;let goFirst=true;
-go=function(t){if(goFirst&&!window.__userNav){goFirst=false;if(t==="hoy"){const nb=$r("#rl-nav"),realOk=nb&&nb.style.display!=="none";let last="";try{last=localStorage.getItem("pbtab")||""}catch(e){}if(last==="vigia")last="";if(last&&document.getElementById("t-"+last)&&(last!=="real"||realOk))t=last;else if(realOk)t="real"}}else goFirst=false;try{localStorage.setItem("pbtab",t)}catch(e){}if(FORCE&&t!=="real"&&!window.__userNav&&Date.now()<T_FORCE)t="real";go0(t);if(t==="real"){if(!RL.R&&!RL.enc&&!RL.loading)loadReal(false);else draw()}};
+go=function(t){if(goFirst&&!window.__userNav){goFirst=false;if(t==="hoy"){const nb=$r("#rl-nav"),realOk=nb&&nb.style.display!=="none";let last="";try{last=localStorage.getItem("pbtab")||""}catch(e){}if(last&&document.getElementById("t-"+last)&&(last!=="real"||realOk))t=last;else if(realOk)t="real"}}else goFirst=false;try{localStorage.setItem("pbtab",t)}catch(e){}if(FORCE&&t!=="real"&&!window.__userNav&&Date.now()<T_FORCE)t="real";go0(t);if(t==="real"){if(!RL.R&&!RL.enc&&!RL.loading)loadReal(false);else draw()}};
 window.__realLock=function(){navShow();const b=$r("#rl-lockb");if(b){b.innerHTML=lockHtml();bind()}};
 window.__realReload=()=>loadReal(true);
 loadReal(false);

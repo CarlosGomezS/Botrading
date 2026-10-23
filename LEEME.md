@@ -9,6 +9,10 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v37 (web v76): vuelve el Vigilante, sencillo: «¿funcionan ahora?»
+- Pestaña **👁️ Vigilante**: cómo les va a los ~40 candidatos en el último mes, 3 meses, 6 meses o 1 año, frente al SPY, con una minigráfica de cada uno. Arriba, los ✅ Ganadores; debajo, todos de más a menos.
+- Sale de la prueba histórica de cada noche (guarda los últimos 12 meses de cada método en `S.btm.rec`): no hace consultas nuevas ni operaciones. Aparece después de la próxima prueba.
+
 ## Novedades v36 (web v75): web más ligera, cambios solo confirmados e impuestos
 - **Web ~6 veces más ligera** (de ~60 MB a ~10 MB): los informes de la prueba histórica ya no publican todas las operaciones y curvas de cada método, los informes de más de 7 días se resumen, se guardan como mucho 150, y se borran los restos del vigilante.
 - **«¿Hay algo mejor?» solo recomienda cambiar** cuando un ganador lleva **3 meses en la ficticia** sin ir peor que tu método ni que el SPY. Antes sale como «⏳ en observación».
