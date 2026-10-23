@@ -30,3 +30,19 @@ jobs:
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node runner/telegram.mjs
+      # v91 · vigilante del laboratorio: GitHub a veces no activa los horarios de los flujos nuevos. Si la última ronda
+      # del laboratorio tiene más de 2 horas (y estamos entre las 03 y las 19 UTC), la lanza desde aquí.
+      - name: ¿Le toca ronda al laboratorio?
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          H=$(date -u +%H); H=$((10#$H))
+          if [ "$H" -lt 3 ] || [ "$H" -gt 19 ]; then echo "Fuera de horario del laboratorio."; exit 0; fi
+          R="repos/${{ github.repository }}/actions/workflows/laboratorio.yml/runs?per_page=1"
+          st=$(gh api "$R" -q '.workflow_runs[0].status // "none"')
+          t=$(gh api "$R" -q '.workflow_runs[0].created_at // "1970-01-01T00:00:00Z"')
+          age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 ))
+          echo "Última ronda: $t ($age min, $st)"
+          if [ "$st" = "in_progress" ] || [ "$st" = "queued" ]; then exit 0; fi
+          if [ "$age" -ge 125 ]; then gh api -X POST "repos/${{ github.repository }}/actions/workflows/laboratorio.yml/dispatches" -f ref=main && echo "Ronda del laboratorio lanzada."; fi
