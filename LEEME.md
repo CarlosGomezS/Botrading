@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v48 (web v87): mezclas que evolucionan solas (ETF + acciones + bitcoin)
+- Siempre hay 4 mezclas compitiendo en la ficticia (al principio: bitcoin en tendencia, QQQ 80 % + bitcoin 20 %, QQQ 50 % + 10 acciones 50 %, sectores 70 % + bitcoin 30 %).
+- Cada 2 meses, la que peor va frente al SPY (con ≥4 meses de datos) se sustituye por una **variación de la mejor**: cambia porcentajes, cambia una pieza o añade o quita una. Piezas: Nasdaq 100 en tendencia, rotación de sectores, bitcoin en tendencia, estrategias de acciones y **el mejor ganador del laboratorio de ETF**.
+- Para proponerse a tu cartera: 12 meses ganando al SPY por ≥2 puntos. Si a una parte le faltan datos, esa parte queda en efectivo.
+
 ## Novedades v47 (web v86): mixtos y bitcoin en prueba en vivo
 - 4 métodos más en la ficticia, marcados 🔭: **bitcoin en tendencia**, **Tendencia QQQ 80 % + bitcoin 20 %**, **Tendencia QQQ 50 % + 10 acciones con momentum 50 %** y **sectores 70 % + bitcoin 30 %**. El bitcoin no tiene historia desde 2000, así que se prueban desde hoy (12 meses ganando al SPY por ≥2 puntos para proponerse).
 - Precio del bitcoin: IBIT (ETF de bitcoin de BlackRock). En Trading 212 se compraría un ETP de bitcoin en euros (sin apalancar), si tu cuenta lo tiene; el bot lo comprueba antes de proponerlo.
