@@ -59,7 +59,7 @@ export function startMock() {
         fill(b.ticker, b.quantity, id, o.createdAt); return j({ ...o, status: "NEW" });
       }
       if (/^\/equity\/orders\/\d+$/.test(p)) { const id = p.split("/").pop(), o = A.pend.find((x) => String(x.id) === id); if (o) return j({ ...o, status: "NEW" }); const h = A.hist.find((x) => String(x.order.id) === id && x.order.status === "REJECTED"); if (h) return j({ id: h.order.id, status: "REJECTED" }); return j({ code: "NotFound" }, 404); }
-      if (p === "/equity/history/orders") return j({ items: A.hist.filter((h) => h.order.ticker === u.searchParams.get("ticker")) });
+      if (p === "/equity/history/orders") { const tk = u.searchParams.get("ticker"); return j({ items: A.hist.filter((h) => !tk || h.order.ticker === tk).slice(0, +(u.searchParams.get("limit") || 50)) }); }
       j({ code: "NotFound", path: p }, 404);
     });
   });

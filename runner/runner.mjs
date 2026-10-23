@@ -302,8 +302,37 @@ async function sendMail(page, subject, text) {
   } catch (e) { why += " · desde el servidor: " + String(e.message).slice(0, 120); }
   return { ok: false, txt: "NO enviado el correo (" + (smtp ? smtp.txt + " · " : "") + why + ")" };
 }
-// Envía móvil + correo y deja constancia en el propio informe individual.
+// v24: todo va a Telegram (tu bot). Móvil (ntfy) y correo solo de respaldo si Telegram no está configurado o falla.
+async function sendTg(text) {
+  const tok = env("TELEGRAM_TOKEN"), chat = env("TELEGRAM_CHAT");
+  if (!tok || !chat) return { ok: false, none: true, txt: "Telegram sin configurar (faltan TELEGRAM_TOKEN y TELEGRAM_CHAT)" };
+  let last = "";
+  for (const w of [0, 3000, 8000, 20000]) {
+    if (w) await wait(w);
+    try {
+      const body = { chat_id: chat, text: String(text).slice(0, 3900), disable_web_page_preview: true, ...(SITE ? { reply_markup: { inline_keyboard: [[{ text: "🌐 Abrir la web", url: SITE }]] } } : {}) };
+      const r = await fetch(`https://api.telegram.org/bot${tok}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
+      if (r.ok) return { ok: true, txt: "enviado a Telegram" + (w ? " (tras reintentar)" : "") };
+      last = "HTTP " + r.status; if ([400, 401, 403].includes(r.status)) break;
+    } catch (e) { last = String((e.cause && (e.cause.code || e.cause.message)) || e.message).slice(0, 100); }
+  }
+  return { ok: false, txt: "Telegram falló: " + last };
+}
 async function avisar(page, rep, { title, short, subject, silent = false, force = false }) {
+  if (!silent) {
+    const tgr = await sendTg([title, "", short].join("\n"));
+    log("Aviso Telegram:", tgr.txt);
+    if (tgr.ok) {
+      const bloque = `\n\n## Avisos de esta ejecución\n- Telegram: ✔ ${tgr.txt}\n`;
+      if (rep && rep.id) { try { await page.evaluate(([id, t]) => __API.appendToReport(id, t), [rep.id, bloque]); } catch {} }
+      try { if (env("GITHUB_STEP_SUMMARY")) appendFileSync(env("GITHUB_STEP_SUMMARY"), `\n### ${title}\n${rep && rep.md ? rep.md.slice(0, 60000) : short}${bloque}\n`); } catch {}
+      return { n: tgr, m: tgr };
+    }
+  }
+  return avisar0(page, rep, { title, short, subject, silent, force });
+}
+// respaldo: móvil + correo (como antes) y deja constancia en el propio informe individual.
+async function avisar0(page, rep, { title, short, subject, silent = false, force = false }) {
   const body = [short, "", SITE ? "Web: " + SITE : ""].join("\n").trim();
   const mailTxt = ["BOT TRADING PRO · simulación, sin dinero real", title, "", ...(rep && rep.md ? [short, "", "—".repeat(20), "", rep.md] : [short]), "", SITE ? "Web: " + SITE : ""].join("\n");
   // silent: el turno del vigilante deja su informe en la web pero NO manda móvil ni correo (serían demasiados). Los errores sí avisan.
@@ -323,7 +352,10 @@ async function avisar(page, rep, { title, short, subject, silent = false, force 
 const grab = (md, re) => { const x = String(md || "").match(re); return x ? x[1].trim() : ""; };
 function shortDaily(r) {
   const val = grab(r.md, /Valor cartera principal: ([^\n]+)/), ops = grab(r.md, /## Operaciones de este informe \((\d+)\)/);
-  return [`${r.status}${r.message ? ": " + r.message : ""}`.slice(0, 400), val && "Cartera: " + val, ops !== "" && ops + " operaciones nuevas"].filter(Boolean).join("\n");
+  // v24: en Telegram, además, la lista de operaciones de la cartera ficticia (sin el motivo largo)
+  const sec = grab(r.md, /## Operaciones de este informe \(\d+\)\n((?:- [^\n]*\n?)+)/).split("\n").filter((x) => x && !/\(ninguna\)/.test(x)).map((x) => x.replace(/ · .*$/, ""));
+  const list = sec.length ? "\n" + sec.slice(0, 20).join("\n") + (sec.length > 20 ? `\n… y ${sec.length - 20} más (en la web)` : "") : "";
+  return [`${r.status}${r.message ? ": " + r.message : ""}`.slice(0, 400), val && "Cartera: " + val, ops !== "" && ops + " operaciones nuevas" + list].filter(Boolean).join("\n");
 }
 function shortBt(r) {
   const rk = grab(r.md, /### Ranking por rentabilidad anual compuesta\n((?:- [^\n]*\n?)+)/).split("\n").slice(0, 4).join("\n");
@@ -574,15 +606,15 @@ async function main() {
         shortTxt = lines + "\n\nSon operaciones de las cuentas ficticias del vigilante (no dinero real).";
       }
     } else if (MODE === "test") {
-      const sec = ["ALPACA_KEY", "TWELVEDATA_KEY", "POLYGON_KEY", "ALPHAVANTAGE_KEY", "FMP_KEY", "EMAIL", "SMTP_USER", "SMTP_PASS", "WEB3FORMS_KEY", "NTFY_TOPIC"];
+      const sec = ["ALPACA_KEY", "TWELVEDATA_KEY", "POLYGON_KEY", "ALPHAVANTAGE_KEY", "FMP_KEY", "TELEGRAM_TOKEN", "TELEGRAM_CHAT"];
       const L = ["# Prueba de avisos", "", `Fecha: ${new Date().toISOString()}`, "", "## Secretos configurados en GitHub (solo si existen o no; nunca su valor)", ""];
       sec.forEach((k) => L.push(`- ${k}: ${env(k) ? "✔ configurado" : "✖ FALTA"}`));
       L.push("", "## Ajustes de la nube", "", `- Vigilante: cada ${AJ.vigilante_min || "(el que tenga guardado la app)"} min`, `- Prueba histórica diaria: entre 200 y ${AJ.bt_max} acciones al azar`);
-      const it = await page.evaluate(([md]) => __API.custom("prueba-de-avisos", "Prueba de avisos (móvil y correo)", md, null), [L.join("\n") + "\n"]);
+      const it = await page.evaluate(([md]) => __API.custom("prueba-de-avisos", "Prueba de avisos (Telegram)", md, null), [L.join("\n") + "\n"]);
       rep = { id: it && it.id, status: "prueba-de-avisos", message: "Prueba de avisos", md: L.join("\n") };
       titleTxt = "Bot Trading: PRUEBA de avisos";
       subj = "Bot Trading · PRUEBA de avisos";
-      shortTxt = "Si lees esto en el móvil, las notificaciones funcionan.\n" + sec.filter((k) => !env(k)).map((k) => "Falta " + k).join("\n");
+      shortTxt = "Si lees esto en Telegram, los avisos del simulador funcionan.\n" + sec.filter((k) => !env(k)).map((k) => "Falta " + k).join("\n");
     } else throw new Error("Modo desconocido: " + MODE);
 
     await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj, silent: MODE === "vigilante" && !vgOps.length });

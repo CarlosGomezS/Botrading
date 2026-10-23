@@ -1,6 +1,6 @@
-name: Probar avisos (móvil y correo)
+name: Probar avisos (Telegram)
 
-# Envía un aviso de prueba al móvil (ntfy) y un correo (Web3Forms) y deja un informe «prueba-de-avisos».
+# Envía un aviso de prueba a tu Telegram (móvil y correo solo si Telegram falla) y deja un informe «prueba-de-avisos».
 # En el informe y en el registro de este paso verás qué secretos faltan.
 on:
   workflow_dispatch:
@@ -42,4 +42,6 @@ jobs:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
         run: node runner.mjs test

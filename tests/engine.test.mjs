@@ -173,7 +173,15 @@ test("ESCENARIOS: un año de uso con dinero real (simulado) de principio a fin",
       assert.match(r.rep.titulo, /^4 órdenes ejecutadas/); assert.deepEqual(Object.keys(r.R.ledger.lots).sort(), ["QDVEd_EQ", "SXLId_EQ", "SXLUd_EQ"]);
       near(Acc.pos.QDVEd_EQ.q - lotQ(r.R, "QDVEd_EQ"), 0.5, 1e-6);
     });
-    await t.test("3 · ingresas 200 € en Trading 212: el bot no los usa y lo anota", async () => {
+    await t.test("2b · compras tú en la app → aparece en el historial como «hecha por ti» y te avisa", async () => {
+      Acc.hist.unshift({ order: { id: 9999, ticker: "SXLPd_EQ", status: "FILLED", filledQuantity: 1, createdAt: "2026-11-03T14:59:00Z" }, fill: { price: 40.3, filledAt: "2026-11-03T15:00:00Z", walletImpact: { netValue: -40.3 } } });
+      const r = await W.step("normal", "2026-11-03T15:30:00Z");
+      const m = r.R.orders.find((o) => String(o.id) === "9999"); assert.ok(m && m.modo === "manual" && m.side === "COMPRA" && m.eur === 40.3, JSON.stringify(m));
+      assert.match(r.rep.md, /Has comprado tú en la app/);
+      const r2 = await W.step("normal", "2026-11-03T16:00:00Z"); assert.equal(r2.R.orders.filter((o) => String(o.id) === "9999").length, 1, "no se apunta dos veces");
+    });
+    await t.test("3 · ingresas 200 € en Trading 212 (con «sumar ingresos» apagado): el bot no los usa y lo anota", async () => {
+      W.setCfg({ sumarIngresos: 0 });
       K.txs.push({ ref: "d2", type: "DEPOSIT", amount: 200, at: "2026-11-03T12:00:00Z" });
       const n0 = W.mk.calls.filter((c) => c.m === "POST").length;
       const r = await W.step("normal", "2026-11-04T09:20:00Z");
@@ -185,6 +193,16 @@ test("ESCENARIOS: un año de uso con dinero real (simulado) de principio a fin",
       const r = await W.step("normal", "2026-11-05T09:20:00Z");
       assert.equal(r.R.ledger.cap, 150); assert.match(r.rep.titulo, /órdenes? ejecutada/); assert.ok(r.R.ledger.cash < 6);
       const d = r.R.days[r.R.days.length - 1]; assert.equal(d.bf, 50, "flujo del día = +50");
+    });
+    await t.test("4b · con «sumar ingresos» encendido: ingresas 100 € → el bot pasa a 250 € y los invierte", async () => {
+      W.setCfg({ sumarIngresos: 1 });
+      K.txs.push({ ref: "d3", type: "DEPOSIT", amount: 100, at: "2026-11-05T12:00:00Z" });
+      const n0 = W.mk.calls.filter((c) => c.m === "POST").length;
+      const r = await W.step("normal", "2026-11-06T09:20:00Z");
+      assert.equal(r.R.ledger.cap, 250); assert.equal(r.R.ledger.limite, 250); assert.equal(r.R.ledger.auto, 100);
+      assert.ok(W.mk.calls.filter((c) => c.m === "POST").length > n0, "compra con el dinero nuevo:\n" + r.rep.md);
+      assert.match(r.rep.md, /se suma al bot/); assert.equal(r.R.days[r.R.days.length - 1].bf, 100, "flujo del día = +100 (aportación, no ganancia)");
+      const r2 = await W.step("normal", "2026-11-09T09:20:00Z"); assert.equal(r2.R.ledger.cap, 250, "al día siguiente no se vuelve a sumar ni se confunde con un cambio de ajuste");
     });
     await t.test("5 · propuesta con confirmación → apruebas de noche → se ejecuta sola por la mañana", async () => {
       W.setCfg({ modo: "confirmar" }); W.setTgt("2026-12-01", ["XLK", "XLV", "XLY"]);

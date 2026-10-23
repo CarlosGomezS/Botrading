@@ -9,6 +9,43 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v24 (web v63): todos los avisos por Telegram
+
+- La cartera real y el simulador (actualización diaria, prueba histórica, vigilante con operaciones y errores) avisan **solo por Telegram**, con importes, órdenes y, si hay propuesta, botones para aprobar o rechazar.
+- El móvil (ntfy) y el correo quedan **solo de respaldo**: se usan si Telegram no está configurado o falla tras 4 intentos.
+- En los ajustes de la web desaparecen los interruptores de móvil, correo y avisos discretos.
+
+## Novedades v23 (web v62): pantalla reestructurada y diseño nuevo («billete» azul tinta y oro)
+
+- Pestañas: 💶 Real (primera, y se abre sola en tus dispositivos) · 🧪 Ficticia · 📈 Histórico · 👁️ Vigilante · ⚙️ Ajustes · ❓ Ayuda. La web recuerda la última pestaña.
+- Real: arriba cuánto vale, qué va a hacer y los botones («Revisar ahora» destacado); debajo, plegado, Detalle (órdenes, informes, contabilidad) y Configuración (método, ajustes, seguridad). Los avisos menores se agrupan.
+- Ficticia: valor y ranking arriba; gráfica y detalle del método plegados. Sin las casillas vacías de stop/objetivo en métodos que no los usan.
+- Vigilante: explicación, controles y tabla plegados. Ayuda reescrita con el flujo Histórico → Ficticia → Real.
+- Solo cambia index.html.
+
+## Novedades v21 (web v57)
+
+- Prueba histórica: solo métodos que se pueden usar en Trading 212 (58), con etiqueta «T212 ✔ / según tu cuenta / acciones EE. UU.» y filtro «Directos en T212». «Quitar las acciones que más subieron»: 0, 10, 20, 30 o 40.
+- Telegram: avisos de la cartera real con botones «Aprobar» / «Rechazar» (runner/telegram.mjs y .github/workflows/telegram.yml; secretos TELEGRAM_TOKEN y TELEGRAM_CHAT).
+- Cartera real: casilla «Invertir sin mi aprobación» (y «Pausa: solo mirar»); ISIN con botón para copiarlo en órdenes y posiciones; más equivalentes europeos (inmobiliario, bonos de empresa, materias primas, factores y apalancados) y lista «Productos disponibles en tu cuenta» en «Probar conexión».
+
+## Novedades v18 (web v56): prueba histórica con unos 60 métodos
+
+- Unos 60 métodos en 10 familias: rotación de sectores, tendencia, multi-activo (Faber, Keller VAA/DAA, dual momentum), apalancados (x2 y x3 con filtro de tendencia; antes de existir el ETF se simulan con su índice), IA y tecnología, momentum de acciones, reparto fijo (All Weather, Golden Butterfly, paridad de riesgo…), Buffett, estacionales y combinados.
+- Pantalla compacta: filtros por familia, «✅ Ganadores», orden por rentabilidad / menor caída / equilibrio, 12 primeros y «Ver los restantes». Al tocar un método se abre su detalle.
+- «⚙️ Ajustes de la prueba» desde la web (se guardan en la nube, ajustes.json → bt): incluir acciones sueltas, excluir las 12 ganadoras, mínimo y máximo de acciones, año de inicio y prueba automática diaria.
+- «🧪 Pasar a la cartera ficticia»: el método empieza a operar con 500 € ficticios tras la próxima actualización diaria.
+- Archivos cambiados: index.html, runner/runner.mjs, runner/hecho.mjs y .github/workflows/ajustes.yml.
+
+## Novedades v17 (web v54): prueba histórica ampliada
+
+- **Solo en la prueba histórica** (no tocan la simulación diaria ni la cartera real), 11 métodos nuevos marcados «solo prueba»:
+  - 8 versiones de la Rotación de sectores: 11 sectores (con inmobiliario), fórmula original de Faber (1/3/6/9/12 meses), sin el último mes (12-1), pesos según el riesgo, fuerza ajustada por riesgo, solo los 2 mejores, los 4 mejores y sin filtro de media de 10 meses (control).
+  - 3 inspirados en Warren Buffett: Berkshire Hathaway (BRK.B) comprar y mantener; su consejo 90/10 (S&P 500 + bonos cortos); calidad (SPHQ) con reserva que se invierte cuando el S&P 500 cae un 15 %.
+- **Unos 28 años de histórico** de los ETFs con Twelve Data (desde 1998-1999): entran las crisis de 2000-2002, 2008, 2020 y 2022. Todos los métodos y el SPY empiezan el mismo día (cuando los sectores tienen un año de datos).
+- Como ningún método usa ya acciones sueltas, no se bajan acciones: la prueba tarda unos 10 minutos.
+- En «Detalle de un método» puedes elegir cualquiera, también los nuevos, ordenados por rentabilidad anual.
+
 ## Puesta en marcha (unos 15 minutos)
 
 1. Crea una cuenta gratis en github.com y pulsa **New repository**. Ponle un nombre (p. ej. `bot-trading`) y márcalo **Public**.

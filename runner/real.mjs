@@ -683,6 +683,14 @@ async function tg(text, planId) {
     return "✖ Telegram: " + last + " (4 intentos)";
   } catch (e) { return "✖ Telegram: " + String(e.message).slice(0, 100); }
 }
+// v24: TODO va a Telegram. El móvil (ntfy) y el correo solo se usan si Telegram no está configurado o falla (para no perder un aviso).
+async function avisa(title, msg, { planId = null, prio = 3, tags = [], fullMd = "" } = {}) {
+  const hasTg = !!(env("TELEGRAM_TOKEN") && env("TELEGRAM_CHAT"));
+  const t = hasTg ? await tg(`${title}\n\n${msg}${planId ? "\n\nPulsa un botón: se procesa en 5-15 minutos y te contesto aquí." : ""}`, planId) : "· Telegram sin configurar";
+  if (/^✔/.test(t)) return `- Telegram: ${t}`;
+  const n = await ntfy(title, msg, prio, tags), c = await mail(title, (fullMd || msg));
+  return `- Telegram: ${t}\n- Respaldo (porque Telegram no llegó): móvil ${n} · correo ${c}`;
+}
 async function mail(subject, text) {
   const user = env("SMTP_USER"), pass = env("SMTP_PASS");
   if (!user || !pass) return "✖ correo sin configurar (SMTP_USER / SMTP_PASS)";
@@ -781,16 +789,16 @@ async function main() {
     // privacidad: sin contraseña no se lee ni se publica nada de la cuenta (el repositorio es público)
     if (EVENT === "schedule" && !A.on) { log("Cartera real sin configurar: nada que hacer."); return; }
     const msg = "Falta la contraseña de la cartera real (REAL_VIEW_PASS). Por privacidad el bot no consulta tu cuenta ni guarda nada hasta que la pongas en 💶 Real → Ajustes de la cartera real.";
-    log(msg); await ntfy("✖ Cartera real: falta la contraseña", msg, 4); await mail("✖ Cartera real: falta la contraseña", msg);
+    log(msg); await avisa("✖ Cartera real: falta la contraseña", msg, { prio: 4 });
     process.exitCode = 1; return;
   }
   if (LC.error) {
     const msg = "No puedo leer los ajustes de la cartera real: la contraseña REAL_VIEW_PASS no coincide con la que los cifró. No opero.";
-    log(msg); await ntfy("✖ Cartera real: ajustes ilegibles", msg, 4); await mail("✖ Cartera real: ajustes ilegibles", msg);
+    log(msg); await avisa("✖ Cartera real: ajustes ilegibles", msg, { prio: 4 });
     process.exitCode = 1; return;
   }
   let R;
-  try { R = await loadReal(); } catch (e) { if (A.on || EVENT !== "schedule") { await ntfy("✖ Cartera real: error", String(e.message), 4); await mail("✖ Cartera real: error", String(e.message)); } throw e; }
+  try { R = await loadReal(); } catch (e) { if (A.on || EVENT !== "schedule") { await avisa("✖ Cartera real: error", String(e.message), { prio: 4 }); } throw e; }
   R.cfg = A;
   const rep = [], head = [];
   let botC = null;
@@ -1014,14 +1022,10 @@ async function main() {
       aviso = { title: `${estado === "error" ? "✖" : "💶"} Cartera real · ${titulo}`, msg: `${ex}${x ? `\nValor ${eur(x.v)}${x.res != null ? ` · ${seur(x.res)} (${pct(x.pct)})` : ""}` : ""}${R.lastPlan && tipo === "normal" && R.lastPlan.notas && R.lastPlan.notas.length ? "\n" + R.lastPlan.notas[R.lastPlan.notas.length - 1].slice(0, 200) : ""}`, prio: estado === "error" ? 4 : 2, tags: [] };
     }
     if (aviso) {
-      // modo discreto: el aviso al móvil no lleva importes, tickers ni posiciones (el correo y la web sí)
-      const dTitle = A.discreto ? String(aviso.title).replace(/[−+-]?\d[\d.,]*\s?€/g, "").replace(/\s*·\s*$/, "").replace(/:\s*$/, "").trim() : aviso.title;
-      const dMsg = A.discreto ? "Detalle completo en tu correo y en la web (pestaña 💶 Real)." : aviso.msg;
-      const n = A.movil || aviso.prio >= 5 || estado === "error" ? await ntfy(dTitle, dMsg, aviso.prio, aviso.tags || []) : "· móvil apagado en ajustes";
-      const c = A.correo || estado === "error" ? await mail(aviso.title, md) : "· correo apagado en ajustes";
+      // v24: todo a Telegram (con importes, órdenes y botones); móvil y correo solo de respaldo si Telegram falla
       const pend = R.plan && R.plan.estado === "pendiente" ? R.plan.id : null;
-      const tgt = A.telegram !== 0 || estado === "error" ? await tg(`${aviso.title}\n\n${aviso.msg}${pend ? "\n\nPulsa un botón: se procesa en 5-15 minutos y te contesto aquí." : ""}`, pend) : "· Telegram apagado en ajustes";
-      avTxt = `\n## Avisos\n- Móvil: ${n}\n- Correo: ${c}\n- Telegram: ${tgt}\n`;
+      const res = await avisa(aviso.title, aviso.msg, { planId: pend, prio: aviso.prio, tags: aviso.tags || [], fullMd: md });
+      avTxt = `\n## Avisos\n${res}\n`;
     }
     R.reports.unshift({ id: now.toISOString().replace(/[:.]/g, "-") + "-" + tipo, ts: now.toISOString(), tipo, estado, titulo, md: md + avTxt });
     // los registros de GitHub Actions son públicos: solo una línea sin datos (el informe completo va cifrado a la web y por correo)
@@ -1033,7 +1037,7 @@ async function main() {
     catch (e) {
       // no se pudo guardar en GitHub: para no perder nada, te llega el informe completo por correo
       const msg = "No pude guardar el historial de la cartera real en GitHub (" + String(e.message).slice(0, 120) + "). Te envío el informe completo para que no se pierda; en la próxima ejecución se intenta de nuevo.";
-      log(msg); await ntfy("✖ Cartera real: no se pudo guardar el historial", msg, 5); await mail("✖ Cartera real: no se pudo guardar el historial · informe completo", msg + "\n\n" + md + avTxt);
+      log(msg); await avisa("✖ Cartera real: no se pudo guardar el historial", msg + "\n\n" + md.slice(0, 3000), { prio: 5, fullMd: msg + "\n\n" + md + avTxt });
       process.exitCode = 1;
     }
     if (estado === "error") process.exitCode = 1;
