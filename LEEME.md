@@ -9,6 +9,10 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v33 (web v72): la Real enseña tu cuenta como Trading 212
+- Arriba: el valor de tu cuenta, inversiones, efectivo, lo de desde ayer y el rendimiento, con las mismas cifras que la app de Trading 212. Si en la cuenta hay dinero tuyo que el bot no maneja, lo indica.
+- Nuevo «🧭 Resultado por método»: cuánto ganó o perdió el bot con cada método que has tenido, con sus fechas (lo que metes o sacas no cuenta).
+
 ## Novedades v32 (web v71): la cartera real se actualiza de verdad durante el día
 - Las revisiones programadas de la cartera real (cada media hora de 9:17 a 17:47) leen el valor de tu cuenta cuando la revisión del día ya está hecha (antes terminaban sin hacer nada). Así la web sigue a Trading 212 aunque GitHub no haya activado todavía «valor en directo».
 - El botón «↻ Actualizar» de la pestaña Real lee ahora tu cuenta de Trading 212 en el momento (tarda ~1 minuto).

@@ -453,8 +453,13 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .vi-leg i{display:inline-block;width:14px;height:0;border-top:2px solid #22a565;vertical-align:middle}.vi-leg i.b{border-top:2px dashed var(--muted)}
 .bdg.no{background:color-mix(in srgb,var(--line) 40%,transparent);color:var(--muted)}
 #vi-per{margin:2px 0 4px}
+
+/* v72 · resultado por método */
+.rl-mres{display:grid;gap:6px;margin:4px 0 8px}.rl-mres>div{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--line) 26%,transparent)}
+.rl-mres>div.on{outline:1.5px solid color-mix(in srgb,var(--line) 80%,transparent)}.rl-mres b{display:block;font-size:14px}.rl-mres small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.rl-mres span{text-align:right;font-weight:800;font-size:15px;white-space:nowrap}.rl-mres span small{font-weight:500}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v71</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v72</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2978,12 +2983,28 @@ function heroHtml(){const R=RL.R,a=A(),s=summary(),acc=(R&&R.account)||{},L=R&&R
  const tot=+((acc.cash&&acc.cash.availableToTrade)||0)+ +((acc.investments&&acc.investments.currentValue)||0)+ +((acc.cash&&acc.cash.reservedForOrders)||0);
  const mood=R&&R.paused?"⛔ El bot está en pausa: mira los avisos.":R&&R.plan&&R.plan.estado==="pendiente"?"🟡 Tienes una propuesta esperando tu aprobación.":R&&R.approved?"✅ Órdenes aprobadas: se hacen en la próxima revisión con la bolsa abierta.":!a.on?"💤 La cartera real está desactivada.":"✅ Todo en orden: el bot sigue a «"+esc(NOMB[a.metodo]||(STR[a.metodo]&&STR[a.metodo].n)||a.metodo)+"».";
  const lv=R&&(R.live||R.last),ago=lv?Math.max(0,Math.round((Date.now()-Date.parse(lv))/60000)):null,agoT=ago==null?"":ago<1?"ahora mismo":ago<60?"hace "+ago+" min":ago<1440?"hace "+Math.round(ago/60)+" h":"el "+dt(lv);
- return`<div class="p hero"><div class="hero-top"><h2>Dinero del bot</h2><span class="hero-tags">${env}${est}</span></div>
-<div class="big">${s?E(s.be):L?E(L.cap):"—"}</div>
-<div class="hero-chg">${s?`<b class="${cls(s.res)}">${SG(s.res)} (${PC(s.pct)})</b> desde el ${esc(fd(s.d0))}${s.dia!=null?` · hoy <b class="${cls(s.dia)}">${SG(s.dia)}</b>`:""}`:"Aún sin historial"}</div>
-<div class="hero-row"><span>Invertido <b>${s?E(s.invBot):"—"}</b></span><span>Efectivo <b>${s?E(s.cashBot):"—"}</b></span></div>
+ const cash=+((acc.cash&&acc.cash.availableToTrade)||0),resv=+((acc.cash&&acc.cash.reservedForOrders)||0)+ +((acc.cash&&acc.cash.inPies)||0),inv=+((acc.investments&&acc.investments.currentValue)||0),hasAcc=!!(R&&R.account&&(cash||inv));
+ const tv=hasAcc?(+acc.totalValue>0?+acc.totalValue:cash+resv+inv):null,ps=(R&&R.positions)||[],pnl=ps.reduce((t,p)=>t+(+p.pnl||0),0),cost=ps.reduce((t,p)=>t+(+p.cost||0),0),rend=cost>0?pnl/cost*100:null;
+ const today=dayKey(Date.now()),pv=((R&&R.days)||[]).filter(x=>x.d<today&&x.v>0).pop(),td=((R&&R.days)||[]).find(x=>x.d===today),dep=pv&&td&&pv.ap!=null&&td.ap!=null?td.ap-pv.ap:0,ch=pv&&tv!=null?tv-pv.v-dep:null;
+ const botMon=s?s.be:null,own=tv!=null&&botMon!=null?tv-botMon:0;
+ return`<div class="p hero"><div class="hero-top"><h2>${hasAcc?"Tu cuenta de Trading 212":"Dinero del bot"}</h2><span class="hero-tags">${env}${est}</span></div>
+<div class="big">${hasAcc?E(tv):s?E(s.be):L?E(L.cap):"—"}</div>
+${hasAcc?`<div class="hero-chg">${ch!=null?`Desde ayer <b class="${cls(ch)}">${SG(ch)}</b>`:""}${rend!=null?`${ch!=null?" · ":""}rendimiento <b class="${cls(pnl)}">${SG(pnl)} (${PC(rend)})</b>`:""}</div>
+<div class="hero-row"><span>Inversiones <b>${E(inv)}</b></span><span>Efectivo <b>${E(cash+resv)}</b></span></div>
+${Math.abs(own)>=1?`<div class="hero-live">🤖 El bot maneja ${E(botMon)}; el resto (${E(own)}) es tuyo y no lo toca.</div>`:""}`:
+`<div class="hero-chg">${s?`<b class="${cls(s.res)}">${SG(s.res)} (${PC(s.pct)})</b> desde el ${esc(fd(s.d0))}${s.dia!=null?` · hoy <b class="${cls(s.dia)}">${SG(s.dia)}</b>`:""}`:"Aún sin historial"}</div>
+<div class="hero-row"><span>Invertido <b>${s?E(s.invBot):"—"}</b></span><span>Efectivo <b>${s?E(s.cashBot):"—"}</b></span></div>`}
 <div class="hero-mood">${mood}</div>
 <div class="hero-live">${lv?`<i class="${ago!=null&&ago<40?"on":""}"></i> Actualizado ${agoT}`:""} · ${a.modo==="auto"?"invierte solo":a.modo==="pausa"?"solo mira":"te pide aprobación"}</div></div>`}
+/* v72 · resultado de cada método que has tenido en la cartera real (por periodos) */
+function metResHtml(){const R=RL.R,D=days();if(D.length<2)return"";const H=((R&&R.metHist)||[]).slice().sort((x,y)=>x.d<y.d?-1:1);
+ const cur=A().metodo,nm=k=>NOMB[k]||(STR[k]&&STR[k].n)||k,P=[];const at=d=>{let j=-1;H.forEach((h,i)=>{if(h.d<=d)j=i});return j<0?0:j};
+ for(let i=1;i<D.length;i++){const x=D[i],p=D[i-1];if(!(p.be>0))continue;const g=x.be-p.be-(x.bf||0),base=p.be+Math.max(0,x.bf||0),j=H.length?at(x.d):-1;
+  let q=P[P.length-1];if(!q||q.j!==j){q={j,k:j>=0?H[j].metodo:cur,n:j>=0?(H[j].nombre||nm(H[j].metodo)):nm(cur),d0:j>=0&&H[j].d>D[0].d?H[j].d:D[0].d,d1:x.d,g:0,idx:1};P.push(q)}
+  q.g+=g;q.d1=x.d;if(base>0)q.idx*=1+g/base}
+ if(!P.length)return"";const tot=P.reduce((t,q)=>t+q.g,0);
+ return`<div class="p"><h2>🧭 Resultado por método</h2><div class="rl-mres">${P.slice().reverse().map((q,i)=>`<div class="${i===0?"on":""}"><div><b>${esc(q.n)}</b><small>${i===0&&q.k===cur?"desde el "+esc(fd(q.d0))+" · el actual":esc(fd(q.d0))+" – "+esc(fd(q.d1))}</small></div><span class="${cls(q.g)}">${SG(q.g)}<small>${PC((q.idx-1)*100)}</small></span></div>`).join("")}</div>
+ <div class="m">Total desde el ${esc(fd(D[0].d))}: <b class="${cls(tot)}">${SG(tot)}</b>. Lo que metes o sacas de Trading 212 no cuenta como ganancia ni como pérdida.</div></div>`}
 function isinOf(t,sym,pi){if(pi)return pi;const M=(RL.R&&RL.R.map)||{};if(sym&&M[sym]&&M[sym].t===t&&M[sym].isin)return M[sym].isin;const x=Object.values(M).find(z=>z&&z.t===t&&z.isin);return x?x.isin:""}
 const isinBtn=i=>i?`<button class="cpy" data-copy="${esc(i)}" title="Copiar el ISIN">ISIN ${esc(i)} 📋</button>`:"";
 function ordCard(o,canAct){const buy=o.side==="COMPRA";
@@ -3135,6 +3156,7 @@ function draw0(){const root=$r("#rl-root");if(!root)return;const R=RL.R;let h=""
  // v61: lo importante arriba (cuánto vale, qué va a hacer, botones); el detalle, plegado debajo
  h+=heroHtml()+warns();
  h+='<div class="p"><div class="chtop"><h2>¿Va ganando?</h2></div><div id="rl-ch">'+chartHtml()+"</div></div>";
+ h+=metResHtml();
  h+='<div class="p"><h2>Qué va a hacer</h2><div style="display:grid;gap:10px">'+planHtml()+"</div></div>";
  h+='<div class="p rl-act">'+actHtml()+stP+'</div>';
  h+=fold("pos","💼 Lo que tiene el bot y lo que es tuyo",posHtml(),true);
