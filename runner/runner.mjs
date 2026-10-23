@@ -367,7 +367,7 @@ function shortDaily(r) {
 }
 function shortBt(r) {
   const rk = grab(r.md, /### Ranking por rentabilidad anual compuesta\n((?:- [^\n]*\n?)+)/).split("\n").slice(0, 4).join("\n");
-  return [`${r.status}: ${r.message || ""}`.slice(0, 400), rk && "Mejores (rentab. anual):\n" + rk].filter(Boolean).join("\n");
+  return [`${r.status}: ${r.message || ""}`.slice(0, 400), rk && "Mejores (rentab. anual antes de impuestos):\n" + rk].filter(Boolean).join("\n");
 }
 
 // ---------- arranque del navegador con el estado anterior ----------
