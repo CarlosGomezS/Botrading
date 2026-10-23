@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v40: avisos del laboratorio por Telegram
+- El aviso de cada noche (prueba histórica) empieza con lo que ha hecho el laboratorio: probados, aprobados, liga, y los movimientos del día (🌱 nace, 📝 aprueba, 🎲 descartado, 🧪 a la ficticia…).
+- Si aparece un ganador nuevo, el título lo dice: «🌱 nuevo método ganador»; si además gana al SPY por ≥4 puntos al año, «🌟 método MUY bueno».
+- Cuando un ganador se confirma 3 meses en la ficticia y es mejor que tu método, llega la propuesta con «✅ Cambiar / ❌ No cambiar» (cartera real).
+
 ## Novedades v39 (web v78): el laboratorio aprende de verdad y no se agota
 - **Aprende**: apunta qué piezas ganan más al SPY y las elige más a menudo (sin dejar de explorar). Cada noche: variaciones de los mejores y de los que casi aprueban (evolución), mezclas 50/50 de dos buenos (o de uno bueno con la Tendencia QQQ) y exploración guiada. En el Histórico: «🧠 Lo que va aprendiendo».
 - **~40.000 combinaciones** (7 grupos de ETF, 9 plazos, ajuste por riesgo, refugio en bonos u oro, mensual o trimestral…) más las mezclas: no se agota.

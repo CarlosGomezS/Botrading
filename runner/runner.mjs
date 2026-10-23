@@ -567,6 +567,21 @@ async function main() {
       titleTxt = "Bot Trading: prueba histórica · " + rep.status.replace("prueba-historica-", "");
       subj = "Bot Trading · Prueba histórica diaria · " + rep.status.replace("prueba-historica-", "") + ` · ${n} acciones`;
       shortTxt = shortBt(rep);
+      // v79: lo que ha hecho el laboratorio esta noche; si hay un ganador nuevo, el aviso lo dice en el título
+      try {
+        const lab = await page.evaluate(() => { try { const L = S.lab || {}, d = T0(), ev = (L.log || []).filter((x) => x.d === d), sp = S.btm && S.btm.rows && S.btm.rows.spy, tx = sp && sp[0] && sp[0].atax != null, as = sp ? (tx ? annualTaxOf(sp, S.btm.cuts) : annualOf(sp, S.btm.cuts)) : null;
+          return { last: L.last || null, ev: ev.map((x) => ({ ev: x.ev, n: x.n, why: x.why, an: (L.pop[x.k] || L.pend[x.k] || {}).an })), as, pop: Object.keys(L.pop || {}).length, pend: Object.keys(L.pend || {}).length }; } catch (e) { return null; } });
+        if (lab && lab.last) {
+          const pc = (x) => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1).replace(".", ",") + " %";
+          const nuevos = lab.ev.filter((x) => x.ev === "nace" || x.ev === "a la ficticia"), top = nuevos.filter((x) => x.an != null && lab.as != null && x.an - lab.as >= 0.04);
+          const L2 = [`🤖 Laboratorio: ${lab.last.n} métodos nuevos probados · ${lab.last.ok} aprueban el examen · liga ${lab.pop}/20${lab.pend ? " · " + lab.pend + " en prueba de estabilidad" : ""}`];
+          for (const x of lab.ev.slice(0, 6)) L2.push(`${{ nace: "🌱", aprueba: "📝", descartado: "🎲", sale: "🗑️", "a la ficticia": "🧪", apartado: "⛔" }[x.ev] || "•"} ${x.n.replace(/^🤖 /, "")}: ${x.ev}${x.an != null ? " (" + pc(x.an) + "/año)" : ""}`);
+          if (nuevos.length) L2.push("", `Los nuevos ganadores se prueban ahora 3 meses en la ficticia con precios de hoy. Si siguen ganando al SPY y a tu método, te llegará aquí la propuesta con «✅ Cambiar».`);
+          shortTxt = L2.join("\n") + "\n\n" + shortTxt;
+          if (top.length) titleTxt = `🌟 Bot Trading: método MUY bueno encontrado (${pc(top[0].an)}/año, el SPY ${pc(lab.as)})`;
+          else if (nuevos.length) titleTxt = "🌱 Bot Trading: nuevo método ganador encontrado";
+        }
+      } catch (e) { log("resumen del laboratorio:", String(e.message).slice(0, 120)); }
     } else if (MODE === "test") {
       const sec = ["ALPACA_KEY", "TWELVEDATA_KEY", "POLYGON_KEY", "ALPHAVANTAGE_KEY", "FMP_KEY", "TELEGRAM_TOKEN", "TELEGRAM_CHAT"];
       const L = ["# Prueba de avisos", "", `Fecha: ${new Date().toISOString()}`, "", "## Secretos configurados en GitHub (solo si existen o no; nunca su valor)", ""];
