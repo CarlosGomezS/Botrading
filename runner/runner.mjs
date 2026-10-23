@@ -495,10 +495,7 @@ const DEADLINE = (+env("JOB_DEADLINE") || 0) * 1000 || Date.now() + 5.5 * 3600e3
 // ---------- programa principal ----------
 async function main() {
   const AJ = loadAjustes();
-  if (MODE === "vigilante") {
-    const n = nyNow();
-    if ((!n.wk || n.min < 9 * 60 + 40 || n.min > 18 * 60) && EVENT !== "workflow_dispatch") { log("Fuera del horario del vigilante (NY). Nada que hacer."); return; }
-  }
+  if (MODE === "vigilante") { log("El vigilante se ha retirado (v74): nada que hacer."); return; }
   const { browser, page } = await boot();
   const snapshot = async () => sanitize(await dumpAll(page));
   const t0 = Date.now(), startIso = new Date(t0).toISOString();
@@ -528,7 +525,6 @@ async function main() {
         rep = await page.evaluate((s) => __API.newestReport(s), startIso);
         if (!rep && it) rep = { id: it.id, status: it.status, message: it.message, md: it.mdInforme };
       }
-      try { const v = await page.evaluate(async () => { const x = await viUpdate({ budget: 6 * 60e3 }); return { n: x.nuevos.length, txt: viSummaryTxt(S.vix || { days: [] }), err: x.err }; }); log("Vigilante intradía tras la actualización:", v.n, "días nuevos", v.err ? "· " + String(v.err).slice(0, 120) : ""); if (v.n && v.n <= 3 && !v.err) await sendTg(v.txt).catch(() => {}); } catch (e) { log("vigilante intradía (diario) falló:", String(e.message).slice(0, 160)); }
       titleTxt = "Bot Trading: actualización diaria · " + rep.status;
       subj = "Bot Trading · Actualización diaria · " + rep.status;
       shortTxt = shortDaily(rep);
@@ -563,22 +559,6 @@ async function main() {
       titleTxt = "Bot Trading: prueba histórica · " + rep.status.replace("prueba-historica-", "");
       subj = "Bot Trading · Prueba histórica diaria · " + rep.status.replace("prueba-historica-", "") + ` · ${n} acciones`;
       shortTxt = shortBt(rep);
-    } else if (MODE === "vigilante") {
-      // v68: vigilante intradía con velas de 1 minuto (10 métodos de day trading). La 1.ª vez rehace el último año.
-      const pend = await page.evaluate(() => !(S.vix && S.vix.v === 3 && S.vix.days.length && !S.vix.prog)).catch(() => true);
-      const budget = Math.max(60e3, Math.min((+env("TURN_MAX_MIN") || (pend ? 32 : 12)) * 60e3, DEADLINE - Date.now() - 3 * 60e3));
-      log(`Vigilante intradía: actualizando (máx. ${Math.round(budget / 60e3)} min)`);
-      const r = await page.evaluate(async (b) => { const x = await viUpdate({ budget: b }); return { ...x, n: (S.vix && S.vix.days || []).length, txt: viSummaryTxt(S.vix || { days: [] }), md: viMd(), prog: S.vix && S.vix.prog, err: S.vix && S.vix.err }; }, budget);
-      log(`Vigilante: ${r.nuevos.length} días nuevos · ${r.n} días en total · ${r.calls} llamadas a Alpaca${r.parcial ? " · queda parte por calcular" : ""}${r.err ? " · ERROR: " + String(r.err).slice(0, 160) : ""}`);
-      if (r.dbg) log("Vigilante · tiempos:", JSON.stringify(r.dbg));
-      const it = await page.evaluate(([m, md]) => __API.custom("vigilante-intradia", m, md, null), [r.err ? "Vigilante intradía con error" : `Vigilante intradía · ${r.n} días calculados`, r.md]);
-      rep = { id: it && it.id, status: r.err ? "vigilante-error" : "vigilante-intradia", message: r.err || "Vigilante intradía", md: r.md };
-      titleTxt = r.err ? "Bot Trading: vigilante · ERROR" : "Bot Trading: vigilante intradía";
-      subj = "Bot Trading · Vigilante intradía";
-      // aviso al Telegram: un resumen cuando se cierra un día nuevo (y uno al terminar de rehacer el año); los errores, siempre
-      const lastNew = r.nuevos[r.nuevos.length - 1], ny = nyNow();
-      vgOps = r.err ? [1] : (!r.parcial && lastNew && (r.backfill || r.nuevos.length <= 3)) ? [1] : [];
-      shortTxt = r.err ? String(r.err) : (r.backfill ? "Listo: calculado el último año entero de los 10 métodos intradía.\n\n" : "") + r.txt;
     } else if (MODE === "test") {
       const sec = ["ALPACA_KEY", "TWELVEDATA_KEY", "POLYGON_KEY", "ALPHAVANTAGE_KEY", "FMP_KEY", "TELEGRAM_TOKEN", "TELEGRAM_CHAT"];
       const L = ["# Prueba de avisos", "", `Fecha: ${new Date().toISOString()}`, "", "## Secretos configurados en GitHub (solo si existen o no; nunca su valor)", ""];

@@ -458,8 +458,12 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .rl-mres{display:grid;gap:6px;margin:4px 0 8px}.rl-mres>div{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--line) 26%,transparent)}
 .rl-mres>div.on{outline:1.5px solid color-mix(in srgb,var(--line) 80%,transparent)}.rl-mres b{display:block;font-size:14px}.rl-mres small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .rl-mres span{text-align:right;font-weight:800;font-size:15px;white-space:nowrap}.rl-mres span small{font-weight:500}
+
+/* v74 · buscador sin acciones sueltas; ¿hay algo mejor? */
+.btstk{display:none!important}
+.rl-better .row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 12px;border-radius:14px;background:color-mix(in srgb,var(--line) 26%,transparent);margin:6px 0}.rl-better .row b{display:block;font-size:14px}.rl-better .row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}.rl-better .row span{font-weight:800;white-space:nowrap;text-align:right}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v73</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v74</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -477,12 +481,12 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <div class="p"><h2>Detalle por activo</h2><div style="display:flex;gap:8px"><input id="sy" placeholder="Ticker, p. ej. AAPL" style="width:150px"><button id="sb">Ver</button></div><div id="sd"></div></div>
 </section>
 <section class="tab" id="t-informe">
-<div class="p"><h2>Prueba histórica</h2><div class="m" style="margin:4px 0 10px">Aquí nace el método ganador: prueba 58 métodos que se pueden usar en Trading 212 con datos reales desde 1999 y los compara con el SPY. No usa dinero.</div>
+<div class="p"><h2>Prueba histórica</h2><div class="m" style="margin:4px 0 10px">El buscador: cada noche prueba unos 40 métodos candidatos con datos reales desde 2000 y los costes incluidos. Todos se pueden hacer en Trading 212 con ETF europeos en euros y revisan como mucho una vez al mes. Solo es <b>✅ Ganador</b> el que gana al SPY por ≥2 puntos al año, le gana en 2 de 3 tramos y no cae más del −35 %: ese entra solo en la ficticia. No usa dinero.</div>
 <div class="btbar"><button id="btr">▶ Ejecutar prueba</button><button id="btcb" class="ghost">⚙️ Ajustes de la prueba</button></div>
 <div id="btcf" class="btcf" hidden>
- <label class="btrow"><span>Incluir métodos de acciones sueltas<small>Momentum de acciones, IA… Más lento (30-60 min).</small></span><input type="checkbox" id="btacc"></label>
- <label class="btrow"><span>Quitar las acciones que más subieron<small id="btxl">Prueba de estrés: quita la ventaja de saber hoy quién ganó (Nvidia, Broadcom, Netflix, Tesla…). Si un método sigue ganando sin ellas, es de fiar.</small></span><select id="btx"><option value="0">No</option><option value="10">Las 10</option><option value="20">Las 20</option><option value="30">Las 30</option><option value="40">Las 40</option></select></label>
- <div class="btrow"><span>Acciones a probar<small>Cada día se sortea un número entre mínimo y máximo. Al pulsar «Ejecutar» se usa el máximo.</small></span><span class="btnum"><input id="btmin" type="number" min="10" max="500" value="200"> – <input id="btn" type="number" min="10" max="500" value="300"></span></div>
+ <label class="btrow btstk"><span>Incluir métodos de acciones sueltas<small>Momentum de acciones, IA… Más lento (30-60 min).</small></span><input type="checkbox" id="btacc"></label>
+ <label class="btrow btstk"><span>Quitar las acciones que más subieron<small id="btxl">Prueba de estrés: quita la ventaja de saber hoy quién ganó (Nvidia, Broadcom, Netflix, Tesla…). Si un método sigue ganando sin ellas, es de fiar.</small></span><select id="btx"><option value="0">No</option><option value="10">Las 10</option><option value="20">Las 20</option><option value="30">Las 30</option><option value="40">Las 40</option></select></label>
+ <div class="btrow btstk"><span>Acciones a probar<small>Cada día se sortea un número entre mínimo y máximo. Al pulsar «Ejecutar» se usa el máximo.</small></span><span class="btnum"><input id="btmin" type="number" min="10" max="500" value="200"> – <input id="btn" type="number" min="10" max="500" value="300"></span></div>
  <label class="btrow"><span>Empezar en el año<small>1999 incluye las crisis de 2000-2002 y 2008.</small></span><select id="btini"><option value="1999">1999</option><option value="2000">2000</option><option value="2001">2001</option><option value="2002">2002</option><option value="2003">2003</option><option value="2004">2004</option><option value="2005">2005</option><option value="2006">2006</option><option value="2007">2007</option><option value="2008">2008</option><option value="2009">2009</option><option value="2010">2010</option><option value="2011">2011</option><option value="2012">2012</option><option value="2013">2013</option><option value="2014">2014</option><option value="2015">2015</option><option value="2016">2016</option><option value="2017">2017</option><option value="2018">2018</option><option value="2019">2019</option><option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option></select></label>
  <label class="btrow"><span>Prueba automática cada día<small>Después de la actualización de precios.</small></span><input type="checkbox" id="btauto"></label>
  <div class="m" id="btfee"></div>
@@ -498,7 +502,6 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <div class="p xadv"><h2>Informes y descargas</h2><div class="m"><b>Cada informe con fecha y hora</b> tiene su .md y su .json con todos sus datos: en la prueba histórica, todas las operaciones y la curva diaria de cada método y tramo; en una actualización, las cotizaciones, las señales, las carteras objetivo, las operaciones y el diagnóstico de ese día. <b>«Informe GENERAL de todo»</b> descarga todo junto: todos los informes, las cuentas con todas sus operaciones y curvas, el vigilante de todos los días y, si quieres, las velas de precios. «Informe completo» junta en un solo archivo todos los informes archivados de todas las fechas y horas. Cada informe individual (más abajo) descarga solo el de esa fecha y hora. «Estado actual del bot» lleva todo lo que hace el bot ahora mismo, sus resultados y la prueba histórica: súbelo a la conversación para mejorar el bot.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="ej">Descargar informes (.json)</button><button id="im">Importar informes (.json)</button><button id="vaciarInf">Vaciar todos los informes</button><button id="fr">Descargar informe completo (todos los informes, .md)</button><button id="fs">Estado actual del bot (.md)</button><button id="fgm">Informe GENERAL de todo (.md)</button><button id="fgj">Informe GENERAL de todo (.json)</button><textarea id="ta" readonly style="display:none;width:100%;height:160px;font-size:12px"></textarea><input id="imf" type="file" accept=".json" hidden></div><div class="m">Historial automático: cada intento de actualización se guarda con fecha y hora, estado, fecha de mercado y una copia del informe. Se conserva separado de la cartera activa.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rref">Actualizar lista</button></div><div id="rlist"><div class="m">Cargando historial…</div></div></div>
 </section>
 <section class="tab" id="t-vigia">
-<div id="vi-root"><div class="p"><div class="m">Cargando el vigilante…</div></div></div>
 <div id="vg-old" hidden>
 <div class="p"><h2>👁️ Vigilante · métodos de revisión semanal</h2><details class="rd"><summary><span>ℹ️ Qué es el vigilante y cómo revisa</span></summary><div class="rb"><div class="m">El vigilante prueba, cada uno con su cuenta ficticia de <span class="capT">500 €</span>, <b>5 métodos con estudios publicados</b> que solo revisan su cartera <b>los lunes y jueves, los viernes o a fin de mes</b>, siempre a partir de las 15:00 de Nueva York (21:00 en España), una hora antes del cierre. Entre revisiones no hacen nada, así que no hay que estar pendiente: si alguno compra o vende, te llega un aviso. Los 5 métodos intradía anteriores (arranque, hueco, ruptura, fuerza y caída en tendencia) se han retirado porque no tenían evidencia. Que un método funcionara en el pasado no garantiza que funcione ahora: por eso se prueban aquí con dinero ficticio antes de usarlos de verdad.</div></div></details>
 <details class="rd"><summary><span>⚙️ Controles de vigilancia en este dispositivo</span></summary><div class="rb"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button id="vgb">▶ Iniciar vigilancia</button><button id="vgs">Consultar ahora</button>
@@ -522,7 +525,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <label class="m"><input type="checkbox" id="mon" style="width:auto"> Activar envíos automáticos</label>
 <div class="m">Clave de acceso de Web3Forms (se genera gratis en web3forms.com escribiendo tu correo; te la mandan por email):<br><input id="mkey" type="password" placeholder="pega aquí la clave" style="width:100%"></div><div class="m">Tu correo (solo como recordatorio; los correos llegan al que usaste para crear la clave):<br><input id="mto" type="email" placeholder="tucorreo@ejemplo.com" style="width:100%"></div>
 <label class="m"><input type="checkbox" id="mc" style="width:auto" checked> Incluir métodos de la cartera</label>
-<label class="m"><input type="checkbox" id="mv" style="width:auto" checked> Incluir métodos del vigilante</label>
+<label class="m" style="display:none"><input type="checkbox" id="mv" style="width:auto"> Incluir métodos del vigilante</label>
 <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="mtest">Enviar prueba ahora</button></div>
 <div class="m" id="mls"></div>
 <div class="m">Se envía a través del servicio gratuito Web3Forms (web3forms.com), que funciona aunque abras el archivo HTML directamente. Pasos: entra en web3forms.com, escribe tu correo en «Create your Access Key», copia la clave que te llega por email y pégala arriba. Revisa también spam.</div></div>
@@ -542,9 +545,9 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <section class="tab" id="t-ayuda">
 <div class="p hlp"><h2>Cómo funciona, en 1 minuto</h2>
 <div class="steps">
-<div class="step"><b>1</b><div><b>📈 Histórico</b> · prueba ~60 métodos con datos reales desde 1999 y los compara con el S&amp;P 500. De aquí sale el candidato ganador.</div></div>
-<div class="step"><b>2</b><div><b>🧪 Ficticia</b> · el candidato opera cada día con <span class="capT">500 €</span> ficticios y datos de hoy. Así ves si se comporta como en la prueba.</div></div>
-<div class="step"><b>3</b><div><b>💶 Real</b> · el método que elijas invierte tu dinero en Trading 212 con ETFs europeos en euros. Te avisa por Telegram y, si quieres, te pide aprobación.</div></div>
+<div class="step"><b>1</b><div><b>📈 Histórico</b> · cada noche prueba unos 40 candidatos (ETF europeos, revisión mensual o más lenta, sin apalancar) desde 2000 contra el S&amp;P 500. Solo pasa el que gana por ≥2 puntos al año, en 2 de 3 tramos y sin caer más del −35 %.</div></div>
+<div class="step"><b>2</b><div><b>🧪 Ficticia</b> · los ganadores entran solos y operan cada día con <span class="capT">500 €</span> ficticios y datos de hoy. Así ves si siguen ganando con días que la prueba no conocía.</div></div>
+<div class="step"><b>3</b><div><b>💶 Real</b> · el método que elijas invierte tu dinero en Trading 212 con ETF europeos en euros (sin comisión ni cambio de divisa). La tarjeta «¿Hay algo mejor?» te dice si conviene cambiar. Te avisa por Telegram.</div></div>
 </div></div>
 <div class="p hlp"><h2>Lo que hace solo, cada día</h2>
 <div class="m">• <b>Cada noche</b> (tras el cierre de Wall Street) descarga precios y cada método de la ficticia decide.<br>• <b>Por la mañana</b> (desde las 9:17, cada media hora si GitHub se retrasa) la cartera real copia la decisión del método elegido: propone o ejecuta las órdenes.<br>• <b>Por la tarde</b> guarda la foto del valor para la gráfica. Los viernes, informe semanal.</div></div>
@@ -556,7 +559,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 </section>
 
 </div>
-<nav id="nav"><button data-t="hoy"><span>🧪</span>Ficticia</button><button data-t="informe"><span>📈</span>Histórico</button><button data-t="vigia"><span>👁️</span>Vigilante</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
+<nav id="nav"><button data-t="hoy"><span>🧪</span>Ficticia</button><button data-t="informe"><span>📈</span>Histórico</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
 <script id="viewer-shim">
 /* Modo VISOR (solo en la web publicada). En el ordenador (file://) y en el proceso automático NO hace nada.
    Carga la última copia de datos que dejó el proceso automático en GitHub y la muestra tal cual. */
@@ -650,7 +653,7 @@ async function generalMd(){const L=["# INFORME GENERAL DEL BOT","","Generado: "+
  try{L.push("## Estado actual y métodos",methodsMd())}catch(e){L.push("(no se pudo generar el resumen de métodos: "+String(e.message||e)+")")}
  for(const[k,B]of Object.entries(S.books||{})){L.push("",`## Cuenta de ${(STR[k]&&STR[k].n)||k}: todas las operaciones (${B.trades.length})`);B.trades.slice().reverse().forEach(t=>L.push(`- ${t.d} ${t.side} ${t.s} ${E(t.eur)} @ $${(+t.px).toFixed(4)}${t.pnl!=null?" → "+E(t.pnl):""}${t.why?" · "+t.why:""}`));L.push("",`Curva diaria (${B.days.length} días), fecha=valor €:`,"```",B.days.map(z=>z.d+"="+(+z.eq).toFixed(2)).join(" "),"```")}
  L.push("","=".repeat(60),"# TODOS LOS INFORMES ARCHIVADOS","=".repeat(60));L.push((await allReportsMd())||"(no hay informes archivados)");
- try{L.push("","=".repeat(60),"# VIGILANTE INTRADÍA: TOTAL","=".repeat(60),await vgReportTotal2())}catch(e){L.push("(no se pudo generar el informe del vigilante: "+String(e.message||e)+")")}
+
  return L.join("\n")}
 function reportSummary(item){const st=item.state||{};const eqv=Number.isFinite(item.equity)?item.equity:(Number(st.cash)||0);const hm=new Date(item.ts).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});return `<details class="rd"><summary>${esc(hm)} · ${esc(item.status||"informe")} · ${E(eqv)}</summary><div class="rb"><span class="m">Mercado: ${esc(item.marketDate||"sin fecha")}</span><div>${esc(item.message||"")}</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button data-report-md="${esc(item.id)}">Descargar informe (.md)</button><button data-report-json="${esc(item.id)}">Todos los datos (.json)</button></div></div></details>`}
 async function renderReports(){const el=$("#rlist");if(!el)return;el.innerHTML='<div class="m">Leyendo historial…</div>';const a=await listReports();
@@ -1407,6 +1410,14 @@ for(const [k,f] of Object.entries({mom:"mom",core:"mix",trend:"tend",pp:"fijo",m
 const FAMOF={sect:"rot",sectx:"rot",trq:"tend",dmu:"asig",mix:"mix",smh:"ia",qld:"apal",aic:"ia",aim:"ia",m10:"mom",s11:"rot",sfab:"rot",s121:"rot",sriv:"rot",sadj:"rot",s2:"rot",s4:"rot",snf:"rot",bufb:"buf",buf9:"buf",bufm:"buf"};
 for(const [k,f] of Object.entries(FAMOF)){const M=STR[k]||BTX[k];if(M&&!M.fam)M.fam=f}
 STR.m10.syms=["SPY"];BTX.mom&&(BTX.mom.syms=["SPY"]);
+/* ===== v74 · catálogo de CANDIDATOS para tu cartera real =====
+   Fuera lo que no encaja con Trading 212 y con «pocas operaciones»:
+   · acciones sueltas de EE. UU. (cotizan en dólares: 0,15 % de cambio en cada compra y venta; y la lista de hoy tiene sesgo de supervivencia)
+   · métodos semanales o diarios (demasiadas operaciones) · apalancados (caídas del −60 % al −90 %) */
+const DROPM=["aic","aim","m10","m5","m52","m6","mlv","ens","mom","bufb","qld","qldm","sso","tqqq","sectw","q200","vtq","donq","tvt","tom","ovn","rsi2"];
+for(const k of DROPM){delete STR[k];delete BTX[k]}
+/* En la ficticia solo queda el método base (sect) y entran solos los que la prueba histórica marque como ✅ Ganador (applySimx). */
+for(const k of Object.keys(STR))if(k!=="sect"){BTX[k]={...STR[k],bt:true};delete STR[k]}
 // ETFs apalancados: antes de existir se simulan con el índice (k × rentabilidad diaria − costes de ~3% al año)
 const SPL={QLD:["QQQ",2],SSO:["SPY",2],TQQQ:["QQQ",3]};
 function spliceLev(L){const out=[];for(const [s,[base,k]] of Object.entries(SPL)){const B=L[base];if(!B||B.length<300)continue;const X=L[s]||[],d0=X.length?X[0].d:"9999",drag=(0.0095+0.02*(k-1))/252;
@@ -1426,7 +1437,11 @@ const T212D={dep:["qld","sso","tqqq","qldm","gtaa5","gtaa3","daa","aw","s11","mq
 const t212Of=k=>T212D.no.includes(k)?"no":T212D.acc.includes(k)?"acc":T212D.dep.includes(k)?"dep":"si";
 const T212B={si:'<span class="bdg ok t212b">T212 ✔</span>',dep:'<span class="bdg mid t212b">T212: según tu cuenta</span>',acc:'<span class="bdg t t212b">T212: acciones EE. UU.</span>'};
 function activeM(){const o={};for(const [k,m] of Object.entries(ALLM())){if(t212Of(k)==="no")continue;if(!BTC.acc&&m.stocks)continue;if(BTC.excl>0&&(k==="aic"||k==="aim"))continue;o[k]=m}return o}
-function applySimx(){try{const L=Array.isArray(S&&S.simx)?S.simx:[];for(const k of L)if(BTX[k]&&!STR[k]){STR[k]={...BTX[k],bt:false,promo:true,cat:"Desde la prueba histórica"};for(const x of (BTX[k].syms||[]))if(!WL.includes(x))WL.push(x)}for(const k of Object.keys(STR))if(STR[k].promo&&!L.includes(k))delete STR[k]}catch(e){}}
+function applySimx(){try{const L=Array.isArray(S&&S.simx)?S.simx:[];
+ /* v74: los ✅ Ganadores de la prueba histórica entran solos en la ficticia y ya no salen (así la cartera real nunca se queda sin el método que eligió) */
+ S.promo=Array.isArray(S.promo)?S.promo:[];const bm=S.btm;if(bm&&bm.rows&&bm.rows.spy)for(const k of Object.keys(bm.rows)){if(k==="spy"||!BTX[k]||S.promo.includes(k))continue;try{const v=btmVerd(bm,k);if(v&&v.c==="ok")S.promo.push(k)}catch(e){}}
+ const P=[...new Set([...L,...S.promo])];
+ for(const k of P)if(BTX[k]&&!STR[k]){STR[k]={...BTX[k],bt:false,promo:true,cat:"Ganador de la prueba histórica"};for(const x of (BTX[k].syms||[]))if(!WL.includes(x))WL.push(x)}for(const k of Object.keys(STR))if(STR[k].promo&&!P.includes(k))delete STR[k]}catch(e){}}
 function btcClean(o){const r={...BTC},n=(v,a,b)=>{v=Math.round(+v);return Number.isFinite(v)?Math.max(a,Math.min(b,v)):null};if(!o||typeof o!=="object")return r;
  for(const [k,a,b] of [["min",10,500],["max",10,500],["ini",1999,2022]]){const v=n(o[k],a,b);if(v!=null)r[k]=v}for(const k of ["acc","auto"])if(o[k]!=null)r[k]=+!!+o[k];if(o.excl!=null){let v=Math.round(+o.excl);if(v===1)v=12;if(Number.isFinite(v))r.excl=Math.max(0,Math.min(40,v))}
  if(Array.isArray(o.sim))r.sim=o.sim.filter(k=>typeof k==="string"&&/^[A-Za-z0-9_-]{1,20}$/.test(k)).slice(0,30);if(r.min>r.max)r.min=r.max;return r}
@@ -1544,7 +1559,7 @@ async function wfCloud(wf,label,st,bt,pw,after){if(!st)return;const c=window.__C
  if(wfCloud.on)return;wfCloud.on=true;if(bt)bt.disabled=true;
  try{c.touch();const since=Date.now();st.textContent="Enviando a GitHub…";const r=await c.dispatch(ri,wf,{});
   if(r.status!==204){st.textContent=r.status===401||r.status===403?"GitHub rechazó el token (HTTP "+r.status+"): revisa que tenga «Actions: Read and write».":r.status===404?"No encuentro .github/workflows/"+wf+" en el repositorio.":"GitHub respondió HTTP "+r.status+".";return}
-  st.textContent=label+": GitHub lo está haciendo (unos minutos; la primera vez del vigilante, hasta 15). Puedes cerrar la app.";
+  st.textContent=label+": GitHub lo está haciendo (unos minutos). Puedes cerrar la app.";
   const res=await c.waitRun(ri,wf,since,25*60);
   if(res==="success"){st.textContent="✔ Hecho. Recargando la web con los datos nuevos…";setTimeout(()=>{try{location.reload()}catch(e){}},2500)}
   else st.textContent=res==null?"Sigue en marcha en GitHub: vuelve en un rato.":"✖ Terminó con error: míralo en GitHub → Actions.";
@@ -1577,15 +1592,18 @@ async function btCloud(pw){const st=$("#btst"),c=window.__CLOUD;if(!pw&&!btCloud
   st.textContent=res==="success"?"✔ Prueba terminada. Si aún no ves los resultados nuevos, toca la barra de arriba para actualizar.":res==null?"Sigue en marcha en GitHub: vuelve en un rato.":"✖ La prueba terminó con error: míralo en GitHub → Actions → «Prueba histórica diaria».";
  }catch(e){st.textContent="No se pudo: "+(e.message||e)}finally{$("#btr").disabled=false}}
 function btmVerd(b,k){const r=b.rows[k],sp=b.rows.spy;if(!r||!sp)return null;const ok=[0,1,2].filter(j=>r[j]&&sp[j]);if(!ok.length)return null;const n=ok.length,beat=ok.filter(j=>r[j].ret>sp[j].ret).length,less=ok.filter(j=>r[j].dd>sp[j].dd).length,pos=ok.filter(j=>r[j].ret>0).length,ar=annualOf(r,b.cuts),as=annualOf(sp,b.cuts);
- if(ar!=null&&as!=null&&ar>as&&less>=2&&pos===n)return{c:"ok",t:"✅ Bate al SPY",x:`Gana más que el SPY en el total y cae menos en ${less} de ${n} tramos.`,beat,less,pos,n};
+ const ddm=Math.min(...ok.map(j=>r[j].dd)),yrs=(dayN(b.cuts[3])-dayN(b.cuts[0]))/365.25,opy=ok.reduce((t,j)=>t+(r[j].n||0),0)/(yrs||1),late=!!(r[0]&&r[0].t0&&r[0].from&&dayN(r[0].t0)-dayN(r[0].from)>120);
+ /* v74 · filtro para la cartera real: ≥2 puntos al año más que el SPY, le gana en ≥2 de 3 tramos, peor caída no peor del −35 %, ≤12 ventas al año y datos desde el principio */
+ if(ar!=null&&as!=null&&ar-as>=0.02&&beat>=2&&ddm>=-0.35&&opy<=12&&pos===n&&!late)return{c:"ok",t:"✅ Ganador",x:`Gana ${((ar-as)*100).toFixed(1).replace(".",",")} puntos al año más que el SPY, le gana en ${beat} de ${n} tramos, su peor caída es del ${(ddm*100).toFixed(0)} % y hace unas ${Math.max(1,Math.round(opy))} ventas al año. Pasa el filtro para tu cartera real.`,beat,less,pos,n,opy,ddm};
+ if(ar!=null&&as!=null&&ar>as)return{c:"mid",t:"🟡 Gana poco al SPY",x:`Gana algo más que el SPY (${((ar-as)*100).toFixed(1).replace(".",",")} puntos al año), pero no pasa el filtro para tu cartera real: hace falta ≥2 puntos, ganarle en 2 de 3 tramos, caídas no peores del −35 % y pocas operaciones.`,beat,less,pos,n,opy,ddm};
  if(ar!=null&&as!=null&&ar>as)return{c:"mid",t:"🟡 Gana más, cae más",x:`Gana más que el SPY en el total, pero con caídas iguales o mayores en ${n-less} de ${n} tramos.`,beat,less,pos,n};
  if(less===n&&pos===n)return{c:"mid",t:"🟡 Cae menos",x:"Gana algo menos que el SPY, pero con caídas menores en todos los tramos.",beat,less,pos,n};
  return{c:"no",t:"❌ No compensa",x:"No gana al SPY ni reduce las caídas lo suficiente.",beat,less,pos,n}}
-let BTV={f:"all",sort:"a",all:false};try{Object.assign(BTV,JSON.parse(localStorage.getItem("pbbtv")||"{}"))}catch{}
-const btvSave=()=>{try{localStorage.setItem("pbbtv",JSON.stringify(BTV))}catch{}};
+let BTV={f:"ok",sort:"a",all:false};try{Object.assign(BTV,JSON.parse(localStorage.getItem("pbbtv2")||"{}"))}catch{}
+const btvSave=()=>{try{localStorage.setItem("pbbtv2",JSON.stringify(BTV))}catch{}};
 function btmDraw0(){const b=S.btm,el=$("#bt2");try{btFormInit()}catch{}if(!b){el.innerHTML='<div class="m" style="margin-top:8px">Aún no hay resultados. Pulsa «Ejecutar prueba».</div>';return}
  const nm=k=>k==="spy"?"SPY (comprar y no tocar)":(MX(k)||{n:k}).n,y=d=>String(d||"").slice(0,4),as=b.rows.spy?annualOf(b.rows.spy,b.cuts):null;
- const all=Object.keys(b.rows).filter(k=>k==="spy"||t212Of(k)!=="no").map(k=>{const r=b.rows[k],a=annualOf(r,b.cuts),M=MX(k)||{},dd=r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null,t0=r[0]&&r[0].t0,late=!!(t0&&r[0].from&&dayN(t0)-dayN(r[0].from)>120);
+ const all=Object.keys(b.rows).filter(k=>k==="spy"||(MX(k)&&t212Of(k)!=="no")).map(k=>{const r=b.rows[k],a=annualOf(r,b.cuts),M=MX(k)||{},dd=r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null,t0=r[0]&&r[0].t0,late=!!(t0&&r[0].from&&dayN(t0)-dayN(r[0].from)>120);
   return{k,r,a,dd,M,late,t0,v:k==="spy"?null:btmVerd(b,k),fam:k==="spy"?"ref":(M.fam||"otros"),eff:a!=null&&dd?a/Math.abs(dd):null,sim:!!(STR[k]&&!STR[k].bt)}});
  const meth=all.filter(x=>x.k!=="spy"),nOk=meth.filter(x=>x.v&&x.v.c==="ok"&&!x.late).length;
  const fams=[...new Set(meth.map(x=>x.fam))].filter(f=>FAMN[f]);
@@ -2095,7 +2113,7 @@ function hoyRank(){const A=document.getElementById("hoy-rank");if(!A)return;
   const act=(nb||ns)?`🟢 ${nb} · 🔴 ${ns} en el último día`:"sin cambios en el último día";
   return`<div class="rk-c" data-go="${k}"><div class="rk-n">${med[j]||(j+1)+"."}</div><div class="rk-t"><b>${esc(STR[k].n)}</b><small>${np} ${np===1?"activo":"activos"} en cartera · ${cl} ventas cerradas · ${act}</small></div><div class="rk-g ${g>=0?"up":"dn"}">${P2(pc)}<small>${E2(g)}</small></div></div>`}).join("");
  const dias=(S.days||[]).length,pocas=ks.every(k=>((bkOf(k).trades)||[]).filter(t=>t.pnl!=null).length<30);
- A.innerHTML=`<div class="rk">${rows}</div><div class="m">Toca un método para ver qué hacer con él. Llevas ${dias} ${dias===1?"día":"días"} de datos${pocas?": todavía hay pocas ventas cerradas (menos de 30 por método), así que el ranking aún no demuestra nada. Sigue unas semanas.":"."}</div>`}
+ A.innerHTML=`<div class="rk">${rows}</div><div class="m">Aquí operan, con precios de hoy, los <b>✅ Ganadores</b> del histórico (entran solos) y el método base. Toca uno para ver qué hacer con él. Llevas ${dias} ${dias===1?"día":"días"} de datos${pocas?": todavía hay pocas ventas cerradas (menos de 30 por método), así que el ranking aún no demuestra nada. Sigue unas semanas.":"."}</div>`}
 document.addEventListener("click",e=>{const c=e.target&&e.target.closest&&e.target.closest("[data-go]");if(!c||!STR[c.dataset.go])return;VM.cart=c.dataset.go;VM.hoy=c.dataset.go;try{localStorage.setItem("pbvm",JSON.stringify(VM))}catch{}draw();const d=document.getElementById("hd-mi");if(d)d.open=true;const q=document.getElementById("hd-mi")||document.getElementById("mi-panel");if(q)q.scrollIntoView({behavior:"smooth",block:"start"})});
 const gtxt=g=>`<b class="${g>=0?"up":"dn"}">${E2(g)} (${P2(g/START*100)})</b>`;
 const hmL=t=>t?new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"";
@@ -2998,6 +3016,18 @@ ${Math.abs(own)>=1?`<div class="hero-live">🤖 El bot maneja ${E(botMon)}; el r
 <div class="hero-row"><span>Invertido <b>${s?E(s.invBot):"—"}</b></span><span>Efectivo <b>${s?E(s.cashBot):"—"}</b></span></div>`}
 <div class="hero-mood">${mood}</div>
 <div class="hero-live">${lv?`<i class="${ago!=null&&ago<40?"on":""}"></i> Actualizado ${agoT}`:""} · ${a.modo==="auto"?"invierte solo":a.modo==="pausa"?"solo mira":"te pide aprobación"}</div></div>`}
+/* v74 · ¿hay algo mejor que el método de tu cartera real? (según el filtro de la prueba histórica y la ficticia) */
+function betterHtml(){try{const b=S&&S.btm;if(!b||!b.rows||!b.rows.spy)return"";const cur=A().metodo,as=annualOf(b.rows.spy,b.cuts),pc=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",",")+" %";
+ const L=Object.keys(b.rows).filter(k=>k!=="spy"&&MX(k)).map(k=>{const r=b.rows[k];return{k,v:btmVerd(b,k),an:annualOf(r,b.cuts),dd:r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null}}).filter(x=>x.an!=null);
+ const win=L.filter(x=>x.v&&x.v.c==="ok").sort((x,y)=>y.an-x.an),me=L.find(x=>x.k===cur),nm=k=>(MX(k)||{}).n||NOMB[k]||k;
+ const fw=k=>{const B=bkOf(k);if(!B||!B.days||B.days.length<2)return"";const e0=B.days[0].eq,e1=liveEq(k);return e0>0?" · en la ficticia "+pc(e1/e0-1)+" desde el "+fd(B.days[0].d):""};
+ const row=x=>`<div class="row"><div><b>${esc(nm(x.k))}${x.k===cur?" (el tuyo)":""}</b><small>peor caída ${pc(x.dd)} · ${x.v&&x.v.opy!=null?"~"+Math.max(1,Math.round(x.v.opy))+" ventas/año":""}${esc(fw(x.k))}</small></div><span class="${x.an>=as?"up":"dn"}">${pc(x.an)}/año</span></div>`;
+ const meOk=me&&me.v&&me.v.c==="ok",best=win[0];let head,btn="";
+ if(!win.length)head=`Ningún candidato pasa ahora el filtro. Lo más sensato es seguir con tu método o con el SPY (comprar y mantener).`;
+ else if(meOk&&best.k===cur)head=`✅ <b>Tu método es el mejor ganador ahora mismo.</b> No hace falta cambiar.`;
+ else if(meOk)head=`✅ <b>Tu método pasa el filtro.</b> Hay otro que ganó más en la prueba, pero cambiar cuesta operaciones: solo merece la pena si también va mejor en la ficticia durante unos meses.`;
+ else{head=`🟡 <b>Tu método no pasa el filtro</b>${me?` (${pc(me.an)}/año frente al ${pc(as)}/año del SPY)`:""}. ${win.length===1?"Este sí lo pasa":"Estos sí lo pasan"}:`;btn=`<button class="go" id="rl-bt-go" data-k="${esc(best.k)}">🧭 Cambiar a «${esc(nm(best.k))}»</button><div class="m" style="font-size:12px">Te lleva a «Elige el método»; no cambia nada hasta que guardes los ajustes. En la siguiente revisión el bot vendería lo de ahora y compraría lo nuevo.</div>`}
+ return`<div class="p rl-better"><h2>🔎 ¿Hay algo mejor?</h2><div class="m">${head}</div>${win.slice(0,3).map(row).join("")}${!meOk&&me?row(me):""}<div class="m" style="font-size:12px">Prueba histórica ${esc(b.from.slice(0,4))}–${esc(b.to.slice(0,4))} · SPY ${pc(as)}/año. Filtro: ≥2 puntos al año más que el SPY, le gana en 2 de 3 tramos, caída no peor del −35 % y pocas operaciones.</div>${btn}</div>`}catch(e){return""}}
 /* v72 · resultado de cada método que has tenido en la cartera real (por periodos) */
 function metResHtml(){const R=RL.R,D=days();if(D.length<2)return"";const H=((R&&R.metHist)||[]).slice().sort((x,y)=>x.d<y.d?-1:1);
  const cur=A().metodo,nm=k=>NOMB[k]||(STR[k]&&STR[k].n)||k,P=[];const at=d=>{let j=-1;H.forEach((h,i)=>{if(h.d<=d)j=i});return j<0?0:j};
@@ -3158,7 +3188,7 @@ function draw0(){const root=$r("#rl-root");if(!root)return;const R=RL.R;let h=""
  // v61: lo importante arriba (cuánto vale, qué va a hacer, botones); el detalle, plegado debajo
  h+=heroHtml()+warns();
  h+='<div class="p"><div class="chtop"><h2>¿Va ganando?</h2></div><div id="rl-ch">'+chartHtml()+"</div></div>";
- h+=metResHtml();
+ h+=metResHtml();h+=betterHtml();
  h+='<div class="p"><h2>Qué va a hacer</h2><div style="display:grid;gap:10px">'+planHtml()+"</div></div>";
  h+='<div class="p rl-act">'+actHtml()+stP+'</div>';
  h+=fold("pos","💼 Lo que tiene el bot y lo que es tuyo",posHtml(),true);
@@ -3195,6 +3225,7 @@ function bind(){const R=RL.R,on=(id,f)=>{const e=$r(id);if(e)e.onclick=f};
  on("#rl-mno",()=>{RL.pick=null;draw()});
  on("#rl-mok",()=>{OPENS.cfg=true;draw();const d=$r('details[data-o="cfg"]');if(d)d.open=true;const e=$r("#rl-c-end");if(e)e.scrollIntoView({block:"center"})});
  on("#rl-c-save",onSave);
+ on("#rl-bt-go",()=>{const k=($r("#rl-bt-go")||{}).dataset.k;if(!k||!STR[k])return;RL.pick=k;RL.dirty=true;OPENS.met=true;draw();setTimeout(()=>{const d=$r('details[data-o="met"]');if(d)d.open=true;const b=$r("#rl-mok");if(b)b.scrollIntoView({block:"center"})},50)});
  on("#rl-s-lock",()=>{const c=C();if(c)c.lock();try{sessionStorage.removeItem("rlpw")}catch(e){}RL.noAuto=true;RL.R=null;RL.cfg=null;loadReal(false)});
  on("#rl-s-forget",async()=>{if(!confirm("¿Olvidar la contraseña de la cartera en este dispositivo? Tendrás que escribirla la próxima vez."))return;await remForget();RL.R=null;RL.cfg=null;loadReal(false)});
  on("#rl-s-tok",()=>{const c=C();if(!c)return;if(!confirm("¿Olvidar el token de GitHub en este dispositivo? Para aprobar o cambiar ajustes tendrás que volver a pegarlo en ⚙️ Ajustes."))return;c.forget();draw()});
@@ -3218,7 +3249,7 @@ function navShow(){const b=$r("#rl-nav");if(!b)return;const c=C(),mine=FORCE||!c
 mount();navShow();
 addEventListener("hashchange",()=>{if(location.hash==="#real"){const x=$r("#rl-nav");if(x)x.style.display="";window.__userNav=true;go("real")}});
 const go0=go;let goFirst=true;
-go=function(t){if(goFirst&&!window.__userNav){goFirst=false;if(t==="hoy"){const nb=$r("#rl-nav"),realOk=nb&&nb.style.display!=="none";let last="";try{last=localStorage.getItem("pbtab")||""}catch(e){}if(last&&document.getElementById("t-"+last)&&(last!=="real"||realOk))t=last;else if(realOk)t="real"}}else goFirst=false;try{localStorage.setItem("pbtab",t)}catch(e){}if(FORCE&&t!=="real"&&!window.__userNav&&Date.now()<T_FORCE)t="real";go0(t);if(t==="real"){if(!RL.R&&!RL.enc&&!RL.loading)loadReal(false);else draw()}};
+go=function(t){if(goFirst&&!window.__userNav){goFirst=false;if(t==="hoy"){const nb=$r("#rl-nav"),realOk=nb&&nb.style.display!=="none";let last="";try{last=localStorage.getItem("pbtab")||""}catch(e){}if(last==="vigia")last="";if(last&&document.getElementById("t-"+last)&&(last!=="real"||realOk))t=last;else if(realOk)t="real"}}else goFirst=false;try{localStorage.setItem("pbtab",t)}catch(e){}if(FORCE&&t!=="real"&&!window.__userNav&&Date.now()<T_FORCE)t="real";go0(t);if(t==="real"){if(!RL.R&&!RL.enc&&!RL.loading)loadReal(false);else draw()}};
 window.__realLock=function(){navShow();const b=$r("#rl-lockb");if(b){b.innerHTML=lockHtml();bind()}};
 window.__realReload=()=>loadReal(true);
 loadReal(false);
@@ -3229,177 +3260,7 @@ let rz=null;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{c
 </script>
 <script>document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&e.target.closest(".cpy[data-copy]");if(!b)return;e.preventDefault();e.stopPropagation();const v=b.dataset.copy,old=b.textContent;
  try{await navigator.clipboard.writeText(v)}catch(_){try{const t=document.createElement("textarea");t.value=v;document.body.appendChild(t);t.select();document.execCommand("copy");t.remove()}catch(__){}}
- b.textContent="✔ Copiado: "+v;b.classList.add("ok");setTimeout(()=>{b.textContent=old;b.classList.remove("ok")},1800)},true);</script><script id="vigia-intradia">
-/* ===================== VIGILANTE INTRADÍA (v68) =====================
-   10 métodos de day trading con estudios publicados. Cada uno abre y cierra dentro del mismo día.
-   Se calculan con velas REALES de 1 minuto de Alpaca (clave ALPACA_KEY), día a día, y se comparan con el SPY.
-   Primero rehace el último año entero; luego añade cada día de bolsa. Todo es simulado: no usa dinero.        */
-const VI_MO=390,VI_SLIP=0.0003,VI_FX=0.0015,VI_BACK=365,VI_HIST=26,VI_ETF=["SPY"];
-const VIM={
- sip5:{N:5,n:"Acciones «en juego» · rango de 5 min",fam:"Zarattini, Barbon y Aziz (2024)",
-  d:"A las 9:35 de Nueva York (15:35 en España) busca entre ~280 acciones grandes de EE. UU. las 20 con más volumen de lo normal en los 5 primeros minutos (suelen tener noticias). Mira sus 5 primeros minutos: en las que suben, pone una orden de compra al romper el máximo de ese rato. Stop al 10 % de su rango medio diario (ATR) y venta al cierre. Cada una lleva un 5 % de la cuenta. Solo compras, sin apalancar. Es la versión principal del estudio.",
-  res:"Estudio 2016-2023 con más de 7.000 acciones de EE. UU.: las 20 «en juego» con rango de 5 minutos ganaron un +1.600 % netos (Sharpe 2,81) frente al +198 % del S&P 500; también probó rangos de 15, 30 y 60 minutos y siguió funcionando. Ojo: el estudio también vendía en corto y usaba hasta ×4.",
-  src:"Zarattini, C., Barbon, A. y Aziz, A. (2024), «A Profitable Day Trading Strategy For The U.S. Equity Market», Swiss Finance Institute Research Paper 24-98."},
- sip15:{N:15,n:"Acciones «en juego» · rango de 15 min",fam:"Zarattini, Barbon y Aziz (2024)",
-  d:"A las 9:35 de Nueva York (15:35 en España) busca entre ~280 acciones grandes de EE. UU. las 20 con más volumen de lo normal en los 5 primeros minutos (suelen tener noticias). Mira sus 15 primeros minutos: en las que suben, pone una orden de compra al romper el máximo de ese rato. Stop al 10 % de su rango medio diario (ATR) y venta al cierre. Cada una lleva un 5 % de la cuenta. Solo compras, sin apalancar.",
-  res:"Estudio 2016-2023 con más de 7.000 acciones de EE. UU.: las 20 «en juego» con rango de 5 minutos ganaron un +1.600 % netos (Sharpe 2,81) frente al +198 % del S&P 500; también probó rangos de 15, 30 y 60 minutos y siguió funcionando. Ojo: el estudio también vendía en corto y usaba hasta ×4.",
-  src:"Zarattini, C., Barbon, A. y Aziz, A. (2024), «A Profitable Day Trading Strategy For The U.S. Equity Market», Swiss Finance Institute Research Paper 24-98."},
- sip30:{N:30,n:"Acciones «en juego» · rango de 30 min",fam:"Zarattini, Barbon y Aziz (2024)",
-  d:"A las 9:35 de Nueva York (15:35 en España) busca entre ~280 acciones grandes de EE. UU. las 20 con más volumen de lo normal en los 5 primeros minutos (suelen tener noticias). Mira sus 30 primeros minutos: en las que suben, pone una orden de compra al romper el máximo de ese rato. Stop al 10 % de su rango medio diario (ATR) y venta al cierre. Cada una lleva un 5 % de la cuenta. Solo compras, sin apalancar.",
-  res:"Estudio 2016-2023 con más de 7.000 acciones de EE. UU.: las 20 «en juego» con rango de 5 minutos ganaron un +1.600 % netos (Sharpe 2,81) frente al +198 % del S&P 500; también probó rangos de 15, 30 y 60 minutos y siguió funcionando. Ojo: el estudio también vendía en corto y usaba hasta ×4.",
-  src:"Zarattini, C., Barbon, A. y Aziz, A. (2024), «A Profitable Day Trading Strategy For The U.S. Equity Market», Swiss Finance Institute Research Paper 24-98."},
- sip60:{N:60,n:"Acciones «en juego» · rango de 60 min",fam:"Zarattini, Barbon y Aziz (2024)",
-  d:"A las 9:35 de Nueva York (15:35 en España) busca entre ~280 acciones grandes de EE. UU. las 20 con más volumen de lo normal en los 5 primeros minutos (suelen tener noticias). Mira sus 60 primeros minutos: en las que suben, pone una orden de compra al romper el máximo de ese rato. Stop al 10 % de su rango medio diario (ATR) y venta al cierre. Cada una lleva un 5 % de la cuenta. Solo compras, sin apalancar.",
-  res:"Estudio 2016-2023 con más de 7.000 acciones de EE. UU.: las 20 «en juego» con rango de 5 minutos ganaron un +1.600 % netos (Sharpe 2,81) frente al +198 % del S&P 500; también probó rangos de 15, 30 y 60 minutos y siguió funcionando. Ojo: el estudio también vendía en corto y usaba hasta ×4.",
-  src:"Zarattini, C., Barbon, A. y Aziz, A. (2024), «A Profitable Day Trading Strategy For The U.S. Equity Market», Swiss Finance Institute Research Paper 24-98."}
-};
-const VI_T212_TXT="Se puede hacer en Trading 212: acciones de EE. UU. (con fracciones), órdenes stop de compra y solo compras (Trading 212 no permite cortos ni apalancamiento). Con saldo en dólares no pagas el cambio de divisa en cada operación.";
-/* ---------- hora de Nueva York ---------- */
-function viNthSun(y,m,n){const w=new Date(Date.UTC(y,m,1)).getUTCDay();return 1+((7-w)%7)+7*(n-1)}
-function viOff(ms){const y=new Date(ms).getUTCFullYear(),a=Date.UTC(y,2,viNthSun(y,2,2),7),b=Date.UTC(y,10,viNthSun(y,10,1),6);return ms>=a&&ms<b?-4:-5}
-function viNY(ms){const l=new Date(ms+viOff(ms)*36e5);return{d:l.toISOString().slice(0,10),m:l.getUTCHours()*60+l.getUTCMinutes()-570}}
-function viUtc(d,m){const b=Date.parse(d+"T00:00:00Z")+(570+m)*60000;return b-viOff(b+6*36e5)*36e5}
-const viDt=t=>{try{return new Date(t).toLocaleString("es-ES",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}catch(e){return String(t)}};
-const viIso=ms=>new Date(ms).toISOString().replace(/\.\d+Z$/,"Z");
-const viHM=T=>{const m=570+T;return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")};
-
-/* ---------- series de un día (índice = minuto desde las 9:30) ---------- */
-function viSer(){return{o:[],h:[],l:[],c:[],v:[]}}
-function viPut(D,bars){for(const s in bars)for(const b of bars[s]){const p=viNY(Date.parse(b.t));if(p.m<0||p.m>=VI_MO)continue;const day=D[p.d]=D[p.d]||{},x=day[s]=day[s]||viSer();x.o[p.m]=+b.o;x.h[p.m]=+b.h;x.l[p.m]=+b.l;x.c[p.m]=+b.c;x.v[p.m]=+b.v||0}}
-function viPrep(x){if(!x||x.pp)return x;let f=-1,e=-1;for(let i=0;i<VI_MO;i++)if(x.c[i]>0){if(f<0)f=i;e=i}x.f=f;x.e=e;x.open=f>=0?(x.o[f]||x.c[f]):null;x.close=e>=0?x.c[e]:null;
- const lc=new Array(VI_MO+1),vw=new Array(VI_MO+1);let last=null,pv=0,vv=0,hi=-Infinity,lo=Infinity;lc[0]=null;vw[0]=null;
- for(let i=0;i<VI_MO;i++){if(x.c[i]>0){last=x.c[i];const v=x.v[i]||0,tp=((x.h[i]||last)+(x.l[i]||last)+last)/3;pv+=tp*v;vv+=v;hi=Math.max(hi,x.h[i]||last);lo=Math.min(lo,x.l[i]||last)}lc[i+1]=last;vw[i+1]=vv>0?pv/vv:last}
- x.lc=lc;x.vw=vw;x.hi=hi;x.lo=lo;x.pp=1;return x}
-const viAt=(x,T)=>x&&x.lc?x.lc[Math.min(T,VI_MO)]:null;
-const viAvg=a=>a.length?a.reduce((t,v)=>t+v,0)/a.length:null;
-function viSd(a){if(a.length<2)return null;const m=viAvg(a);return Math.sqrt(a.reduce((t,v)=>t+(v-m)*(v-m),0)/(a.length-1))}
-function viTr(s,side,inT,inPx,outT,outPx,w){return{s,side,inT,inPx,outT,outPx,w}}
-function viRet(trs,fx){let r=0;for(const t of trs){if(!(t.inPx>0&&t.outPx>0))continue;r+=t.w*(t.side*(t.outPx/t.inPx-1)-2*VI_SLIP-(fx?2*VI_FX:0))}return r}
-
-/* ---------- el método (solo compras, acciones de EE. UU.: lo que permite Trading 212) ---------- */
-function viSel(ctx){const U=ctx.univ;if(!U)return null;const cand=[];
- for(const s in U.f){const f=U.f[s],hv=U.hv[s]||[],dd=U.dly[s];if(!f||!(f.v>0)||hv.length<10||!dd)continue;if(!(f.o>5)||!(dd.atr>0.5)||!(dd.vol>1e6))continue;const rv=f.v/viAvg(hv);if(!(rv>1))continue;cand.push({s,rv,atr:dd.atr})}
- return cand.sort((a,b)=>b.rv-a.rv).slice(0,20)}
-function viSip(ctx,N){const top=viSel(ctx);if(!top)return null;const tr=[];
- for(const c of top){const x=ctx.sd&&ctx.sd[c.s];if(!x||x.e<N+1)continue;let o=null,hi=-Infinity;for(let i=0;i<N;i++){if(!(x.c[i]>0))continue;if(o==null)o=x.o[i]||x.c[i];hi=Math.max(hi,x.h[i])}const cN=viAt(x,N);
-  if(!(o>0&&cN>0)||!(cN>o))continue;const R=0.1*c.atr;let en=null,stop=null,w=0;
-  for(let i=N;i<=x.e;i++){if(!(x.c[i]>0))continue;const H=x.h[i],L=x.l[i],O=x.o[i];
-   if(!en){if(H>=hi){const px=Math.max(hi,O);en={T:i,px};stop=px-R;w=Math.min(0.05,0.01*px/R)}else continue}
-   if(L<=stop){tr.push(viTr(c.s,1,en.T,en.px,i+1,i===en.T?stop:Math.min(stop,O),w));en=null;break}}
-  if(en)tr.push(viTr(c.s,1,en.T,en.px,x.e+1,x.close,w))}
- tr.top=top.map(c=>c.s);return tr}
-const VIF={sip5:c=>viSip(c,5),sip15:c=>viSip(c,15),sip30:c=>viSip(c,30),sip60:c=>viSip(c,60)};
-
-/* Calcula todos los métodos para un día. days: lista ordenada de fechas con datos; i: índice del día */
-function viDay(D,days,i,univ,sd){const d=days[i],day=D[d]||{},ctx={d,day:{},hist:{},pc:{},dret:{},atr:{},univ,sd};
- for(const s of VI_ETF){const x=viPrep(day[s]);if(!x||x.e<0)continue;ctx.day[s]=x;const H=[],R=[],TR=[];let prev=null;
-  for(let j=Math.max(0,i-15);j<i;j++){const y=viPrep((D[days[j]]||{})[s]);if(!y||y.e<0)continue;if(prev&&prev.close>0){R.push(y.close/prev.close-1);TR.push(Math.max(y.hi-y.lo,Math.abs(y.hi-prev.close),Math.abs(y.lo-prev.close)))}H.push(y);prev=y}
-  ctx.hist[s]=H.slice(-14);ctx.pc[s]=prev?prev.close:null;ctx.dret[s]=R.slice(-14);ctx.atr[s]=TR.length>=10?viAvg(TR.slice(-14)):null}
- if(sd)for(const s in sd)viPrep(sd[s]);
- const out={d,spy:ctx.day.SPY&&ctx.pc.SPY>0?ctx.day.SPY.close/ctx.pc.SPY-1:null,r:{},t:{}};
- for(const k in VIF){let tr=null;try{tr=VIF[k](ctx)}catch(e){tr=null}if(!tr)continue;out.r[k]=[+viRet(tr,false).toFixed(6),+viRet(tr,true).toFixed(6),tr.length,tr.filter(t=>t.side*(t.outPx-t.inPx)>0).length];out.t[k]=tr.slice(0,40).map(t=>({s:t.s,sd:t.side,a:t.inT,b:t.outT,pa:+t.inPx.toFixed(4),pb:+t.outPx.toFixed(4),w:+t.w.toFixed(3)}));if(tr.top)out.top=tr.top}
- return out}
-
-/* ---------- Alpaca ---------- */
-const viSl=ms=>new Promise(r=>setTimeout(r,ms));
-function viHd(){const k=String((typeof readKeys==="function"?readKeys().al:"")||"").split(":");const id=(k[0]||"").trim(),sec=(k.slice(1).join(":")||"").trim();if(!id||!sec)return null;return{"APCA-API-KEY-ID":id,"APCA-API-SECRET-KEY":sec}}
-async function viBars(st,syms,tf,a,b){const out={};let tok=null,n=0;
- for(;;){const u="https://data.alpaca.markets/v2/stocks/bars?symbols="+encodeURIComponent(syms.join(","))+"&timeframe="+tf+"&start="+viIso(a)+"&end="+viIso(b)+"&limit=10000&adjustment=split&feed="+(st.feed||"sip")+"&sort=asc"+(tok?"&page_token="+encodeURIComponent(tok):"");
-  let r,t,j;for(let k=0;k<4;k++){const q0=Date.now();r=await fetch(u,{headers:st.hd});st.calls++;t=await r.text();const dq=Date.now()-q0;st.ms=(st.ms||0)+dq;st.max=Math.max(st.max||0,dq);try{j=JSON.parse(t)}catch{j=null}if(r.status===429){st.n429=(st.n429||0)+1;await viSl(15000);continue}break}
-  if(!r.ok){if((r.status===403||r.status===422)&&(st.feed||"sip")==="sip"){st.feed="iex";return viBars(st,syms,tf,a,b)}const e=new Error("Alpaca HTTP "+r.status+": "+String((j&&j.message)||t||"").slice(0,120));e.st=r.status;throw e}
-  for(const s in((j&&j.bars)||{}))(out[s]=out[s]||[]).push(...j.bars[s]);tok=j&&j.next_page_token;await viSl(120);if(!tok)break;if(++n>60)break}
- return out}
-async function viPool(items,n,fn){let i=0;const run=async()=>{while(i<items.length){const k=i++;await fn(items[k],k)}};await Promise.all(Array.from({length:Math.min(n,items.length)},run))}
-/* datos diarios de las acciones (ATR y volumen medio de 14 días hasta el día anterior), del histórico del bot */
-function viDaily(H,s,d){const h=H[s];if(!h||!h.r||h.r.length<20)return null;const dn=dayN(d);let i=h.r.length-1;while(i>=0&&h.r[i][0]>=dn)i--;if(i<15)return null;let a=0,v=0;for(let j=i-13;j<=i;j++){const r=h.r[j],pc=h.r[j-1][4];a+=Math.max(r[2]-r[3],Math.abs(r[2]-pc),Math.abs(r[3]-pc));v+=r[5]||0}return{atr:a/14,vol:v/14}}
-
-/* ---------- actualización: rehace lo que falte (el último año la 1.ª vez) y el día de hoy en curso ---------- */
-async function viUpdate(o){o=o||{};const VX=S.vix=(S.vix&&S.vix.v===3)?S.vix:{v:3,days:[],tr:{},rv:{},feed:null,at:null,err:null,prog:null,hoy:null,log:[]};
- const t0=Date.now(),budget=o.budget||9*60e3,hd=viHd(),res={nuevos:[],hoy:false,backfill:false,err:null};
- const say=m=>{VX.msg=m;try{viDraw()}catch{}};
- if(!hd){VX.err="Falta la clave de Alpaca (ID:SECRETO) en Ajustes → claves de datos: el vigilante la necesita para las velas de 1 minuto.";res.err=VX.err;try{viDraw()}catch{}return res}
- if(viUpdate.on)return res;viUpdate.on=true;const st={hd,feed:VX.feed||"sip",calls:0};
- try{VX.err=null;const now=Date.now(),ny=viNY(now),todayFinal=now>=viUtc(ny.d,410);
-  const lastDone=VX.days.length?VX.days[VX.days.length-1].d:null,first=lastDone?dayS(dayN(lastDone)+1):dayS(dayN(ny.d)-VI_BACK);
-  res.backfill=!lastDone;if(!lastDone)VX.start=first;
-  const H=hG(),U=(typeof MOM_UNI!=="undefined"?MOM_UNI:[]).filter(s=>!VI_ETF.includes(s));
-  /* tramos de ~30 días naturales, del más antiguo al más nuevo */
-  let D={},cur=dayN(first);const endN=dayN(ny.d);
-  while(cur<=endN&&!res.parcial){if(Date.now()-t0>budget){res.parcial=true;break}
-   const a=Math.max(cur,0),b=Math.min(endN,a+29),preA=a-(Object.keys(D).length?0:VI_HIST*1.5|0);
-   say((res.backfill?"Rehaciendo el último año con velas de 1 minuto: ":"Actualizando: ")+fd(dayS(a))+" → "+fd(dayS(b))+"…");
-   const endMs=Math.min(viUtc(dayS(b),391),Date.now()-16*60000);if(endMs<=viUtc(dayS(preA),0)){cur=b+1;continue}
-   const bars=await viBars(st,VI_ETF,"1Min",viUtc(dayS(preA),0),endMs);viPut(D,bars);
-   const days=Object.keys(D).filter(d=>D[d].SPY).sort();
-   /* volumen de los 5 primeros minutos de cada acción (para «acciones en juego») */
-   const needRv=days.filter(d=>dayN(d)<=b&&dayN(d)>=a-25&&!VX.rv[d]&&Date.now()>viUtc(d,5+16));
-   await viPool(needRv,4,async d=>{if(Date.now()-t0>budget)return;const fb=await viBars(st,U,"5Min",viUtc(d,0),viUtc(d,1)),o={};for(const s in fb){const z=fb[s].find(x=>viNY(Date.parse(x.t)).m===0);if(z)o[s]=[+(+z.o).toFixed(3),+(+z.h).toFixed(3),+(+z.l).toFixed(3),+(+z.c).toFixed(3),+z.v]}VX.rv[d]=o});
-   /* las 20 «en juego» de cada día y sus velas de 1 minuto, en paralelo */
-   const mkU=d=>{const rvD=Object.keys(VX.rv).filter(x=>x<d).sort().slice(-14),f0=VX.rv[d]||{},univ={f:{},hv:{},dly:{}};for(const s in f0){if(!Array.isArray(f0[s]))continue;univ.f[s]={o:f0[s][0],h:f0[s][1],l:f0[s][2],c:f0[s][3],v:f0[s][4]};univ.hv[s]=rvD.map(x=>{const z=VX.rv[x]&&VX.rv[x][s];return Array.isArray(z)?z[4]:z}).filter(v=>v>0);univ.dly[s]=viDaily(H,s,d)}return Object.keys(univ.f).length?univ:null};
-   const todo=days.filter(d=>{const dn=dayN(d);return dn>=a&&dn<=b&&!VX.days.some(z=>z.d===d)&&(d<ny.d||d===ny.d)&&VX.rv[d]}),SDs={},UNs={};
-   for(const d of todo){UNs[d]=mkU(d);const top=UNs[d]?(viSel({univ:UNs[d]})||[]).map(c=>c.s):[];SDs[d]=top.length?top:{}}
-   await viPool(todo.filter(d=>Array.isArray(SDs[d])),4,async d=>{if(Date.now()-t0>budget)return;const sb=await viBars(st,SDs[d],"1Min",viUtc(d,0),Math.min(viUtc(d,391),Date.now()-16*60000)),SD={};viPut(SD,sb);SDs[d]=SD[d]||{}});
-   for(let i=0;i<days.length;i++){const d=days[i],dn=dayN(d);if(dn<a||dn>b)continue;if(VX.days.some(z=>z.d===d))continue;if(!VX.rv[d]&&Date.now()>viUtc(d,5+16)){res.parcial=true;break}if(Array.isArray(SDs[d])){res.parcial=true;break}
-    const fin=d<ny.d||(d===ny.d&&todayFinal);if(!fin&&d!==ny.d)continue;
-    const univ=UNs[d]!==undefined?UNs[d]:mkU(d),out=viDay(D,days,i,univ,SDs[d]&&!Array.isArray(SDs[d])?SDs[d]:{});
-    if(fin){if(VX.rv[d])for(const s in VX.rv[d])if(Array.isArray(VX.rv[d][s]))VX.rv[d][s]=VX.rv[d][s][4];VX.days.push({d,spy:out.spy,r:out.r});VX.days.sort((x,y)=>x.d<y.d?-1:1);for(const k in out.t)if(out.t[k].length){(VX.tr[k]=VX.tr[k]||[]).unshift({d,t:out.t[k]});VX.tr[k]=VX.tr[k].slice(0,8)}res.nuevos.push(d);if(VX.hoy&&VX.hoy.d===d)VX.hoy=null}
-    else{VX.hoy={d,spy:out.spy,r:out.r,t:out.t,hasta:viNY(Math.min(Date.now()-16*60000,viUtc(d,390))).m,at:new Date().toISOString()};res.hoy=true}}
-   /* conservar solo los últimos días necesarios para las medias */
-   const keep=Object.keys(D).sort().slice(-VI_HIST);for(const d of Object.keys(D))if(!keep.includes(d))delete D[d];
-   cur=b+1;VX.prog={hasta:dayS(Math.min(b,endN)),de:VX.start};await save()}
-  for(const d of Object.keys(VX.rv).sort().slice(0,-18))delete VX.rv[d];
-  if(VX.hoy&&VX.hoy.d!==ny.d)VX.hoy=null;
-  VX.feed=st.feed;VX.at=new Date().toISOString();VX.calls=st.calls;VX.dbg={calls:st.calls,seg:Math.round((Date.now()-t0)/1000),espera:Math.round((st.ms||0)/1000),max:Math.round((st.max||0)/1000),n429:st.n429||0,dias:res.nuevos.length};VX.msg=res.parcial?"Sigue en la próxima actualización (queda una parte del año por calcular).":"";
-  if(!res.parcial)VX.prog=null}
- catch(e){VX.err="No se pudo actualizar: "+(typeof mask==="function"?mask(String(e.message||e)):String(e.message||e));res.err=VX.err;VX.msg=""}
- finally{viUpdate.on=false;try{await save()}catch{}try{viDraw()}catch{}}
- res.calls=st.calls;res.dbg=VX.dbg;return res}
-
-/* ---------- resumen de resultados ---------- */
-function viStats(VX,from){const days=(VX&&VX.days||[]).filter(z=>!from||z.d>=from),out={};let spy=1,spyPk=1,spyDD=0;
- for(const z of days)if(z.spy!=null){spy*=1+z.spy;spyPk=Math.max(spyPk,spy);spyDD=Math.min(spyDD,spy/spyPk-1)}
- for(const k in VIM){let e=1,lo=1,pk=1,dd=0,n=0,w=0,nd=0;const cur=[];for(const z of days){const r=z.r&&z.r[k];if(r){e*=1+r[0];lo*=1+r[1];n+=r[2];w+=r[3];nd++}pk=Math.max(pk,e);dd=Math.min(dd,e/pk-1);cur.push(e)}
-  out[k]={k,g:e-1,lo:lo-1,dd,n,w,nd,cur}}
- return{days,spy:spy-1,spyDD,m:out,from:days.length?days[0].d:null,to:days.length?days[days.length-1].d:null}}
-function viSummaryTxt(VX){const s=viStats(VX),last=VX.days[VX.days.length-1];if(!last)return"";const R=Object.values(s.m).sort((a,b)=>b.g-a.g),pc=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",",")+" %";
- const day=Object.keys(VIM).filter(k=>last.r[k]).map(k=>({k,r:last.r[k][0]})).sort((a,b)=>b.r-a.r);
- return"Vigilante intradía · "+fd(last.d)+"\nSPY ese día: "+pc(last.spy||0)+"\nMejores del día: "+day.slice(0,3).map(x=>VIM[x.k].n+" "+pc(x.r)).join(" · ")+"\n\nDesde el "+fd(s.from)+" (SPY "+pc(s.spy)+"):\n"+R.slice(0,5).map((x,j)=>(j+1)+". "+VIM[x.k].n+": "+pc(x.g)+(x.g>s.spy?" ✅":"")).join("\n")+"\n\nTodo simulado con velas reales de 1 minuto, solo compras como en Trading 212 (no es dinero real)."}
-
-/* ---------- pantalla ---------- */
-let VIV={p:"all"};try{Object.assign(VIV,JSON.parse(localStorage.getItem("pbviv")||"{}"))}catch{}
-function viSpark(cur,spy){if(!cur||cur.length<2)return"";const W=300,Hh=60,all=cur.concat(spy),mn=Math.min(...all,1),mx=Math.max(...all,1),y=v=>Hh-4-(v-mn)/((mx-mn)||1)*(Hh-8),x=i=>i/(cur.length-1)*W;
- const path=a=>a.map((v,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)).join("");
- return`<svg class="vi-sp" viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="none" aria-hidden="true"><line x1="0" x2="${W}" y1="${y(1).toFixed(1)}" y2="${y(1).toFixed(1)}" class="z"/><path d="${path(spy)}" class="b"/><path d="${path(cur)}" class="${cur[cur.length-1]>=1?"u":"d"}"/></svg>`}
-function viDraw(){const el=document.getElementById("vi-root");if(!el)return;const VX=S.vix&&S.vix.v===3?S.vix:null,pc=x=>(x>=0.00005?"+":x<=-0.00005?"−":"")+Math.abs(x*100).toLocaleString("es-ES",{minimumFractionDigits:1,maximumFractionDigits:1})+" %";
- const last=VX&&VX.days.length?VX.days[VX.days.length-1].d:null,P={m1:30,m3:91,all:null},from=last&&P[VIV.p]?dayS(dayN(last)-P[VIV.p]):null,s=viStats(VX,from);
- const spyCur=[];{let e=1;for(const z of s.days){if(z.spy!=null)e*=1+z.spy;spyCur.push(e)}}
- const R=Object.values(s.m).filter(x=>x.nd).sort((a,b)=>b.g-a.g),nb=R.filter(x=>x.g>s.spy).length,hoy=VX&&VX.hoy;
- let h=`<div class="p hero vi-hero"><h2>👁️ Vigilante · day trading</h2><div class="m">Métodos de <b>day trading</b> con estudio publicado que <b>se pueden hacer en Trading 212</b>: acciones de EE. UU., solo compras y todo vendido antes del cierre. Cada uno con ${E(START)} ficticios y velas reales de 1 minuto. El listón: el <b>SPY</b> (comprar y mantener).</div>`;
- if(s.days.length)h+=`<div class="vi-kpi"><div><small>Periodo</small><b>${esc(fd(s.from))} ${s.from.slice(2,4)} – ${esc(fd(s.to))} ${s.to.slice(2,4)}</b><small>${s.days.length} días de bolsa</small></div><div><small>SPY</small><b class="${s.spy>=0?"up":"dn"}">${pc(s.spy)}</b><small>${E(START*(1+s.spy))}</small></div><div><small>Baten al SPY</small><b>${nb} de ${R.length}</b><small>en este periodo</small></div></div>`;
- h+=`<div class="m vi-st">${VX&&VX.err?"⚠️ "+esc(VX.err):VX&&VX.msg?"⏳ "+esc(VX.msg):VX&&VX.at?"Actualizado "+esc(viDt(VX.at))+(hoy?" · hoy en curso hasta las "+viHM(hoy.hasta)+" de Nueva York":""):"Aún sin calcular: la primera vez rehace el último año entero (tarda unos minutos)."}</div>
- <button id="vi-go" class="go">🔄 Actualizar ahora</button></div>`;
- if(!s.days.length){el.innerHTML=h+`<div class="p"><div class="m">Cuando termine la primera actualización verás aquí la clasificación de los métodos frente al SPY.</div></div>`;viBind();return}
- h+=`<div class="p"><div class="chtop"><h2>🏆 ¿Cuál bate al SPY?</h2></div><div class="pills" id="vi-per">${[["m1","1 mes"],["m3","3 meses"],["all","Todo"]].map(([k,t])=>`<button data-vp="${k}" class="${VIV.p===k?"on":""}">${t}</button>`).join("")}</div><div class="vi-l">`;
- h+=R.map((x,j)=>{const M=VIM[x.k],beat=x.g>s.spy,ht=hoy&&hoy.r[x.k],tr=(VX.tr[x.k]||[]);return`<details class="vi-c${beat?" ok":""}"><summary><span class="rk">${["🥇","🥈","🥉"][j]||j+1}</span><span class="nm">${esc(M.n)}<small>${beat?'<span class="bdg ok">✅ Mejor que el SPY</span>':'<span class="bdg no">Por debajo del SPY</span>'}${ht?` · hoy <b style="white-space:nowrap" class="${ht[0]>=0?"up":"dn"}">${pc(ht[0])}</b>`:""}</small></span><span class="pa ${x.g>=0?"up":"dn"}">${pc(x.g)}<small>${E(START*(1+x.g))}</small></span></summary>
-  <div class="bd">${viSpark(x.cur,spyCur)}<div class="m vi-leg"><i class="u"></i> el método · <i class="b"></i> SPY</div>
-  <div class="vi-kv"><div><small>Pagando el cambio € → $ en cada operación</small><b class="${x.lo>=0?"up":"dn"}">${pc(x.lo)}</b></div><div><small>Peor bajada</small><b class="dn">${pc(x.dd)}</b></div><div><small>Operaciones</small><b>${x.n}</b></div><div><small>Aciertos</small><b>${x.n?Math.round(x.w/x.n*100)+" %":"—"}</b></div></div>
-  <div class="m">${esc(M.d)}</div><div class="m"><b>Qué dice el estudio:</b> ${esc(M.res)}</div><div class="m">✅ ${esc(VI_T212_TXT)}</div>
-  ${tr.length?`<details class="rd"><summary><span>Últimas operaciones</span></summary><div class="rb">${tr.slice(0,5).map(z=>`<div class="m"><b>${esc(fd(z.d))}</b>: ${z.t.slice(0,6).map(t=>`🟢 ${esc(t.s)} ${viHM(t.a)}→${viHM(Math.min(t.b,390))} (${pc(t.sd*(t.pb/t.pa-1))})`).join(" · ")}${z.t.length>6?" · …":""}</div>`).join("")}</div></details>`:""}
-  <div class="m" style="opacity:.75;font-style:italic">${esc(M.src)}</div></div></details>`}).join("");
- h+=`</div><div class="m">SPY en el mismo periodo: <b class="${s.spy>=0?"up":"dn"}">${pc(s.spy)}</b> (peor bajada ${pc(s.spyDD)}). Toca un método para ver cómo funciona y qué dice su estudio.</div></div>`;
- h+=`<details class="fold"><summary>ℹ️ Cómo se calcula</summary><div class="fb"><div class="m">• Velas reales de <b>1 minuto</b> de Alpaca${VX.feed==="iex"?" (fuente IEX)":""}, de 9:30 a 16:00 de Nueva York (15:30 a 22:00 en España). Cada método opera con las reglas del estudio, pero <b>solo compras y sin apalancar</b> (lo que permite Trading 212), y vende todo antes del cierre.</div><div class="m">• Costes: Trading 212 no cobra comisión; se descuenta un 0,03 % por lado de deslizamiento. El resultado principal supone saldo en dólares; también se muestra pagando el 0,15 % de cambio de divisa en cada compra y venta.</div><div class="m">• Se actualiza solo cada hora con la bolsa abierta y tras el cierre; los días ya cerrados no cambian. Sesgo a tener en cuenta: la lista de ~280 acciones es la de hoy (las que sobrevivieron).</div><div class="m">• Ojo: que un método ganara en un estudio no garantiza que siga ganando. Para eso está el vigilante: ver si funciona con días nuevos que el estudio no conocía.</div>${VX.dbg?`<div class="m" style="opacity:.7">Última actualización: ${VX.dbg.dias} días nuevos · ${VX.dbg.calls} consultas a Alpaca en ${VX.dbg.seg} s (${VX.dbg.espera} s esperando respuestas, la más lenta ${VX.dbg.max} s${VX.dbg.n429?", "+VX.dbg.n429+" veces frenado por límite":""}).</div>`:""}<button id="vi-md" class="ghost">⬇️ Descargar resultados (.md)</button></div></details>`;
- el.innerHTML=h;viBind()}
-function viMd(){const VX=S.vix;if(!VX||!VX.days.length)return"# Vigilante intradía\n\nSin datos todavía.\n";const s=viStats(VX),pc=x=>(x*100).toFixed(2).replace(".",",")+" %",L=["# Vigilante intradía · resultados","",`Periodo: ${s.from} → ${s.to} (${s.days.length} días de bolsa) · generado ${new Date().toISOString()}`,"",`SPY (comprar y mantener): ${pc(s.spy)} · peor bajada ${pc(s.spyDD)}`,"","| # | método | resultado | con cambio € → $ por operación | peor bajada | operaciones | aciertos | ¿bate al SPY? |","|---|---|---|---|---|---|---|---|"];
- Object.values(s.m).filter(x=>x.nd).sort((a,b)=>b.g-a.g).forEach((x,j)=>L.push(`| ${j+1} | ${VIM[x.k].n} | ${pc(x.g)} | ${pc(x.lo)} | ${pc(x.dd)} | ${x.n} | ${x.n?Math.round(x.w/x.n*100)+" %":"—"} | ${x.g>s.spy?"sí":"no"} |`));
- L.push("","## Resultado diario (%)","","| día | SPY | "+Object.keys(VIM).join(" | ")+" |","|---|---|"+Object.keys(VIM).map(()=>"---").join("|")+"|");for(const z of s.days)L.push(`| ${z.d} | ${pc(z.spy||0)} | `+Object.keys(VIM).map(k=>z.r[k]?pc(z.r[k][0]):"—").join(" | ")+" |");
- L.push("","## Métodos y fuentes","");for(const k in VIM)L.push(`- **${VIM[k].n}**: ${VIM[k].d} ${VIM[k].res} _${VIM[k].src}_`);return L.join("\n")+"\n"}
-function viBind(){const g=document.getElementById("vi-go");if(g)g.onclick=()=>{if(window.__VIEWER){try{wfCloud("vigilante.yml","Vigilante",document.querySelector("#vi-root .vi-st"),g)}catch(e){}}else viUpdate()};
- document.querySelectorAll("#vi-per button").forEach(b=>b.onclick=()=>{VIV.p=b.dataset.vp;try{localStorage.setItem("pbviv",JSON.stringify(VIV))}catch{}viDraw()});
- const m=document.getElementById("vi-md");if(m)m.onclick=()=>dl("vigilante-intradia-"+T0()+".md",viMd())}
-
-try{setTimeout(()=>{try{viDraw()}catch(e){}},300)}catch(e){}
-</script>
-<script id="simple-mode">
+ b.textContent="✔ Copiado: "+v;b.classList.add("ok");setTimeout(()=>{b.textContent=old;b.classList.remove("ok")},1800)},true);</script><script id="simple-mode">
 (function(){var b=document.getElementById("simpleB");function lab(){var on=document.body.classList.contains("simple");b.textContent=on?"👓 Ver todo":"✨ Modo sencillo";b.setAttribute("aria-pressed",on?"true":"false")}
  lab();b.onclick=function(){var on=!document.body.classList.contains("simple");document.body.classList.toggle("simple",on);try{localStorage.setItem("pbsimple",on?"1":"0")}catch(e){}lab();try{btmDraw0()}catch(e){}
   }})();
@@ -3409,7 +3270,7 @@ try{setTimeout(()=>{try{viDraw()}catch(e){}},300)}catch(e){}
 (function(){
  var W=window.__busyChecks=window.__busyChecks||[];
  W.push(function(){try{return !!(busy||(typeof BTB!=="undefined"&&BTB.v)||(typeof VG!=="undefined"&&VG.busy))}catch(e){return false}});
- W.push(function(){try{if(typeof dailyCloud==="function"&&dailyCloud.on)return true;if(typeof wfCloud==="function"&&wfCloud.on)return true;if(typeof viUpdate==="function"&&viUpdate.on)return true;var r=document.getElementById("btr");return !!(r&&r.disabled)}catch(e){return false}});
+ W.push(function(){try{if(typeof dailyCloud==="function"&&dailyCloud.on)return true;if(typeof wfCloud==="function"&&wfCloud.on)return true;var r=document.getElementById("btr");return !!(r&&r.disabled)}catch(e){return false}});
  var n=0,lastAct=0,lastStart=0;
  function track(p){n++;lastStart=lastAct=Date.now();var done=function(){n--;lastAct=Date.now()};try{p.then(done,done)}catch(e){done()}return p}
  var of=window.fetch;if(of)window.fetch=function(){return track(of.apply(this,arguments))};

@@ -9,6 +9,13 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v35 (web v74): la app, ordenada para encontrar métodos para la cartera real
+- **Histórico = buscador.** Prueba cada noche unos 40 candidatos: ETF europeos en euros (sin comisión ni cambio de divisa en Trading 212), revisión mensual o más lenta y sin apalancar. Fuera las acciones sueltas (dólares: 0,15 % de cambio por operación y sesgo de supervivencia), los métodos semanales o diarios y los apalancados. Mucho más rápido: ya no baja cientos de acciones.
+- **Filtro de ✅ Ganador**: ≥2 puntos al año más que el SPY, le gana en 2 de 3 tramos, peor caída no peor del −35 %, ≤12 ventas al año y datos desde el principio.
+- **Ficticia:** los ganadores entran solos (y ya no salen) y operan con precios de hoy junto al método base.
+- **Real:** nueva tarjeta «🔎 ¿Hay algo mejor?», que compara tu método con los ganadores y te lleva a cambiarlo si quieres (no cambia nada hasta que guardes).
+- **Vigilante intradía retirado** (muchas operaciones al día: lo contrario de lo que se busca). Se borran su flujo `vigilante.yml` y sus pruebas.
+
 ## Novedades v34 (web v73): la gráfica de «Hoy» no cuenta los ingresos como ganancia
 - Si metes o sacas dinero durante el día, la gráfica de «Hoy» lo descuenta desde ese momento (antes salía, por ejemplo, +33 % al ingresar 100 €).
 
