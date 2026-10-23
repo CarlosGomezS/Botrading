@@ -420,9 +420,11 @@ export function sugerencia(S, cur, map) {
   const Bc = (S.books || {})[cur], an = (S.labAn || {})[cur];
   const fw = (d0) => { if (!Bc || !Bc.days || !Bc.days.length) return null; const a = Bc.days.find((z) => z.d >= d0), b = Bc.days[Bc.days.length - 1]; return a && a.eq > 0 ? b.eq / a.eq - 1 : null; };
   // v78: solo métodos que se pueden comprar enteros en tu cuenta (si un ETF no está en Trading 212, esa parte se quedaría en efectivo)
-  const buyable = (k) => { if (!map || !Object.keys(map).length) return true; const B = (S.books || {})[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})); return sy.every((s) => !map[s] || !!map[s].t); };
-  const L = S.labConf.filter((x) => x && x.ok && x.k !== cur && (S.books || {})[x.k] && (an == null || x.an > an + 0.005) && buyable(x.k)).filter((x) => { const gc = fw(x.d0); return gc == null || x.g >= gc; }).sort((a, b) => b.an - a.an);
-  return L[0] || null;
+  // v80: «acc» = solo falla porque tienes desactivada la compra de acciones en los ajustes (se te avisa, sin botón de cambiar)
+  const buyable = (k) => { if (!map || !Object.keys(map).length) return true; const B = (S.books || {})[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})), bad = sy.filter((s) => map[s] && !map[s].t); return !bad.length ? true : bad.every((s) => /acciones desactivadas/.test(map[s].why || "")) ? "acc" : false; };
+  const L = S.labConf.filter((x) => x && x.ok && x.k !== cur && (S.books || {})[x.k] && (x.fwd || an == null || x.an > an + 0.005) && buyable(x.k)).filter((x) => { const gc = fw(x.d0); return gc == null || x.g >= gc; }).sort((a, b) => b.an - a.an);
+  const best = L[0] || null;
+  return best ? { ...best, needAcc: buyable(best.k) === "acc" } : null;
 }
 
 // ---------- plan: qué comprar y vender para parecerse al método ----------
@@ -1066,11 +1068,12 @@ async function main() {
         if (sg && !busy) {
           const id = "m" + now.getTime().toString(36);
           if (P && P.estado === "pendiente") { P.estado = "sustituida"; P.fin = now.toISOString(); }
-          R.metSug = { id, k: sg.k, n: sg.n, ts: now.toISOString(), estado: "pendiente", an: sg.an, g: sg.g, gs: sg.gs, d0: sg.d0 };
+          R.metSug = { id, k: sg.k, n: sg.n, ts: now.toISOString(), estado: sg.needAcc ? "rechazada" : "pendiente", an: sg.an, g: sg.g, gs: sg.gs, d0: sg.d0, needAcc: !!sg.needAcc, fin: sg.needAcc ? now.toISOString() : undefined };
           const pc = (x) => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1).replace(".", ",") + " %";
-          const txt = `Tu cartera real sigue «${NOMBRES[A.metodo] || A.metodo}». El bot ha encontrado uno que lo hace mejor y ya está confirmado:\n\n🏆 ${sg.n}\n· Prueba histórica (después de impuestos): ${pc(sg.an)}/año${(b.S.labAn || {})[A.metodo] != null ? " (el tuyo " + pc(b.S.labAn[A.metodo]) + "/año)" : ""}\n· En la ficticia desde el ${sg.d0}: ${pc(sg.g)} (SPY ${pc(sg.gs)})\n· Peor caída histórica ${pc(sg.dd || 0)} · ~${Math.max(1, Math.round(sg.opy || 1))} ventas al año\n\nSi lo cambias, en la próxima revisión el bot venderá lo de ahora y comprará lo nuevo (las ventas con ganancia tributan).`;
+          const txt = `Tu cartera real sigue «${NOMBRES[A.metodo] || A.metodo}». El bot ha encontrado uno que lo hace mejor y ya está confirmado:\n\n🏆 ${sg.n}${sg.fwd ? "\n· Método de acciones en prueba en vivo (sin prueba histórica, que con acciones hace trampa)" : `\n· Prueba histórica (después de impuestos): ${pc(sg.an)}/año${(b.S.labAn || {})[A.metodo] != null ? " (el tuyo " + pc(b.S.labAn[A.metodo]) + "/año)" : ""}`}\n· En la ficticia desde el ${sg.d0}: ${pc(sg.g)} (SPY ${pc(sg.gs)})${sg.fwd ? "" : `\n· Peor caída histórica ${pc(sg.dd || 0)} · ~${Math.max(1, Math.round(sg.opy || 1))} ventas al año`}\n\nSi lo cambias, en la próxima revisión el bot venderá lo de ahora y comprará lo nuevo (las ventas con ganancia tributan).`;
           rep.push("", "## Propuesta de cambio de método", "", txt);
-          await avisa("🔎 Cartera real: hay un método mejor", txt, { prio: 3, kb: [[{ text: "✅ Cambiar", callback_data: "mc:" + id }, { text: "❌ No cambiar", callback_data: "mr:" + id }]] });
+          if (sg.needAcc) await avisa("🔎 Cartera real: hay un método mejor (con acciones)", txt + "\n\nCompra acciones de EE. UU. y tienes desactivada esa opción. Si quieres seguirlo, activa «Comprar acciones» en 💶 Real → Ajustes de la cartera real y elige el método allí.", { prio: 3 });
+          else await avisa("🔎 Cartera real: hay un método mejor", txt, { prio: 3, kb: [[{ text: "✅ Cambiar", callback_data: "mc:" + id }, { text: "❌ No cambiar", callback_data: "mr:" + id }]] });
         }
       }
     } catch (e) { log("No pude revisar si hay un método mejor:", String(e.message).slice(0, 120)); }

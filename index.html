@@ -472,7 +472,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v78</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v80</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1432,10 +1432,15 @@ STR.m10.syms=["SPY"];BTX.mom&&(BTX.mom.syms=["SPY"]);
    Fuera lo que no encaja con Trading 212 y con «pocas operaciones»:
    · acciones sueltas de EE. UU. (cotizan en dólares: 0,15 % de cambio en cada compra y venta; y la lista de hoy tiene sesgo de supervivencia)
    · métodos semanales o diarios (demasiadas operaciones) · apalancados (caídas del −60 % al −90 %) */
+/* v80 · ACCIONES EN PRUEBA EN VIVO: la prueba histórica con acciones hace trampa (usa la lista de empresas de HOY: ya «sabe» quién sobrevivió),
+   así que estos métodos NO se juzgan con el pasado: van directos a la ficticia y solo cuentan sus resultados desde hoy. Para proponerse a tu
+   cartera real tienen que ganar al SPY por ≥2 puntos durante 12 meses en la ficticia. */
+const FWDM=["m10","m52","mlv"];const FWDKEEP={};for(const k of FWDM){const M=STR[k]||BTX[k];if(M)FWDKEEP[k]={...M,bt:false,fwd:true,cat:"🔭 Acciones · prueba en vivo"}}
 const DROPM=["aic","aim","m10","m5","m52","m6","mlv","ens","mom","bufb","qld","qldm","sso","tqqq","sectw","q200","vtq","donq","tvt","tom","ovn","rsi2"];
 for(const k of DROPM){delete STR[k];delete BTX[k]}
 /* En la ficticia solo queda el método base (sect) y entran solos los que la prueba histórica marque como ✅ Ganador (applySimx). */
 for(const k of Object.keys(STR))if(k!=="sect"){BTX[k]={...STR[k],bt:true};delete STR[k]}
+for(const [k,M] of Object.entries(FWDKEEP)){STR[k]=M;delete BTX[k]}
 // ETFs apalancados: antes de existir se simulan con el índice (k × rentabilidad diaria − costes de ~3% al año)
 const SPL={QLD:["QQQ",2],SSO:["SPY",2],TQQQ:["QQQ",3]};
 function spliceLev(L){const out=[];for(const [s,[base,k]] of Object.entries(SPL)){const B=L[base];if(!B||B.length<300)continue;const X=L[s]||[],d0=X.length?X[0].d:"9999",drag=(0.0095+0.02*(k-1))/252;
@@ -1454,7 +1459,7 @@ let BTC={min:200,max:300,excl:0,ini:1999,acc:1,auto:1,sim:[]};
 const T212D={dep:["qld","sso","tqqq","qldm","gtaa5","gtaa3","daa","aw","s11","mq","bufm"],acc:["aic","aim","m10","m5","m52","m6","mlv","ens","mom","bufb"],no:["ovn","rsi2"]};
 const t212Of=k=>T212D.no.includes(k)?"no":T212D.acc.includes(k)?"acc":T212D.dep.includes(k)?"dep":"si";
 const T212B={si:'<span class="bdg ok t212b">T212 ✔</span>',dep:'<span class="bdg mid t212b">T212: según tu cuenta</span>',acc:'<span class="bdg t t212b">T212: acciones EE. UU.</span>'};
-function activeM(){const o={};for(const [k,m] of Object.entries(ALLM())){if(t212Of(k)==="no")continue;if(!BTC.acc&&m.stocks)continue;if(BTC.excl>0&&(k==="aic"||k==="aim"))continue;o[k]=m}return o}
+function activeM(){const o={};for(const [k,m] of Object.entries(ALLM())){if(m.fwd)continue;if(t212Of(k)==="no")continue;if(!BTC.acc&&m.stocks)continue;if(BTC.excl>0&&(k==="aic"||k==="aim"))continue;o[k]=m}return o}
 function applySimx(){try{labReg();const L=Array.isArray(S&&S.simx)?S.simx:[];
  /* v74: los ✅ Ganadores de la prueba histórica entran solos en la ficticia y ya no salen (así la cartera real nunca se queda sin el método que eligió) */
  S.promo=Array.isArray(S.promo)?S.promo:[];const bm=S.btm;const LB=labS(),act=()=>S.promo.filter(k=>!LB.off[k]).length;
@@ -1537,10 +1542,10 @@ function labValTxt(pc,v){if(pc==="u")return LABU[v]?LABU[v].n:v;if(pc==="l")retu
 function labConfUpdate(){try{const b=S.btm,L=labS();if(!b||!b.rows||!b.rows.spy)return;const tx=!!(b.rows.spy[0]&&b.rows.spy[0].atax!=null),AN=r=>tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts);
  const H=hG(),spyRows=H.SPY&&H.SPY.r||[],spyAt=d=>{const n=dayN(d);let v=null;for(const x of spyRows){if(x[0]<=n)v=x[4];else break}return v},spyNow=spyRows.length?spyRows[spyRows.length-1][4]:null,today=T0();
  S.labAn={};for(const k of Object.keys(b.rows))if(k!=="spy"&&MX(k)){const a=AN(b.rows[k]);if(a!=null)S.labAn[k]=+a.toFixed(5)}
- const C=[];for(const k of Object.keys(STR)){const B=S.books&&S.books[k],v=btmVerd(b,k);if(!B||!B.days||B.days.length<2||!v)continue;const d0=B.days[0].d,e0=B.days[0].eq,e1=B.days[B.days.length-1].eq,g=e0>0?e1/e0-1:null,s0=spyAt(d0),gs=s0&&spyNow?spyNow/s0-1:null,nd=dayN(today)-dayN(d0);
+ const C=[];for(const k of Object.keys(STR)){const B=S.books&&S.books[k],fwd=!!STR[k].fwd,v=fwd?{c:"fwd",opy:null}:btmVerd(b,k);if(!B||!B.days||B.days.length<2||!v)continue;const d0=B.days[0].d,e0=B.days[0].eq,e1=B.days[B.days.length-1].eq,g=e0>0?e1/e0-1:null,s0=spyAt(d0),gs=s0&&spyNow?spyNow/s0-1:null,nd=dayN(today)-dayN(d0);
   const r=b.rows[k],dd=r&&r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null;
   if(nd>=365&&g!=null&&gs!=null&&g<gs-0.05&&k!=="sect"&&!L.off[k]){L.off[k]=today;L.log.unshift({d:today,k,n:MX(k).n,ev:"apartado",why:`en 12 meses de ficticia va ${P((g-gs)*100)} peor que el SPY`})}
-  C.push({k,n:MX(k).n,an:S.labAn[k]??null,dd,opy:v.opy,d0,g,gs,nd,ok:v.c==="ok"&&!L.off[k]&&nd>=91&&g!=null&&(gs==null||g>=gs)})}
+  C.push({k,n:MX(k).n,an:fwd?null:(S.labAn[k]??null),dd:fwd?null:dd,opy:v.opy,d0,g,gs,nd,fwd,ok:fwd?(!L.off[k]&&nd>=365&&g!=null&&gs!=null&&g-gs>=0.02):(v.c==="ok"&&!L.off[k]&&nd>=91&&g!=null&&(gs==null||g>=gs))})}
  S.labConf=C}catch(e){}}
 function pruneBooks(){try{applySimx();labConfUpdate();if(S&&S.books)for(const k of Object.keys(S.books))if(!STR[k])delete S.books[k];if(S&&S.main&&!STR[S.main])S.main="sect";if(S&&S.btm&&S.btm.rows)for(const k of Object.keys(S.btm.rows))if(!MX(k)&&k!=="spy")delete S.btm.rows[k]}catch{}}
 
@@ -2240,9 +2245,9 @@ function hoyRank(){const A=document.getElementById("hoy-rank");if(!A)return;
  const med=["🥇","🥈","🥉"],last=S.lastDate||"";
  const rows=ks.map((k,j)=>{const B=bkOf(k),tr=B.trades||[],g=mGain(k),pc=g/START*100,cl=tr.filter(t=>t.pnl!=null).length,nb=tr.filter(t=>t.d===last&&t.side==="COMPRA").length,ns=tr.filter(t=>t.d===last&&t.side==="VENTA").length,np=Object.keys(B.pos||{}).length;
   const act=(nb||ns)?`🟢 ${nb} · 🔴 ${ns} en el último día`:"sin cambios en el último día";
-  return`<div class="rk-c" data-go="${k}"><div class="rk-n">${med[j]||(j+1)+"."}</div><div class="rk-t"><b>${esc(STR[k].n)}</b><small>${np} ${np===1?"activo":"activos"} en cartera · ${cl} ventas cerradas · ${act}</small></div><div class="rk-g ${g>=0?"up":"dn"}">${P2(pc)}<small>${E2(g)}</small></div></div>`}).join("");
+  return`<div class="rk-c" data-go="${k}"><div class="rk-n">${med[j]||(j+1)+"."}</div><div class="rk-t"><b>${esc(STR[k].n)}${STR[k].fwd?' <span class="bdg t">🔭 en vivo</span>':""}</b><small>${np} ${np===1?"activo":"activos"} en cartera · ${cl} ventas cerradas · ${act}</small></div><div class="rk-g ${g>=0?"up":"dn"}">${P2(pc)}<small>${E2(g)}</small></div></div>`}).join("");
  const dias=(S.days||[]).length,pocas=ks.every(k=>((bkOf(k).trades)||[]).filter(t=>t.pnl!=null).length<30);
- A.innerHTML=`<div class="rk">${rows}</div><div class="m">Aquí operan, con precios de hoy, los <b>✅ Ganadores</b> del histórico (entran solos) y el método base. Toca uno para ver qué hacer con él. Llevas ${dias} ${dias===1?"día":"días"} de datos${pocas?": todavía hay pocas ventas cerradas (menos de 30 por método), así que el ranking aún no demuestra nada. Sigue unas semanas.":"."}</div>`}
+ A.innerHTML=`<div class="rk">${rows}</div><div class="m">Aquí operan, con precios de hoy, los <b>✅ Ganadores</b> del histórico (entran solos), el método base y los métodos de <b>acciones 🔭 en prueba en vivo</b> (con acciones la prueba histórica hace trampa: solo cuentan sus resultados desde hoy y necesitan 12 meses ganando al SPY para proponerse). Toca uno para ver qué hacer con él. Llevas ${dias} ${dias===1?"día":"días"} de datos${pocas?": todavía hay pocas ventas cerradas (menos de 30 por método), así que el ranking aún no demuestra nada. Sigue unas semanas.":"."}</div>`}
 document.addEventListener("click",e=>{const c=e.target&&e.target.closest&&e.target.closest("[data-go]");if(!c||!STR[c.dataset.go])return;VM.cart=c.dataset.go;VM.hoy=c.dataset.go;try{localStorage.setItem("pbvm",JSON.stringify(VM))}catch{}draw();const d=document.getElementById("hd-mi");if(d)d.open=true;const q=document.getElementById("hd-mi")||document.getElementById("mi-panel");if(q)q.scrollIntoView({behavior:"smooth",block:"start"})});
 const gtxt=g=>`<b class="${g>=0?"up":"dn"}">${E2(g)} (${P2(g/START*100)})</b>`;
 const hmL=t=>t?new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"";
@@ -3228,7 +3233,7 @@ function metHtml(){const a=A(),cur=a.metodo,ks=Object.keys(STR||{});if(!ks.lengt
  const rows=ks.map(k=>{const B=bkOf(k),g=B?(liveEq(k)/START-1)*100:null;return{k,g}}).sort((x,y)=>(y.g??-1e9)-(x.g??-1e9));
  return'<div class="m">La cartera real copia la <b>cartera objetivo</b> del método que elijas (los mismos activos y pesos), con equivalentes UCITS en euros. Toca uno para elegirlo.</div><div class="rk">'+rows.map(({k,g},i)=>{const cv=coverage(k),sel=k===cur;
   const cvT=!RL.R||!Object.keys(RL.R.map||{}).length?"pulsa «Probar conexión» para saber si se puede comprar todo":cv.no.length?"✖ no disponible en tu cuenta: "+cv.no.join(", "):cv.unk.length?"sin comprobar: "+cv.unk.join(", "):!cv.u.length?"aún sin cartera en la simulación":"✔ se puede comprar todo ("+cv.ok.map(x=>x).join(", ")+")";
-  return`<div class="rk-c" data-mk="${esc(k)}" style="${sel?"border:2px solid var(--acc)":""}"><div class="rk-n">${sel?"✅":i+1}</div><div class="rk-t"><b>${esc(STR[k].n)}</b><small>${esc(STR[k].rev||"")} · ${esc(cvT)}</small><small>${esc(btTxt(k))}</small></div><div class="rk-g ${cls(g)}">${g==null?"—":P2(g)}<small>simulación</small></div></div>`}).join("")+"</div>"+
+  return`<div class="rk-c" data-mk="${esc(k)}" style="${sel?"border:2px solid var(--acc)":""}"><div class="rk-n">${sel?"✅":i+1}</div><div class="rk-t"><b>${esc(STR[k].n)}${STR[k].fwd?' <span class="bdg t">🔭 en vivo</span>':""}</b><small>${esc(STR[k].rev||"")} · ${esc(cvT)}</small><small>${esc(btTxt(k))}</small></div><div class="rk-g ${cls(g)}">${g==null?"—":P2(g)}<small>simulación</small></div></div>`}).join("")+"</div>"+
   (RL.pick&&RL.pick!==cur?`<div class="mi-warn">Has elegido <b>${esc(STR[RL.pick].n)}</b> (aún sin guardar). Se aplica cuando pulses <b>«Guardar todos los ajustes»</b> al final de «Ajustes de la cartera real»; en la próxima revisión el bot venderá lo que no esté en su cartera y comprará lo nuevo.<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="go" id="rl-mok">Ir a guardar</button><button id="rl-mno">Cancelar</button></div></div>`:"")}
 function mapHtml(){const M=(RL.R&&RL.R.map)||{},xs=Object.values(M).sort((a,b)=>a.sym.localeCompare(b.sym));
  if(!xs.length)return'<div class="m">Aún no se ha comprobado. Pon tus claves de Trading 212 y pulsa <b>«Probar conexión»</b>: el bot descarga la lista de instrumentos de tu cuenta y te dice, uno por uno, con qué ETF europeo se compra cada activo.</div>';
