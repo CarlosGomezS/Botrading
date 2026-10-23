@@ -79,7 +79,12 @@ function sanitize(dump) {
         rows = rows.filter(([k]) => k !== "keys" && !String(k).startsWith("btl:") && k !== "btpool" && !String(k).startsWith("vgd:") && k !== "vgidx");
         rows = rows.map(([k, v]) => [k, k === "S" ? scrubState(v) : String(k).startsWith("vgd:") ? slimDay(k, v) : v]);
       }
-      if (sn === "reports") rows = rows.map(([k, v]) => [k, slimReport(v)]).sort((a, b) => String(a[0]) < String(b[0]) ? -1 : 1).slice(-150);   // v75: como mucho los 150 informes más recientes
+      if (sn === "reports") {
+        rows = rows.map(([k, v]) => [k, slimReport(v)]).sort((a, b) => String(a[0]) < String(b[0]) ? -1 : 1);
+        // v84: de las rondas extra del laboratorio (cada 2 h) solo se guardan las 5 últimas, para no tapar los demás informes
+        const lab = rows.filter(([, v]) => v && /-lab$/.test(String(v.status || ""))).slice(0, -5).map(([k]) => k), drop = new Set(lab);
+        rows = rows.filter(([k]) => !drop.has(k)).slice(-150);   // v75: como mucho los 150 informes más recientes
+      }
       stores[sn] = { ...sc, rows };
     }
     idb[name] = { version: db.version, stores };
@@ -507,7 +512,7 @@ async function main() {
   const { browser, page } = await boot();
   const snapshot = async () => sanitize(await dumpAll(page));
   const t0 = Date.now(), startIso = new Date(t0).toISOString();
-  let rep = null, titleTxt = "", subj = "", shortTxt = "", vgOps = [];
+  let rep = null, titleTxt = "", subj = "", shortTxt = "", vgOps = [], labNews = false;
   try {
     if (MODE === "daily") {
       log("Lanzando «Actualizar precios y que el bot decida»");
@@ -540,6 +545,8 @@ async function main() {
       const n = btCount(AJ.bt.max, AJ.bt.min);
       log(`Prueba histórica: ${AJ.bt.acc ? n + " acciones al azar (entre " + AJ.bt.min + " y " + AJ.bt.max + ")" : "sin acciones sueltas"}${AJ.bt.excl ? " · sin las " + AJ.bt.excl + " que más subieron" : ""} · desde ${AJ.bt.ini}`);
       await page.evaluate(async (o) => { if (__API.setBt) await __API.setBt(o); else __API.setBtMax(o.n); }, { ...AJ.bt, n });
+      const LABX = env("LAB_EXTRA") === "1";   // v84: ronda extra del laboratorio (cada 2 h): sin avisos salvo que encuentre un ganador
+      if (LABX) await page.evaluate(() => { window.__LABX = true; });
       await page.evaluate(() => { btRun(); });
       const MAX = Math.max(10 * 60e3, DEADLINE - Date.now() - 5 * 60e3);
       let lastPub = Date.now(), timedOut = false;
@@ -578,6 +585,8 @@ async function main() {
           for (const x of lab.ev.slice(0, 6)) L2.push(`${{ nace: "🌱", aprueba: "📝", descartado: "🎲", sale: "🗑️", "a la ficticia": "🧪", apartado: "⛔", evoluciona: "🔄" }[x.ev] || "•"} ${x.n.replace(/^🤖 /, "")}: ${x.ev}${x.an != null ? " (" + pc(x.an) + "/año)" : ""}`);
           if (nuevos.length) L2.push("", `Los nuevos ganadores se prueban ahora 3 meses en la ficticia con precios de hoy. Si siguen ganando al SPY y a tu método, te llegará aquí la propuesta con «✅ Cambiar».`);
           shortTxt = L2.join("\n") + "\n\n" + shortTxt;
+          labNews = nuevos.length > 0;
+          if (LABX) titleTxt = "🤖 Bot Trading: laboratorio (ronda extra)";
           if (top.length) titleTxt = `🌟 Bot Trading: método MUY bueno encontrado (${pc(top[0].an)}/año, el SPY ${pc(lab.as)})`;
           else if (nuevos.length) titleTxt = "🌱 Bot Trading: nuevo método ganador encontrado";
         }
@@ -594,7 +603,7 @@ async function main() {
       shortTxt = "Si lees esto en Telegram, los avisos del simulador funcionan.\n" + sec.filter((k) => !env(k)).map((k) => "Falta " + k).join("\n");
     } else throw new Error("Modo desconocido: " + MODE);
 
-    await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj, silent: MODE === "vigilante" && !vgOps.length });
+    await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj, silent: (MODE === "vigilante" && !vgOps.length) || (MODE === "backtest" && env("LAB_EXTRA") === "1" && !labNews) });
   } catch (e) {
     // cualquier fallo queda registrado en un informe y avisado
     const msg = `Fallo del proceso automático (${MODE}): ${String(e && e.message || e).slice(0, 400)}`;

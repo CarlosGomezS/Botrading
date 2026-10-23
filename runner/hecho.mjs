@@ -24,7 +24,7 @@ export function decide({ event, now, reports }) {
   // un informe cuenta como «de hoy» si es de la fecha de hoy en Nueva York y posterior al cierre (16:00)
   const hoy = (r) => { try { const t = ny(new Date(r.ts)); return t.date === n.date && t.min >= 16 * 60; } catch { return false; } };
   const doneDaily = reports.some((r) => r.status === "actualizado" && hoy(r));
-  const doneBt = reports.some((r) => /^prueba-historica/.test(String(r.status)) && hoy(r));
+  const doneBt = reports.some((r) => /^prueba-historica/.test(String(r.status)) && !/-lab$/.test(String(r.status)) && hoy(r));   // las rondas extra del laboratorio no cuentan
   return { daily: !doneDaily, bt: doneDaily && !doneBt, why: `${doneDaily ? "actualización ya hecha hoy" : "actualización pendiente"} · ${doneBt ? "prueba histórica ya intentada hoy" : doneDaily ? "prueba histórica pendiente" : "prueba histórica en espera (primero la actualización)"}` };
 }
 

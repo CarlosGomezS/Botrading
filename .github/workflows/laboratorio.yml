@@ -1,0 +1,67 @@
+name: Laboratorio (rondas extra cada 2 horas)
+
+# El laboratorio del bot no para: además de la prueba de cada noche, cada 2 horas (también fines de semana) prueba
+# otros 48 métodos nuevos y aprende de ellos. Solo avisa por Telegram si encuentra un ganador.
+# No coincide con la actualización de precios ni con la prueba de la noche (21:00-02:59 UTC): si cae en ese hueco, no hace nada.
+on:
+  schedule:
+    - cron: "23 3-19/2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# grupo propio (no cancela ni retrasa la actualización de precios); el horario evita escribir el estado a la vez que ella
+concurrency:
+  group: laboratorio
+  cancel-in-progress: false
+
+jobs:
+  lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: ¿Hueco libre?
+        id: hueco
+        run: |
+          H=$(date -u +%H)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || { [ "$H" -ge 3 ] && [ "$H" -le 19 ]; }; then echo "go=true" >> "$GITHUB_OUTPUT"; else echo "go=false" >> "$GITHUB_OUTPUT"; echo "Hora $H UTC: es el hueco de la actualización de la noche, no hago nada."; fi
+      - uses: actions/checkout@v4
+        if: steps.hueco.outputs.go == 'true'
+      - name: ¿Hay otra tarea del bot escribiendo ahora?
+        id: libre
+        if: steps.hueco.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          n=0
+          for wf in diario.yml historico.yml reiniciar.yml; do
+            c=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$wf/runs?status=in_progress&per_page=1" | grep -o '"total_count": *[0-9]*' | grep -o '[0-9]*$' || echo 0)
+            q=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/${{ github.repository }}/actions/workflows/$wf/runs?status=queued&per_page=1" | grep -o '"total_count": *[0-9]*' | grep -o '[0-9]*$' || echo 0)
+            n=$((n + ${c:-0} + ${q:-0}))
+          done
+          if [ "$n" -gt 0 ]; then echo "go=false" >> "$GITHUB_OUTPUT"; echo "Hay otra tarea del bot en marcha: esta ronda se salta."; else echo "go=true" >> "$GITHUB_OUTPUT"; echo "JOB_DEADLINE=$(( $(date +%s) + 80*60 ))" >> "$GITHUB_ENV"; fi
+      - uses: actions/setup-node@v4
+        if: steps.libre.outputs.go == 'true'
+        with:
+          node-version: 22
+      - name: Instalar navegador
+        if: steps.libre.outputs.go == 'true'
+        working-directory: runner
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Ronda del laboratorio
+        if: steps.libre.outputs.go == 'true'
+        working-directory: runner
+        env:
+          LAB_EXTRA: "1"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
+          POLYGON_KEY: ${{ secrets.POLYGON_KEY }}
+          ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE_KEY }}
+          FMP_KEY: ${{ secrets.FMP_KEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+        run: node runner.mjs backtest
