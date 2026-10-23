@@ -831,7 +831,7 @@ async function main() {
       R.days.sort((a, b) => (a.d < b.d ? -1 : 1));
     }
     if (!R.intra || R.intra.d !== m.date) R.intra = { d: m.date, p: [] };
-    R.intra.p.push([m.hm, BE.eq]); R.intra.p = R.intra.p.slice(-120);
+    R.intra.p.push([m.hm, BE.eq, (R.flows || {})[m.date] || 0]); R.intra.p = R.intra.p.slice(-120);
     R.live = now.toISOString();
     await publishReal(R);
     log("Pulso: valor del bot actualizado (detalle cifrado en la web).");

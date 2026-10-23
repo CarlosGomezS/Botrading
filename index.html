@@ -459,7 +459,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .rl-mres>div.on{outline:1.5px solid color-mix(in srgb,var(--line) 80%,transparent)}.rl-mres b{display:block;font-size:14px}.rl-mres small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .rl-mres span{text-align:right;font-weight:800;font-size:15px;white-space:nowrap}.rl-mres span small{font-weight:500}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v72</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v73</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2921,7 +2921,9 @@ function chartHtml(){const D=days(),R0=RL.R||{},IN=(R0.intra&&R0.intra.p)||[],ha
  if(!RL.rngSet&&hasIn&&D.length<6)RL.rng="d";
  const B=bkOf(simKey());let pts,sl;
  if((RL.rng==="d"||D.length<2)&&hasIn){const pv=(R0.days||[]).filter(x=>x.d<R0.intra.d&&x.be>0).pop(),base=pv?pv.be:IN[0][1];
-  pts=IN.map(([h,v])=>({d:h,v,ap:null,p:base>0?(v/base-1)*100:0,s:null}));sl=[{d:R0.intra.d}];RL.rng="d"}
+  const fT=+(((R0.days||[]).find(x=>x.d===R0.intra.d)||{}).bf||0);let fk=0;
+  /* v73: lo que metes o sacas ese día no es ganancia: se descuenta desde el punto en que entra (3.er dato del punto o, en puntos antiguos, al detectar el salto) */
+  pts=IN.map(([h,v,f],i)=>{if(f!=null)fk=+f;else if(fT&&i&&Math.abs(v-IN[i-1][1]-fT)<Math.abs(v-IN[i-1][1])*0.6+0.01&&Math.abs(v-IN[i-1][1])>Math.abs(fT)*0.5)fk=fT;const adj=v-fk;return{d:h,v,ap:null,p:base>0?(adj/base-1)*100:0,s:null}});sl=[{d:R0.intra.d}];RL.rng="d"}
  else{if(RL.rng==="d")RL.rng="all";const T=twr(D),nd={w:5,m:21,q:63}[RL.rng];sl=nd?T.slice(-(nd+1)):T;
   const i0=sl[0].i,e0=B?simEqAt(B,sl[0].d):null;
   pts=sl.map(x=>({d:x.d,v:x.be,ap:x.bc,p:(x.i/i0-1)*100,s:e0&&B?((simEqAt(B,x.d)||e0)/e0-1)*100:null}))}

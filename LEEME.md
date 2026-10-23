@@ -9,6 +9,9 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v34 (web v73): la gráfica de «Hoy» no cuenta los ingresos como ganancia
+- Si metes o sacas dinero durante el día, la gráfica de «Hoy» lo descuenta desde ese momento (antes salía, por ejemplo, +33 % al ingresar 100 €).
+
 ## Novedades v33 (web v72): la Real enseña tu cuenta como Trading 212
 - Arriba: el valor de tu cuenta, inversiones, efectivo, lo de desde ayer y el rendimiento, con las mismas cifras que la app de Trading 212. Si en la cuenta hay dinero tuyo que el bot no maneja, lo indica.
 - Nuevo «🧭 Resultado por método»: cuánto ganó o perdió el bot con cada método que has tenido, con sus fechas (lo que metes o sacas no cuenta).
