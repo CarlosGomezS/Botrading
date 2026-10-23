@@ -439,7 +439,7 @@ body.simple #rl-a-probar,body.simple #rl-a-foto{display:none}body.simple .rl-min
 body.simple .rl-k1>div:nth-child(-n+3),body.simple .rl-k2{display:none}
 body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v66</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v67</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1512,6 +1512,21 @@ const ML0=MOM_UNI.length;if((+($("#btn")&&$("#btn").value)||0)>ML0){const ex0=ne
 function btmDraw(){btmDraw0()}
 
 // v54: en la web publicada (modo visor) la prueba no se calcula en el móvil: se lanza en GitHub (flujo historico.yml, con tu clave de Twelve Data guardada en los secretos)
+/* v67 · «Actualizar precios y que el bot decida» desde la web pública: lanza en GitHub la actualización diaria (diario.yml) */
+async function dailyCloud(pw){const st=$("#st"),bt=$("#run"),c=window.__CLOUD;if(!c){st.textContent="Abre la web publicada en GitHub Pages para lanzarlo.";return}
+ if(!c.tok()){if(!c.hasEnc()){st.innerHTML="Para lanzarlo hace falta tu token de GitHub: pégalo una vez en <b>⚙️ Ajustes → Ajustes de la nube</b>. También puedes lanzarlo en GitHub: Actions → «Actualización de precios» → Run workflow.";return}
+  if(!pw){st.innerHTML='Escribe tu clave de ajustes: <input id="dcpw" type="password" autocomplete="current-password" style="width:150px"> <button id="dcgo">Lanzar</button>';const go=()=>dailyCloud(($("#dcpw")||{}).value||"");$("#dcgo").onclick=go;$("#dcpw").onkeydown=e=>{if(e.key==="Enter")go()};$("#dcpw").focus();return}
+  try{st.textContent="Comprobando la clave…";await c.unlock(pw)}catch(e){st.textContent="Clave incorrecta.";setTimeout(()=>dailyCloud(),1500);return}}
+ const ri=c.ri();if(!ri){st.textContent="No reconozco el repositorio de esta web.";return}
+ if(dailyCloud.on)return;dailyCloud.on=true;if(bt)bt.disabled=true;
+ try{c.touch();const since=Date.now();st.textContent="Enviando a GitHub…";
+  const r=await c.dispatch(ri,"diario.yml",{});
+  if(r.status!==204){st.textContent=r.status===401||r.status===403?"GitHub rechazó el token (HTTP "+r.status+"): revisa que tenga «Actions: Read and write» y no haya caducado.":r.status===404?"No encuentro .github/workflows/diario.yml en el repositorio.":"GitHub respondió HTTP "+r.status+".";return}
+  st.textContent="GitHub está bajando los precios y el bot está decidiendo (suele tardar 2-5 minutos; si hay otra tarea del bot en marcha, espera a que acabe). Puedes cerrar la app: te llegará el resumen al Telegram.";
+  const res=await c.waitRun(ri,"diario.yml",since,25*60);
+  if(res==="success"){st.textContent="✔ Hecho. Recargando la web con los datos nuevos…";setTimeout(()=>{try{location.reload()}catch(e){}},2500)}
+  else st.textContent=res==null?"Sigue en marcha en GitHub: vuelve en un rato (o toca la barra de arriba cuando diga «Hay datos nuevos»).":"✖ Terminó con error: míralo en GitHub → Actions → «Actualización de precios».";
+ }catch(e){st.textContent="No se pudo: "+(e.message||e)}finally{dailyCloud.on=false;if(bt)bt.disabled=false}}
 async function btCloud(pw){const st=$("#btst"),c=window.__CLOUD;if(!pw&&!btCloud.saved){const nc=btFormRead();if(JSON.stringify(nc)!==JSON.stringify(BTC)){btCloud.saved=true;const ok=await btSaveCfg(nc,"Guardando los ajustes antes de lanzar…");btCloud.saved=false;if(!ok)return}}if(!c){st.textContent="Abre la web publicada en GitHub Pages para lanzarla.";return}
  if(!c.tok()){if(!c.hasEnc()){st.innerHTML="Para lanzarla hace falta tu token de GitHub: pégalo una vez en <b>⚙️ Ajustes → Ajustes de la nube</b>. También puedes lanzarla en GitHub: Actions → «Prueba histórica diaria» → Run workflow.";return}
   if(!pw){st.innerHTML='Escribe tu clave de ajustes: <input id="btpw" type="password" autocomplete="current-password" style="width:150px"> <button id="btgo">Lanzar</button>';const go=()=>btCloud(($("#btpw")||{}).value||"");$("#btgo").onclick=go;$("#btpw").onkeydown=e=>{if(e.key==="Enter")go()};$("#btpw").focus();return}
@@ -2524,7 +2539,7 @@ G0.__SEAL={blake2b,seal,from_string:s=>new TextEncoder().encode(s),from_base64:t
  try{vgScan=function(){};}catch(e){}
  b.style.cursor="pointer";b.onclick=function(){if(window.__NEWDATA)location.reload()};
  try{run=async function(){};}catch(e){}
- function lock(){try{var r=document.querySelector("#run");if(r){r.onclick=function(){alert("Esta es la copia pública de solo lectura. El bot se actualiza solo en la nube: cada día después del cierre de Wall Street (hacia las 23:15, hora de España) y el vigilante durante la sesión.")}}
+ function lock(){try{var r=document.querySelector("#run");if(r){r.onclick=function(){try{dailyCloud()}catch(e){}}}
   var g=document.querySelector("#bg");if(g)g.checked=false;
   }catch(e){}}
  setTimeout(function(){try{var h=document.querySelector('#nav button[data-t="hoy"]');if(h&&!window.__userNav)h.click()}catch(e){}},2200);
@@ -3168,6 +3183,7 @@ let rz=null;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{c
 (function(){
  var W=window.__busyChecks=window.__busyChecks||[];
  W.push(function(){try{return !!(busy||(typeof BTB!=="undefined"&&BTB.v)||(typeof VG!=="undefined"&&VG.busy))}catch(e){return false}});
+ W.push(function(){try{if(typeof dailyCloud==="function"&&dailyCloud.on)return true;var r=document.getElementById("btr");return !!(r&&r.disabled)}catch(e){return false}});
  var n=0,lastAct=0,lastStart=0;
  function track(p){n++;lastStart=lastAct=Date.now();var done=function(){n--;lastAct=Date.now()};try{p.then(done,done)}catch(e){done()}return p}
  var of=window.fetch;if(of)window.fetch=function(){return track(of.apply(this,arguments))};

@@ -9,6 +9,9 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v28 (web v67): «Actualizar precios y que el bot decida» funciona desde la web
+- En la Ficticia, el botón lanza en GitHub la actualización de precios (`diario.yml`), espera a que termine y recarga la web con los datos nuevos. Usa el mismo token y la misma clave de ajustes que «Ejecutar prueba».
+
 ## Novedades v27 (web v66): modo sencillo
 - La web se abre en **modo sencillo**: solo lo importante (cuánto tienes, si gana o pierde, qué hará y qué métodos van mejor), con palabras para quien no sabe de trading.
 - En el Histórico cada método dice en qué se habrían convertido **100 €** desde el inicio de la prueba y su peor bajada.
