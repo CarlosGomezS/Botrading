@@ -497,7 +497,7 @@ async function main() {
   const AJ = loadAjustes();
   if (MODE === "vigilante") {
     const n = nyNow();
-    if ((!n.wk || n.min < 9 * 60 || n.min > 16 * 60 + 30) && EVENT !== "workflow_dispatch") { log("Fuera del horario del vigilante (NY). Nada que hacer."); return; }
+    if ((!n.wk || n.min < 9 * 60 + 40 || n.min > 18 * 60) && EVENT !== "workflow_dispatch") { log("Fuera del horario del vigilante (NY). Nada que hacer."); return; }
   }
   const { browser, page } = await boot();
   const snapshot = async () => sanitize(await dumpAll(page));
@@ -528,6 +528,7 @@ async function main() {
         rep = await page.evaluate((s) => __API.newestReport(s), startIso);
         if (!rep && it) rep = { id: it.id, status: it.status, message: it.message, md: it.mdInforme };
       }
+      try { const v = await page.evaluate(async () => { const x = await viUpdate({ budget: 6 * 60e3 }); return { n: x.nuevos.length, txt: viSummaryTxt(S.vix || { days: [] }), err: x.err }; }); log("Vigilante intradía tras la actualización:", v.n, "días nuevos", v.err ? "· " + String(v.err).slice(0, 120) : ""); if (v.n && v.n <= 3 && !v.err) await sendTg(v.txt).catch(() => {}); } catch (e) { log("vigilante intradía (diario) falló:", String(e.message).slice(0, 160)); }
       titleTxt = "Bot Trading: actualización diaria · " + rep.status;
       subj = "Bot Trading · Actualización diaria · " + rep.status;
       shortTxt = shortDaily(rep);
@@ -563,48 +564,19 @@ async function main() {
       subj = "Bot Trading · Prueba histórica diaria · " + rep.status.replace("prueba-historica-", "") + ` · ${n} acciones`;
       shortTxt = shortBt(rep);
     } else if (MODE === "vigilante") {
-      const interval = AJ.vigilante_min;
-      await page.evaluate((m) => {
-        if (m) VGC.min = m;
-        VGC.eod = false;           // la actualización diaria tiene su propio proceso y su propio informe
-        VGC.on = true; vgSave(); VG.next = 0; vgRefresh();
-      }, interval);
-      const iv = await page.evaluate(() => +VGC.min || 30);
-      log(`Vigilante activo (runner v3) · intervalo elegido en el desplegable: cada ${iv} min`);
-      // deja constancia inmediata en la Bitácora del vigilante (aunque el mercado esté cerrado)
-      await page.evaluate(([m, hm]) => { try { vgSay("Turno del vigilante en la nube iniciado a las " + hm + " (hora de España). Consulta cada " + m + " min mientras Wall Street esté abierto.", "info"); } catch {} }, [iv, new Date().toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" })]);
-      const MAX = Math.min((+env("TURN_MAX_MIN") || 55) * 60e3, Math.max(60e3, DEADLINE - Date.now()));
-      let lastPub = Date.now() - 8.5 * 60e3;   // primera publicación a los ~90 s (para ver datos enseguida en la web); después cada 10 min
-      for (;;) {
-        await sleep(30000);
-        await page.evaluate(() => { try { localStorage.setItem("pbt", String(Date.now())); } catch {} }).catch(() => {});
-        const n = nyNow();
-        if (Date.now() - t0 > MAX) { log("Fin del turno"); break; }
-        if (!n.wk || n.min > 16 * 60 + 30) { log("Mercado cerrado: fin"); break; }
-        if (Date.now() - lastPub > 10 * 60e3) { try { publish(await snapshot()); } catch (e) { log("publicación intermedia falló:", e.message.slice(0, 160)); } lastPub = Date.now(); }
-      }
-      // dejar terminar una consulta en curso
-      for (let i = 0; i < 8; i++) { const b = await page.evaluate(() => !!VG.busy).catch(() => false); if (!b) break; await sleep(5000); }
-      // consultas previstas: minutos con Wall Street abierto (9:35-16:00 NY) dentro del turno / intervalo
-      const nEnd = nyNow(), durMin = Math.round((Date.now() - t0) / 60000), endMin = nEnd.min, startMin = endMin - durMin;
-      const overlap = Math.max(0, Math.min(endMin, 960) - Math.max(startMin, 575));
-      const expected = nEnd.wk && overlap > 0 ? Math.ceil(overlap / iv) : 0;
-      const res = await page.evaluate(([s, ev, ex]) => __API.vgTurnReport(s, { event: ev, expected: ex }), [startIso, EVENT === "workflow_dispatch" ? "manual" : "programada", expected]);
-      rep = await page.evaluate((s) => __API.newestReport(s), startIso);
-      titleTxt = `Bot Trading: vigilante · ${res.nScans} consultas${res.nErr ? ` (${res.nErr} con error)` : ""}`;
-      subj = `Bot Trading · Vigilante · turno ${new Date(t0).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" })} · ${res.nScans} consultas`;
-      shortTxt = res.summary;
-      // v48: si algún método del vigilante (los semanales / de 2-3 días) ha comprado o vendido en este turno, SÍ se avisa
-      vgOps = await page.evaluate(() => window.__VGOPS || []).catch(() => []);
-      if (vgOps.length) {
-        const by = {};
-        vgOps.forEach((o) => (by[o.n] = by[o.n] || []).push(o));
-        const eur = (n) => (+n).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
-        const lines = Object.entries(by).map(([n, a]) => n + ":\n" + a.map((o) => `  ${o.side === "COMPRA" ? "🟢 COMPRA" : "🔴 VENTA"} ${o.s} · ${eur(o.eur)} a ${(+o.px).toFixed(2)} $${o.pnl != null ? ` (${o.pnl >= 0 ? "+" : ""}${eur(o.pnl)})` : ""}\n    ${String(o.why || "").slice(0, 160)}`).join("\n")).join("\n\n");
-        titleTxt = `Bot Trading: vigilante · ${vgOps.length} ${vgOps.length === 1 ? "operación" : "operaciones"} (simuladas)`;
-        subj = `Bot Trading · Vigilante · ${Object.keys(by).join(", ").slice(0, 120)}`;
-        shortTxt = lines + "\n\nSon operaciones de las cuentas ficticias del vigilante (no dinero real).";
-      }
+      // v68: vigilante intradía con velas de 1 minuto (10 métodos de day trading). La 1.ª vez rehace el último año.
+      const budget = Math.max(60e3, Math.min((+env("TURN_MAX_MIN") || 14) * 60e3, DEADLINE - Date.now() - 3 * 60e3));
+      log(`Vigilante intradía: actualizando (máx. ${Math.round(budget / 60e3)} min)`);
+      const r = await page.evaluate(async (b) => { const x = await viUpdate({ budget: b }); return { ...x, n: (S.vix && S.vix.days || []).length, txt: viSummaryTxt(S.vix || { days: [] }), md: viMd(), prog: S.vix && S.vix.prog, err: S.vix && S.vix.err }; }, budget);
+      log(`Vigilante: ${r.nuevos.length} días nuevos · ${r.n} días en total · ${r.calls} llamadas a Alpaca${r.parcial ? " · queda parte por calcular" : ""}${r.err ? " · ERROR: " + String(r.err).slice(0, 160) : ""}`);
+      const it = await page.evaluate(([m, md]) => __API.custom("vigilante-intradia", m, md, null), [r.err ? "Vigilante intradía con error" : `Vigilante intradía · ${r.n} días calculados`, r.md]);
+      rep = { id: it && it.id, status: r.err ? "vigilante-error" : "vigilante-intradia", message: r.err || "Vigilante intradía", md: r.md };
+      titleTxt = r.err ? "Bot Trading: vigilante · ERROR" : "Bot Trading: vigilante intradía";
+      subj = "Bot Trading · Vigilante intradía";
+      // aviso al Telegram: un resumen cuando se cierra un día nuevo (y uno al terminar de rehacer el año); los errores, siempre
+      const lastNew = r.nuevos[r.nuevos.length - 1], ny = nyNow();
+      vgOps = r.err ? [1] : (!r.parcial && lastNew && (r.backfill || r.nuevos.length <= 3)) ? [1] : [];
+      shortTxt = r.err ? String(r.err) : (r.backfill ? "Listo: calculado el último año entero de los 10 métodos intradía.\n\n" : "") + r.txt;
     } else if (MODE === "test") {
       const sec = ["ALPACA_KEY", "TWELVEDATA_KEY", "POLYGON_KEY", "ALPHAVANTAGE_KEY", "FMP_KEY", "TELEGRAM_TOKEN", "TELEGRAM_CHAT"];
       const L = ["# Prueba de avisos", "", `Fecha: ${new Date().toISOString()}`, "", "## Secretos configurados en GitHub (solo si existen o no; nunca su valor)", ""];

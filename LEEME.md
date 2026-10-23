@@ -9,6 +9,13 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v29 (web v68): Vigilante intradía con 10 métodos de day trading
+- El Vigilante ahora prueba **10 métodos intradía con estudios publicados** (zona de ruido del SPY, ruptura de los 5 primeros minutos en QQQ y TQQQ, acciones «en juego», VWAP en QQQ y TQQQ, primera media hora y resto del día → última media hora). Todos abren y cierran dentro del mismo día.
+- Se calculan con **velas reales de 1 minuto de Alpaca** (secreto `ALPACA_KEY`). La primera vez rehace el **último año entero**; después añade cada día de bolsa y el día en curso cada hora.
+- Pantalla corta: clasificación frente al SPY (1 mes / 3 meses / todo), y en cada método su gráfica, «solo compras», peor bajada, operaciones, qué dice el estudio y si se puede en Trading 212.
+- Al cerrarse un día te llega el resumen al Telegram. Los 5 métodos semanales del vigilante anterior dejan de ejecutarse (no eran intradía).
+- Pruebas: `node tests/vigilante.test.mjs`.
+
 ## Novedades v28 (web v67): «Actualizar precios y que el bot decida» funciona desde la web
 - En la Ficticia, el botón lanza en GitHub la actualización de precios (`diario.yml`), espera a que termine y recarga la web con los datos nuevos. Usa el mismo token y la misma clave de ajustes que «Ejecutar prueba».
 

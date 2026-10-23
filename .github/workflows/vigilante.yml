@@ -1,8 +1,10 @@
-name: Vigilante intradía (turnos de 55 min mientras abre Wall Street)
+name: Vigilante intradía (10 métodos de day trading, cada hora con Wall Street abierto)
 
 on:
   schedule:
-    - cron: "5 13-21 * * 1-5"   # cada hora en punto+5 (UTC); el script se salta lo que caiga fuera del horario de Nueva York
+    - cron: "7 14-21 * * 1-5"    # cada hora (UTC); el script se salta lo que caiga fuera de 9:40-18:00 de Nueva York
+    - cron: "37 21 * * 1-5"      # tras el cierre (en invierno el cierre es a las 21:00 UTC)
+    - cron: "37 22 * * 1-5"
   workflow_dispatch:
 
 permissions:
@@ -15,13 +17,13 @@ concurrency:
 jobs:
   vigilar:
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    timeout-minutes: 30
     steps:
       - name: ¿Está abierto (o a punto) Wall Street?
         id: ny
         run: |
           DOW=$(TZ=America/New_York date +%u); HM=$(TZ=America/New_York date +%H%M)
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || { [ "$DOW" -le 5 ] && [ "$HM" -ge 0900 ] && [ "$HM" -le 1630 ]; }; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || { [ "$DOW" -le 5 ] && [ "$HM" -ge 0940 ] && [ "$HM" -le 1800 ]; }; then
             echo "go=true" >> "$GITHUB_OUTPUT"
           else
             echo "go=false" >> "$GITHUB_OUTPUT"; echo "Fuera del horario de Nueva York ($HM): nada que hacer."

@@ -429,7 +429,6 @@ button.go:hover:not([disabled]){background:#ffc94d;box-shadow:0 12px 24px -12px 
 #simpleB{margin-left:auto;flex:0 0 auto;font-size:12.5px;padding:7px 12px;min-height:0;border-radius:99px;background:color-mix(in srgb,var(--line) 35%,transparent);border:1px solid var(--line)}
 .simonly{display:none}body.simple .simonly{display:inline}body.simple div.simonly{display:block;margin:4px 0 8px}
 body.simple .sim0{display:none}.sim1{display:none}body.simple .sim1{display:inline}
-body.simple #nav button[data-t="vigia"]{display:none!important}
 body.simple .rk-t small{display:none}
 body.simple .btc .vs{grid-column:2/-1;text-align:left;white-space:normal;font-size:12.5px}body.simple .btc .vs b{color:var(--ink,inherit);font-size:13.5px}
 body.simple .t212b,body.simple .btsort,body.simple .xadv,body.simple .btinfo{display:none!important}
@@ -438,8 +437,24 @@ body.simple .rl-full .rl-sep,body.simple .rl-full details[data-o="rep"],body.sim
 body.simple #rl-a-probar,body.simple #rl-a-foto{display:none}body.simple .rl-mini{grid-template-columns:1fr}
 body.simple .rl-k1>div:nth-child(-n+3),body.simple .rl-k2{display:none}
 body.simple #hd-tr,body.simple .rl-notas{display:none!important}
+
+/* v68 · vigilante intradía */
+.vi-hero h2{margin-bottom:2px}.vi-kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 6px}
+.vi-kpi>div{background:rgba(255,255,255,.07);border-radius:14px;padding:8px 10px;display:grid;gap:1px}.vi-kpi small{font-size:11px;color:#b9c2de}.vi-kpi b{font-size:15px;color:#fff}
+.vi-st{margin:6px 0 8px}#vi-go{width:100%}
+.vi-l{display:grid;gap:8px;margin:8px 0}
+.vi-c{border:1px solid var(--line);border-radius:16px;background:var(--panel);overflow:hidden}.vi-c.ok{border-color:color-mix(in srgb,var(--up,#16a34a) 45%,var(--line))}
+.vi-c>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:30px 1fr auto;gap:8px;align-items:center;padding:10px 12px}.vi-c>summary::-webkit-details-marker{display:none}
+.vi-c .rk{font-size:17px;text-align:center;font-weight:800}.vi-c .nm{font-size:14px;font-weight:650;line-height:1.25}.vi-c .nm small{display:block;font-weight:400;font-size:12px;color:var(--muted);margin-top:4px}
+.vi-c .pa{text-align:right;font-size:17px;font-weight:800;white-space:nowrap}.vi-c .pa small{display:block;font-size:11.5px;font-weight:500;color:var(--muted)}
+.vi-c .bd{padding:0 12px 12px;display:grid;gap:8px}
+.vi-kv{display:grid;grid-template-columns:1fr 1fr;gap:6px}.vi-kv>div{background:color-mix(in srgb,var(--line) 28%,transparent);border-radius:12px;padding:7px 10px}.vi-kv small{display:block;font-size:11px;color:var(--muted)}.vi-kv b{font-size:14.5px}
+.vi-sp{width:100%;height:64px}.vi-sp path{fill:none;stroke-width:2}.vi-sp .u{stroke:#22a565}.vi-sp .d{stroke:#e0475a}.vi-sp .b{stroke:var(--muted);stroke-dasharray:4 3;stroke-width:1.5}.vi-sp .z{stroke:var(--line);stroke-width:1}
+.vi-leg i{display:inline-block;width:14px;height:0;border-top:2px solid #22a565;vertical-align:middle}.vi-leg i.b{border-top:2px dashed var(--muted)}
+.bdg.no{background:color-mix(in srgb,var(--line) 40%,transparent);color:var(--muted)}
+#vi-per{margin:2px 0 4px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v67</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v68</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -478,6 +493,8 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <div class="p xadv"><h2>Informes y descargas</h2><div class="m"><b>Cada informe con fecha y hora</b> tiene su .md y su .json con todos sus datos: en la prueba histórica, todas las operaciones y la curva diaria de cada método y tramo; en una actualización, las cotizaciones, las señales, las carteras objetivo, las operaciones y el diagnóstico de ese día. <b>«Informe GENERAL de todo»</b> descarga todo junto: todos los informes, las cuentas con todas sus operaciones y curvas, el vigilante de todos los días y, si quieres, las velas de precios. «Informe completo» junta en un solo archivo todos los informes archivados de todas las fechas y horas. Cada informe individual (más abajo) descarga solo el de esa fecha y hora. «Estado actual del bot» lleva todo lo que hace el bot ahora mismo, sus resultados y la prueba histórica: súbelo a la conversación para mejorar el bot.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="ej">Descargar informes (.json)</button><button id="im">Importar informes (.json)</button><button id="vaciarInf">Vaciar todos los informes</button><button id="fr">Descargar informe completo (todos los informes, .md)</button><button id="fs">Estado actual del bot (.md)</button><button id="fgm">Informe GENERAL de todo (.md)</button><button id="fgj">Informe GENERAL de todo (.json)</button><textarea id="ta" readonly style="display:none;width:100%;height:160px;font-size:12px"></textarea><input id="imf" type="file" accept=".json" hidden></div><div class="m">Historial automático: cada intento de actualización se guarda con fecha y hora, estado, fecha de mercado y una copia del informe. Se conserva separado de la cartera activa.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rref">Actualizar lista</button></div><div id="rlist"><div class="m">Cargando historial…</div></div></div>
 </section>
 <section class="tab" id="t-vigia">
+<div id="vi-root"><div class="p"><div class="m">Cargando el vigilante…</div></div></div>
+<div id="vg-old" hidden>
 <div class="p"><h2>👁️ Vigilante · métodos de revisión semanal</h2><details class="rd"><summary><span>ℹ️ Qué es el vigilante y cómo revisa</span></summary><div class="rb"><div class="m">El vigilante prueba, cada uno con su cuenta ficticia de <span class="capT">500 €</span>, <b>5 métodos con estudios publicados</b> que solo revisan su cartera <b>los lunes y jueves, los viernes o a fin de mes</b>, siempre a partir de las 15:00 de Nueva York (21:00 en España), una hora antes del cierre. Entre revisiones no hacen nada, así que no hay que estar pendiente: si alguno compra o vende, te llega un aviso. Los 5 métodos intradía anteriores (arranque, hueco, ruptura, fuerza y caída en tendencia) se han retirado porque no tenían evidencia. Que un método funcionara en el pasado no garantiza que funcione ahora: por eso se prueban aquí con dinero ficticio antes de usarlos de verdad.</div></div></details>
 <details class="rd"><summary><span>⚙️ Controles de vigilancia en este dispositivo</span></summary><div class="rb"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button id="vgb">▶ Iniciar vigilancia</button><button id="vgs">Consultar ahora</button>
 <label class="m">Cada <select id="vgi"><option value="10">10 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label>
@@ -487,7 +504,8 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <label class="m"><input type="checkbox" id="vgx" checked style="width:auto"> Comprar y vender en las cuentas ficticias de los métodos (si lo desmarcas, solo calcula y avisa)</label>
 <label class="m"><input type="checkbox" id="vge" style="width:auto"> Tras el cierre del mercado, ejecutar también la actualización diaria (el bot decide y registra sus operaciones ficticias)</label>
 </div></details><div id="vgo"></div><div id="vgx2"></div></div>
-<div class="p"><h2>Registros e informes</h2><div class="m" id="vgl">—</div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="vgd"></select><button id="vgrd">⬇ Informe del día</button><button id="vgrt">⬇ Informe total</button><button id="vgrj">⬇ Datos crudos (JSON)</button></div><div class="m">El informe del día lleva cada consulta, las candidatas con sus motivos, las operaciones y qué hizo cada acción después. El total resume todos los días y añade estadísticas de la cuenta. Los datos crudos incluyen todos los precios vigilados en cada consulta.</div></div></section>
+<div class="p"><h2>Registros e informes</h2><div class="m" id="vgl">—</div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="vgd"></select><button id="vgrd">⬇ Informe del día</button><button id="vgrt">⬇ Informe total</button><button id="vgrj">⬇ Datos crudos (JSON)</button></div><div class="m">El informe del día lleva cada consulta, las candidatas con sus motivos, las operaciones y qué hizo cada acción después. El total resume todos los días y añade estadísticas de la cuenta. Los datos crudos incluyen todos los precios vigilados en cada consulta.</div></div></div>
+</section>
 <section class="tab" id="t-ajustes">
 <div class="p"><h2>Conexión de datos</h2><div class="m">Pega las claves que tengas (todas opcionales). Sin clave ya funcionan Yahoo Finance y Stooq (acciones/ETFs, como respaldo) y Binance/Coinbase (criptos). Financial Modeling Prep tiene clave gratuita en financialmodelingprep.com. Las fuentes con clave tienen prioridad para que los precios no se mezclen entre proveedores.</div>
 <div class="kv"><div>Twelve Data <input id="k_td" type="password" style="width:100%"></div><div>Polygon <input id="k_pg" type="password" style="width:100%"></div><div>Alpaca (ID:SECRETO) <input id="k_al" type="password" style="width:100%"></div><div>Alpha Vantage <input id="key" type="password" style="width:100%"></div><div>Financial Modeling Prep <input id="k_fm" type="password" style="width:100%"></div></div>
@@ -1512,6 +1530,20 @@ const ML0=MOM_UNI.length;if((+($("#btn")&&$("#btn").value)||0)>ML0){const ex0=ne
 function btmDraw(){btmDraw0()}
 
 // v54: en la web publicada (modo visor) la prueba no se calcula en el móvil: se lanza en GitHub (flujo historico.yml, con tu clave de Twelve Data guardada en los secretos)
+/* v68 · lanzar cualquier proceso de GitHub desde la web pública (con el token cifrado y la clave de ajustes) */
+async function wfCloud(wf,label,st,bt,pw,after){if(!st)return;const c=window.__CLOUD;if(!c){st.textContent="Abre la web publicada en GitHub Pages para lanzarlo.";return}
+ if(!c.tok()){if(!c.hasEnc()){st.innerHTML="Para lanzarlo hace falta tu token de GitHub: pégalo una vez en <b>⚙️ Ajustes → Ajustes de la nube</b>.";return}
+  if(!pw){const id="wfpw"+Math.random().toString(36).slice(2,7);st.innerHTML='Escribe tu clave de ajustes: <input id="'+id+'" type="password" autocomplete="current-password" style="width:150px"> <button id="'+id+'b">Lanzar</button>';const go=()=>wfCloud(wf,label,st,bt,(document.getElementById(id)||{}).value||"",after);document.getElementById(id+"b").onclick=go;document.getElementById(id).onkeydown=e=>{if(e.key==="Enter")go()};document.getElementById(id).focus();return}
+  try{st.textContent="Comprobando la clave…";await c.unlock(pw)}catch(e){st.textContent="Clave incorrecta.";return}}
+ const ri=c.ri();if(!ri){st.textContent="No reconozco el repositorio de esta web.";return}
+ if(wfCloud.on)return;wfCloud.on=true;if(bt)bt.disabled=true;
+ try{c.touch();const since=Date.now();st.textContent="Enviando a GitHub…";const r=await c.dispatch(ri,wf,{});
+  if(r.status!==204){st.textContent=r.status===401||r.status===403?"GitHub rechazó el token (HTTP "+r.status+"): revisa que tenga «Actions: Read and write».":r.status===404?"No encuentro .github/workflows/"+wf+" en el repositorio.":"GitHub respondió HTTP "+r.status+".";return}
+  st.textContent=label+": GitHub lo está haciendo (unos minutos; la primera vez del vigilante, hasta 15). Puedes cerrar la app.";
+  const res=await c.waitRun(ri,wf,since,25*60);
+  if(res==="success"){st.textContent="✔ Hecho. Recargando la web con los datos nuevos…";setTimeout(()=>{try{location.reload()}catch(e){}},2500)}
+  else st.textContent=res==null?"Sigue en marcha en GitHub: vuelve en un rato.":"✖ Terminó con error: míralo en GitHub → Actions.";
+ }catch(e){st.textContent="No se pudo: "+(e.message||e)}finally{wfCloud.on=false;if(bt)bt.disabled=false}}
 /* v67 · «Actualizar precios y que el bot decida» desde la web pública: lanza en GitHub la actualización diaria (diario.yml) */
 async function dailyCloud(pw){const st=$("#st"),bt=$("#run"),c=window.__CLOUD;if(!c){st.textContent="Abre la web publicada en GitHub Pages para lanzarlo.";return}
  if(!c.tok()){if(!c.hasEnc()){st.innerHTML="Para lanzarlo hace falta tu token de GitHub: pégalo una vez en <b>⚙️ Ajustes → Ajustes de la nube</b>. También puedes lanzarlo en GitHub: Actions → «Actualización de precios» → Run workflow.";return}
@@ -2314,7 +2346,7 @@ async function vgReportTotal2(){const L=[],R=VGALL().map(([k,V])=>{const B=vgAcc
  const act=(VGC.act||[]).slice().reverse();L.push("## Bitácora completa (últimos "+act.length+" eventos)","","| fecha | hora local | hora NY | tipo | qué hizo |","|---|---|---|---|---|");act.forEach(a=>L.push(`| ${ldate(a.t)} | ${hmS(a.t)} | ${hmNY(a.t)} | ${a.k} | ${vgC(a.m)} |`));
  L.push("","---","# Anexo: informe total técnico (regla original)","",await vgReportTotal());return L.join("\n")}
 function vgVarsMd(){try{let o="\n## Vigilante: métodos intradía comparados ("+dtL(Date.now())+")\n";VGALL().map(([k,V])=>{const B=vgAcc(k);return[V,B,B?vgEq(B):START]}).sort((a,b)=>b[2]-a[2]).forEach(([V,B,e],j)=>{o+=`- ${j+1}. ${V.n}: ${E(e)} (${P2((e/START-1)*100)}) · ${B?B.trades.filter(t=>t.pnl!=null).length:0} ops cerradas · ${B?Object.keys(B.pos).length:0} posiciones\n`});return o}catch{return""}}
-function vgDraw(){vgDraw0();try{vgExtra()}catch(e){}}
+function vgDraw(){vgDraw0();try{vgExtra()}catch(e){}try{viDraw()}catch(e){}}
 
 $("#aud").onclick=()=>{$("#audo").innerHTML=auditHtml()};
 $("#run").onclick=run;
@@ -3173,17 +3205,233 @@ let rz=null;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{c
 </script>
 <script>document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&e.target.closest(".cpy[data-copy]");if(!b)return;e.preventDefault();e.stopPropagation();const v=b.dataset.copy,old=b.textContent;
  try{await navigator.clipboard.writeText(v)}catch(_){try{const t=document.createElement("textarea");t.value=v;document.body.appendChild(t);t.select();document.execCommand("copy");t.remove()}catch(__){}}
- b.textContent="✔ Copiado: "+v;b.classList.add("ok");setTimeout(()=>{b.textContent=old;b.classList.remove("ok")},1800)},true);</script><script id="simple-mode">
+ b.textContent="✔ Copiado: "+v;b.classList.add("ok");setTimeout(()=>{b.textContent=old;b.classList.remove("ok")},1800)},true);</script><script id="vigia-intradia">
+/* ===================== VIGILANTE INTRADÍA (v68) =====================
+   10 métodos de day trading con estudios publicados. Cada uno abre y cierra dentro del mismo día.
+   Se calculan con velas REALES de 1 minuto de Alpaca (clave ALPACA_KEY), día a día, y se comparan con el SPY.
+   Primero rehace el último año entero; luego añade cada día de bolsa. Todo es simulado: no usa dinero.        */
+const VI_MO=390,VI_COST=0.0045,VI_BACK=365,VI_HIST=26,VI_ETF=["SPY","QQQ","TQQQ"];
+const VIM={
+ noise:{n:"Zona de ruido · SPY",fam:"Zarattini, Aziz y Barbon (2024)",
+  d:"Calcula cuánto suele moverse el SPY desde la apertura a cada hora (media de 14 días): esa es la «zona de ruido». Cada media hora, desde las 10:00 de Nueva York, compra si el precio sale por arriba de la zona y vende en corto si sale por abajo. Se sale si vuelve a la zona o cruza el VWAP (precio medio del día) y siempre cierra antes del cierre.",
+  res:"Estudio 2007-2024 en SPY: +19,6 % al año (1.985 % en total) netos de costes, Sharpe 1,33 frente a 0,45 del SPY. Usaba tamaño por volatilidad (hasta ×4).",
+  src:"Zarattini, C., Aziz, A. y Barbon, A. (2024), «Beat the Market: An Effective Intraday Momentum Strategy for S&P500 ETF (SPY)», Swiss Finance Institute Research Paper 24-97.",t212:"etf"},
+ noise4:{n:"Zona de ruido · SPY con tamaño por volatilidad",fam:"Zarattini, Aziz y Barbon (2024)",
+  d:"Las mismas reglas que «Zona de ruido · SPY», pero como en el estudio: el tamaño de cada operación se ajusta para que el día «normal» mueva un 2 % la cuenta, con un máximo de ×4 (apalancado).",
+  res:"Es la versión que da el +19,6 % al año del estudio (2007-2024). Gana y pierde más rápido que la versión sin apalancar.",
+  src:"Zarattini, Aziz y Barbon (2024), mismo estudio.",t212:"lev"},
+ noiseq:{n:"Zona de ruido · Nasdaq 100 (QQQ)",fam:"Adaptación de Zarattini, Aziz y Barbon",
+  d:"Las reglas de la zona de ruido aplicadas al Nasdaq 100 (QQQ), que se mueve más que el SPY. Sin apalancar.",
+  res:"El estudio es sobre el SPY: en el QQQ es una adaptación (sin resultado publicado propio). Sirve para ver si la idea funciona fuera del S&P 500.",
+  src:"Adaptación de Zarattini, Aziz y Barbon (2024).",t212:"etf"},
+ orbq:{n:"Ruptura de los 5 primeros minutos · QQQ",fam:"Zarattini y Aziz (2023)",
+  d:"Mira la primera vela de 5 minutos (9:30-9:35 de Nueva York): si sube, compra; si baja, vende en corto. El stop es el otro extremo de esa vela y el objetivo, 10 veces lo arriesgado. Si no salta ninguno, cierra al final del día. Arriesga un 1 % de la cuenta por operación (sin apalancar).",
+  res:"Estudio 2016-2023: con apalancamiento ganó un +1.484 % en total frente al +169 % de comprar y mantener el QQQ.",
+  src:"Zarattini, C. y Aziz, A. (2023), «Can Day Trading Really Be Profitable? Evidence of Sustainable Long-term Profits from Opening Range Breakout (ORB) Day Trading Strategy vs. Benchmark in the US Stock Market», SSRN 4416622.",t212:"etf"},
+ orbt:{n:"Ruptura de los 5 primeros minutos · TQQQ (×3)",fam:"Zarattini y Aziz (2023)",
+  d:"La misma señal de la primera vela de 5 minutos, pero en TQQQ (Nasdaq 100 ×3), como la variante del estudio: stop al 5 % del rango medio diario (ATR de 14 días), sin objetivo, y cierre al final del día.",
+  res:"Es la variante del estudio para no depender del apalancamiento del bróker (2016-2023). Mucho más volátil.",
+  src:"Zarattini y Aziz (2023), mismo estudio, variante en TQQQ.",t212:"lev"},
+ sip:{n:"Acciones «en juego» · ruptura de 5 minutos (las 20 del día)",fam:"Zarattini, Barbon y Aziz (2024)",
+  d:"A las 9:35 de Nueva York busca entre ~280 acciones grandes las 20 con más volumen de lo normal en los 5 primeros minutos (las que tienen noticias). En cada una, si la primera vela sube, compra al romper su máximo; si baja, vende en corto al romper su mínimo. Stop al 10 % de su ATR y cierre al final del día. Cada una lleva un 5 % de la cuenta (sin apalancar).",
+  res:"Estudio 2016-2023 con más de 7.000 acciones: +1.600 % en total netos, Sharpe 2,81, frente al +198 % del S&P 500. El estudio usaba hasta ×4; aquí no, y con menos acciones.",
+  src:"Zarattini, C., Barbon, A. y Aziz, A. (2024), «A Profitable Day Trading Strategy For The U.S. Equity Market», Swiss Finance Institute Research Paper 24-98.",t212:"acc"},
+ vwapq:{n:"Por encima o por debajo del VWAP · QQQ",fam:"Zarattini y Aziz (2023)",
+  d:"Cada minuto compara el precio del QQQ con su VWAP (el precio medio del día ponderado por volumen): por encima, comprado; por debajo, vendido en corto. Cambia cada vez que lo cruza y cierra al final del día.",
+  res:"Estudio de enero 2018 a septiembre 2023: +671 % frente al +126 % de comprar y mantener el QQQ, con caída máxima del 9,4 % (frente al 37 %) y Sharpe 2,1.",
+  src:"Zarattini, C. y Aziz, A. (2023), «Volume Weighted Average Price (VWAP): The Holy Grail for Day Trading Systems», SSRN 4631351.",t212:"etf"},
+ vwapt:{n:"Por encima o por debajo del VWAP · TQQQ (×3)",fam:"Zarattini y Aziz (2023)",
+  d:"Las mismas reglas del VWAP aplicadas a TQQQ (Nasdaq 100 ×3), como en el estudio.",
+  res:"En el estudio (2018-2023), 25.000 $ se convirtieron en unos 2,1 millones; con caídas parecidas a las del QQQ.",
+  src:"Zarattini y Aziz (2023), mismo estudio, versión en TQQQ.",t212:"lev"},
+ gao:{n:"La primera media hora decide la última · SPY",fam:"Gao, Han, Li y Zhou (2018)",
+  d:"Mira cuánto ha subido o bajado el SPY desde el cierre de ayer hasta las 10:00 de Nueva York. Si sube, compra a las 15:30 y vende al cierre; si baja, vende en corto esa última media hora. Una sola operación al día de 30 minutos.",
+  res:"Journal of Financial Economics (2018), 1993-2013: la primera media hora predice la última; la estrategia ganó un ~6,7 % al año estando invertida solo media hora al día, más que comprar en todas las últimas medias horas.",
+  src:"Gao, L., Han, Y., Li, S. Z. y Zhou, G. (2018), «Market Intraday Momentum», Journal of Financial Economics 129(2), 394-414.",t212:"etf"},
+ rod:{n:"El resto del día decide la última media hora · SPY",fam:"Baltussen, Da, Lammers y Martens (2021)",
+  d:"Mira cuánto ha subido o bajado el SPY desde el cierre de ayer hasta las 15:30 de Nueva York. Si sube, compra para la última media hora; si baja, vende en corto. Una operación al día.",
+  res:"Journal of Financial Economics (2021), más de 60 mercados de 1974 a 2020: el resto del día predice la última media hora (por las coberturas de opciones y ETF apalancados), con Sharpe de 0,87 a 1,73 por tipo de activo.",
+  src:"Baltussen, G., Da, Z., Lammers, S. y Martens, M. (2021), «Hedging Demand and Market Intraday Momentum», Journal of Financial Economics 142(1), 377-403.",t212:"etf"}
+};
+const VI_T212={etf:"En Trading 212 no se pueden comprar los ETF de EE. UU. (solo sus versiones europeas, que cierran a las 17:30) ni vender en corto: aquí sirve para comprobar si el método funciona de verdad.",
+ lev:"Usa apalancamiento (o un ETF ×3 de EE. UU.) y cortos: no se puede tal cual en Trading 212. Es para comparar con lo que dice el estudio.",
+ acc:"Con acciones de EE. UU. sí se puede en Trading 212, pero solo la parte de compras (no permite cortos): mira «Solo compras»."};
+
+/* ---------- hora de Nueva York ---------- */
+function viNthSun(y,m,n){const w=new Date(Date.UTC(y,m,1)).getUTCDay();return 1+((7-w)%7)+7*(n-1)}
+function viOff(ms){const y=new Date(ms).getUTCFullYear(),a=Date.UTC(y,2,viNthSun(y,2,2),7),b=Date.UTC(y,10,viNthSun(y,10,1),6);return ms>=a&&ms<b?-4:-5}
+function viNY(ms){const l=new Date(ms+viOff(ms)*36e5);return{d:l.toISOString().slice(0,10),m:l.getUTCHours()*60+l.getUTCMinutes()-570}}
+function viUtc(d,m){const b=Date.parse(d+"T00:00:00Z")+(570+m)*60000;return b-viOff(b+6*36e5)*36e5}
+const viDt=t=>{try{return new Date(t).toLocaleString("es-ES",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}catch(e){return String(t)}};
+const viIso=ms=>new Date(ms).toISOString().replace(/\.\d+Z$/,"Z");
+const viHM=T=>{const m=570+T;return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")};
+
+/* ---------- series de un día (índice = minuto desde las 9:30) ---------- */
+function viSer(){return{o:[],h:[],l:[],c:[],v:[]}}
+function viPut(D,bars){for(const s in bars)for(const b of bars[s]){const p=viNY(Date.parse(b.t));if(p.m<0||p.m>=VI_MO)continue;const day=D[p.d]=D[p.d]||{},x=day[s]=day[s]||viSer();x.o[p.m]=+b.o;x.h[p.m]=+b.h;x.l[p.m]=+b.l;x.c[p.m]=+b.c;x.v[p.m]=+b.v||0}}
+function viPrep(x){if(!x||x.pp)return x;let f=-1,e=-1;for(let i=0;i<VI_MO;i++)if(x.c[i]>0){if(f<0)f=i;e=i}x.f=f;x.e=e;x.open=f>=0?(x.o[f]||x.c[f]):null;x.close=e>=0?x.c[e]:null;
+ const lc=new Array(VI_MO+1),vw=new Array(VI_MO+1);let last=null,pv=0,vv=0,hi=-Infinity,lo=Infinity;lc[0]=null;vw[0]=null;
+ for(let i=0;i<VI_MO;i++){if(x.c[i]>0){last=x.c[i];const v=x.v[i]||0,tp=((x.h[i]||last)+(x.l[i]||last)+last)/3;pv+=tp*v;vv+=v;hi=Math.max(hi,x.h[i]||last);lo=Math.min(lo,x.l[i]||last)}lc[i+1]=last;vw[i+1]=vv>0?pv/vv:last}
+ x.lc=lc;x.vw=vw;x.hi=hi;x.lo=lo;x.pp=1;return x}
+const viAt=(x,T)=>x&&x.lc?x.lc[Math.min(T,VI_MO)]:null;
+const viAvg=a=>a.length?a.reduce((t,v)=>t+v,0)/a.length:null;
+function viSd(a){if(a.length<2)return null;const m=viAvg(a);return Math.sqrt(a.reduce((t,v)=>t+(v-m)*(v-m),0)/(a.length-1))}
+function viTr(s,side,inT,inPx,outT,outPx,w){return{s,side,inT,inPx,outT,outPx,w}}
+function viRet(trs,longOnly){let r=0;for(const t of trs){if(longOnly&&t.side<0)continue;if(!(t.inPx>0&&t.outPx>0))continue;r+=t.w*(t.side*(t.outPx/t.inPx-1)-VI_COST/t.inPx-VI_COST/t.outPx)}return r}
+
+/* ---------- los métodos (ctx: día, historia de 14 días, cierre de ayer…) ---------- */
+function viNoise(ctx,s,lev){const x=ctx.day[s],H=ctx.hist[s]||[],pc=ctx.pc[s];if(!x||x.e<0||H.length<14||!(pc>0)||!(x.open>0))return null;
+ let w=1;if(lev){const sd=viSd(ctx.dret[s]||[]);if(!(sd>0))return null;w=Math.min(4,0.02/sd)}
+ const o=x.open,end=Math.min(VI_MO,x.e+1),tr=[];let pos=0,en=null;
+ for(let T=30;T<=360&&T<end;T+=30){const px=viAt(x,T);if(!(px>0))continue;const sg=viAvg(H.map(h=>Math.abs(viAt(h,T)/h.open-1)).filter(v=>isFinite(v)));if(sg==null)continue;
+  const UB=Math.max(o,pc)*(1+sg),LB=Math.min(o,pc)*(1-sg),vw=x.vw[T];
+  if(pos===1&&px<Math.max(UB,vw)){tr.push(viTr(s,1,en.T,en.px,T,px,w));pos=0}
+  else if(pos===-1&&px>Math.min(LB,vw)){tr.push(viTr(s,-1,en.T,en.px,T,px,w));pos=0}
+  if(pos===0){if(px>UB){pos=1;en={T,px}}else if(px<LB){pos=-1;en={T,px}}}}
+ if(pos)tr.push(viTr(s,pos,en.T,en.px,end,x.close,w));return tr}
+function viOrb(ctx,s,mode){const x=ctx.day[s];if(!x||x.e<10)return null;let hi=-Infinity,lo=Infinity,o=null,c=null;for(let i=0;i<5;i++){if(!(x.c[i]>0))continue;if(o==null)o=x.o[i];c=x.c[i];hi=Math.max(hi,x.h[i]);lo=Math.min(lo,x.l[i])}
+ if(!(o>0&&c>0))return null;if(Math.abs(c-o)<1e-9)return[];const side=c>o?1:-1;let i0=5;while(i0<=x.e&&!(x.o[i0]>0))i0++;if(i0>x.e)return[];const e=x.o[i0];
+ let stop,tgt=null,R;if(mode==="q"){stop=side>0?lo:hi;R=Math.abs(e-stop);if(!(R>0)||(side>0?stop>=e:stop<=e))return[];tgt=e+side*10*R}else{const atr=ctx.atr[s];if(!(atr>0))return null;R=0.05*atr;stop=e-side*R}
+ const w=Math.min(1,0.01*e/R);
+ for(let i=i0;i<=x.e;i++){if(!(x.c[i]>0))continue;const H=x.h[i],L=x.l[i],O=x.o[i];
+  if(side>0){if(L<=stop)return[viTr(s,1,i0,e,i+1,Math.min(stop,O),w)];if(tgt&&H>=tgt)return[viTr(s,1,i0,e,i+1,Math.max(tgt,O),w)]}
+  else{if(H>=stop)return[viTr(s,-1,i0,e,i+1,Math.max(stop,O),w)];if(tgt&&L<=tgt)return[viTr(s,-1,i0,e,i+1,Math.min(tgt,O),w)]}}
+ return[viTr(s,side,i0,e,x.e+1,x.close,w)]}
+function viVwap(ctx,s){const x=ctx.day[s];if(!x||x.e<5)return null;const tr=[];let pos=0,en=null;
+ for(let i=0;i<x.e;i++){if(!(x.c[i]>0))continue;const px=x.c[i],vw=x.vw[i+1],want=px>vw?1:px<vw?-1:pos;
+  if(want!==pos){if(pos)tr.push(viTr(s,pos,en.T,en.px,i+1,px,1));pos=want;en={T:i+1,px}}}
+ if(pos)tr.push(viTr(s,pos,en.T,en.px,x.e+1,x.close,1));return tr}
+function viLastHalf(ctx,s,from){const x=ctx.day[s],pc=ctx.pc[s];if(!x||x.e<60||!(pc>0))return null;const end=x.e+1,p0=viAt(x,from==="open"?30:end-30),p1=viAt(x,end-30);if(!(p0>0&&p1>0))return null;
+ const r=p0/pc-1;if(r===0)return[];const side=r>0?1:-1;return[viTr(s,side,end-30,p1,end,x.close,1)]}
+function viSip(ctx){const U=ctx.univ;if(!U)return null;const cand=[];
+ for(const s in U.f){const f=U.f[s],hv=U.hv[s]||[],dd=U.dly[s];if(!f||!(f.v>0)||hv.length<10||!dd)continue;if(!(f.o>5)||!(dd.atr>0.5)||!(dd.vol>1e6))continue;const rv=f.v/viAvg(hv);if(!(rv>1))continue;if(Math.abs(f.c-f.o)<1e-9)continue;cand.push({s,rv,f,atr:dd.atr})}
+ cand.sort((a,b)=>b.rv-a.rv);const top=cand.slice(0,20),tr=[];
+ for(const c of top){const x=ctx.sd&&ctx.sd[c.s];if(!x||x.e<6)continue;const side=c.f.c>c.f.o?1:-1,lvl=side>0?c.f.h:c.f.l,R=0.1*c.atr;let en=null,stop=null,w=0;
+  for(let i=5;i<=x.e;i++){if(!(x.c[i]>0))continue;const H=x.h[i],L=x.l[i],O=x.o[i];
+   if(!en){if(side>0?H>=lvl:L<=lvl){const px=side>0?Math.max(lvl,O):Math.min(lvl,O);en={T:i,px};stop=px-side*R;w=Math.min(0.05,0.01*px/R)}else continue}
+   if(side>0?L<=stop:H>=stop){const ex=i===en.T?stop:(side>0?Math.min(stop,O):Math.max(stop,O));tr.push(viTr(c.s,side,en.T,en.px,i+1,ex,w));en=null;break}}
+  if(en)tr.push(viTr(c.s,side,en.T,en.px,x.e+1,x.close,w))}
+ tr.top=top.map(c=>c.s);return tr}
+const VIF={noise:c=>viNoise(c,"SPY",false),noise4:c=>viNoise(c,"SPY",true),noiseq:c=>viNoise(c,"QQQ",false),orbq:c=>viOrb(c,"QQQ","q"),orbt:c=>viOrb(c,"TQQQ","t"),sip:viSip,vwapq:c=>viVwap(c,"QQQ"),vwapt:c=>viVwap(c,"TQQQ"),gao:c=>viLastHalf(c,"SPY","open"),rod:c=>viLastHalf(c,"SPY","rod")};
+
+/* Calcula todos los métodos para un día. days: lista ordenada de fechas con datos; i: índice del día */
+function viDay(D,days,i,univ,sd){const d=days[i],day=D[d]||{},ctx={d,day:{},hist:{},pc:{},dret:{},atr:{},univ,sd};
+ for(const s of VI_ETF){const x=viPrep(day[s]);if(!x||x.e<0)continue;ctx.day[s]=x;const H=[],R=[],TR=[];let prev=null;
+  for(let j=Math.max(0,i-15);j<i;j++){const y=viPrep((D[days[j]]||{})[s]);if(!y||y.e<0)continue;if(prev&&prev.close>0){R.push(y.close/prev.close-1);TR.push(Math.max(y.hi-y.lo,Math.abs(y.hi-prev.close),Math.abs(y.lo-prev.close)))}H.push(y);prev=y}
+  ctx.hist[s]=H.slice(-14);ctx.pc[s]=prev?prev.close:null;ctx.dret[s]=R.slice(-14);ctx.atr[s]=TR.length>=10?viAvg(TR.slice(-14)):null}
+ if(sd)for(const s in sd)viPrep(sd[s]);
+ const out={d,spy:ctx.day.SPY&&ctx.pc.SPY>0?ctx.day.SPY.close/ctx.pc.SPY-1:null,r:{},t:{}};
+ for(const k in VIF){let tr=null;try{tr=VIF[k](ctx)}catch(e){tr=null}if(!tr)continue;out.r[k]=[+viRet(tr,false).toFixed(6),+viRet(tr,true).toFixed(6),tr.length,tr.filter(t=>t.side*(t.outPx-t.inPx)>0).length];out.t[k]=tr.slice(0,40).map(t=>({s:t.s,sd:t.side,a:t.inT,b:t.outT,pa:+t.inPx.toFixed(4),pb:+t.outPx.toFixed(4),w:+t.w.toFixed(3)}));if(tr.top)out.top=tr.top}
+ return out}
+
+/* ---------- Alpaca ---------- */
+const viSl=ms=>new Promise(r=>setTimeout(r,ms));
+function viHd(){const k=String((typeof readKeys==="function"?readKeys().al:"")||"").split(":");const id=(k[0]||"").trim(),sec=(k.slice(1).join(":")||"").trim();if(!id||!sec)return null;return{"APCA-API-KEY-ID":id,"APCA-API-SECRET-KEY":sec}}
+async function viBars(st,syms,tf,a,b){const out={};let tok=null,n=0;
+ for(;;){const u="https://data.alpaca.markets/v2/stocks/bars?symbols="+encodeURIComponent(syms.join(","))+"&timeframe="+tf+"&start="+viIso(a)+"&end="+viIso(b)+"&limit=10000&adjustment=split&feed="+(st.feed||"sip")+"&sort=asc"+(tok?"&page_token="+encodeURIComponent(tok):"");
+  let r,t,j;for(let k=0;k<4;k++){r=await fetch(u,{headers:st.hd});st.calls++;t=await r.text();try{j=JSON.parse(t)}catch{j=null}if(r.status===429){await viSl(20000);continue}break}
+  if(!r.ok){if((r.status===403||r.status===422)&&(st.feed||"sip")==="sip"){st.feed="iex";return viBars(st,syms,tf,a,b)}const e=new Error("Alpaca HTTP "+r.status+": "+String((j&&j.message)||t||"").slice(0,120));e.st=r.status;throw e}
+  for(const s in((j&&j.bars)||{}))(out[s]=out[s]||[]).push(...j.bars[s]);tok=j&&j.next_page_token;await viSl(320);if(!tok)break;if(++n>60)break}
+ return out}
+/* datos diarios de las acciones (ATR y volumen medio de 14 días hasta el día anterior), del histórico del bot */
+function viDaily(H,s,d){const h=H[s];if(!h||!h.r||h.r.length<20)return null;const dn=dayN(d);let i=h.r.length-1;while(i>=0&&h.r[i][0]>=dn)i--;if(i<15)return null;let a=0,v=0;for(let j=i-13;j<=i;j++){const r=h.r[j],pc=h.r[j-1][4];a+=Math.max(r[2]-r[3],Math.abs(r[2]-pc),Math.abs(r[3]-pc));v+=r[5]||0}return{atr:a/14,vol:v/14}}
+
+/* ---------- actualización: rehace lo que falte (el último año la 1.ª vez) y el día de hoy en curso ---------- */
+async function viUpdate(o){o=o||{};const VX=S.vix=(S.vix&&S.vix.v===2)?S.vix:{v:2,days:[],tr:{},rv:{},feed:null,at:null,err:null,prog:null,hoy:null,log:[]};
+ const t0=Date.now(),budget=o.budget||9*60e3,hd=viHd(),res={nuevos:[],hoy:false,backfill:false,err:null};
+ const say=m=>{VX.msg=m;try{viDraw()}catch{}};
+ if(!hd){VX.err="Falta la clave de Alpaca (ID:SECRETO) en Ajustes → claves de datos: el vigilante la necesita para las velas de 1 minuto.";res.err=VX.err;try{viDraw()}catch{}return res}
+ if(viUpdate.on)return res;viUpdate.on=true;const st={hd,feed:VX.feed||"sip",calls:0};
+ try{VX.err=null;const now=Date.now(),ny=viNY(now),todayFinal=now>=viUtc(ny.d,410);
+  const lastDone=VX.days.length?VX.days[VX.days.length-1].d:null,first=lastDone?dayS(dayN(lastDone)+1):dayS(dayN(ny.d)-VI_BACK);
+  res.backfill=!lastDone;if(!lastDone)VX.start=first;
+  const H=hG(),U=(typeof MOM_UNI!=="undefined"?MOM_UNI:[]).filter(s=>!VI_ETF.includes(s));
+  /* tramos de ~30 días naturales, del más antiguo al más nuevo */
+  let D={},cur=dayN(first);const endN=dayN(ny.d);
+  while(cur<=endN){if(Date.now()-t0>budget){res.parcial=true;break}
+   const a=Math.max(cur,0),b=Math.min(endN,a+29),preA=a-(Object.keys(D).length?0:VI_HIST*1.5|0);
+   say((res.backfill?"Rehaciendo el último año con velas de 1 minuto: ":"Actualizando: ")+fd(dayS(a))+" → "+fd(dayS(b))+"…");
+   const endMs=Math.min(viUtc(dayS(b),391),Date.now()-16*60000);if(endMs<=viUtc(dayS(preA),0)){cur=b+1;continue}
+   const bars=await viBars(st,VI_ETF,"1Min",viUtc(dayS(preA),0),endMs);viPut(D,bars);
+   const days=Object.keys(D).filter(d=>D[d].SPY).sort();
+   /* volumen de los 5 primeros minutos de cada acción (para «acciones en juego») */
+   for(const d of days){if(dayN(d)>b)break;if(dayN(d)<a-25||VX.rv[d]||Date.now()-t0>budget)continue;if(!(Date.now()>viUtc(d,5+16)))continue;
+    const fb=await viBars(st,U,"5Min",viUtc(d,0),viUtc(d,1));VX.rv[d]={};for(const s in fb){const z=fb[s].find(x=>viNY(Date.parse(x.t)).m===0);if(z)VX.rv[d][s]=[+(+z.o).toFixed(3),+(+z.h).toFixed(3),+(+z.l).toFixed(3),+(+z.c).toFixed(3),+z.v]}}
+   for(let i=0;i<days.length;i++){const d=days[i],dn=dayN(d);if(dn<a||dn>b)continue;if(VX.days.some(z=>z.d===d))continue;if(Date.now()-t0>budget){res.parcial=true;break}
+    const fin=d<ny.d||(d===ny.d&&todayFinal);if(!fin&&d!==ny.d)continue;
+    const rvD=Object.keys(VX.rv).filter(x=>x<d).sort().slice(-14),f0=VX.rv[d]||{},univ={f:{},hv:{},dly:{}};
+    for(const s in f0){if(!Array.isArray(f0[s]))continue;univ.f[s]={o:f0[s][0],h:f0[s][1],l:f0[s][2],c:f0[s][3],v:f0[s][4]};univ.hv[s]=rvD.map(x=>{const z=VX.rv[x]&&VX.rv[x][s];return Array.isArray(z)?z[4]:z}).filter(v=>v>0);univ.dly[s]=viDaily(H,s,d)}
+    let sd=null;const pre=viDay(D,days,i,Object.keys(f0).length?univ:null,{});
+    if(pre.top&&pre.top.length){const sb=await viBars(st,pre.top,"1Min",viUtc(d,0),Math.min(viUtc(d,391),Date.now()-16*60000));const SD={};viPut(SD,sb);sd=SD[d]||{}}
+    const out=viDay(D,days,i,Object.keys(f0).length?univ:null,sd||{});
+    if(fin){if(VX.rv[d])for(const s in VX.rv[d])if(Array.isArray(VX.rv[d][s]))VX.rv[d][s]=VX.rv[d][s][4];VX.days.push({d,spy:out.spy,r:out.r});VX.days.sort((x,y)=>x.d<y.d?-1:1);for(const k in out.t)if(out.t[k].length){(VX.tr[k]=VX.tr[k]||[]).unshift({d,t:out.t[k]});VX.tr[k]=VX.tr[k].slice(0,8)}res.nuevos.push(d);if(VX.hoy&&VX.hoy.d===d)VX.hoy=null}
+    else{VX.hoy={d,spy:out.spy,r:out.r,t:out.t,hasta:viNY(Math.min(Date.now()-16*60000,viUtc(d,390))).m,at:new Date().toISOString()};res.hoy=true}}
+   /* conservar solo los últimos días necesarios para las medias */
+   const keep=Object.keys(D).sort().slice(-VI_HIST);for(const d of Object.keys(D))if(!keep.includes(d))delete D[d];
+   cur=b+1;VX.prog={hasta:dayS(Math.min(b,endN)),de:VX.start};await save()}
+  for(const d of Object.keys(VX.rv).sort().slice(0,-18))delete VX.rv[d];
+  if(VX.hoy&&VX.hoy.d!==ny.d)VX.hoy=null;
+  VX.feed=st.feed;VX.at=new Date().toISOString();VX.calls=st.calls;VX.msg=res.parcial?"Sigue en la próxima actualización (queda una parte del año por calcular).":"";
+  if(!res.parcial)VX.prog=null}
+ catch(e){VX.err="No se pudo actualizar: "+(typeof mask==="function"?mask(String(e.message||e)):String(e.message||e));res.err=VX.err;VX.msg=""}
+ finally{viUpdate.on=false;try{await save()}catch{}try{viDraw()}catch{}}
+ res.calls=st.calls;return res}
+
+/* ---------- resumen de resultados ---------- */
+function viStats(VX,from){const days=(VX&&VX.days||[]).filter(z=>!from||z.d>=from),out={};let spy=1,spyPk=1,spyDD=0;
+ for(const z of days)if(z.spy!=null){spy*=1+z.spy;spyPk=Math.max(spyPk,spy);spyDD=Math.min(spyDD,spy/spyPk-1)}
+ for(const k in VIM){let e=1,lo=1,pk=1,dd=0,n=0,w=0,nd=0;const cur=[];for(const z of days){const r=z.r&&z.r[k];if(r){e*=1+r[0];lo*=1+r[1];n+=r[2];w+=r[3];nd++}pk=Math.max(pk,e);dd=Math.min(dd,e/pk-1);cur.push(e)}
+  out[k]={k,g:e-1,lo:lo-1,dd,n,w,nd,cur}}
+ return{days,spy:spy-1,spyDD,m:out,from:days.length?days[0].d:null,to:days.length?days[days.length-1].d:null}}
+function viSummaryTxt(VX){const s=viStats(VX),last=VX.days[VX.days.length-1];if(!last)return"";const R=Object.values(s.m).sort((a,b)=>b.g-a.g),pc=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",",")+" %";
+ const day=Object.keys(VIM).filter(k=>last.r[k]).map(k=>({k,r:last.r[k][0]})).sort((a,b)=>b.r-a.r);
+ return"Vigilante intradía · "+fd(last.d)+"\nSPY ese día: "+pc(last.spy||0)+"\nMejores del día: "+day.slice(0,3).map(x=>VIM[x.k].n+" "+pc(x.r)).join(" · ")+"\n\nDesde el "+fd(s.from)+" (SPY "+pc(s.spy)+"):\n"+R.slice(0,5).map((x,j)=>(j+1)+". "+VIM[x.k].n+": "+pc(x.g)+(x.g>s.spy?" ✅":"")).join("\n")+"\n\nTodo simulado con velas reales de 1 minuto (no es dinero real)."}
+
+/* ---------- pantalla ---------- */
+let VIV={p:"all"};try{Object.assign(VIV,JSON.parse(localStorage.getItem("pbviv")||"{}"))}catch{}
+function viSpark(cur,spy){if(!cur||cur.length<2)return"";const W=300,Hh=60,all=cur.concat(spy),mn=Math.min(...all,1),mx=Math.max(...all,1),y=v=>Hh-4-(v-mn)/((mx-mn)||1)*(Hh-8),x=i=>i/(cur.length-1)*W;
+ const path=a=>a.map((v,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)).join("");
+ return`<svg class="vi-sp" viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="none" aria-hidden="true"><line x1="0" x2="${W}" y1="${y(1).toFixed(1)}" y2="${y(1).toFixed(1)}" class="z"/><path d="${path(spy)}" class="b"/><path d="${path(cur)}" class="${cur[cur.length-1]>=1?"u":"d"}"/></svg>`}
+function viDraw(){const el=document.getElementById("vi-root");if(!el)return;const VX=S.vix&&S.vix.v===2?S.vix:null,pc=x=>(x>=0.00005?"+":x<=-0.00005?"−":"")+Math.abs(x*100).toLocaleString("es-ES",{minimumFractionDigits:1,maximumFractionDigits:1})+" %";
+ const last=VX&&VX.days.length?VX.days[VX.days.length-1].d:null,P={m1:30,m3:91,all:null},from=last&&P[VIV.p]?dayS(dayN(last)-P[VIV.p]):null,s=viStats(VX,from);
+ const spyCur=[];{let e=1;for(const z of s.days){if(z.spy!=null)e*=1+z.spy;spyCur.push(e)}}
+ const R=Object.values(s.m).filter(x=>x.nd).sort((a,b)=>b.g-a.g),nb=R.filter(x=>x.g>s.spy).length,hoy=VX&&VX.hoy;
+ let h=`<div class="p hero vi-hero"><h2>👁️ Vigilante · day trading</h2><div class="m">10 métodos con estudios publicados que compran y venden <b>dentro del mismo día</b> (nunca se quedan de noche). Cada uno con ${E(START)} ficticios y velas reales de 1 minuto. El listón: el <b>SPY</b> (comprar y mantener).</div>`;
+ if(s.days.length)h+=`<div class="vi-kpi"><div><small>Periodo</small><b>${esc(fd(s.from))} ${s.from.slice(2,4)} – ${esc(fd(s.to))} ${s.to.slice(2,4)}</b><small>${s.days.length} días de bolsa</small></div><div><small>SPY</small><b class="${s.spy>=0?"up":"dn"}">${pc(s.spy)}</b><small>${E(START*(1+s.spy))}</small></div><div><small>Baten al SPY</small><b>${nb} de ${R.length}</b><small>en este periodo</small></div></div>`;
+ h+=`<div class="m vi-st">${VX&&VX.err?"⚠️ "+esc(VX.err):VX&&VX.msg?"⏳ "+esc(VX.msg):VX&&VX.at?"Actualizado "+esc(viDt(VX.at))+(hoy?" · hoy en curso hasta las "+viHM(hoy.hasta)+" de Nueva York":""):"Aún sin calcular: la primera vez rehace el último año entero (tarda unos minutos)."}</div>
+ <button id="vi-go" class="go">🔄 Actualizar ahora</button></div>`;
+ if(!s.days.length){el.innerHTML=h+`<div class="p"><div class="m">Cuando termine la primera actualización verás aquí la clasificación de los 10 métodos frente al SPY.</div></div>`;viBind();return}
+ h+=`<div class="p"><div class="chtop"><h2>🏆 ¿Cuál bate al SPY?</h2></div><div class="pills" id="vi-per">${[["m1","1 mes"],["m3","3 meses"],["all","Todo"]].map(([k,t])=>`<button data-vp="${k}" class="${VIV.p===k?"on":""}">${t}</button>`).join("")}</div><div class="vi-l">`;
+ h+=R.map((x,j)=>{const M=VIM[x.k],beat=x.g>s.spy,ht=hoy&&hoy.r[x.k],tr=(VX.tr[x.k]||[]);return`<details class="vi-c${beat?" ok":""}"><summary><span class="rk">${["🥇","🥈","🥉"][j]||j+1}</span><span class="nm">${esc(M.n)}<small>${beat?'<span class="bdg ok">✅ Bate al SPY</span>':'<span class="bdg no">Por debajo del SPY</span>'}${ht?` · hoy <b style="white-space:nowrap" class="${ht[0]>=0?"up":"dn"}">${pc(ht[0])}</b>`:""}</small></span><span class="pa ${x.g>=0?"up":"dn"}">${pc(x.g)}<small>${E(START*(1+x.g))}</small></span></summary>
+  <div class="bd">${viSpark(x.cur,spyCur)}<div class="m vi-leg"><i class="u"></i> el método · <i class="b"></i> SPY</div>
+  <div class="vi-kv"><div><small>Solo compras (como en T212)</small><b class="${x.lo>=0?"up":"dn"}">${pc(x.lo)}</b></div><div><small>Peor bajada</small><b class="dn">${pc(x.dd)}</b></div><div><small>Operaciones</small><b>${x.n}</b></div><div><small>Aciertos</small><b>${x.n?Math.round(x.w/x.n*100)+" %":"—"}</b></div></div>
+  <div class="m">${esc(M.d)}</div><div class="m"><b>Qué dice el estudio:</b> ${esc(M.res)}</div><div class="m">🇪🇺 ${esc(VI_T212[M.t212])}</div>
+  ${tr.length?`<details class="rd"><summary><span>Últimas operaciones</span></summary><div class="rb">${tr.slice(0,5).map(z=>`<div class="m"><b>${esc(fd(z.d))}</b>: ${z.t.slice(0,6).map(t=>`${t.sd>0?"🟢 compra":"🔴 corto"} ${esc(t.s)} ${viHM(t.a)}→${viHM(Math.min(t.b,390))} (${pc(t.sd*(t.pb/t.pa-1))})`).join(" · ")}${z.t.length>6?" · …":""}</div>`).join("")}</div></details>`:""}
+  <div class="m" style="opacity:.75;font-style:italic">${esc(M.src)}</div></div></details>`}).join("");
+ h+=`</div><div class="m">SPY en el mismo periodo: <b class="${s.spy>=0?"up":"dn"}">${pc(s.spy)}</b> (peor bajada ${pc(s.spyDD)}). Toca un método para ver cómo funciona y qué dice su estudio.</div></div>`;
+ h+=`<details class="fold"><summary>ℹ️ Cómo se calcula</summary><div class="fb"><div class="m">• Velas reales de <b>1 minuto</b> de Alpaca${VX.feed==="iex"?" (fuente IEX)":""}, de 9:30 a 16:00 de Nueva York. Cada método opera con sus reglas publicadas y <b>cierra todo antes del cierre</b>.</div><div class="m">• Costes: 0,0035 $ de comisión + 0,001 $ de deslizamiento por acción y por lado (como el estudio del SPY). Sin apalancar, salvo los métodos marcados (×3 o tamaño por volatilidad).</div><div class="m">• Se actualiza solo cada hora con la bolsa abierta y tras el cierre; los días ya cerrados no cambian. «Solo compras» quita los cortos (lo que permitiría Trading 212).</div><div class="m">• Ojo: que un método ganara en un estudio no garantiza que siga ganando. Para eso está el vigilante: ver si funciona con días nuevos que el estudio no conocía.</div><button id="vi-md" class="ghost">⬇️ Descargar resultados (.md)</button></div></details>`;
+ el.innerHTML=h;viBind()}
+function viMd(){const VX=S.vix;if(!VX||!VX.days.length)return"# Vigilante intradía\n\nSin datos todavía.\n";const s=viStats(VX),pc=x=>(x*100).toFixed(2).replace(".",",")+" %",L=["# Vigilante intradía · resultados","",`Periodo: ${s.from} → ${s.to} (${s.days.length} días de bolsa) · generado ${new Date().toISOString()}`,"",`SPY (comprar y mantener): ${pc(s.spy)} · peor bajada ${pc(s.spyDD)}`,"","| # | método | resultado | solo compras | peor bajada | operaciones | aciertos | ¿bate al SPY? |","|---|---|---|---|---|---|---|---|"];
+ Object.values(s.m).filter(x=>x.nd).sort((a,b)=>b.g-a.g).forEach((x,j)=>L.push(`| ${j+1} | ${VIM[x.k].n} | ${pc(x.g)} | ${pc(x.lo)} | ${pc(x.dd)} | ${x.n} | ${x.n?Math.round(x.w/x.n*100)+" %":"—"} | ${x.g>s.spy?"sí":"no"} |`));
+ L.push("","## Resultado diario (%)","","| día | SPY | "+Object.keys(VIM).join(" | ")+" |","|---|---|"+Object.keys(VIM).map(()=>"---").join("|")+"|");for(const z of s.days)L.push(`| ${z.d} | ${pc(z.spy||0)} | `+Object.keys(VIM).map(k=>z.r[k]?pc(z.r[k][0]):"—").join(" | ")+" |");
+ L.push("","## Métodos y fuentes","");for(const k in VIM)L.push(`- **${VIM[k].n}**: ${VIM[k].d} ${VIM[k].res} _${VIM[k].src}_`);return L.join("\n")+"\n"}
+function viBind(){const g=document.getElementById("vi-go");if(g)g.onclick=()=>{if(window.__VIEWER){try{wfCloud("vigilante.yml","Vigilante",document.querySelector("#vi-root .vi-st"),g)}catch(e){}}else viUpdate()};
+ document.querySelectorAll("#vi-per button").forEach(b=>b.onclick=()=>{VIV.p=b.dataset.vp;try{localStorage.setItem("pbviv",JSON.stringify(VIV))}catch{}viDraw()});
+ const m=document.getElementById("vi-md");if(m)m.onclick=()=>dl("vigilante-intradia-"+T0()+".md",viMd())}
+
+try{setTimeout(()=>{try{viDraw()}catch(e){}},300)}catch(e){}
+</script>
+<script id="simple-mode">
 (function(){var b=document.getElementById("simpleB");function lab(){var on=document.body.classList.contains("simple");b.textContent=on?"👓 Ver todo":"✨ Modo sencillo";b.setAttribute("aria-pressed",on?"true":"false")}
  lab();b.onclick=function(){var on=!document.body.classList.contains("simple");document.body.classList.toggle("simple",on);try{localStorage.setItem("pbsimple",on?"1":"0")}catch(e){}lab();try{btmDraw0()}catch(e){}
-  try{var t=document.querySelector(".tab.on");if(on&&t&&t.id==="t-vigia")go("hoy")}catch(e){}}})();
+  }})();
 </script>
 <script id="working">
 /* v65 · cada botón enseña que está trabajando mientras dura su proceso */
 (function(){
  var W=window.__busyChecks=window.__busyChecks||[];
  W.push(function(){try{return !!(busy||(typeof BTB!=="undefined"&&BTB.v)||(typeof VG!=="undefined"&&VG.busy))}catch(e){return false}});
- W.push(function(){try{if(typeof dailyCloud==="function"&&dailyCloud.on)return true;var r=document.getElementById("btr");return !!(r&&r.disabled)}catch(e){return false}});
+ W.push(function(){try{if(typeof dailyCloud==="function"&&dailyCloud.on)return true;if(typeof wfCloud==="function"&&wfCloud.on)return true;if(typeof viUpdate==="function"&&viUpdate.on)return true;var r=document.getElementById("btr");return !!(r&&r.disabled)}catch(e){return false}});
  var n=0,lastAct=0,lastStart=0;
  function track(p){n++;lastStart=lastAct=Date.now();var done=function(){n--;lastAct=Date.now()};try{p.then(done,done)}catch(e){done()}return p}
  var of=window.fetch;if(of)window.fetch=function(){return track(of.apply(this,arguments))};
