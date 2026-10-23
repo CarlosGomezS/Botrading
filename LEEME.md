@@ -9,6 +9,9 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v46 (web v85): ETF o acciones, gana el mejor
+- Si el método confirmado es de acciones y tienes desactivada su compra, la propuesta llega igual con «✅ Cambiar»; al aprobarla se activa también la compra de acciones (te avisa del 0,15 % de cambio de divisa salvo saldo en dólares).
+
 ## Novedades v45 (web v84): el laboratorio no para nunca
 - Nuevo flujo **`laboratorio.yml`**: además de la prueba de la noche, cada 2 horas de 03:00 a 19:00 UTC (también fines de semana) hace una ronda de 48 métodos nuevos. Unos 450 métodos al día.
 - No coincide con la actualización de precios ni con la prueba de la noche, y si hay otra tarea del bot en marcha se salta esa ronda. Las rondas extra no cuentan como «la prueba de hoy».

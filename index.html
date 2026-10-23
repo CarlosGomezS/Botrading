@@ -472,7 +472,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v84</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v85</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2973,7 +2973,7 @@ const cls=v=>v>0.004?"up":v<-0.004?"dn":"";
 const dt=t=>{try{return new Date(t).toLocaleString("es-ES",{dateStyle:"short",timeStyle:"short"})}catch(e){return String(t||"—")}};
 const ri=()=>{const c=C();return c&&c.ri?c.ri():null};
 const qtyT=q=>(+q).toLocaleString("es-ES",{maximumFractionDigits:4});
-function A(){const o=Object.assign({},DEF,(RL.R&&RL.R.cfg)||{},RL.cfg||{}),ov=RL.R&&RL.R.metOv;if(ov&&ov.k&&!(RL.cfg&&RL.cfg.savedAt&&Date.parse(RL.cfg.savedAt)>=Date.parse(ov.ts)))o.metodo=ov.k;return o}
+function A(){const o=Object.assign({},DEF,(RL.R&&RL.R.cfg)||{},RL.cfg||{}),ov=RL.R&&RL.R.metOv;if(ov&&ov.k&&!(RL.cfg&&RL.cfg.savedAt&&Date.parse(RL.cfg.savedAt)>=Date.parse(ov.ts))){o.metodo=ov.k;if(ov.acc)o.acciones=1}return o}
 function say(t){RL.msg=t;["#rl-st","#rl-st2"].forEach(id=>{const e=$r(id);if(e)e.textContent=t})}
 
 /* ---------- datos: real.json (rama real) y real-ajustes.json (rama main) ---------- */

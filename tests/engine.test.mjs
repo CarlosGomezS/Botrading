@@ -137,7 +137,7 @@ test("¿hay un método mejor?: solo si está confirmado, va mejor en la ficticia
   assert.equal(sugerencia(S, "sect", { GLD: { sym: "GLD", t: null } }), null, "si un ETF no se puede comprar en tu cuenta, no se propone");
   assert.equal(sugerencia(S, "sect", { GLD: { sym: "GLD", t: "SGLN_EQ" } }).k, "trq");
   books.trq.tgt = { w: { NVDA: 1 } }; const sa = sugerencia(S, "sect", { NVDA: { sym: "NVDA", t: null, why: "acciones desactivadas en los ajustes" } });
-  assert.ok(sa && sa.needAcc, "con acciones desactivadas se avisa, pero sin botón de cambiar");
+  assert.ok(sa && sa.needAcc, "con acciones desactivadas se propone igual y, al aprobar, se activa la compra de acciones");
 });
 
 // ============================== ESCENARIOS COMPLETOS ==============================

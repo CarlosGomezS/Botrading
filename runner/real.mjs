@@ -817,7 +817,7 @@ async function main() {
   try { R = await loadReal(); } catch (e) { if (A.on || EVENT !== "schedule") { await avisa("✖ Cartera real: error", String(e.message), { prio: 4 }); } throw e; }
   R.cfg = A;
   // v77: método cambiado por Telegram («✅ Cambiar»): manda hasta que guardes los ajustes desde la web
-  if (R.metOv && R.metOv.k) { if (LC.savedAt && Date.parse(LC.savedAt) >= Date.parse(R.metOv.ts)) R.metOv = null; else A.metodo = R.metOv.k; }
+  if (R.metOv && R.metOv.k) { if (LC.savedAt && Date.parse(LC.savedAt) >= Date.parse(R.metOv.ts)) R.metOv = null; else { A.metodo = R.metOv.k; if (R.metOv.acc) A.acciones = 1; } }
   const rep = [], head = [];
   let botC = null;
   const getBot = () => botC || (botC = loadBot());
@@ -869,7 +869,7 @@ async function main() {
       if (!P || P.estado !== "pendiente" || env("PLAN_ID") !== P.id) { titulo = "No había esa propuesta de cambio"; rep.push("No hay ninguna propuesta de cambio de método pendiente con ese identificador (quizá ya la contestaste)."); return; }
       P.fin = now.toISOString();
       if (tipo === "metodo-no") { P.estado = "rechazada"; titulo = "Cambio de método rechazado"; rep.push(`Sigues con «${NOMBRES[A.metodo] || A.metodo}». No te volveré a proponer «${P.n}» en 60 días.`); aviso = { title: "❌ Cambio de método rechazado", msg: rep.join("\n"), prio: 2 }; return; }
-      P.estado = "aprobada"; R.metOv = { k: P.k, n: P.n, ts: now.toISOString(), de: A.metodo }; A.metodo = P.k; R.lastNormal = null;
+      P.estado = "aprobada"; R.metOv = { k: P.k, n: P.n, ts: now.toISOString(), de: A.metodo, acc: P.needAcc ? 1 : undefined }; A.metodo = P.k; if (P.needAcc) A.acciones = 1; R.lastNormal = null;
       titulo = "Cambio de método aprobado"; rep.push(`A partir de la próxima revisión con la bolsa abierta, la cartera real sigue «${P.n}»: venderá lo que no esté en su cartera objetivo y comprará lo nuevo${A.modo === "confirmar" ? " (te pedirá aprobar las órdenes, como siempre)" : ""}.`, "Si guardas los ajustes desde la web, manda el método que tengas elegido allí.");
       aviso = { title: "✅ Cambio de método aprobado", msg: rep.join("\n"), prio: 3 }; return;
     }
@@ -1068,12 +1068,11 @@ async function main() {
         if (sg && !busy) {
           const id = "m" + now.getTime().toString(36);
           if (P && P.estado === "pendiente") { P.estado = "sustituida"; P.fin = now.toISOString(); }
-          R.metSug = { id, k: sg.k, n: sg.n, ts: now.toISOString(), estado: sg.needAcc ? "rechazada" : "pendiente", an: sg.an, g: sg.g, gs: sg.gs, d0: sg.d0, needAcc: !!sg.needAcc, fin: sg.needAcc ? now.toISOString() : undefined };
+          R.metSug = { id, k: sg.k, n: sg.n, ts: now.toISOString(), estado: "pendiente", an: sg.an, g: sg.g, gs: sg.gs, d0: sg.d0, needAcc: !!sg.needAcc };
           const pc = (x) => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1).replace(".", ",") + " %";
           const txt = `Tu cartera real sigue «${NOMBRES[A.metodo] || A.metodo}». El bot ha encontrado uno que lo hace mejor y ya está confirmado:\n\n🏆 ${sg.n}${sg.fwd ? "\n· Método de acciones en prueba en vivo (sin prueba histórica, que con acciones hace trampa)" : `\n· Prueba histórica (después de impuestos): ${pc(sg.an)}/año${(b.S.labAn || {})[A.metodo] != null ? " (el tuyo " + pc(b.S.labAn[A.metodo]) + "/año)" : ""}`}\n· En la ficticia desde el ${sg.d0}: ${pc(sg.g)} (SPY ${pc(sg.gs)})${sg.fwd ? "" : `\n· Peor caída histórica ${pc(sg.dd || 0)} · ~${Math.max(1, Math.round(sg.opy || 1))} ventas al año`}\n\nSi lo cambias, en la próxima revisión el bot venderá lo de ahora y comprará lo nuevo (las ventas con ganancia tributan).`;
           rep.push("", "## Propuesta de cambio de método", "", txt);
-          if (sg.needAcc) await avisa("🔎 Cartera real: hay un método mejor (con acciones)", txt + "\n\nCompra acciones de EE. UU. y tienes desactivada esa opción. Si quieres seguirlo, activa «Comprar acciones» en 💶 Real → Ajustes de la cartera real y elige el método allí.", { prio: 3 });
-          else await avisa("🔎 Cartera real: hay un método mejor", txt, { prio: 3, kb: [[{ text: "✅ Cambiar", callback_data: "mc:" + id }, { text: "❌ No cambiar", callback_data: "mr:" + id }]] });
+          await avisa("🔎 Cartera real: hay un método mejor", txt + (sg.needAcc ? "\n\nCompra acciones de EE. UU.: si pulsas «✅ Cambiar» se activa también la compra de acciones. Cotizan en dólares (0,15 % de cambio por operación, salvo que tengas saldo en dólares en Trading 212)." : ""), { prio: 3, kb: [[{ text: "✅ Cambiar", callback_data: "mc:" + id }, { text: "❌ No cambiar", callback_data: "mr:" + id }]] });
         }
       }
     } catch (e) { log("No pude revisar si hay un método mejor:", String(e.message).slice(0, 120)); }
