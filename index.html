@@ -425,7 +425,7 @@ button.go:hover:not([disabled]){background:#ffc94d;box-shadow:0 12px 24px -12px 
 .rl-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.rl-mini button{font-size:12.5px;padding:8px 4px;min-height:40px;background:color-mix(in srgb,var(--line) 30%,transparent);border-color:transparent}
 #rl-rng{margin-bottom:2px;display:flex;flex-wrap:nowrap;gap:5px}#rl-rng button{flex:1 1 0;min-width:0;padding:7px 2px;font-size:12.5px;white-space:nowrap}
 </style></head><body><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v64</span></h1><div class="m">Tu cartera real en Trading 212, la ficticia para probar y las pruebas con 26 años de datos.</div></div></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v65</span></h1><div class="m">Tu cartera real en Trading 212, la ficticia para probar y las pruebas con 26 años de datos.</div></div></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2516,7 +2516,7 @@ G0.__SEAL={blake2b,seal,from_string:s=>new TextEncoder().encode(s),from_base64:t
     Arriba del todo está el campo de la clave. Al pulsar «Editar» aparecen debajo todos los ajustes; «Guardar edición» los envía a la nube
     y «Reiniciar todo» borra todos los datos. La clave NO se guarda: solo sirve para descifrar (AES-GCM) el token de GitHub que queda
     cifrado en este navegador. Sin la clave no se puede cambiar nada; el token (solo este repositorio) es lo que de verdad autoriza los cambios. */
- var CL={},TOK=null,lockT=null,ENC="ghtok_enc",BUSY=false,SEC={};
+ var CL={},TOK=null,lockT=null,ENC="ghtok_enc",BUSY=false,SEC={};try{(window.__busyChecks=window.__busyChecks||[]).push(function(){return BUSY})}catch(e){}
  function sleep2(ms){return new Promise(function(r){setTimeout(r,ms)})}
  function repoInfo(){var m=location.hostname.match(/^([^.]+)\.github\.io$/),r=location.pathname.split("/")[1];return(m&&r)?{o:m[1],r:r}:null}
  function b64(u){var s="";u=new Uint8Array(u);for(var i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);return btoa(s)}
@@ -2712,6 +2712,7 @@ G0.__SEAL={blake2b,seal,from_string:s=>new TextEncoder().encode(s),from_base64:t
    Trading 212: lo hace GitHub con tus claves guardadas en Secrets. */
 (function(){
 "use strict";
+try{(window.__busyChecks=window.__busyChecks||[]).push(()=>RL.busy||RL.loading)}catch(e){}
 const RL={R:null,meta:null,enc:null,err:null,cfg:null,cfgSrc:"",loading:false,msg:"",busy:false,rng:"all",showRep:30,pick:null,at:0};
 const $r=s=>document.querySelector(s);
 const C=()=>window.__CLOUD||null;
@@ -3140,4 +3141,48 @@ let rz=null;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{c
 </script>
 <script>document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&e.target.closest(".cpy[data-copy]");if(!b)return;e.preventDefault();e.stopPropagation();const v=b.dataset.copy,old=b.textContent;
  try{await navigator.clipboard.writeText(v)}catch(_){try{const t=document.createElement("textarea");t.value=v;document.body.appendChild(t);t.select();document.execCommand("copy");t.remove()}catch(__){}}
- b.textContent="✔ Copiado: "+v;b.classList.add("ok");setTimeout(()=>{b.textContent=old;b.classList.remove("ok")},1800)},true);</script></body></html>
+ b.textContent="✔ Copiado: "+v;b.classList.add("ok");setTimeout(()=>{b.textContent=old;b.classList.remove("ok")},1800)},true);</script><script id="working">
+/* v65 · cada botón enseña que está trabajando mientras dura su proceso */
+(function(){
+ var W=window.__busyChecks=window.__busyChecks||[];
+ W.push(function(){try{return !!(busy||(typeof BTB!=="undefined"&&BTB.v)||(typeof VG!=="undefined"&&VG.busy))}catch(e){return false}});
+ var n=0,lastAct=0,lastStart=0;
+ function track(p){n++;lastStart=lastAct=Date.now();var done=function(){n--;lastAct=Date.now()};try{p.then(done,done)}catch(e){done()}return p}
+ var of=window.fetch;if(of)window.fetch=function(){return track(of.apply(this,arguments))};
+ try{var sc=crypto.subtle;["deriveKey","deriveBits","encrypt","decrypt","importKey","digest"].forEach(function(m){var f=sc[m]&&sc[m].bind(sc);if(f)try{Object.defineProperty(sc,m,{value:function(){return track(f.apply(null,arguments))},configurable:true})}catch(e){}})}catch(e){}
+ function flags(){for(var i=0;i<W.length;i++){try{if(W[i]())return true}catch(e){}}return false}
+ var ST=["rl-st","btsvst","btst","st","ptr","cs_st","vgl","mls","bkm","nts"];
+ function txts(){var o={};ST.forEach(function(id){var e=document.getElementById(id);o[id]=e?(e.textContent||"").trim():""});return o}
+ var cur=null,pill=null,tick=null;
+ function sig(b){if(b.id)return"#"+CSS.escape(b.id);var a=[].slice.call(b.attributes).filter(function(x){return /^data-/.test(x.name)});if(a.length)return"button"+a.map(function(x){return"["+x.name+'="'+CSS.escape(x.value)+'"]'}).join("");return null}
+ function lbl(b){return (b.textContent||"").replace(/\s+/g," ").trim().slice(0,60)||"Trabajando"}
+ function mkPill(){if(pill)return pill;pill=document.createElement("div");pill.id="workpill";pill.setAttribute("role","status");pill.setAttribute("aria-live","polite");document.body.appendChild(pill);return pill}
+ function mmss(ms){var t=Math.floor(ms/1000);return Math.floor(t/60)+":"+String(t%60).padStart(2,"0")}
+ function paint(){if(!cur)return;var now=Date.now(),T=txts(),m=cur.msg;for(var k in T){if(T[k]&&T[k]!==cur.t0[k]&&T[k]!==cur.seen[k]){cur.seen[k]=T[k];m=T[k]}}cur.msg=m;
+  var b=cur.el&&document.body.contains(cur.el)?cur.el:(cur.sel&&document.querySelector(cur.sel));if(b){cur.el=b;if(!b.classList.contains("is-busy"))b.classList.add("is-busy");b.setAttribute("aria-busy","true")}
+  var P=mkPill();P.className="on";P.innerHTML='<i></i><div><b></b><small></small></div><span></span>';P.querySelector("b").textContent=cur.label;P.querySelector("small").textContent=m||"Trabajando…";P.querySelector("span").textContent=mmss(now-cur.at)}
+ function idle(){return n===0&&Date.now()-lastAct>1500&&!flags()}
+ function finish(){if(!cur)return;var c=cur;cur=null;clearInterval(tick);tick=null;document.querySelectorAll(".is-busy").forEach(function(e){e.classList.remove("is-busy");e.removeAttribute("aria-busy")});
+  var T=txts(),m=c.msg;for(var k in T){if(T[k]&&T[k]!==c.t0[k]&&T[k]!==c.seen[k])m=T[k]}
+  var P=mkPill(),bad=/✖|No se pudo|error|incorrect/i.test(m||"");P.className="on done"+(bad?" bad":"");P.innerHTML='<i></i><div><b></b><small></small></div>';P.querySelector("b").textContent=(bad?"⚠️ ":"✔ ")+c.label;P.querySelector("small").textContent=m||(bad?"Terminó con problemas":"Listo");
+  clearTimeout(P._h);P._h=setTimeout(function(){if(!cur)P.className=""},bad?7000:3500)}
+ function loop(){if(!cur)return;paint();if(Date.now()-cur.at>15*60000||(Date.now()-cur.at>400&&idle()))finish()}
+ document.addEventListener("click",function(e){var b=e.target&&e.target.closest&&e.target.closest("button");if(!b||b.disabled||b.closest("#nav")||b.closest("#rl-rng")||b.closest(".pills")||b.hasAttribute("data-nobusy")||b.classList.contains("cpy"))return;if(cur)return;
+  var t0=Date.now(),info={el:b,sel:sig(b),label:lbl(b),t0:txts(),seen:{},msg:""};
+  setTimeout(function(){if(cur)return;var started=lastStart>=t0||n>0&&lastStart>=t0-50;if(!started&&!flags())return;info.at=t0;cur=info;paint();tick=setInterval(loop,400)},150)},true);
+ try{var css=document.createElement("style");css.textContent=
+ "button.is-busy{opacity:1!important;cursor:progress;position:relative}"+
+ "button.is-busy::after{content:'';display:inline-block;width:14px;height:14px;margin-left:8px;vertical-align:-2px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:wkspin .75s linear infinite}"+
+ "@keyframes wkspin{to{transform:rotate(360deg)}}"+
+ "#workpill{position:fixed;left:50%;transform:translate(-50%,20px);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:60;display:flex;align-items:center;gap:10px;width:min(92vw,440px);padding:10px 14px;border-radius:16px;background:#151c33;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;pointer-events:none;transition:.25s}"+
+ "#workpill.on{opacity:1;transform:translate(-50%,0)}"+
+ "#workpill i{flex:0 0 18px;width:18px;height:18px;border:2.5px solid #ffd36b;border-right-color:transparent;border-radius:50%;animation:wkspin .75s linear infinite}"+
+ "#workpill.done i{animation:none;border:0;width:0;flex-basis:0}"+
+ "#workpill div{flex:1;min-width:0}#workpill b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"+
+ "#workpill small{display:block;font-size:12px;color:#c9d1ea;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}"+
+ "#workpill span{font-variant-numeric:tabular-nums;font-size:12px;color:#ffd36b}"+
+ "#workpill.done{background:#14382b}#workpill.bad{background:#4a1d22}";
+ document.head.appendChild(css)}catch(e){}
+})();
+</script>
+</body></html>

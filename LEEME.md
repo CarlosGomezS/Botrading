@@ -9,6 +9,10 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v26 (web v65): todos los botones enseñan que están trabajando
+- Al pulsar cualquier botón que tarda (revisar, aprobar, guardar ajustes, prueba histórica, recargar, desbloquear…), el botón muestra un círculo girando y abajo aparece una barra con lo que está haciendo en cada momento y el tiempo que lleva.
+- Al terminar, la barra dice «✔ Listo» (verde) o avisa si hubo un problema (rojo) durante unos segundos.
+
 ## Novedades v25 (web v64): valor en directo y pantalla más simple en el móvil
 - Nuevo flujo **«Cartera real · valor en directo»** (`real-pulso.yml`): cada ~15 min con la bolsa abierta (lunes a viernes, 9:00–18:15 de Madrid) lee tu cuenta de Trading 212 **solo para mirar** (no compra ni vende ni manda avisos) y guarda el valor del bot.
 - La gráfica tiene la opción **«Hoy»**: cómo va el dinero del bot durante el día frente al cierre de ayer.
