@@ -6,26 +6,28 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const code = html.match(/<script id="vigia-intradia">([\s\S]*?)<\/script>/)[1].replace(/try\{setTimeout\([\s\S]*$/, "");
 
-test("reglas de los métodos con días de ejemplo", () => {
+test("regla de «acciones en juego»: solo compras, ruptura del rango, stop al 10 % del ATR", () => {
   const ctx = { Math, JSON, Object, Array, String, Number, isFinite, Infinity, Date, console }; vm.createContext(ctx);
-  vm.runInContext(code + ";globalThis.T={viOrb,viLastHalf,viVwap,viNoise,viPrep,viSer,viRet,viNY,viUtc};", ctx); const T = ctx.T;
-  const mk = (f) => { const x = T.viSer(); for (let i = 0; i < 390; i++) { const p = f(i); x.o[i] = p.o; x.c[i] = p.c; x.h[i] = Math.max(p.o, p.c) + 0.01; x.l[i] = Math.min(p.o, p.c) - 0.01; x.v[i] = 100; } return T.viPrep(x); };
+  vm.runInContext(code + ";globalThis.T={viSip,viPrep,viSer,viRet,viNY,viUtc,VIM};", ctx); const T = ctx.T;
   assert.equal(JSON.stringify(T.viNY(Date.parse("2026-10-22T13:30:00Z"))), '{"d":"2026-10-22","m":0}');
   assert.equal(JSON.stringify(T.viNY(Date.parse("2026-01-15T14:30:00Z"))), '{"d":"2026-01-15","m":0}');
   assert.equal(new Date(T.viUtc("2026-11-02", 390)).toISOString(), "2026-11-02T21:00:00.000Z");
-  let x = mk((i) => i < 5 ? { o: 100 + i * 0.1, c: 100 + (i + 1) * 0.1 } : { o: 100.5 + (i - 5) * 0.03, c: 100.5 + (i - 4) * 0.03 });
-  let r = T.viOrb({ day: { QQQ: x }, atr: {} }, "QQQ", "q"); assert.equal(r.length, 1); assert.equal(r[0].side, 1); assert.ok(Math.abs(r[0].outPx - (100.5 + 10 * (100.5 - 99.99))) < 1e-6, "objetivo 10R");
-  x = mk((i) => i < 5 ? { o: 100 + i * 0.1, c: 100 + (i + 1) * 0.1 } : { o: 100.5 - (i - 5) * 0.01, c: 100.5 - (i - 4) * 0.01 });
-  r = T.viOrb({ day: { QQQ: x }, atr: {} }, "QQQ", "q"); assert.ok(Math.abs(r[0].outPx - 99.99) < 1e-9, "stop en el mínimo de la vela"); assert.ok(T.viRet(r, false) < 0);
-  x = mk((i) => ({ o: 100 + i * 0.001, c: 100 + (i + 1) * 0.001 }));
-  r = T.viLastHalf({ day: { SPY: x }, pc: { SPY: 99 } }, "SPY", "open"); assert.equal([r[0].side, r[0].inT, r[0].outT].join(), "1,360,390");
-  r = T.viLastHalf({ day: { SPY: x }, pc: { SPY: 101 } }, "SPY", "open"); assert.equal(r[0].side, -1);
-  x = mk((i) => ({ o: 100 + i * 0.01, c: 100 + (i + 1) * 0.01 })); r = T.viVwap({ day: { QQQ: x } }, "QQQ"); assert.equal(r.length, 1); assert.equal(r[0].outT, 390);
-  const flat = () => mk((i) => ({ o: 100, c: 100 + (i % 2 ? 0.1 : -0.1) })), H = Array.from({ length: 14 }, flat);
-  x = mk((i) => ({ o: 100 + i * 0.02, c: 100 + (i + 1) * 0.02 }));
-  r = T.viNoise({ day: { SPY: x }, hist: { SPY: H }, pc: { SPY: 100 }, dret: { SPY: [0.01, -0.01, 0.005, -0.005] } }, "SPY", false); assert.equal(r[0].side, 1); assert.equal(r[0].inT, 30); assert.equal(r[0].outT, 390);
-  r = T.viNoise({ day: { SPY: x }, hist: { SPY: H }, pc: { SPY: 100 }, dret: { SPY: [0.01, -0.01, 0.005, -0.005] } }, "SPY", true); assert.ok(r[0].w > 1 && r[0].w <= 4);
-  assert.equal(T.viNoise({ day: { SPY: x }, hist: { SPY: H.slice(0, 5) }, pc: { SPY: 100 }, dret: {} }, "SPY", false), null, "sin 14 días no opera");
+  const mk = (f) => { const x = T.viSer(); for (let i = 0; i < 390; i++) { const p = f(i); x.o[i] = p.o; x.c[i] = p.c; x.h[i] = Math.max(p.o, p.c) + 0.01; x.l[i] = Math.min(p.o, p.c) - 0.01; x.v[i] = 100; } return T.viPrep(x); };
+  const univ = { f: {}, hv: {}, dly: {} }; for (const s of ["UP", "DN", "FLOP", "QUIET"]) { univ.f[s] = { o: 50, h: 51, l: 49, c: 50.5, v: s === "QUIET" ? 50 : 1000 }; univ.hv[s] = Array(14).fill(100); univ.dly[s] = { atr: 2, vol: 5e6 }; }
+  const sd = {
+    UP: mk((i) => ({ o: 50 + i * 0.02, c: 50 + (i + 1) * 0.02 })),            // sube todo el día: compra y vende al cierre con ganancia
+    DN: mk((i) => ({ o: 50 - i * 0.02, c: 50 - (i + 1) * 0.02 })),            // la primera vela baja: NO opera (no hay cortos)
+    FLOP: mk((i) => i < 10 ? { o: 50 + i * 0.05, c: 50 + (i + 1) * 0.05 } : { o: 50.5 - (i - 10) * 0.05, c: 50.5 - (i - 9) * 0.05 }), // rompe y se da la vuelta: stop
+    QUIET: mk((i) => ({ o: 50 + i * 0.02, c: 50 + (i + 1) * 0.02 })),         // sin volumen raro: no la elige
+  };
+  const tr = T.viSip({ univ, sd }, 5), by = Object.fromEntries(tr.map((t) => [t.s, t]));
+  assert.ok(!by.DN && !by.QUIET, "ni cortos ni acciones sin volumen raro"); assert.ok(tr.every((t) => t.side === 1));
+  assert.equal(by.UP.outT, 390); assert.ok(by.UP.outPx > by.UP.inPx);
+  assert.ok(Math.abs(by.FLOP.outPx - (by.FLOP.inPx - 0.2)) < 1e-9, "stop al 10 % del ATR (2 $ → 0,20 $)");
+  assert.ok(tr.every((t) => t.w <= 0.05 + 1e-12), "máx. 5 % de la cuenta por acción");
+  assert.ok(T.viRet([by.UP], true) < T.viRet([by.UP], false), "el cambio de divisa resta");
+  const t60 = T.viSip({ univ, sd }, 60); assert.ok(t60.every((t) => t.inT >= 60), "con rango de 60 min no entra antes de las 10:30");
+  assert.equal(Object.keys(T.VIM).length, 4);
 });
 
 test("actualización completa: rehace el año, guarda el día en curso y no repite", async () => {
@@ -59,7 +61,7 @@ const H={};for(const s of SYMS.slice(3)){const r=[];for(let n=dayN("2024-06-01")
   assert.equal(r.err, null); assert.ok(r.backfill); assert.ok(VX.days.length > 240 && VX.days.length < 270, "≈ un año de días de bolsa: " + VX.days.length);
   assert.equal(VX.days.at(-1).d, "2026-10-22"); assert.equal(VX.hoy.d, "2026-10-23"); assert.equal(VX.feed, "sip");
   for (const k of Object.keys(T.VIM)) assert.ok(VX.days.at(-1).r[k], "el método " + k + " tiene resultado");
-  const st = T.viStats(VX); assert.ok(st.m.sip.n > 1000, "acciones en juego opera"); assert.ok(isFinite(st.spy));
+  const st = T.viStats(VX); assert.ok(st.m.sip5.n > 300, "acciones en juego opera: " + st.m.sip5.n); assert.ok(isFinite(st.spy));
   assert.ok(JSON.stringify(VX).length < 400000, "estado pequeño");
   calls = 0; const r2 = await T.viUpdate({ budget: 1e12 }); assert.equal(r2.nuevos.length, 0); assert.ok(calls <= 6, "la 2.ª pasada solo pide lo de hoy: " + calls);
   assert.match(T.viSummaryTxt(VX), /Vigilante intradía/); assert.match(T.viMd(), /\| 1 \|/);

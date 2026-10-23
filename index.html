@@ -454,7 +454,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .bdg.no{background:color-mix(in srgb,var(--line) 40%,transparent);color:var(--muted)}
 #vi-per{margin:2px 0 4px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v68</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v69</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3210,53 +3210,26 @@ let rz=null;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{c
    10 métodos de day trading con estudios publicados. Cada uno abre y cierra dentro del mismo día.
    Se calculan con velas REALES de 1 minuto de Alpaca (clave ALPACA_KEY), día a día, y se comparan con el SPY.
    Primero rehace el último año entero; luego añade cada día de bolsa. Todo es simulado: no usa dinero.        */
-const VI_MO=390,VI_COST=0.0045,VI_BACK=365,VI_HIST=26,VI_ETF=["SPY","QQQ","TQQQ"];
+const VI_MO=390,VI_SLIP=0.0003,VI_FX=0.0015,VI_BACK=365,VI_HIST=26,VI_ETF=["SPY"];
 const VIM={
- noise:{n:"Zona de ruido · SPY",fam:"Zarattini, Aziz y Barbon (2024)",
-  d:"Calcula cuánto suele moverse el SPY desde la apertura a cada hora (media de 14 días): esa es la «zona de ruido». Cada media hora, desde las 10:00 de Nueva York, compra si el precio sale por arriba de la zona y vende en corto si sale por abajo. Se sale si vuelve a la zona o cruza el VWAP (precio medio del día) y siempre cierra antes del cierre.",
-  res:"Estudio 2007-2024 en SPY: +19,6 % al año (1.985 % en total) netos de costes, Sharpe 1,33 frente a 0,45 del SPY. Usaba tamaño por volatilidad (hasta ×4).",
-  src:"Zarattini, C., Aziz, A. y Barbon, A. (2024), «Beat the Market: An Effective Intraday Momentum Strategy for S&P500 ETF (SPY)», Swiss Finance Institute Research Paper 24-97.",t212:"etf"},
- noise4:{n:"Zona de ruido · SPY con tamaño por volatilidad",fam:"Zarattini, Aziz y Barbon (2024)",
-  d:"Las mismas reglas que «Zona de ruido · SPY», pero como en el estudio: el tamaño de cada operación se ajusta para que el día «normal» mueva un 2 % la cuenta, con un máximo de ×4 (apalancado).",
-  res:"Es la versión que da el +19,6 % al año del estudio (2007-2024). Gana y pierde más rápido que la versión sin apalancar.",
-  src:"Zarattini, Aziz y Barbon (2024), mismo estudio.",t212:"lev"},
- noiseq:{n:"Zona de ruido · Nasdaq 100 (QQQ)",fam:"Adaptación de Zarattini, Aziz y Barbon",
-  d:"Las reglas de la zona de ruido aplicadas al Nasdaq 100 (QQQ), que se mueve más que el SPY. Sin apalancar.",
-  res:"El estudio es sobre el SPY: en el QQQ es una adaptación (sin resultado publicado propio). Sirve para ver si la idea funciona fuera del S&P 500.",
-  src:"Adaptación de Zarattini, Aziz y Barbon (2024).",t212:"etf"},
- orbq:{n:"Ruptura de los 5 primeros minutos · QQQ",fam:"Zarattini y Aziz (2023)",
-  d:"Mira la primera vela de 5 minutos (9:30-9:35 de Nueva York): si sube, compra; si baja, vende en corto. El stop es el otro extremo de esa vela y el objetivo, 10 veces lo arriesgado. Si no salta ninguno, cierra al final del día. Arriesga un 1 % de la cuenta por operación (sin apalancar).",
-  res:"Estudio 2016-2023: con apalancamiento ganó un +1.484 % en total frente al +169 % de comprar y mantener el QQQ.",
-  src:"Zarattini, C. y Aziz, A. (2023), «Can Day Trading Really Be Profitable? Evidence of Sustainable Long-term Profits from Opening Range Breakout (ORB) Day Trading Strategy vs. Benchmark in the US Stock Market», SSRN 4416622.",t212:"etf"},
- orbt:{n:"Ruptura de los 5 primeros minutos · TQQQ (×3)",fam:"Zarattini y Aziz (2023)",
-  d:"La misma señal de la primera vela de 5 minutos, pero en TQQQ (Nasdaq 100 ×3), como la variante del estudio: stop al 5 % del rango medio diario (ATR de 14 días), sin objetivo, y cierre al final del día.",
-  res:"Es la variante del estudio para no depender del apalancamiento del bróker (2016-2023). Mucho más volátil.",
-  src:"Zarattini y Aziz (2023), mismo estudio, variante en TQQQ.",t212:"lev"},
- sip:{n:"Acciones «en juego» · ruptura de 5 minutos (las 20 del día)",fam:"Zarattini, Barbon y Aziz (2024)",
-  d:"A las 9:35 de Nueva York busca entre ~280 acciones grandes las 20 con más volumen de lo normal en los 5 primeros minutos (las que tienen noticias). En cada una, si la primera vela sube, compra al romper su máximo; si baja, vende en corto al romper su mínimo. Stop al 10 % de su ATR y cierre al final del día. Cada una lleva un 5 % de la cuenta (sin apalancar).",
-  res:"Estudio 2016-2023 con más de 7.000 acciones: +1.600 % en total netos, Sharpe 2,81, frente al +198 % del S&P 500. El estudio usaba hasta ×4; aquí no, y con menos acciones.",
-  src:"Zarattini, C., Barbon, A. y Aziz, A. (2024), «A Profitable Day Trading Strategy For The U.S. Equity Market», Swiss Finance Institute Research Paper 24-98.",t212:"acc"},
- vwapq:{n:"Por encima o por debajo del VWAP · QQQ",fam:"Zarattini y Aziz (2023)",
-  d:"Cada minuto compara el precio del QQQ con su VWAP (el precio medio del día ponderado por volumen): por encima, comprado; por debajo, vendido en corto. Cambia cada vez que lo cruza y cierra al final del día.",
-  res:"Estudio de enero 2018 a septiembre 2023: +671 % frente al +126 % de comprar y mantener el QQQ, con caída máxima del 9,4 % (frente al 37 %) y Sharpe 2,1.",
-  src:"Zarattini, C. y Aziz, A. (2023), «Volume Weighted Average Price (VWAP): The Holy Grail for Day Trading Systems», SSRN 4631351.",t212:"etf"},
- vwapt:{n:"Por encima o por debajo del VWAP · TQQQ (×3)",fam:"Zarattini y Aziz (2023)",
-  d:"Las mismas reglas del VWAP aplicadas a TQQQ (Nasdaq 100 ×3), como en el estudio.",
-  res:"En el estudio (2018-2023), 25.000 $ se convirtieron en unos 2,1 millones; con caídas parecidas a las del QQQ.",
-  src:"Zarattini y Aziz (2023), mismo estudio, versión en TQQQ.",t212:"lev"},
- gao:{n:"La primera media hora decide la última · SPY",fam:"Gao, Han, Li y Zhou (2018)",
-  d:"Mira cuánto ha subido o bajado el SPY desde el cierre de ayer hasta las 10:00 de Nueva York. Si sube, compra a las 15:30 y vende al cierre; si baja, vende en corto esa última media hora. Una sola operación al día de 30 minutos.",
-  res:"Journal of Financial Economics (2018), 1993-2013: la primera media hora predice la última; la estrategia ganó un ~6,7 % al año estando invertida solo media hora al día, más que comprar en todas las últimas medias horas.",
-  src:"Gao, L., Han, Y., Li, S. Z. y Zhou, G. (2018), «Market Intraday Momentum», Journal of Financial Economics 129(2), 394-414.",t212:"etf"},
- rod:{n:"El resto del día decide la última media hora · SPY",fam:"Baltussen, Da, Lammers y Martens (2021)",
-  d:"Mira cuánto ha subido o bajado el SPY desde el cierre de ayer hasta las 15:30 de Nueva York. Si sube, compra para la última media hora; si baja, vende en corto. Una operación al día.",
-  res:"Journal of Financial Economics (2021), más de 60 mercados de 1974 a 2020: el resto del día predice la última media hora (por las coberturas de opciones y ETF apalancados), con Sharpe de 0,87 a 1,73 por tipo de activo.",
-  src:"Baltussen, G., Da, Z., Lammers, S. y Martens, M. (2021), «Hedging Demand and Market Intraday Momentum», Journal of Financial Economics 142(1), 377-403.",t212:"etf"}
+ sip5:{N:5,n:"Acciones «en juego» · rango de 5 min",fam:"Zarattini, Barbon y Aziz (2024)",
+  d:"A las 9:35 de Nueva York (15:35 en España) busca entre ~280 acciones grandes de EE. UU. las 20 con más volumen de lo normal en los 5 primeros minutos (suelen tener noticias). Mira sus 5 primeros minutos: en las que suben, pone una orden de compra al romper el máximo de ese rato. Stop al 10 % de su rango medio diario (ATR) y venta al cierre. Cada una lleva un 5 % de la cuenta. Solo compras, sin apalancar. Es la versión principal del estudio.",
+  res:"Estudio 2016-2023 con más de 7.000 acciones de EE. UU.: las 20 «en juego» con rango de 5 minutos ganaron un +1.600 % netos (Sharpe 2,81) frente al +198 % del S&P 500; también probó rangos de 15, 30 y 60 minutos y siguió funcionando. Ojo: el estudio también vendía en corto y usaba hasta ×4.",
+  src:"Zarattini, C., Barbon, A. y Aziz, A. (2024), «A Profitable Day Trading Strategy For The U.S. Equity Market», Swiss Finance Institute Research Paper 24-98."},
+ sip15:{N:15,n:"Acciones «en juego» · rango de 15 min",fam:"Zarattini, Barbon y Aziz (2024)",
+  d:"A las 9:35 de Nueva York (15:35 en España) busca entre ~280 acciones grandes de EE. UU. las 20 con más volumen de lo normal en los 5 primeros minutos (suelen tener noticias). Mira sus 15 primeros minutos: en las que suben, pone una orden de compra al romper el máximo de ese rato. Stop al 10 % de su rango medio diario (ATR) y venta al cierre. Cada una lleva un 5 % de la cuenta. Solo compras, sin apalancar.",
+  res:"Estudio 2016-2023 con más de 7.000 acciones de EE. UU.: las 20 «en juego» con rango de 5 minutos ganaron un +1.600 % netos (Sharpe 2,81) frente al +198 % del S&P 500; también probó rangos de 15, 30 y 60 minutos y siguió funcionando. Ojo: el estudio también vendía en corto y usaba hasta ×4.",
+  src:"Zarattini, C., Barbon, A. y Aziz, A. (2024), «A Profitable Day Trading Strategy For The U.S. Equity Market», Swiss Finance Institute Research Paper 24-98."},
+ sip30:{N:30,n:"Acciones «en juego» · rango de 30 min",fam:"Zarattini, Barbon y Aziz (2024)",
+  d:"A las 9:35 de Nueva York (15:35 en España) busca entre ~280 acciones grandes de EE. UU. las 20 con más volumen de lo normal en los 5 primeros minutos (suelen tener noticias). Mira sus 30 primeros minutos: en las que suben, pone una orden de compra al romper el máximo de ese rato. Stop al 10 % de su rango medio diario (ATR) y venta al cierre. Cada una lleva un 5 % de la cuenta. Solo compras, sin apalancar.",
+  res:"Estudio 2016-2023 con más de 7.000 acciones de EE. UU.: las 20 «en juego» con rango de 5 minutos ganaron un +1.600 % netos (Sharpe 2,81) frente al +198 % del S&P 500; también probó rangos de 15, 30 y 60 minutos y siguió funcionando. Ojo: el estudio también vendía en corto y usaba hasta ×4.",
+  src:"Zarattini, C., Barbon, A. y Aziz, A. (2024), «A Profitable Day Trading Strategy For The U.S. Equity Market», Swiss Finance Institute Research Paper 24-98."},
+ sip60:{N:60,n:"Acciones «en juego» · rango de 60 min",fam:"Zarattini, Barbon y Aziz (2024)",
+  d:"A las 9:35 de Nueva York (15:35 en España) busca entre ~280 acciones grandes de EE. UU. las 20 con más volumen de lo normal en los 5 primeros minutos (suelen tener noticias). Mira sus 60 primeros minutos: en las que suben, pone una orden de compra al romper el máximo de ese rato. Stop al 10 % de su rango medio diario (ATR) y venta al cierre. Cada una lleva un 5 % de la cuenta. Solo compras, sin apalancar.",
+  res:"Estudio 2016-2023 con más de 7.000 acciones de EE. UU.: las 20 «en juego» con rango de 5 minutos ganaron un +1.600 % netos (Sharpe 2,81) frente al +198 % del S&P 500; también probó rangos de 15, 30 y 60 minutos y siguió funcionando. Ojo: el estudio también vendía en corto y usaba hasta ×4.",
+  src:"Zarattini, C., Barbon, A. y Aziz, A. (2024), «A Profitable Day Trading Strategy For The U.S. Equity Market», Swiss Finance Institute Research Paper 24-98."}
 };
-const VI_T212={etf:"En Trading 212 no se pueden comprar los ETF de EE. UU. (solo sus versiones europeas, que cierran a las 17:30) ni vender en corto: aquí sirve para comprobar si el método funciona de verdad.",
- lev:"Usa apalancamiento (o un ETF ×3 de EE. UU.) y cortos: no se puede tal cual en Trading 212. Es para comparar con lo que dice el estudio.",
- acc:"Con acciones de EE. UU. sí se puede en Trading 212, pero solo la parte de compras (no permite cortos): mira «Solo compras»."};
-
+const VI_T212_TXT="Se puede hacer en Trading 212: acciones de EE. UU. (con fracciones), órdenes stop de compra y solo compras (Trading 212 no permite cortos ni apalancamiento). Con saldo en dólares no pagas el cambio de divisa en cada operación.";
 /* ---------- hora de Nueva York ---------- */
 function viNthSun(y,m,n){const w=new Date(Date.UTC(y,m,1)).getUTCDay();return 1+((7-w)%7)+7*(n-1)}
 function viOff(ms){const y=new Date(ms).getUTCFullYear(),a=Date.UTC(y,2,viNthSun(y,2,2),7),b=Date.UTC(y,10,viNthSun(y,10,1),6);return ms>=a&&ms<b?-4:-5}
@@ -3277,42 +3250,21 @@ const viAt=(x,T)=>x&&x.lc?x.lc[Math.min(T,VI_MO)]:null;
 const viAvg=a=>a.length?a.reduce((t,v)=>t+v,0)/a.length:null;
 function viSd(a){if(a.length<2)return null;const m=viAvg(a);return Math.sqrt(a.reduce((t,v)=>t+(v-m)*(v-m),0)/(a.length-1))}
 function viTr(s,side,inT,inPx,outT,outPx,w){return{s,side,inT,inPx,outT,outPx,w}}
-function viRet(trs,longOnly){let r=0;for(const t of trs){if(longOnly&&t.side<0)continue;if(!(t.inPx>0&&t.outPx>0))continue;r+=t.w*(t.side*(t.outPx/t.inPx-1)-VI_COST/t.inPx-VI_COST/t.outPx)}return r}
+function viRet(trs,fx){let r=0;for(const t of trs){if(!(t.inPx>0&&t.outPx>0))continue;r+=t.w*(t.side*(t.outPx/t.inPx-1)-2*VI_SLIP-(fx?2*VI_FX:0))}return r}
 
-/* ---------- los métodos (ctx: día, historia de 14 días, cierre de ayer…) ---------- */
-function viNoise(ctx,s,lev){const x=ctx.day[s],H=ctx.hist[s]||[],pc=ctx.pc[s];if(!x||x.e<0||H.length<14||!(pc>0)||!(x.open>0))return null;
- let w=1;if(lev){const sd=viSd(ctx.dret[s]||[]);if(!(sd>0))return null;w=Math.min(4,0.02/sd)}
- const o=x.open,end=Math.min(VI_MO,x.e+1),tr=[];let pos=0,en=null;
- for(let T=30;T<=360&&T<end;T+=30){const px=viAt(x,T);if(!(px>0))continue;const sg=viAvg(H.map(h=>Math.abs(viAt(h,T)/h.open-1)).filter(v=>isFinite(v)));if(sg==null)continue;
-  const UB=Math.max(o,pc)*(1+sg),LB=Math.min(o,pc)*(1-sg),vw=x.vw[T];
-  if(pos===1&&px<Math.max(UB,vw)){tr.push(viTr(s,1,en.T,en.px,T,px,w));pos=0}
-  else if(pos===-1&&px>Math.min(LB,vw)){tr.push(viTr(s,-1,en.T,en.px,T,px,w));pos=0}
-  if(pos===0){if(px>UB){pos=1;en={T,px}}else if(px<LB){pos=-1;en={T,px}}}}
- if(pos)tr.push(viTr(s,pos,en.T,en.px,end,x.close,w));return tr}
-function viOrb(ctx,s,mode){const x=ctx.day[s];if(!x||x.e<10)return null;let hi=-Infinity,lo=Infinity,o=null,c=null;for(let i=0;i<5;i++){if(!(x.c[i]>0))continue;if(o==null)o=x.o[i];c=x.c[i];hi=Math.max(hi,x.h[i]);lo=Math.min(lo,x.l[i])}
- if(!(o>0&&c>0))return null;if(Math.abs(c-o)<1e-9)return[];const side=c>o?1:-1;let i0=5;while(i0<=x.e&&!(x.o[i0]>0))i0++;if(i0>x.e)return[];const e=x.o[i0];
- let stop,tgt=null,R;if(mode==="q"){stop=side>0?lo:hi;R=Math.abs(e-stop);if(!(R>0)||(side>0?stop>=e:stop<=e))return[];tgt=e+side*10*R}else{const atr=ctx.atr[s];if(!(atr>0))return null;R=0.05*atr;stop=e-side*R}
- const w=Math.min(1,0.01*e/R);
- for(let i=i0;i<=x.e;i++){if(!(x.c[i]>0))continue;const H=x.h[i],L=x.l[i],O=x.o[i];
-  if(side>0){if(L<=stop)return[viTr(s,1,i0,e,i+1,Math.min(stop,O),w)];if(tgt&&H>=tgt)return[viTr(s,1,i0,e,i+1,Math.max(tgt,O),w)]}
-  else{if(H>=stop)return[viTr(s,-1,i0,e,i+1,Math.max(stop,O),w)];if(tgt&&L<=tgt)return[viTr(s,-1,i0,e,i+1,Math.min(tgt,O),w)]}}
- return[viTr(s,side,i0,e,x.e+1,x.close,w)]}
-function viVwap(ctx,s){const x=ctx.day[s];if(!x||x.e<5)return null;const tr=[];let pos=0,en=null;
- for(let i=0;i<x.e;i++){if(!(x.c[i]>0))continue;const px=x.c[i],vw=x.vw[i+1],want=px>vw?1:px<vw?-1:pos;
-  if(want!==pos){if(pos)tr.push(viTr(s,pos,en.T,en.px,i+1,px,1));pos=want;en={T:i+1,px}}}
- if(pos)tr.push(viTr(s,pos,en.T,en.px,x.e+1,x.close,1));return tr}
-function viLastHalf(ctx,s,from){const x=ctx.day[s],pc=ctx.pc[s];if(!x||x.e<60||!(pc>0))return null;const end=x.e+1,p0=viAt(x,from==="open"?30:end-30),p1=viAt(x,end-30);if(!(p0>0&&p1>0))return null;
- const r=p0/pc-1;if(r===0)return[];const side=r>0?1:-1;return[viTr(s,side,end-30,p1,end,x.close,1)]}
-function viSip(ctx){const U=ctx.univ;if(!U)return null;const cand=[];
- for(const s in U.f){const f=U.f[s],hv=U.hv[s]||[],dd=U.dly[s];if(!f||!(f.v>0)||hv.length<10||!dd)continue;if(!(f.o>5)||!(dd.atr>0.5)||!(dd.vol>1e6))continue;const rv=f.v/viAvg(hv);if(!(rv>1))continue;if(Math.abs(f.c-f.o)<1e-9)continue;cand.push({s,rv,f,atr:dd.atr})}
- cand.sort((a,b)=>b.rv-a.rv);const top=cand.slice(0,20),tr=[];
- for(const c of top){const x=ctx.sd&&ctx.sd[c.s];if(!x||x.e<6)continue;const side=c.f.c>c.f.o?1:-1,lvl=side>0?c.f.h:c.f.l,R=0.1*c.atr;let en=null,stop=null,w=0;
-  for(let i=5;i<=x.e;i++){if(!(x.c[i]>0))continue;const H=x.h[i],L=x.l[i],O=x.o[i];
-   if(!en){if(side>0?H>=lvl:L<=lvl){const px=side>0?Math.max(lvl,O):Math.min(lvl,O);en={T:i,px};stop=px-side*R;w=Math.min(0.05,0.01*px/R)}else continue}
-   if(side>0?L<=stop:H>=stop){const ex=i===en.T?stop:(side>0?Math.min(stop,O):Math.max(stop,O));tr.push(viTr(c.s,side,en.T,en.px,i+1,ex,w));en=null;break}}
-  if(en)tr.push(viTr(c.s,side,en.T,en.px,x.e+1,x.close,w))}
+/* ---------- el método (solo compras, acciones de EE. UU.: lo que permite Trading 212) ---------- */
+function viSel(ctx){const U=ctx.univ;if(!U)return null;const cand=[];
+ for(const s in U.f){const f=U.f[s],hv=U.hv[s]||[],dd=U.dly[s];if(!f||!(f.v>0)||hv.length<10||!dd)continue;if(!(f.o>5)||!(dd.atr>0.5)||!(dd.vol>1e6))continue;const rv=f.v/viAvg(hv);if(!(rv>1))continue;cand.push({s,rv,atr:dd.atr})}
+ return cand.sort((a,b)=>b.rv-a.rv).slice(0,20)}
+function viSip(ctx,N){const top=viSel(ctx);if(!top)return null;const tr=[];
+ for(const c of top){const x=ctx.sd&&ctx.sd[c.s];if(!x||x.e<N+1)continue;let o=null,hi=-Infinity;for(let i=0;i<N;i++){if(!(x.c[i]>0))continue;if(o==null)o=x.o[i]||x.c[i];hi=Math.max(hi,x.h[i])}const cN=viAt(x,N);
+  if(!(o>0&&cN>0)||!(cN>o))continue;const R=0.1*c.atr;let en=null,stop=null,w=0;
+  for(let i=N;i<=x.e;i++){if(!(x.c[i]>0))continue;const H=x.h[i],L=x.l[i],O=x.o[i];
+   if(!en){if(H>=hi){const px=Math.max(hi,O);en={T:i,px};stop=px-R;w=Math.min(0.05,0.01*px/R)}else continue}
+   if(L<=stop){tr.push(viTr(c.s,1,en.T,en.px,i+1,i===en.T?stop:Math.min(stop,O),w));en=null;break}}
+  if(en)tr.push(viTr(c.s,1,en.T,en.px,x.e+1,x.close,w))}
  tr.top=top.map(c=>c.s);return tr}
-const VIF={noise:c=>viNoise(c,"SPY",false),noise4:c=>viNoise(c,"SPY",true),noiseq:c=>viNoise(c,"QQQ",false),orbq:c=>viOrb(c,"QQQ","q"),orbt:c=>viOrb(c,"TQQQ","t"),sip:viSip,vwapq:c=>viVwap(c,"QQQ"),vwapt:c=>viVwap(c,"TQQQ"),gao:c=>viLastHalf(c,"SPY","open"),rod:c=>viLastHalf(c,"SPY","rod")};
+const VIF={sip5:c=>viSip(c,5),sip15:c=>viSip(c,15),sip30:c=>viSip(c,30),sip60:c=>viSip(c,60)};
 
 /* Calcula todos los métodos para un día. days: lista ordenada de fechas con datos; i: índice del día */
 function viDay(D,days,i,univ,sd){const d=days[i],day=D[d]||{},ctx={d,day:{},hist:{},pc:{},dret:{},atr:{},univ,sd};
@@ -3337,7 +3289,7 @@ async function viBars(st,syms,tf,a,b){const out={};let tok=null,n=0;
 function viDaily(H,s,d){const h=H[s];if(!h||!h.r||h.r.length<20)return null;const dn=dayN(d);let i=h.r.length-1;while(i>=0&&h.r[i][0]>=dn)i--;if(i<15)return null;let a=0,v=0;for(let j=i-13;j<=i;j++){const r=h.r[j],pc=h.r[j-1][4];a+=Math.max(r[2]-r[3],Math.abs(r[2]-pc),Math.abs(r[3]-pc));v+=r[5]||0}return{atr:a/14,vol:v/14}}
 
 /* ---------- actualización: rehace lo que falte (el último año la 1.ª vez) y el día de hoy en curso ---------- */
-async function viUpdate(o){o=o||{};const VX=S.vix=(S.vix&&S.vix.v===2)?S.vix:{v:2,days:[],tr:{},rv:{},feed:null,at:null,err:null,prog:null,hoy:null,log:[]};
+async function viUpdate(o){o=o||{};const VX=S.vix=(S.vix&&S.vix.v===3)?S.vix:{v:3,days:[],tr:{},rv:{},feed:null,at:null,err:null,prog:null,hoy:null,log:[]};
  const t0=Date.now(),budget=o.budget||9*60e3,hd=viHd(),res={nuevos:[],hoy:false,backfill:false,err:null};
  const say=m=>{VX.msg=m;try{viDraw()}catch{}};
  if(!hd){VX.err="Falta la clave de Alpaca (ID:SECRETO) en Ajustes → claves de datos: el vigilante la necesita para las velas de 1 minuto.";res.err=VX.err;try{viDraw()}catch{}return res}
@@ -3385,33 +3337,33 @@ function viStats(VX,from){const days=(VX&&VX.days||[]).filter(z=>!from||z.d>=fro
  return{days,spy:spy-1,spyDD,m:out,from:days.length?days[0].d:null,to:days.length?days[days.length-1].d:null}}
 function viSummaryTxt(VX){const s=viStats(VX),last=VX.days[VX.days.length-1];if(!last)return"";const R=Object.values(s.m).sort((a,b)=>b.g-a.g),pc=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",",")+" %";
  const day=Object.keys(VIM).filter(k=>last.r[k]).map(k=>({k,r:last.r[k][0]})).sort((a,b)=>b.r-a.r);
- return"Vigilante intradía · "+fd(last.d)+"\nSPY ese día: "+pc(last.spy||0)+"\nMejores del día: "+day.slice(0,3).map(x=>VIM[x.k].n+" "+pc(x.r)).join(" · ")+"\n\nDesde el "+fd(s.from)+" (SPY "+pc(s.spy)+"):\n"+R.slice(0,5).map((x,j)=>(j+1)+". "+VIM[x.k].n+": "+pc(x.g)+(x.g>s.spy?" ✅":"")).join("\n")+"\n\nTodo simulado con velas reales de 1 minuto (no es dinero real)."}
+ return"Vigilante intradía · "+fd(last.d)+"\nSPY ese día: "+pc(last.spy||0)+"\nMejores del día: "+day.slice(0,3).map(x=>VIM[x.k].n+" "+pc(x.r)).join(" · ")+"\n\nDesde el "+fd(s.from)+" (SPY "+pc(s.spy)+"):\n"+R.slice(0,5).map((x,j)=>(j+1)+". "+VIM[x.k].n+": "+pc(x.g)+(x.g>s.spy?" ✅":"")).join("\n")+"\n\nTodo simulado con velas reales de 1 minuto, solo compras como en Trading 212 (no es dinero real)."}
 
 /* ---------- pantalla ---------- */
 let VIV={p:"all"};try{Object.assign(VIV,JSON.parse(localStorage.getItem("pbviv")||"{}"))}catch{}
 function viSpark(cur,spy){if(!cur||cur.length<2)return"";const W=300,Hh=60,all=cur.concat(spy),mn=Math.min(...all,1),mx=Math.max(...all,1),y=v=>Hh-4-(v-mn)/((mx-mn)||1)*(Hh-8),x=i=>i/(cur.length-1)*W;
  const path=a=>a.map((v,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)).join("");
  return`<svg class="vi-sp" viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="none" aria-hidden="true"><line x1="0" x2="${W}" y1="${y(1).toFixed(1)}" y2="${y(1).toFixed(1)}" class="z"/><path d="${path(spy)}" class="b"/><path d="${path(cur)}" class="${cur[cur.length-1]>=1?"u":"d"}"/></svg>`}
-function viDraw(){const el=document.getElementById("vi-root");if(!el)return;const VX=S.vix&&S.vix.v===2?S.vix:null,pc=x=>(x>=0.00005?"+":x<=-0.00005?"−":"")+Math.abs(x*100).toLocaleString("es-ES",{minimumFractionDigits:1,maximumFractionDigits:1})+" %";
+function viDraw(){const el=document.getElementById("vi-root");if(!el)return;const VX=S.vix&&S.vix.v===3?S.vix:null,pc=x=>(x>=0.00005?"+":x<=-0.00005?"−":"")+Math.abs(x*100).toLocaleString("es-ES",{minimumFractionDigits:1,maximumFractionDigits:1})+" %";
  const last=VX&&VX.days.length?VX.days[VX.days.length-1].d:null,P={m1:30,m3:91,all:null},from=last&&P[VIV.p]?dayS(dayN(last)-P[VIV.p]):null,s=viStats(VX,from);
  const spyCur=[];{let e=1;for(const z of s.days){if(z.spy!=null)e*=1+z.spy;spyCur.push(e)}}
  const R=Object.values(s.m).filter(x=>x.nd).sort((a,b)=>b.g-a.g),nb=R.filter(x=>x.g>s.spy).length,hoy=VX&&VX.hoy;
- let h=`<div class="p hero vi-hero"><h2>👁️ Vigilante · day trading</h2><div class="m">10 métodos con estudios publicados que compran y venden <b>dentro del mismo día</b> (nunca se quedan de noche). Cada uno con ${E(START)} ficticios y velas reales de 1 minuto. El listón: el <b>SPY</b> (comprar y mantener).</div>`;
+ let h=`<div class="p hero vi-hero"><h2>👁️ Vigilante · day trading</h2><div class="m">Métodos de <b>day trading</b> con estudio publicado que <b>se pueden hacer en Trading 212</b>: acciones de EE. UU., solo compras y todo vendido antes del cierre. Cada uno con ${E(START)} ficticios y velas reales de 1 minuto. El listón: el <b>SPY</b> (comprar y mantener).</div>`;
  if(s.days.length)h+=`<div class="vi-kpi"><div><small>Periodo</small><b>${esc(fd(s.from))} ${s.from.slice(2,4)} – ${esc(fd(s.to))} ${s.to.slice(2,4)}</b><small>${s.days.length} días de bolsa</small></div><div><small>SPY</small><b class="${s.spy>=0?"up":"dn"}">${pc(s.spy)}</b><small>${E(START*(1+s.spy))}</small></div><div><small>Baten al SPY</small><b>${nb} de ${R.length}</b><small>en este periodo</small></div></div>`;
  h+=`<div class="m vi-st">${VX&&VX.err?"⚠️ "+esc(VX.err):VX&&VX.msg?"⏳ "+esc(VX.msg):VX&&VX.at?"Actualizado "+esc(viDt(VX.at))+(hoy?" · hoy en curso hasta las "+viHM(hoy.hasta)+" de Nueva York":""):"Aún sin calcular: la primera vez rehace el último año entero (tarda unos minutos)."}</div>
  <button id="vi-go" class="go">🔄 Actualizar ahora</button></div>`;
- if(!s.days.length){el.innerHTML=h+`<div class="p"><div class="m">Cuando termine la primera actualización verás aquí la clasificación de los 10 métodos frente al SPY.</div></div>`;viBind();return}
+ if(!s.days.length){el.innerHTML=h+`<div class="p"><div class="m">Cuando termine la primera actualización verás aquí la clasificación de los métodos frente al SPY.</div></div>`;viBind();return}
  h+=`<div class="p"><div class="chtop"><h2>🏆 ¿Cuál bate al SPY?</h2></div><div class="pills" id="vi-per">${[["m1","1 mes"],["m3","3 meses"],["all","Todo"]].map(([k,t])=>`<button data-vp="${k}" class="${VIV.p===k?"on":""}">${t}</button>`).join("")}</div><div class="vi-l">`;
  h+=R.map((x,j)=>{const M=VIM[x.k],beat=x.g>s.spy,ht=hoy&&hoy.r[x.k],tr=(VX.tr[x.k]||[]);return`<details class="vi-c${beat?" ok":""}"><summary><span class="rk">${["🥇","🥈","🥉"][j]||j+1}</span><span class="nm">${esc(M.n)}<small>${beat?'<span class="bdg ok">✅ Bate al SPY</span>':'<span class="bdg no">Por debajo del SPY</span>'}${ht?` · hoy <b style="white-space:nowrap" class="${ht[0]>=0?"up":"dn"}">${pc(ht[0])}</b>`:""}</small></span><span class="pa ${x.g>=0?"up":"dn"}">${pc(x.g)}<small>${E(START*(1+x.g))}</small></span></summary>
   <div class="bd">${viSpark(x.cur,spyCur)}<div class="m vi-leg"><i class="u"></i> el método · <i class="b"></i> SPY</div>
-  <div class="vi-kv"><div><small>Solo compras (como en T212)</small><b class="${x.lo>=0?"up":"dn"}">${pc(x.lo)}</b></div><div><small>Peor bajada</small><b class="dn">${pc(x.dd)}</b></div><div><small>Operaciones</small><b>${x.n}</b></div><div><small>Aciertos</small><b>${x.n?Math.round(x.w/x.n*100)+" %":"—"}</b></div></div>
-  <div class="m">${esc(M.d)}</div><div class="m"><b>Qué dice el estudio:</b> ${esc(M.res)}</div><div class="m">🇪🇺 ${esc(VI_T212[M.t212])}</div>
-  ${tr.length?`<details class="rd"><summary><span>Últimas operaciones</span></summary><div class="rb">${tr.slice(0,5).map(z=>`<div class="m"><b>${esc(fd(z.d))}</b>: ${z.t.slice(0,6).map(t=>`${t.sd>0?"🟢 compra":"🔴 corto"} ${esc(t.s)} ${viHM(t.a)}→${viHM(Math.min(t.b,390))} (${pc(t.sd*(t.pb/t.pa-1))})`).join(" · ")}${z.t.length>6?" · …":""}</div>`).join("")}</div></details>`:""}
+  <div class="vi-kv"><div><small>Pagando el cambio € → $ en cada operación</small><b class="${x.lo>=0?"up":"dn"}">${pc(x.lo)}</b></div><div><small>Peor bajada</small><b class="dn">${pc(x.dd)}</b></div><div><small>Operaciones</small><b>${x.n}</b></div><div><small>Aciertos</small><b>${x.n?Math.round(x.w/x.n*100)+" %":"—"}</b></div></div>
+  <div class="m">${esc(M.d)}</div><div class="m"><b>Qué dice el estudio:</b> ${esc(M.res)}</div><div class="m">✅ ${esc(VI_T212_TXT)}</div>
+  ${tr.length?`<details class="rd"><summary><span>Últimas operaciones</span></summary><div class="rb">${tr.slice(0,5).map(z=>`<div class="m"><b>${esc(fd(z.d))}</b>: ${z.t.slice(0,6).map(t=>`🟢 ${esc(t.s)} ${viHM(t.a)}→${viHM(Math.min(t.b,390))} (${pc(t.sd*(t.pb/t.pa-1))})`).join(" · ")}${z.t.length>6?" · …":""}</div>`).join("")}</div></details>`:""}
   <div class="m" style="opacity:.75;font-style:italic">${esc(M.src)}</div></div></details>`}).join("");
  h+=`</div><div class="m">SPY en el mismo periodo: <b class="${s.spy>=0?"up":"dn"}">${pc(s.spy)}</b> (peor bajada ${pc(s.spyDD)}). Toca un método para ver cómo funciona y qué dice su estudio.</div></div>`;
- h+=`<details class="fold"><summary>ℹ️ Cómo se calcula</summary><div class="fb"><div class="m">• Velas reales de <b>1 minuto</b> de Alpaca${VX.feed==="iex"?" (fuente IEX)":""}, de 9:30 a 16:00 de Nueva York. Cada método opera con sus reglas publicadas y <b>cierra todo antes del cierre</b>.</div><div class="m">• Costes: 0,0035 $ de comisión + 0,001 $ de deslizamiento por acción y por lado (como el estudio del SPY). Sin apalancar, salvo los métodos marcados (×3 o tamaño por volatilidad).</div><div class="m">• Se actualiza solo cada hora con la bolsa abierta y tras el cierre; los días ya cerrados no cambian. «Solo compras» quita los cortos (lo que permitiría Trading 212).</div><div class="m">• Ojo: que un método ganara en un estudio no garantiza que siga ganando. Para eso está el vigilante: ver si funciona con días nuevos que el estudio no conocía.</div><button id="vi-md" class="ghost">⬇️ Descargar resultados (.md)</button></div></details>`;
+ h+=`<details class="fold"><summary>ℹ️ Cómo se calcula</summary><div class="fb"><div class="m">• Velas reales de <b>1 minuto</b> de Alpaca${VX.feed==="iex"?" (fuente IEX)":""}, de 9:30 a 16:00 de Nueva York (15:30 a 22:00 en España). Cada método opera con las reglas del estudio, pero <b>solo compras y sin apalancar</b> (lo que permite Trading 212), y vende todo antes del cierre.</div><div class="m">• Costes: Trading 212 no cobra comisión; se descuenta un 0,03 % por lado de deslizamiento. El resultado principal supone saldo en dólares; también se muestra pagando el 0,15 % de cambio de divisa en cada compra y venta.</div><div class="m">• Se actualiza solo cada hora con la bolsa abierta y tras el cierre; los días ya cerrados no cambian. Sesgo a tener en cuenta: la lista de ~280 acciones es la de hoy (las que sobrevivieron).</div><div class="m">• Ojo: que un método ganara en un estudio no garantiza que siga ganando. Para eso está el vigilante: ver si funciona con días nuevos que el estudio no conocía.</div><button id="vi-md" class="ghost">⬇️ Descargar resultados (.md)</button></div></details>`;
  el.innerHTML=h;viBind()}
-function viMd(){const VX=S.vix;if(!VX||!VX.days.length)return"# Vigilante intradía\n\nSin datos todavía.\n";const s=viStats(VX),pc=x=>(x*100).toFixed(2).replace(".",",")+" %",L=["# Vigilante intradía · resultados","",`Periodo: ${s.from} → ${s.to} (${s.days.length} días de bolsa) · generado ${new Date().toISOString()}`,"",`SPY (comprar y mantener): ${pc(s.spy)} · peor bajada ${pc(s.spyDD)}`,"","| # | método | resultado | solo compras | peor bajada | operaciones | aciertos | ¿bate al SPY? |","|---|---|---|---|---|---|---|---|"];
+function viMd(){const VX=S.vix;if(!VX||!VX.days.length)return"# Vigilante intradía\n\nSin datos todavía.\n";const s=viStats(VX),pc=x=>(x*100).toFixed(2).replace(".",",")+" %",L=["# Vigilante intradía · resultados","",`Periodo: ${s.from} → ${s.to} (${s.days.length} días de bolsa) · generado ${new Date().toISOString()}`,"",`SPY (comprar y mantener): ${pc(s.spy)} · peor bajada ${pc(s.spyDD)}`,"","| # | método | resultado | con cambio € → $ por operación | peor bajada | operaciones | aciertos | ¿bate al SPY? |","|---|---|---|---|---|---|---|---|"];
  Object.values(s.m).filter(x=>x.nd).sort((a,b)=>b.g-a.g).forEach((x,j)=>L.push(`| ${j+1} | ${VIM[x.k].n} | ${pc(x.g)} | ${pc(x.lo)} | ${pc(x.dd)} | ${x.n} | ${x.n?Math.round(x.w/x.n*100)+" %":"—"} | ${x.g>s.spy?"sí":"no"} |`));
  L.push("","## Resultado diario (%)","","| día | SPY | "+Object.keys(VIM).join(" | ")+" |","|---|---|"+Object.keys(VIM).map(()=>"---").join("|")+"|");for(const z of s.days)L.push(`| ${z.d} | ${pc(z.spy||0)} | `+Object.keys(VIM).map(k=>z.r[k]?pc(z.r[k][0]):"—").join(" | ")+" |");
  L.push("","## Métodos y fuentes","");for(const k in VIM)L.push(`- **${VIM[k].n}**: ${VIM[k].d} ${VIM[k].res} _${VIM[k].src}_`);return L.join("\n")+"\n"}

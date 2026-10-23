@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v30 (web v69): el Vigilante, solo con lo que se puede hacer en Trading 212
+- Quedan 4 métodos: «acciones en juego» de Zarattini, Barbon y Aziz (2024) con rango de apertura de 5, 15, 30 y 60 minutos. Acciones de EE. UU., **solo compras y sin apalancar** (Trading 212 no permite cortos ni apalancamiento), todo vendido antes del cierre.
+- Costes: sin comisión, 0,03 % de deslizamiento por lado. Se muestra también el resultado pagando el 0,15 % de cambio € → $ en cada operación (con saldo en dólares no se paga).
+- Se recalcula el último año desde cero en la próxima ejecución.
+
 ## Novedades v29 (web v68): Vigilante intradía con 10 métodos de day trading
 - El Vigilante ahora prueba **10 métodos intradía con estudios publicados** (zona de ruido del SPY, ruptura de los 5 primeros minutos en QQQ y TQQQ, acciones «en juego», VWAP en QQQ y TQQQ, primera media hora y resto del día → última media hora). Todos abren y cierran dentro del mismo día.
 - Se calculan con **velas reales de 1 minuto de Alpaca** (secreto `ALPACA_KEY`). La primera vez rehace el **último año entero**; después añade cada día de bolsa y el día en curso cada hora.
