@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v27 (web v66): modo sencillo
+- La web se abre en **modo sencillo**: solo lo importante (cuánto tienes, si gana o pierde, qué hará y qué métodos van mejor), con palabras para quien no sabe de trading.
+- En el Histórico cada método dice en qué se habrían convertido **100 €** desde el inicio de la prueba y su peor bajada.
+- Arriba a la derecha, **«👓 Ver todo»** enseña todo lo demás (Vigilante, informes, contabilidad, seguridad, filtros…). Se recuerda en cada dispositivo. No se ha borrado nada.
+
 ## Novedades v26 (web v65): todos los botones enseñan que están trabajando
 - Al pulsar cualquier botón que tarda (revisar, aprobar, guardar ajustes, prueba histórica, recargar, desbloquear…), el botón muestra un círculo girando y abajo aparece una barra con lo que está haciendo en cada momento y el tiempo que lleva.
 - Al terminar, la barra dice «✔ Listo» (verde) o avisa si hubo un problema (rojo) durante unos segundos.
