@@ -472,7 +472,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v80</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v81</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -717,7 +717,7 @@ async function idbPut(k,v){try{const db=await stateDb();await new Promise((res,r
 async function idbGet(k){try{const db=await stateDb();return await new Promise((res,rej)=>{const q=db.transaction("kv","readonly").objectStore("kv").get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}catch{return undefined}}
 async function save(){S.savedAt=Date.now();let ok=false;try{localStorage.setItem("pb19",JSON.stringify(S));ok=true}catch{}const ok2=await idbPut("S",JSON.parse(JSON.stringify(S)));if(!ok&&!ok2){try{$("#st").textContent+=" · AVISO: no se pudo guardar la cartera (poco espacio). Descarga una copia."}catch{}}try{if(ref)await ref.set(JSON.parse(JSON.stringify(S)))}catch{}}
 async function load(){try{if(window.__SNAPREADY)await window.__SNAPREADY}catch{}await load0();pruneRetired();window.__loaded=true}
-function pruneRetired(){try{applySimx();labConfUpdate();if(S.books)for(const k of Object.keys(S.books))if(!STR[k])delete S.books[k];if(!STR[S.main])S.main="sect";if(S.btm&&S.btm.rows)for(const k of Object.keys(S.btm.rows))if(k!=="spy"&&!MX(k))delete S.btm.rows[k];if(S.btm&&S.btm.omit&&typeof S.btm.omit==="object")for(const k of Object.keys(S.btm.omit))if(!MX(k))delete S.btm.omit[k]}catch{}}
+function pruneRetired(){try{livReg();(L=>{for(const k of (L.livOut||[]))if(LIVBASE[k])delete STR[k]})(labS());applySimx();labConfUpdate();if(S.books)for(const k of Object.keys(S.books))if(!STR[k])delete S.books[k];if(!STR[S.main])S.main="sect";if(S.btm&&S.btm.rows)for(const k of Object.keys(S.btm.rows))if(k!=="spy"&&!MX(k))delete S.btm.rows[k];if(S.btm&&S.btm.omit&&typeof S.btm.omit==="object")for(const k of Object.keys(S.btm.omit))if(!MX(k))delete S.btm.omit[k]}catch{}}
 async function load0(){
   try{const u=await claude.use("user"),db=await claude.use("db");if(u&&db){const id=await u.id();ref=db.collection("data/users/"+id).doc("bot");const s=await ref.get();if(s.exists){S=s.data();return}}}catch{}
   let a=null;try{const l=localStorage.getItem("pb19");if(l)a=JSON.parse(l)}catch{}const b2=await idbGet("S"),best=!a?b2:!b2?a:((b2.savedAt||0)>(a.savedAt||0)?b2:a);if(best)S=Object.assign(fresh(),best,{cfgVer:best.cfgVer});
@@ -1547,7 +1547,29 @@ function labConfUpdate(){try{const b=S.btm,L=labS();if(!b||!b.rows||!b.rows.spy)
   if(nd>=365&&g!=null&&gs!=null&&g<gs-0.05&&k!=="sect"&&!L.off[k]){L.off[k]=today;L.log.unshift({d:today,k,n:MX(k).n,ev:"apartado",why:`en 12 meses de ficticia va ${P((g-gs)*100)} peor que el SPY`})}
   C.push({k,n:MX(k).n,an:fwd?null:(S.labAn[k]??null),dd:fwd?null:dd,opy:v.opy,d0,g,gs,nd,fwd,ok:fwd?(!L.off[k]&&nd>=365&&g!=null&&gs!=null&&g-gs>=0.02):(v.c==="ok"&&!L.off[k]&&nd>=91&&g!=null&&(gs==null||g>=gs))})}
  S.labConf=C}catch(e){}}
-function pruneBooks(){try{applySimx();labConfUpdate();if(S&&S.books)for(const k of Object.keys(S.books))if(!STR[k])delete S.books[k];if(S&&S.main&&!STR[S.main])S.main="sect";if(S&&S.btm&&S.btm.rows)for(const k of Object.keys(S.btm.rows))if(!MX(k)&&k!=="spy")delete S.btm.rows[k]}catch{}}
+
+/* ===== v81 · ACCIONES QUE EVOLUCIONAN EN VIVO: cada 3 meses, el método de acciones que peor va frente al SPY (con ≥6 meses en la
+   ficticia) se sustituye por una VARIACIÓN del que mejor va. Siempre hay 3. Sin fin y sin prueba histórica (que con acciones hace trampa). */
+const LIVSC={m121:{n:"que más han subido en 12 meses (sin el último)",f:(b,i)=>mom121(b,i)},m61:{n:"que más han subido en 6 meses (sin el último)",f:(b,i)=>{const r=rtSk(b,i,105,21);return r>0?r:null}},m31:{n:"que más han subido en 3 meses (sin el último)",f:(b,i)=>{const r=rtSk(b,i,42,21);return r>0?r:null}},h52:{n:"más cerca de su máximo de 52 semanas",f:(b,i)=>{let h=0;for(let j=i-251;j<=i;j++)h=Math.max(h,b[j].c);return b[i].c/h}},mlv:{n:"fuertes y tranquilas (momentum de 12 meses entre las 30 primeras, las menos volátiles)",f:(b,i)=>mom121(b,i),two:30}};
+const LIVV={sc:Object.keys(LIVSC),n:[5,8,10,15,20]},LIVBASE={m10:{sc:"m121",n:10},m52:{sc:"h52",n:10},mlv:{sc:"mlv",n:10}};
+const livKey=g=>"s_"+labHash(JSON.stringify({sc:g.sc,n:g.n}));
+function livM(g){const X=LIVSC[g.sc];return{n:`🔭 Acciones · las ${g.n} ${X.n}`,v:"1.0",tg:true,fwd:true,live:g,N:g.n,per:"m",syms:["SPY"],cat:"🔭 Acciones · prueba en vivo",rev:"Revisión mensual",
+ src:"Creado por la evolución en vivo del bot a partir de reglas con estudios: momentum (Jegadeesh y Titman 1993), máximo de 52 semanas (George y Hwang 2004), baja volatilidad (Blitz y van Vliet 2007) y filtro de mercado de Faber (2007).",
+ d:`Cada mes compra a partes iguales las ${g.n} acciones grandes de EE. UU. ${X.n}, solo si están sobre su media de 10 meses; si el S&P 500 cae bajo su media de 10 meses, todo a efectivo.`,target:({D})=>stk(D,g.n,X.f,X.n,X.two)}}
+function livReg(){try{const L=labS();L.live=L.live||{};for(const [k,x] of Object.entries(L.live))if(!STR[k])STR[k]=livM(x.g)}catch(e){}}
+function livStep(){try{const L=labS();L.live=L.live||{};const today=T0();if(L.livT&&dayN(today)-dayN(L.livT)<91)return;
+ const H=hG(),sr=H.SPY&&H.SPY.r||[],spyAt=d=>{const n=dayN(d);let v=null;for(const x of sr){if(x[0]<=n)v=x[4];else break}return v},sNow=sr.length?sr[sr.length-1][4]:null;
+ const F=Object.keys(STR).filter(k=>STR[k].fwd).map(k=>{const B=S.books&&S.books[k];if(!B||!B.days||B.days.length<2)return null;const d0=B.days[0].d,e0=B.days[0].eq,e1=B.days[B.days.length-1].eq,s0=spyAt(d0);return{k,nd:dayN(today)-dayN(d0),ex:e0>0&&s0&&sNow?(e1/e0-1)-(sNow/s0-1):null}}).filter(x=>x&&x.ex!=null);
+ if(!L.livT){L.livT=today;return}
+ const ripe=F.filter(x=>x.nd>=182).sort((a,b)=>a.ex-b.ex);if(ripe.length<2){L.livT=today;return}
+ const worst=ripe[0],best=F.slice().sort((a,b)=>b.ex-a.ex)[0];if(!best||best.k===worst.k||(S.promo||[]).includes(worst.k)){L.livT=today;return}
+ const bg=(L.live[best.k]&&L.live[best.k].g)||LIVBASE[best.k]||{sc:"m121",n:10};let g=null,guard=0;const have=new Set(Object.keys(STR));
+ while(guard++<40){const n={...bg};if(Math.random()<0.5)n.sc=LIVV.sc[Math.floor(Math.random()*LIVV.sc.length)];else n.n=LIVV.n[Math.floor(Math.random()*LIVV.n.length)];const sig=x=>x.sc+":"+x.n,used=new Set([...Object.values(L.live).map(x=>sig(x.g)),...Object.keys(LIVBASE).filter(k=>STR[k]).map(k=>sig(LIVBASE[k]))]);if(!have.has(livKey(n))&&!used.has(sig(n))){g=n;break}}
+ if(!g){L.livT=today;return}
+ const nk=livKey(g),wn=STR[worst.k].n;delete STR[worst.k];if(S.books)delete S.books[worst.k];delete L.live[worst.k];L.live[nk]={g,born:today};STR[nk]=livM(g);
+ L.log.unshift({d:today,k:nk,n:STR[nk].n,ev:"evoluciona",why:`sustituye a «${wn.replace(/^🔭 /,"")}» (iba ${P(worst.ex*100)} frente al SPY); es una variación del mejor («${STR[best.k].n.replace(/^🔭 /,"")}», ${P(best.ex*100)})`});
+ for(const k of Object.keys(LIVBASE))if(!STR[k]&&FWDKEEP[k])delete FWDKEEP[k];L.livOut=(L.livOut||[]).concat([worst.k]).slice(-50);L.livT=today}catch(e){}}
+function pruneBooks(){try{livReg();(L=>{for(const k of (L.livOut||[]))if(LIVBASE[k])delete STR[k]})(labS());livStep();applySimx();labConfUpdate();if(S&&S.books)for(const k of Object.keys(S.books))if(!STR[k])delete S.books[k];if(S&&S.main&&!STR[S.main])S.main="sect";if(S&&S.btm&&S.btm.rows)for(const k of Object.keys(S.btm.rows))if(!MX(k)&&k!=="spy")delete S.btm.rows[k]}catch{}}
 
 function bookStep(B,key,date,D,fx,cf,rsP,log){
  const sg=bookStep0(B,key,date,D,fx,cf,rsP,log);
@@ -1730,7 +1752,7 @@ function btmVerd(b,k){const r=b.rows[k],sp=b.rows.spy;if(!r||!sp)return null;con
 let BTV={f:"ok",sort:"a",all:false};try{Object.assign(BTV,JSON.parse(localStorage.getItem("pbbtv2")||"{}"))}catch{}
 const btvSave=()=>{try{localStorage.setItem("pbbtv2",JSON.stringify(BTV))}catch{}};
 function labHtml(){try{const L=S.lab;if(!L||!L.last&&!Object.keys(L.pop||{}).length)return`<div class="p lab0"><b>🤖 Laboratorio</b><div class="m">Cada noche el bot inventará 12 métodos nuevos y los examinará. Aparecerán aquí los que aprueben.</div></div>`;
- const pop=Object.entries(L.pop||{}).sort((a,b)=>(b[1].an||0)-(a[1].an||0)),ic={aprueba:"📝",nace:"🌱","sale":"🗑️",descartado:"🎲","a la ficticia":"🧪",apartado:"⛔"};
+ const pop=Object.entries(L.pop||{}).sort((a,b)=>(b[1].an||0)-(a[1].an||0)),ic={aprueba:"📝",nace:"🌱","sale":"🗑️",descartado:"🎲","a la ficticia":"🧪",apartado:"⛔",evoluciona:"🔄"};
  return`<div class="lab0"><b>🤖 Laboratorio</b><div class="m">Cada noche inventa 12 métodos: la mitad son variaciones de los mejores y el resto exploración guiada por lo que más acierta. Para quedarse tienen que ganar al SPY en 2000-2015 <b>y</b> en 2016-hoy, y después pasar la <b>prueba de estabilidad</b> (sus variantes cercanas también tienen que ganar al SPY; si no, fue suerte). ${L.last?`Última noche (${esc(fd(L.last.d))}): ${L.last.n} probados, <b>${L.last.ok} aprobados</b>.`:""} En total ha probado ${(L.tried||[]).length}; en la liga quedan <b>${pop.length}</b> (máx. ${LABMAX})${Object.keys(L.pend||{}).length?` y ${Object.keys(L.pend).length} en prueba de estabilidad`:""}.</div>
  ${(()=>{const lt=labLearnt();if(!lt.length)return"";const best=lt.slice(0,3),worst=lt.slice(-2).reverse();return`<div class="m">🧠 <b>Lo que va aprendiendo</b> (qué piezas ganan más al SPY): ${best.map(x=>`${esc(LABPN[x.pc])}: <b>${esc(labValTxt(x.pc,x.v))}</b> (${Math.round(x.r*100)} % de ${x.n})`).join(" · ")}. Lo que peor funciona: ${worst.map(x=>`${esc(LABPN[x.pc])}: ${esc(labValTxt(x.pc,x.v))} (${Math.round(x.r*100)} %)`).join(" · ")}.</div>`})()}
  ${(L.log||[]).length?`<details class="rd"><summary><span>Últimos movimientos (${Math.min(10,L.log.length)})</span></summary><div class="rb">${L.log.slice(0,10).map(x=>`<div class="m">${ic[x.ev]||"•"} <b>${esc(fd(x.d))}</b> · ${esc(x.n)}: ${esc(x.ev)} (${esc(x.why)})</div>`).join("")}</div></details>`:""}</div>`}catch(e){return""}}

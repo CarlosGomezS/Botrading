@@ -575,7 +575,7 @@ async function main() {
           const pc = (x) => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1).replace(".", ",") + " %";
           const nuevos = lab.ev.filter((x) => x.ev === "nace" || x.ev === "a la ficticia"), top = nuevos.filter((x) => x.an != null && lab.as != null && x.an - lab.as >= 0.04);
           const L2 = [`🤖 Laboratorio: ${lab.last.n} métodos nuevos probados · ${lab.last.ok} aprueban el examen · liga ${lab.pop}/20${lab.pend ? " · " + lab.pend + " en prueba de estabilidad" : ""}`];
-          for (const x of lab.ev.slice(0, 6)) L2.push(`${{ nace: "🌱", aprueba: "📝", descartado: "🎲", sale: "🗑️", "a la ficticia": "🧪", apartado: "⛔" }[x.ev] || "•"} ${x.n.replace(/^🤖 /, "")}: ${x.ev}${x.an != null ? " (" + pc(x.an) + "/año)" : ""}`);
+          for (const x of lab.ev.slice(0, 6)) L2.push(`${{ nace: "🌱", aprueba: "📝", descartado: "🎲", sale: "🗑️", "a la ficticia": "🧪", apartado: "⛔", evoluciona: "🔄" }[x.ev] || "•"} ${x.n.replace(/^🤖 /, "")}: ${x.ev}${x.an != null ? " (" + pc(x.an) + "/año)" : ""}`);
           if (nuevos.length) L2.push("", `Los nuevos ganadores se prueban ahora 3 meses en la ficticia con precios de hoy. Si siguen ganando al SPY y a tu método, te llegará aquí la propuesta con «✅ Cambiar».`);
           shortTxt = L2.join("\n") + "\n\n" + shortTxt;
           if (top.length) titleTxt = `🌟 Bot Trading: método MUY bueno encontrado (${pc(top[0].an)}/año, el SPY ${pc(lab.as)})`;

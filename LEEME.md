@@ -9,6 +9,9 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v42 (web v81): las acciones también evolucionan solas
+- Cada 3 meses, el método de acciones 🔭 que peor va frente al SPY (con ≥6 meses en la ficticia) se sustituye por una **variación del que mejor va** (otro criterio: 3, 6 o 12 meses, máximo de 52 semanas, fuertes y tranquilas; o más o menos acciones: 5 a 20). Siempre hay 3, sin fin. Queda en «Últimos movimientos» como 🔄 evoluciona.
+
 ## Novedades v41 (web v80): acciones en prueba en vivo
 - La prueba histórica con acciones hace trampa (usa la lista de empresas de hoy: ya «sabe» quién sobrevivió). Por eso 3 métodos de acciones con estudios detrás (momentum de 10 grandes con filtro de mercado, cerca del máximo de 52 semanas y momentum tranquilo) **van directos a la ficticia, marcados «🔭 en vivo»**, y solo cuentan sus resultados desde hoy.
 - Para proponerse a tu cartera real necesitan **12 meses en la ficticia ganando al SPY por ≥2 puntos**. Si tienes desactivada la compra de acciones, el aviso te lo dice y no trae botón de cambiar.
