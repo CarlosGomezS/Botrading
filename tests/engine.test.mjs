@@ -176,6 +176,12 @@ test("ESCENARIOS: un año de uso con dinero real (simulado) de principio a fin",
       const d = r.R.days.find((x) => x.d === "2026-10-23"); assert.ok(d && d.live && d.be > 0);
       for (const k of Object.keys(K.px)) K.px[k] /= 1.01;
     });
+    await t.test("1c · revisión programada con la de hoy ya hecha: lee el valor (pulso) sin operar", async () => {
+      const n0 = W.mk.calls.filter((c) => c.m === "POST").length;
+      const r = await W.step("normal", "2026-10-22T13:40:00Z", { GITHUB_EVENT_NAME: "schedule" });
+      assert.equal(r.code, 0, r.so); assert.equal(W.mk.calls.filter((c) => c.m === "POST").length, n0, "ninguna orden");
+      assert.ok(r.R.intra && r.R.intra.d === "2026-10-22" && r.R.intra.p.length >= 1, "añade un punto del día"); assert.ok(r.R.live && r.R.live.startsWith("2026-10-22T13:40")); assert.match(r.so, /pulso/);
+    });
     await t.test("2 · rotación mensual: vende energía y financiero, compra industrial y servicios", async () => {
       W.setTgt("2026-11-02", ["XLK", "XLI", "XLU"]);
       const r = await W.step("normal", "2026-11-03T09:20:00Z");

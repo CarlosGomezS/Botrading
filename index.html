@@ -454,7 +454,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .bdg.no{background:color-mix(in srgb,var(--line) 40%,transparent);color:var(--muted)}
 #vi-per{margin:2px 0 4px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v70</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v71</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3164,7 +3164,7 @@ function bind(){const R=RL.R,on=(id,f)=>{const e=$r(id);if(e)e.onclick=f};
  on("#rl-a-normal",()=>{const a=A();if(a.on&&a.modo==="auto"&&a.env==="live"&&!confirm("Modo AUTOMÁTICO con dinero real: si hay cambios, la revisión ejecutará las órdenes sin preguntar. ¿Seguir?"))return;runCloud("normal","","Revisar ahora")});
  on("#rl-a-foto",()=>runCloud("foto","","Guardar valor de hoy"));
  on("#rl-a-reanudar",()=>{if(confirm("¿Quitar la pausa automática? El freno de pérdidas se vuelve a contar desde el valor de hoy."))runCloud("reanudar","","Reanudar")});
- on("#rl-a-rec",()=>{say("Recargando…");loadReal(true).then(()=>say("Datos recargados."))});
+ on("#rl-a-rec",()=>runCloud("pulso","","Leer tu cuenta de Trading 212 ahora"));
  document.querySelectorAll("#t-real [data-mk]").forEach(e=>e.onclick=()=>{RL.pick=e.dataset.mk===A().metodo?null:e.dataset.mk;const sm=$r("#rl-c-met");if(sm&&RL.pick)sm.value=RL.pick;if(RL.pick)RL.dirty=true;draw();const b=$r("#rl-mok");if(b)b.scrollIntoView({block:"center"})});
  const cf=$r('details[data-o="cfg"] .fb');if(cf){const mk=()=>{RL.dirty=true;const d=$r("#rl-c-dirty");if(d)d.style.display="block"};cf.addEventListener("input",mk);cf.addEventListener("change",e=>{mk();if(e.target&&e.target.id==="rl-c-met"){RL.pick=e.target.value===A().metodo?null:e.target.value}})}
  const pwS=$r("#rl-c-pw");if(pwS)pwS.onkeydown=e=>{if(e.key==="Enter")onSave()};

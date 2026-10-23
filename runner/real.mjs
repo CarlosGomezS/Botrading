@@ -805,12 +805,12 @@ async function main() {
   const getBot = () => botC || (botC = loadBot());
   let estado = "ok", titulo = "", aviso = null;   // aviso = {title, msg, prio}
   const scheduled = EVENT === "schedule";
-  const tipo = ACCION;
+  let tipo = ACCION;
 
   if (scheduled && !A.on) { log("Cartera real desactivada en los ajustes: nada que hacer."); return; }
   if (scheduled && tipo === "normal") {
     if (!m.wk || m.min < 9 * 60 + 5 || m.min > 21 * 60 + 55) { log(`Fuera del horario de la cartera real (${m.hm} en Madrid).`); return; }
-    if (R.lastNormal === m.date) { log(R.plan && R.plan.estado === "pendiente" ? "Hay una propuesta pendiente de hoy: se espera a que la apruebes o la rechaces en la web." : "La revisión de hoy ya está hecha."); return; }
+    if (R.lastNormal === m.date) { log((R.plan && R.plan.estado === "pendiente" ? "Hay una propuesta pendiente de hoy: se espera a que la apruebes o la rechaces en la web." : "La revisión de hoy ya está hecha.") + " Aprovecho para leer el valor de la cuenta (pulso)."); tipo = "pulso"; }
   }
   if (scheduled && tipo === "foto" && R.days.some((x) => x.d === m.date && x.foto)) { log("La foto de hoy ya está hecha."); return; }
   // v25: «pulso» cada ~15 min con la bolsa abierta: solo LEE tu cuenta y actualiza el valor del bot para la web (sin órdenes, sin avisos, sin informe)

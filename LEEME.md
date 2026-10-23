@@ -9,6 +9,10 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v32 (web v71): la cartera real se actualiza de verdad durante el día
+- Las revisiones programadas de la cartera real (cada media hora de 9:17 a 17:47) leen el valor de tu cuenta cuando la revisión del día ya está hecha (antes terminaban sin hacer nada). Así la web sigue a Trading 212 aunque GitHub no haya activado todavía «valor en directo».
+- El botón «↻ Actualizar» de la pestaña Real lee ahora tu cuenta de Trading 212 en el momento (tarda ~1 minuto).
+
 ## Novedades v31 (web v70): vigilante más rápido
 - Pide los datos a Alpaca de 4 en 4 (en paralelo): rehacer el año pasa de varias horas a una o dos ejecuciones. Mientras falte año por calcular, cada ejecución trabaja hasta 32 minutos.
 - En «Cómo se calcula» se ve cuántas consultas hizo y cuánto tardó.
