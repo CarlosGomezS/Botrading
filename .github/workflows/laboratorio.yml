@@ -3,6 +3,8 @@ name: Laboratorio (rondas extra cada 2 horas)
 # El laboratorio del bot no para: además de la prueba de cada noche, cada 2 horas (también fines de semana) prueba
 # otros 48 métodos nuevos y aprende de ellos. Solo avisa por Telegram si encuentra un ganador.
 # No coincide con la actualización de precios ni con la prueba de la noche (21:00-02:59 UTC): si cae en ese hueco, no hace nada.
+# v100 · EN CADENA: GitHub apenas respeta los horarios frecuentes, así que cada ronda lanza la siguiente al terminar (una cada ~35-40 min,
+# entre las 03 y las 19 UTC, como mucho 30 al día). Si la cadena se corta, el horario de arriba y el flujo de Telegram la vuelven a arrancar.
 on:
   schedule:
     - cron: "23 3-19/2 * * *"
@@ -10,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 # grupo propio (no cancela ni retrasa la actualización de precios); el horario evita escribir el estado a la vez que ella
 concurrency:
@@ -19,7 +22,7 @@ concurrency:
 jobs:
   lab:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - name: ¿Hueco libre?
         id: hueco
@@ -65,3 +68,16 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
         run: node runner.mjs backtest
+      - name: Siguiente ronda (en cadena)
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ steps.hueco.outputs.go }}" != "true" ]; then echo "Fuera de horario: la cadena sigue mañana."; exit 0; fi
+          R="repos/${{ github.repository }}/actions/workflows/laboratorio.yml"
+          n=$(gh api "$R/runs?created=%3E%3D$(date -u +%F)&per_page=1" -q .total_count 2>/dev/null || echo 0)
+          echo "Rondas de hoy: $n"
+          if [ "${n:-0}" -ge 30 ]; then echo "Tope de 30 rondas al día: sigue mañana."; exit 0; fi
+          if [ "${{ steps.libre.outputs.go }}" = "true" ]; then sleep 1500; else sleep 600; fi
+          H=$((10#$(date -u +%H)))
+          if [ "$H" -ge 3 ] && [ "$H" -le 18 ]; then gh api -X POST "$R/dispatches" -f ref=main && echo "Siguiente ronda lanzada."; else echo "Se acaba el horario de hoy: la cadena sigue mañana."; fi

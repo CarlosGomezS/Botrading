@@ -9,6 +9,10 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v56: laboratorio en cadena
+- GitHub casi no respeta los horarios frecuentes (el laboratorio «cada 2 horas» arrancaba 2-3 veces al día). Ahora cada ronda lanza la siguiente al terminar: una cada ~35-40 minutos entre las 03 y las 19 UTC (05-21 en España), como mucho 30 al día.
+- Si la cadena se corta, el horario del flujo y el de Telegram la vuelven a arrancar.
+
 ## Novedades v55 (web v99): búsqueda inteligente en el laboratorio
 - Antes de probar un método, un modelo predice su nota con todos los ya examinados (los más parecidos) y el laboratorio prueba sobre todo los más prometedores (75 % de cada ronda).
 - Regla fija: el otro 25 % es SIEMPRE al azar, para que nunca deje de descubrir cosas nuevas ni se encierre en una idea.
