@@ -1,16 +1,10 @@
 name: Ajustes de la nube
 
 # Guarda en el repositorio (ajustes.json) lo que elijas aquí o desde la web (pestaña Ajustes → «Aplicar en la nube»).
-# El vigilante y la prueba histórica diaria lo leen al empezar cada turno; la actualización diaria y el vigilante
-# aplican además los parámetros del bot (comisión, riesgo, frenos…) antes de ejecutarse.
+# La prueba histórica diaria lo lee al empezar; la actualización diaria aplica además los parámetros del bot (comisión, riesgo, frenos…) antes de ejecutarse.
 on:
   workflow_dispatch:
     inputs:
-      vigilante_min:
-        description: "Vigilante: consultar cada (minutos)"
-        type: choice
-        options: ["10", "15", "30", "60"]
-        default: "30"
       bt_max:
         description: "Prueba histórica: máximo de acciones (10-500), o los ajustes completos en JSON (lo rellena la web: min, max, excl, ini, acc, auto, sim)"
         type: string
@@ -23,10 +17,6 @@ on:
         description: "Método principal (clave interna; lo rellena la web; vacío = no cambiar)"
         type: string
         default: ""
-      vgc:
-        description: "Vigilante en JSON: thr, top, trade (lo rellena la web; déjalo en {} si lo lanzas a mano)"
-        type: string
-        default: "{}"
       mins:
         description: "Tiempo máximo por actualización en minutos (2-60; vacío = no cambiar)"
         type: string
@@ -36,7 +26,7 @@ on:
         type: string
         default: ""
       extra:
-        description: "Otros ajustes en JSON: mon, mc, mv, nt (1/0) y fx (cambio €/$) (lo rellena la web; déjalo en {} si lo lanzas a mano)"
+        description: "Otros ajustes en JSON: mon, mc, nt (1/0) y fx (cambio €/$) (lo rellena la web; déjalo en {} si lo lanzas a mano)"
         type: string
         default: "{}"
       recalcular:
@@ -64,11 +54,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Guardar ajustes.json
         env:
-          VM: ${{ inputs.vigilante_min }}
           BM: ${{ inputs.bt_max }}
           CFGJ: ${{ inputs.cfg }}
           MAIN: ${{ inputs.main }}
-          VGCJ: ${{ inputs.vgc }}
           MINS: ${{ inputs.mins }}
           AVJ: ${{ inputs.avisos }}
           CAP: ${{ inputs.capital }}
@@ -78,8 +66,6 @@ jobs:
           node -e '
           const fs = require("fs");
           let a = {}; try { a = JSON.parse(fs.readFileSync("ajustes.json", "utf8")); } catch {}
-          const vm = +process.env.VM;
-          if (![10, 15, 30, 60].includes(vm)) { console.error("Intervalo no válido: " + process.env.VM); process.exit(1); }
           // prueba histórica: un número (máximo de acciones) o un JSON con todos sus ajustes
           const bt = Object.assign({}, a.bt || {});
           const BMs = String(process.env.BM || "").trim();
@@ -112,23 +98,13 @@ jobs:
             if (!LIM[k] || !Number.isFinite(v) || v < LIM[k][0] || v > LIM[k][1]) { console.error("Parámetro rechazado: " + k + " = " + inCfg[k]); process.exit(1); }
             cfg[k] = v;
           }
-          const out = { vigilante_min: vm, bt_max: bm };
+          const out = { bt_max: bm };
           if (Object.keys(bt).length) out.bt = bt;
           if (Object.keys(cfg).length) out.cfg = cfg;
           // método principal: solo una clave interna (la app comprueba que exista)
           const mainIn = (process.env.MAIN || "").trim();
           if (mainIn) { if (!/^[A-Za-z0-9_-]{1,40}$/.test(mainIn)) { console.error("Método no válido: " + mainIn); process.exit(1); } out.main = mainIn; }
           else if (a.main) out.main = a.main;
-          // vigilante: subida mínima, nº de acciones extra, operar sí/no
-          let vgcIn = {}; try { vgcIn = JSON.parse(process.env.VGCJ || "{}"); } catch { console.error("vgc no es JSON válido"); process.exit(1); }
-          const VL = { thr: [0.5, 50], top: [0, 300], trade: [0, 1] };
-          const vgc = Object.assign({}, a.vgc || {});
-          for (const k of Object.keys(vgcIn)) {
-            const v = +vgcIn[k];
-            if (!VL[k] || !Number.isFinite(v) || v < VL[k][0] || v > VL[k][1]) { console.error("Parámetro del vigilante rechazado: " + k + " = " + vgcIn[k]); process.exit(1); }
-            vgc[k] = v;
-          }
-          if (Object.keys(vgc).length) out.vgc = vgc;
           // tiempo máximo por actualización
           const minsIn = (process.env.MINS || "").trim();
           if (minsIn) { const mv = Math.round(+minsIn); if (!Number.isFinite(mv) || mv < 2 || mv > 60) { console.error("Tiempo máximo fuera de rango (2-60): " + minsIn); process.exit(1); } out.mins = mv; }
@@ -146,9 +122,9 @@ jobs:
           const capIn = (process.env.CAP || "").trim();
           if (capIn) { const cv = Math.round(+capIn); if (!Number.isFinite(cv) || cv < 100 || cv > 1000000) { console.error("Capital fuera de rango (100-1000000): " + capIn); process.exit(1); } out.capital = cv; }
           else if (a.capital) out.capital = a.capital;
-          // otros: correo automático de la app (mon, mc, mv), notificaciones (nt) y cambio €/$ (fx)
+          // otros: correo automático de la app (mon, mc), notificaciones (nt) y cambio €/$ (fx)
           let exIn = {}; try { exIn = JSON.parse(process.env.EXJ || "{}"); } catch { console.error("extra no es JSON válido"); process.exit(1); }
-          const XL = { mon: [0, 1], mc: [0, 1], mv: [0, 1], nt: [0, 1], fx: [0.3, 3] };
+          const XL = { mon: [0, 1], mc: [0, 1], nt: [0, 1], fx: [0.3, 3] };
           const ex = Object.assign({}, a.extra || {});
           for (const k of Object.keys(exIn)) {
             const v = +exIn[k];

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       confirmar:
-        description: "Escribe REINICIAR para confirmar (borra TODOS los datos: cuentas, operaciones, informes, pruebas históricas, vigilante, precios y ajustes)"
+        description: "Escribe REINICIAR para confirmar (borra TODOS los datos: cuentas, operaciones, informes, pruebas históricas, precios y ajustes)"
         type: string
         required: true
 
@@ -35,8 +35,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Parar las ejecuciones del bot que estén en marcha
         run: |
-          # si una actualización o un turno del vigilante siguiera corriendo, volvería a publicar los datos viejos encima del reinicio
-          for wf in diario.yml historico.yml vigilante.yml; do
+          # si una actualización o una ronda del laboratorio siguiera corriendo, volvería a publicar los datos viejos encima del reinicio
+          for wf in diario.yml historico.yml laboratorio.yml; do
             for st in in_progress queued waiting pending; do
               for id in $(gh run list --workflow "$wf" --status "$st" --json databaseId --jq '.[].databaseId' 2>/dev/null); do
                 echo "Cancelando $wf #$id ($st)"; gh run cancel "$id" || true
@@ -45,7 +45,7 @@ jobs:
           done
           for i in $(seq 1 36); do
             n=0
-            for wf in diario.yml historico.yml vigilante.yml; do
+            for wf in diario.yml historico.yml laboratorio.yml; do
               for st in in_progress queued waiting pending; do
                 c=$(gh run list --workflow "$wf" --status "$st" --json databaseId --jq 'length' 2>/dev/null || echo 0); n=$((n + c))
               done
@@ -77,7 +77,7 @@ jobs:
           const secrets = {}; for (const k of names) secrets[k] = !!(process.env[k] || "").trim();
           // copia de datos vacía: la web y el bot la leen como una instalación nueva
           fs.writeFileSync(process.env.PUB + "/state.json", JSON.stringify({ v: 1, savedAt: Date.now(), reset: true, ls: {}, idb: {}, meta: { secrets } }));
-          fs.writeFileSync("ajustes.json", JSON.stringify({ vigilante_min: 30, bt_max: 300 }, null, 2) + "\n");
+          fs.writeFileSync("ajustes.json", JSON.stringify({ bt_max: 300 }, null, 2) + "\n");
           '
           git -C "$RUNNER_TEMP/pub" init -q -b data
           git -C "$RUNNER_TEMP/pub" config user.name "bot-trading"

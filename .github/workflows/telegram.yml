@@ -30,7 +30,7 @@ jobs:
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node runner/telegram.mjs
-      # v91 · vigilante del laboratorio: GitHub a veces no activa los horarios de los flujos nuevos. Si la última ronda
+      # v91 · arranque de seguridad del laboratorio: GitHub a veces no activa los horarios de los flujos nuevos. Si la última ronda
       # del laboratorio tiene más de 2 horas (y estamos entre las 03 y las 19 UTC), la lanza desde aquí.
       - name: ¿Le toca ronda al laboratorio?
         continue-on-error: true

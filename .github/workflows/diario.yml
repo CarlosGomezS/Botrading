@@ -19,7 +19,7 @@ on:
 permissions:
   contents: write
 
-# Mismo grupo que la prueba histórica y el vigilante: los tres escriben el mismo estado, así que van de uno en uno.
+# Mismo grupo que la prueba histórica: las dos escriben el mismo estado, así que van de uno en uno.
 concurrency:
   group: bot-estado
   cancel-in-progress: false

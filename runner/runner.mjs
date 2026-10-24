@@ -1,5 +1,5 @@
 // Ejecuta el bot (index.html) en un Chromium sin pantalla dentro de GitHub Actions.
-// Uso: node runner.mjs daily | backtest | vigilante | test
+// Uso: node runner.mjs daily | backtest | test
 // Guarda el estado en la rama "data" (state.json) para que la web publicada lo muestre.
 import { chromium } from "playwright";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, appendFileSync } from "node:fs";
@@ -15,20 +15,13 @@ const env = (k) => (process.env[k] || "").trim();
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// ---------- hora de Nueva York (para el vigilante) ----------
-function nyNow() {
-  const p = {};
-  new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour12: false, weekday: "short", hour: "2-digit", minute: "2-digit" })
-    .formatToParts(new Date()).forEach((x) => (p[x.type] = x.value));
-  return { min: (+p.hour % 24) * 60 + +p.minute, wk: !/^(Sat|Sun)$/.test(p.weekday) };
-}
 
 // ---------- lista blanca de datos que se publican (nunca claves) ----------
 const LS_OK = (k) => k === "pb19" || k === "pbh3" || k === "pbi1" || k === "vgidx" || k === "pbReportsFallback" || k.startsWith("vgd:");
 function scrubState(S) {
   try {
     if (S && S.mail) { delete S.mail.key; delete S.mail.to; }
-    // v75: restos del vigilante retirado
+    // restos del vigilante (retirado del todo en la v92)
     if (S) { delete S.vix; delete S.ivs; delete S.intra; }
   } catch {}
   return S;
@@ -215,18 +208,12 @@ function patchedHtml() {
 function loadAjustes() {
   let a = {};
   try { a = JSON.parse(readFileSync(path.join(ROOT, "ajustes.json"), "utf8")); } catch {}
-  const vm = [10, 15, 30, 60].includes(+a.vigilante_min) ? +a.vigilante_min : null;
   let bmax = Math.round(+a.bt_max);
   if (!(bmax >= 10)) bmax = 300;
   bmax = Math.min(500, bmax);
   const cfg = {};
   if (a.cfg && typeof a.cfg === "object") for (const k of Object.keys(a.cfg)) if (Number.isFinite(+a.cfg[k])) cfg[k] = +a.cfg[k];
   const main = typeof a.main === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(a.main) ? a.main : "";
-  const vgc = {};
-  if (a.vgc && typeof a.vgc === "object") {
-    const VL = { thr: [0.5, 50], top: [0, 300], trade: [0, 1] };
-    for (const k of Object.keys(VL)) { const v = +a.vgc[k]; if (a.vgc[k] != null && Number.isFinite(v) && v >= VL[k][0] && v <= VL[k][1]) vgc[k] = v; }
-  }
   const mv = Math.round(+a.mins);
   const mins = Number.isFinite(mv) && mv >= 2 && mv <= 60 ? mv : null;
   const avisos = { movil: 1, correo: 1 };
@@ -249,7 +236,7 @@ function loadAjustes() {
     if (Array.isArray(a.bt.sim)) bt.sim = a.bt.sim.filter((k) => typeof k === "string" && /^[A-Za-z0-9_-]{1,20}$/.test(k)).slice(0, 30);
     if (bt.min > bt.max) bt.min = bt.max;
   }
-  return { vigilante_min: vm, bt_max: bt.max, cfg, main, vgc, mins, avisos, capital, extra, recalc, bt };
+  return { bt_max: bt.max, cfg, main, mins, avisos, capital, extra, recalc, bt };
 }
 // número aleatorio de acciones: entre 200 y el máximo (si el máximo es menor de 200, se usa el máximo)
 function btCount(max, min) { const lo = Math.min(min != null ? min : 200, max); return lo + Math.floor(Math.random() * (max - lo + 1)); }
@@ -348,15 +335,15 @@ async function avisar(page, rep, { title, short, subject, silent = false, force 
 async function avisar0(page, rep, { title, short, subject, silent = false, force = false }) {
   const body = [short, "", SITE ? "Web: " + SITE : ""].join("\n").trim();
   const mailTxt = ["BOT TRADING PRO · simulación, sin dinero real", title, "", ...(rep && rep.md ? [short, "", "—".repeat(20), "", rep.md] : [short]), "", SITE ? "Web: " + SITE : ""].join("\n");
-  // silent: el turno del vigilante deja su informe en la web pero NO manda móvil ni correo (serían demasiados). Los errores sí avisan.
-  const off = { ok: false, txt: "no enviado a propósito (los turnos del vigilante no avisan; solo los errores)" };
+  // silent: la ronda deja su informe en la web pero NO manda móvil ni correo. Los errores sí avisan.
+  const off = { ok: false, txt: "no enviado a propósito (esta ronda no avisa; solo los errores)" };
   // avisos apagados desde la web (Ajustes de la nube): los errores (force) avisan siempre
   const AV = loadAjustes().avisos;
   const offM = { ok: false, txt: "no enviado a propósito (apagado en Ajustes de la nube → avisos al móvil)" };
   const offC = { ok: false, txt: "no enviado a propósito (apagado en Ajustes de la nube → avisos por correo)" };
   const [n, m] = silent ? [off, off] : [(force || AV.movil) ? await sendNtfy(title, body) : offM, (force || AV.correo) ? await sendMail(page, subject, mailTxt) : offC];
   log("Aviso móvil:", n.txt); log("Aviso correo:", m.txt);
-  const bloque = silent ? `\n\n## Avisos de esta ejecución\n- Sin aviso al móvil ni correo (turno del vigilante: solo se avisa si hay un error).\n`
+  const bloque = silent ? `\n\n## Avisos de esta ejecución\n- Sin aviso al móvil ni correo (ronda sin novedades: solo se avisa si hay un error).\n`
     : `\n\n## Avisos de esta ejecución\n- Móvil (ntfy): ${n.ok ? "✔ " : "✖ "}${n.txt}\n- Correo: ${m.ok ? "✔ " : "✖ "}${m.txt}\n`;
   if (rep && rep.id) { try { await page.evaluate(([id, t]) => __API.appendToReport(id, t), [rep.id, bloque]); } catch (e) { log("No se pudo anotar el aviso en el informe:", String(e.message).slice(0, 120)); } }
   try { if (env("GITHUB_STEP_SUMMARY")) appendFileSync(env("GITHUB_STEP_SUMMARY"), `\n### ${title}\n${rep && rep.md ? rep.md.slice(0, 60000) : short}${bloque}\n`); } catch {}
@@ -378,7 +365,7 @@ function shortBt(r) {
 // ---------- arranque del navegador con el estado anterior ----------
 async function boot() {
   const keys = keysFromEnv();
-  if (!Object.values(keys).some(Boolean)) log("AVISO: no hay ninguna clave de datos en los Secrets. Sin clave solo funcionan las fuentes gratuitas sin clave (Yahoo/Stooq) y el vigilante NO podrá consultar.");
+  if (!Object.values(keys).some(Boolean)) log("AVISO: no hay ninguna clave de datos en los Secrets. Sin clave solo funcionan las fuentes gratuitas sin clave (Yahoo/Stooq).");
   const snap0 = fetchState();
   const html = patchedHtml();
   const browser = await chromium.launch({ args: ["--no-sandbox"], ...(env("CHROMIUM_PATH") ? { executablePath: env("CHROMIUM_PATH") } : {}) });
@@ -390,7 +377,7 @@ async function boot() {
   await ctx.addInitScript(() => {
     window.__RUNNER = true;
     // el aviso de fin de actualización / prueba histórica lo envía el runner (con el informe); aquí se silencia el duplicado
-    // También se silencian los avisos propios de la página (p. ej. «posible entrada en X» del vigilante, uno por consulta): el único que avisa es el runner.
+    // También se silencian los avisos propios de la página (p. ej. avisos internos de la web): el único que avisa es el runner.
     window.__NOTIFY_QUIET = /./;
     try { localStorage.setItem("pbt", String(Date.now())); } catch {}   // evita el arranque automático de "Actualizar" al abrir
   });
@@ -474,10 +461,10 @@ async function boot() {
       if (r) log("Recálculo de comisiones:", r);
     }
   } catch (e) { log("No se pudo recalcular la comisión:", String(e.message).slice(0, 200)); }
-  // método principal, ajustes del vigilante y tiempo máximo por actualización (también vienen de la web)
+  // método principal y tiempo máximo por actualización (también vienen de la web)
   try {
     const A = loadAjustes();
-    const r = await page.evaluate(async ([main, vgc, mins]) => {
+    const r = await page.evaluate(async ([main, mins]) => {
       const done = [];
       if (main && typeof STR === "object" && STR[main] && S.main !== main) {
         S.main = main;
@@ -485,16 +472,11 @@ async function boot() {
         if (B && Array.isArray(S.days)) S.days.forEach((z) => { const y = B.days.find((d) => d.d === z.d); if (y) z.eq = y.eq; });
         done.push("método principal=" + main); await save();
       }
-      let vchg = false;
-      if (vgc.thr != null && VGC.thr !== vgc.thr) { VGC.thr = vgc.thr; vchg = true; done.push("vigilante.thr=" + vgc.thr); }
-      if (vgc.top != null && VGC.top !== vgc.top) { VGC.top = vgc.top; vchg = true; done.push("vigilante.top=" + vgc.top); }
-      if (vgc.trade != null && VGC.trade !== !!vgc.trade) { VGC.trade = !!vgc.trade; vchg = true; done.push("vigilante.trade=" + !!vgc.trade); }
-      if (vchg) vgSave();
       if (mins) { const el = document.querySelector("#mins"); if (el) { el.value = String(mins); done.push("tiempo máximo=" + mins + " min"); } }
       return done;
-    }, [A.main, A.vgc || {}, A.mins]);
-    if (r.length) log("Ajustes de la web aplicados (método/vigilante/tiempo):", r.join(", "));
-  } catch (e) { log("No se pudieron aplicar método/vigilante/tiempo:", String(e.message).slice(0, 160)); }
+    }, [A.main, A.mins]);
+    if (r.length) log("Ajustes de la web aplicados (método/tiempo):", r.join(", "));
+  } catch (e) { log("No se pudieron aplicar método/tiempo:", String(e.message).slice(0, 160)); }
   await page.evaluate(() => {
     try { localStorage.setItem("pbt", String(Date.now())); } catch {}
     // seguimiento de reintentos automáticos de "Actualizar"
@@ -508,11 +490,10 @@ const DEADLINE = (+env("JOB_DEADLINE") || 0) * 1000 || Date.now() + 5.5 * 3600e3
 // ---------- programa principal ----------
 async function main() {
   const AJ = loadAjustes();
-  if (MODE === "vigilante") { log("El vigilante se ha retirado (v74): nada que hacer."); return; }
   const { browser, page } = await boot();
   const snapshot = async () => sanitize(await dumpAll(page));
   const t0 = Date.now(), startIso = new Date(t0).toISOString();
-  let rep = null, titleTxt = "", subj = "", shortTxt = "", vgOps = [], labNews = false;
+  let rep = null, titleTxt = "", subj = "", shortTxt = "", labNews = false;
   try {
     if (MODE === "daily") {
       log("Lanzando «Actualizar precios y que el bot decida»");
@@ -596,7 +577,7 @@ async function main() {
       const sec = ["ALPACA_KEY", "TWELVEDATA_KEY", "POLYGON_KEY", "ALPHAVANTAGE_KEY", "FMP_KEY", "TELEGRAM_TOKEN", "TELEGRAM_CHAT"];
       const L = ["# Prueba de avisos", "", `Fecha: ${new Date().toISOString()}`, "", "## Secretos configurados en GitHub (solo si existen o no; nunca su valor)", ""];
       sec.forEach((k) => L.push(`- ${k}: ${env(k) ? "✔ configurado" : "✖ FALTA"}`));
-      L.push("", "## Ajustes de la nube", "", `- Vigilante: cada ${AJ.vigilante_min || "(el que tenga guardado la app)"} min`, `- Prueba histórica diaria: entre 200 y ${AJ.bt_max} acciones al azar`);
+      L.push("", "## Ajustes de la nube", "", `- Prueba histórica diaria: entre 200 y ${AJ.bt_max} acciones al azar`);
       const it = await page.evaluate(([md]) => __API.custom("prueba-de-avisos", "Prueba de avisos (Telegram)", md, null), [L.join("\n") + "\n"]);
       rep = { id: it && it.id, status: "prueba-de-avisos", message: "Prueba de avisos", md: L.join("\n") };
       titleTxt = "Bot Trading: PRUEBA de avisos";
@@ -604,7 +585,7 @@ async function main() {
       shortTxt = "Si lees esto en Telegram, los avisos del simulador funcionan.\n" + sec.filter((k) => !env(k)).map((k) => "Falta " + k).join("\n");
     } else throw new Error("Modo desconocido: " + MODE);
 
-    await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj, silent: (MODE === "vigilante" && !vgOps.length) || (MODE === "backtest" && env("LAB_EXTRA") === "1" && !labNews) });
+    await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj, silent: (MODE === "backtest" && env("LAB_EXTRA") === "1" && !labNews) });
   } catch (e) {
     // cualquier fallo queda registrado en un informe y avisado
     const msg = `Fallo del proceso automático (${MODE}): ${String(e && e.message || e).slice(0, 400)}`;

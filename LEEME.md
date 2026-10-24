@@ -3,11 +3,19 @@
 Qué hace este paquete:
 
 - **Web pública** (GitHub Pages): la abres desde el móvil o el ordenador y ves el bot tal cual, con los datos más recientes. Es de solo lectura.
-- **Actualización diaria tras el cierre de Wall Street (hacia las 23:17, hora de España)**: GitHub ejecuta el botón «Actualizar precios y que el bot decida» por ti, lunes a viernes. Hay **5 disparos** (21:17, 21:47, 22:17, 22:47 y 23:17 UTC) y cada uno comprueba primero, en segundos, si el día de hoy ya está hecho; si lo está, no hace nada. Así, si GitHub retrasa o descarta un disparo, el siguiente lo recupera. Cubre horario de verano e invierno sin tocar nada. **Por qué después del cierre y no a la apertura:** el bot decide con velas diarias completas; a la apertura solo existiría la vela de ayer, que ya está procesada. Durante la sesión ya trabaja el vigilante.
+- **Actualización diaria tras el cierre de Wall Street (hacia las 23:17, hora de España)**: GitHub ejecuta el botón «Actualizar precios y que el bot decida» por ti, lunes a viernes. Hay **5 disparos** (21:17, 21:47, 22:17, 22:47 y 23:17 UTC) y cada uno comprueba primero, en segundos, si el día de hoy ya está hecho; si lo está, no hace nada. Así, si GitHub retrasa o descarta un disparo, el siguiente lo recupera. Cubre horario de verano e invierno sin tocar nada. **Por qué después del cierre y no a la apertura:** el bot decide con velas diarias completas; a la apertura solo existiría la vela de ayer, que ya está procesada.
 - **Prueba histórica diaria** (flujo aparte, `historico.yml`): se lanza sola en cuanto termina la actualización de precios (y tiene 3 disparos de seguridad), solo si la actualización de ese día ya está hecha, con un número **aleatorio de acciones entre 200 y el máximo** (por defecto 300) elegidas al azar.
-- **Vigilante**: GitHub lo mantiene encendido en turnos de 55 minutos mientras Wall Street está abierto (lunes a viernes). Es lo más parecido a «siempre escuchando» que permite GitHub gratis: entre turno y turno puede haber unos minutos sin consulta (el arranque del navegador tarda 2-3 min) y GitHub no garantiza la hora exacta. Consulta **cada X minutos según el desplegable** (10, 15, 30 o 60).
-- **Cada ejecución** (actualización, prueba histórica y cada turno del vigilante) deja **su informe individual** en la web (Histórico → Informes y descargas). La actualización diaria y la prueba histórica mandan **un aviso al móvil (ntfy) y un correo**. **El vigilante NO avisa** (solo deja el informe) salvo que falle: entonces sí llega un aviso de error.
+- **Laboratorio** (`laboratorio.yml`): cada 2 horas prueba 48 métodos nuevos y aprende de ellos. Si GitHub no lo arranca a su hora, lo lanza el flujo de Telegram.
+- **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Histórico → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
+
+## Novedades v52 (web v92): fuera el Vigilante
+- Se quita la pestaña **👁️ Vigilante** y todo su código (también el antiguo vigilante intradía, que ya no funcionaba). La prueba histórica y la ficticia ya cubren lo que hacía: la histórica examina 26 años y la ficticia prueba los ganadores con precios de hoy.
+- La web pesa menos (unas 400 líneas menos) y el estado publicado también (ya no guarda las curvas del último año de cada método).
+- «Ajustes de la nube» ya no pide el intervalo del vigilante.
+
+## Novedades v51 (web v91): en la ficticia solo los que ganan
+- Solo se ven los ✅ Ganadores del histórico y tu método actual. Los de acciones, mixtos y bitcoin siguen probándose en segundo plano y aparecen si llevan 12 meses ganando al SPY por ≥2 puntos.
 
 ## Novedades v50 (web v89): métodos inventados por Claude y piezas nuevas
 - Tres métodos nuevos diseñados a mano. Por ejemplo, el primero: «los 2 mejores ETF de crecimiento, con alarma del S&P 500, freno de volatilidad y refugio dinámico». Pasan el mismo examen que todos y, si no aprueban, no se quedan.
