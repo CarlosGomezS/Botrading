@@ -9,6 +9,10 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v61 (web v105): top 20 y avisos solo por el podio
+- La pestaña Laboratorio muestra solo los 20 que más ganan al SPY (con tus condiciones), ordenados: los 5 primeros a la vista y los puestos 6-20 en un recuadro plegable. El resto ya no se muestra.
+- Avisos: solo cuando entra en el top 3 un método MEJOR que el que estaba 3.º. La prueba de cada noche y las rondas del laboratorio ya no avisan por cada ganador nuevo (los errores siguen avisando siempre).
+
 ## Novedades v60 (web v104): métodos «⚡ invencibles»
 - Si un método cumple TODO esto, se te propone para la cartera real sin esperar los 30 días de ficticia (basta con 1 día, para que tenga su cartera calculada): ≥5 puntos al año más que el SPY después de impuestos, le gana en los 3 tramos, caída máxima no peor del −30 %, y en el examen oculto le gana por ≥10 puntos.
 - El aviso de Telegram lo dice claro: todavía no tiene resultados con precios reales. Siempre con tu aprobación, y como mucho un cambio al mes.
