@@ -41,6 +41,7 @@ export function parseUpdates(ups, chat) {
     } else if (u.message && u.message.chat) {
       const cid = String(u.message.chat.id), t = String(u.message.text || "").trim();
       if (!chat) replies.push([cid, `Hola 👋 Tu número de chat es:\n\n${cid}\n\nCópialo en la web: 💶 Real → Ajustes de la cartera real → Claves → «Telegram: tu número de chat» (TELEGRAM_CHAT) y guarda. A partir de entonces te avisaré aquí de todo lo que haga la cartera real.`]);
+      else if (/^\/(id|chat|numero|número)\b/i.test(t)) replies.push([cid, `Tu número de chat es:\n\n${cid}\n\nCópialo en la web: ⚙️ Ajustes → «📤 Telegram en este dispositivo».`]);
       else if (cid === chat && /^\/(start|ayuda|help)/i.test(t)) replies.push([cid, "Estoy conectado ✔\n\nTe aviso aquí de todo lo que hace tu cartera real. Cuando proponga órdenes, verás los botones «✅ Aprobar» y «❌ Rechazar»: se procesan en 5-15 minutos y te contesto con el resultado."]);
     }
   }
