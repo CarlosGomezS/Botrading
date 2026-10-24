@@ -6,7 +6,7 @@ Qué hace este paquete:
 - **Actualización diaria tras el cierre de Wall Street (hacia las 23:17, hora de España)**: GitHub ejecuta el botón «Actualizar precios y que el bot decida» por ti, lunes a viernes. Hay **5 disparos** (21:17, 21:47, 22:17, 22:47 y 23:17 UTC) y cada uno comprueba primero, en segundos, si el día de hoy ya está hecho; si lo está, no hace nada. Así, si GitHub retrasa o descarta un disparo, el siguiente lo recupera. Cubre horario de verano e invierno sin tocar nada. **Por qué después del cierre y no a la apertura:** el bot decide con velas diarias completas; a la apertura solo existiría la vela de ayer, que ya está procesada.
 - **Prueba histórica diaria** (flujo aparte, `historico.yml`): se lanza sola en cuanto termina la actualización de precios (y tiene 3 disparos de seguridad), solo si la actualización de ese día ya está hecha, con un número **aleatorio de acciones entre 200 y el máximo** (por defecto 300) elegidas al azar.
 - **Laboratorio** (`laboratorio.yml`): cada 2 horas prueba 48 métodos nuevos y aprende de ellos. Si GitHub no lo arranca a su hora, lo lanza el flujo de Telegram.
-- **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Histórico → Informes y descargas).
+- **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
 ## Novedades v52 (web v92): fuera el Vigilante

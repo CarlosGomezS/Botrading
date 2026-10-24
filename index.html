@@ -450,7 +450,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v92</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v93</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -468,7 +468,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <div class="p"><h2>Detalle por activo</h2><div style="display:flex;gap:8px"><input id="sy" placeholder="Ticker, p. ej. AAPL" style="width:150px"><button id="sb">Ver</button></div><div id="sd"></div></div>
 </section>
 <section class="tab" id="t-informe">
-<div class="p"><h2>Prueba histórica</h2><div class="m" style="margin:4px 0 10px">El buscador: cada noche prueba unos 40 métodos candidatos con datos reales desde 2000 y los costes incluidos. Todos se pueden hacer en Trading 212 con ETF europeos en euros y revisan como mucho una vez al mes. Solo es <b>✅ Ganador</b> el que gana al SPY por ≥2 puntos al año (después de impuestos), le gana en 2000-2015 <b>y también</b> en 2016-hoy (si no, pudo ser suerte de una época), no cae más del −35 % y opera poco: ese entra solo en la ficticia. Además, el 🤖 laboratorio inventa métodos nuevos cada noche. No usa dinero.</div>
+<div class="p"><h2>🤖 Laboratorio</h2><div class="m" style="margin:4px 0 10px">El buscador: cada noche prueba unos 40 métodos candidatos con datos reales desde 2000 y los costes incluidos. Todos se pueden hacer en Trading 212 con ETF europeos en euros y revisan como mucho una vez al mes. Solo es <b>✅ Ganador</b> el que gana al SPY por ≥2 puntos al año (después de impuestos), le gana en 2000-2015 <b>y también</b> en 2016-hoy (si no, pudo ser suerte de una época), no cae más del −35 % y opera poco: ese entra solo en la ficticia. Además, el 🤖 laboratorio inventa métodos nuevos cada noche. No usa dinero.</div>
 <div class="btbar"><button id="btr">▶ Ejecutar prueba</button><button id="btcb" class="ghost">⚙️ Ajustes de la prueba</button></div>
 <div id="btcf" class="btcf" hidden>
  <label class="btrow btstk"><span>Incluir métodos de acciones sueltas<small>Momentum de acciones, IA… Más lento (30-60 min).</small></span><input type="checkbox" id="btacc"></label>
@@ -519,7 +519,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <section class="tab" id="t-ayuda">
 <div class="p hlp"><h2>Cómo funciona, en 1 minuto</h2>
 <div class="steps">
-<div class="step"><b>1</b><div><b>📈 Histórico</b> · cada noche prueba unos 40 candidatos (ETF europeos, revisión mensual o más lenta, sin apalancar) desde 2000 contra el S&amp;P 500. Solo pasa el que gana por ≥2 puntos al año, en 2 de 3 tramos y sin caer más del −35 %. Además, el <b>🤖 laboratorio</b> inventa 48 métodos nuevos cada noche y solo se quedan los que ganan al SPY en 2000-2015 <b>y</b> en 2016-hoy; los que dejan de funcionar salen solos.</div></div>
+<div class="step"><b>1</b><div><b>🤖 Laboratorio</b> · cada noche prueba unos 40 candidatos (ETF europeos, revisión mensual o más lenta, sin apalancar) desde 2000 contra el S&amp;P 500. Solo pasa el que gana por ≥2 puntos al año, en 2 de 3 tramos y sin caer más del −35 %. Además, el <b>🤖 laboratorio</b> inventa 48 métodos nuevos cada noche y solo se quedan los que ganan al SPY en 2000-2015 <b>y</b> en 2016-hoy; los que dejan de funcionar salen solos.</div></div>
 <div class="step"><b>2</b><div><b>🧪 Ficticia</b> · los ganadores entran solos y operan cada día con <span class="capT">500 €</span> ficticios y datos de hoy. Así ves si siguen ganando con días que la prueba no conocía.</div></div>
 <div class="step"><b>3</b><div><b>💶 Real</b> · el método que elijas invierte tu dinero en Trading 212 con ETF europeos en euros (sin comisión ni cambio de divisa). Si un método confirmado (✅ Ganador + 3 meses en la ficticia) es mejor que el tuyo, te llega por Telegram con «✅ Cambiar» / «❌ No cambiar»: sin tu sí no cambia nada.</div></div>
 </div></div>
@@ -533,7 +533,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 </section>
 
 </div>
-<nav id="nav"><button data-t="hoy"><span>🧪</span>Ficticia</button><button data-t="informe"><span>📈</span>Histórico</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
+<nav id="nav"><button data-t="hoy"><span>🧪</span>Ficticia</button><button data-t="informe"><span>🤖</span>Laboratorio</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
 <script id="viewer-shim">
 /* Modo VISOR (solo en la web publicada). En el ordenador (file://) y en el proceso automático NO hace nada.
    Carga la última copia de datos que dejó el proceso automático en GitHub y la muestra tal cual. */
@@ -2105,7 +2105,7 @@ function hoyRank(){const A=document.getElementById("hoy-rank");if(!A)return;
   const act=(nb||ns)?`🟢 ${nb} · 🔴 ${ns} en el último día`:"sin cambios en el último día";
   return`<div class="rk-c" data-go="${k}"><div class="rk-n">${med[j]||(j+1)+"."}</div><div class="rk-t"><b>${esc(STR[k].n)}${STR[k].fwd?' <span class="bdg t">🔭 en vivo</span>':""}</b><small>${np} ${np===1?"activo":"activos"} en cartera · ${cl} ventas cerradas · ${act}</small></div><div class="rk-g ${g>=0?"up":"dn"}">${P2(pc)}<small>${E2(g)}</small></div></div>`}).join("");
  const dias=(S.days||[]).length,pocas=ks.every(k=>((bkOf(k).trades)||[]).filter(t=>t.pnl!=null).length<30);
- const cm=curMet(),hid=mHidden();A.innerHTML=`<div class="rk">${rows}</div><div class="m">Aquí solo están los que <b>ganan al SPY</b> según tus condiciones: ✅ Ganadores del histórico (≥2 puntos al año más que el SPY después de impuestos, caída no peor del −35 %, ganan en 2000-2015 y en 2016-hoy) y operan con precios de hoy.${STR[cm]&&!(S.btm&&S.btm.rows&&S.btm.rows[cm]&&(btmVerd(S.btm,cm)||{}).c==="ok")?` También ves <b>${esc(STR[cm].n)}</b> porque es el que usa ahora tu cartera real, aunque no pasa el examen.`:""}${hid.length?` Hay ${hid.length} métodos más (acciones, mixtos y bitcoin) probándose en segundo plano: aparecerán aquí solo si llevan 12 meses ganando al SPY por ≥2 puntos.`:""} Toca uno para ver qué hacer con él. Llevas ${dias} ${dias===1?"día":"días"} de datos${pocas?": todavía hay pocas ventas cerradas (menos de 30 por método), así que el ranking aún no demuestra nada. Sigue unas semanas.":"."}</div>`}
+ const cm=curMet(),hid=mHidden();A.innerHTML=`<div class="rk">${rows}</div><div class="m">Aquí solo están los que <b>ganan al SPY</b> según tus condiciones: ✅ Ganadores del laboratorio (≥2 puntos al año más que el SPY después de impuestos, caída no peor del −35 %, ganan en 2000-2015 y en 2016-hoy) y operan con precios de hoy.${STR[cm]&&!(S.btm&&S.btm.rows&&S.btm.rows[cm]&&(btmVerd(S.btm,cm)||{}).c==="ok")?` También ves <b>${esc(STR[cm].n)}</b> porque es el que usa ahora tu cartera real, aunque no pasa el examen.`:""}${hid.length?` Hay ${hid.length} métodos más (acciones, mixtos y bitcoin) probándose en segundo plano: aparecerán aquí solo si llevan 12 meses ganando al SPY por ≥2 puntos.`:""} Toca uno para ver qué hacer con él. Llevas ${dias} ${dias===1?"día":"días"} de datos${pocas?": todavía hay pocas ventas cerradas (menos de 30 por método), así que el ranking aún no demuestra nada. Sigue unas semanas.":"."}</div>`}
 document.addEventListener("click",e=>{const c=e.target&&e.target.closest&&e.target.closest("[data-go]");if(!c||!STR[c.dataset.go])return;VM.cart=c.dataset.go;VM.hoy=c.dataset.go;try{localStorage.setItem("pbvm",JSON.stringify(VM))}catch{}draw();const d=document.getElementById("hd-mi");if(d)d.open=true;const q=document.getElementById("hd-mi")||document.getElementById("mi-panel");if(q)q.scrollIntoView({behavior:"smooth",block:"start"})});
 const gtxt=g=>`<b class="${g>=0?"up":"dn"}">${E2(g)} (${P2(g/START*100)})</b>`;
 const hmL=t=>t?new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"";
