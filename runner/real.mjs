@@ -419,7 +419,7 @@ export function xetraHoliday(d) {
 export const euOpen = (m) => m.wk && !xetraHoliday(m.date) && m.min >= 9 * 60 + 5 && m.min <= 17 * 60 + 20;
 
 // ---------- v77 · ¿hay un método confirmado mejor que el de la cartera real? (lo calcula el bot cada noche en S.labConf) ----------
-// Candidato: ✅ Ganador en la prueba histórica (después de impuestos), ≥3 meses en la ficticia sin ir peor que el SPY,
+// Candidato: ✅ Ganador en la prueba histórica (después de impuestos) y examen oculto, ≥30 días en la ficticia sin quedarse atrás (v103),
 // y en ese tiempo no peor que tu método; además, más rentabilidad histórica que tu método. Solo se PROPONE: tú apruebas por Telegram.
 export function sugerencia(S, cur, map) {
   if (!S || !Array.isArray(S.labConf)) return null;
@@ -428,7 +428,7 @@ export function sugerencia(S, cur, map) {
   // v78: solo métodos que se pueden comprar enteros en tu cuenta (si un ETF no está en Trading 212, esa parte se quedaría en efectivo)
   // v80: «acc» = solo falla porque tienes desactivada la compra de acciones en los ajustes (se te avisa, sin botón de cambiar)
   const buyable = (k) => { if (!map || !Object.keys(map).length) return true; const B = (S.books || {})[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})), bad = sy.filter((s) => map[s] && !map[s].t); return !bad.length ? true : bad.every((s) => /acciones desactivadas|Divisa: solo euros/.test(map[s].why || "")) ? "acc" : false; };
-  const L = S.labConf.filter((x) => x && x.ok && x.k !== cur && (S.books || {})[x.k] && (x.fwd || an == null || x.an > an + 0.005) && buyable(x.k)).filter((x) => { const gc = fw(x.d0); return gc == null || x.g >= gc; }).sort((a, b) => b.an - a.an);
+  const L = S.labConf.filter((x) => x && x.ok && x.k !== cur && (S.books || {})[x.k] && (x.fwd || an == null || x.an >= an + 0.02) && buyable(x.k)).filter((x) => { const gc = fw(x.d0); return gc == null || x.g >= gc - 0.02; })   // v103: ≥2 puntos al año más que tu método (tras 30 días en la ficticia sin quedarse atrás).sort((a, b) => b.an - a.an);
   const best = L[0] || null;
   return best ? { ...best, needAcc: buyable(best.k) === "acc" } : null;
 }
@@ -1071,7 +1071,11 @@ async function main() {
     try {
       if ((tipo === "normal" || tipo === "foto") && estado !== "error" && A.on) {
         const b = getBot(), sg = b && b.S ? sugerencia(b.S, A.metodo, R.map) : null, P = R.metSug;
-        const busy = P && P.k === (sg && sg.k) && (P.estado === "pendiente" || (P.estado === "rechazada" && now - Date.parse(P.fin || P.ts) < 60 * 864e5));
+        // v103: como mucho un cambio de método cada 90 días (los costes y los impuestos de cambiar a menudo se comen la ventaja);
+        // si el nuevo es MUCHO mejor (≥4 puntos al año más que el tuyo), basta con 30 días desde el último cambio
+        const lastCh = Math.max(0, R.metOv && R.metOv.ts ? Date.parse(R.metOv.ts) : 0, ...((R.metHist || []).slice(1).map((h) => Date.parse(h.d || "") || 0)));
+        const anCur = b && b.S && b.S.labAn ? b.S.labAn[A.metodo] : null, muchoMejor = sg && sg.an != null && anCur != null && sg.an - anCur >= 0.04;
+        const busy = (lastCh && now - lastCh < (muchoMejor ? 30 : 90) * 864e5) || (P && P.k === (sg && sg.k) && (P.estado === "pendiente" || (P.estado === "rechazada" && now - Date.parse(P.fin || P.ts) < 60 * 864e5)));
         if (sg && !busy) {
           const id = "m" + now.getTime().toString(36);
           if (P && P.estado === "pendiente") { P.estado = "sustituida"; P.fin = now.toISOString(); }

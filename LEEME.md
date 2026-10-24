@@ -9,6 +9,12 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v59 (web v103): de la ficticia a tu dinero real, más rápido
+- Un método se considera confirmado tras **30 días** en la ficticia (antes 3 meses) sin quedarse más de 2 puntos por detrás de tu método ni del SPY. Los del laboratorio, además, con el examen oculto aprobado.
+- Solo se te propone si gana a tu método por **2 puntos al año o más** (antes medio punto).
+- Como mucho **un cambio cada 3 meses**; si el nuevo es **4 puntos o más** mejor, basta con 1 mes desde el último cambio.
+- Siempre con tu aprobación («✅ Cambiar» en Telegram o en la web).
+
 ## Novedades v58 (web v102): la ficticia lleva siempre los 20 más rentables
 - En cada ronda la ficticia se queda con los 20 métodos más rentables (después de impuestos) que pasan tus condiciones y, los del laboratorio, el examen oculto. Un ganador nuevo entra en la misma ronda en que aprueba; el que baja del puesto 20 sale. El que ya está tiene 0,25 puntos de ventaja para no cambiar por décimas.
 - El método de tu cartera real (y el que te propone el bot) no sale nunca: la cartera real publica solo sus claves (sin importes) y el bot las respeta.
