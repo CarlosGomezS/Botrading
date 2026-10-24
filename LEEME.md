@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v54 (web v97): todo a Telegram y claves recordadas
+- Cada botón de descarga (informes, datos, copias, CSV de la cartera real…) deja elegir **📤 Enviar a mi Telegram** o descargar. Se configura una vez en ⚙️ Ajustes → «📤 Telegram en este dispositivo» (al guardar las claves de Telegram en la cartera real se configura solo).
+- La **clave de ajustes** también se puede recordar en el dispositivo (cifrada con una clave propia del navegador): la web se desbloquea sola al abrirla y ya no se bloquea a los 10 minutos. «Bloquear» la olvida.
+- «Recordarla en este dispositivo» viene marcado por defecto.
+
 ## Novedades v53 (web v95): el laboratorio no se para nunca
 - Piezas con números (media del filtro de tendencia, media de la alarma, nivel del freno de volatilidad): cientos de millones de combinaciones, así que nunca se queda sin métodos por probar.
 - Si todo lo cercano ya está probado, salta más lejos (cambia 2-4 piezas a la vez) y mezcla entre sí a los de la liga.

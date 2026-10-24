@@ -450,7 +450,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v96</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v97</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -489,6 +489,9 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <div class="p xadv"><h2>Informes y descargas</h2><div class="m"><b>Cada informe con fecha y hora</b> tiene su .md y su .json con todos sus datos: en la prueba histórica, todas las operaciones y la curva diaria de cada método y tramo; en una actualización, las cotizaciones, las señales, las carteras objetivo, las operaciones y el diagnóstico de ese día. <b>«Informe GENERAL de todo»</b> descarga todo junto: todos los informes, las cuentas con todas sus operaciones y curvas y, si quieres, las velas de precios. «Informe completo» junta en un solo archivo todos los informes archivados de todas las fechas y horas. Cada informe individual (más abajo) descarga solo el de esa fecha y hora. «Estado actual del bot» lleva todo lo que hace el bot ahora mismo, sus resultados y la prueba histórica: súbelo a la conversación para mejorar el bot.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="ej">Descargar informes (.json)</button><button id="im">Importar informes (.json)</button><button id="vaciarInf">Vaciar todos los informes</button><button id="fr">Descargar informe completo (todos los informes, .md)</button><button id="fs">Estado actual del bot (.md)</button><button id="fgm">Informe GENERAL de todo (.md)</button><button id="fgj">Informe GENERAL de todo (.json)</button><textarea id="ta" readonly style="display:none;width:100%;height:160px;font-size:12px"></textarea><input id="imf" type="file" accept=".json" hidden></div><div class="m">Historial automático: cada intento de actualización se guarda con fecha y hora, estado, fecha de mercado y una copia del informe. Se conserva separado de la cartera activa.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rref">Actualizar lista</button></div><div id="rlist"><div class="m">Cargando historial…</div></div></div>
 </section>
 <section class="tab" id="t-ajustes">
+<div class="p" id="tgdev-p"><h2>📤 Telegram en este dispositivo</h2><div class="m">Para mandar a tu bot de Telegram cualquier informe o archivo de la app (cada botón de descarga te deja elegir «📤 Enviar a mi Telegram»). Se guarda solo en este dispositivo.</div>
+<div class="kv"><div>Token de tu bot (de @BotFather)<input id="tgd-tok" type="password" autocomplete="off" style="width:100%"></div><div>Tu número de chat<input id="tgd-chat" type="text" inputmode="numeric" style="width:100%"></div></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="tgd-sv">Guardar</button><button id="tgd-test" class="ghost">Enviar prueba</button><button id="tgd-del" class="ghost">Olvidar</button></div><div class="m" id="tgd-st"></div></div>
 <div class="p"><h2>Conexión de datos</h2><div class="m">Pega las claves que tengas (todas opcionales). Sin clave ya funcionan Yahoo Finance y Stooq (acciones/ETFs, como respaldo) y Binance/Coinbase (criptos). Financial Modeling Prep tiene clave gratuita en financialmodelingprep.com. Las fuentes con clave tienen prioridad para que los precios no se mezclen entre proveedores.</div>
 <div class="kv"><div>Twelve Data <input id="k_td" type="password" style="width:100%"></div><div>Polygon <input id="k_pg" type="password" style="width:100%"></div><div>Alpaca (ID:SECRETO) <input id="k_al" type="password" style="width:100%"></div><div>Alpha Vantage <input id="key" type="password" style="width:100%"></div><div>Financial Modeling Prep <input id="k_fm" type="password" style="width:100%"></div></div>
 <div class="m">Tiempo máximo por actualización (minutos): <input id="mins" type="number" value="8" style="width:70px"> · Las claves se guardan solo en este navegador. El simulador no ejecuta órdenes reales ni garantiza beneficios.</div>
@@ -1696,7 +1699,7 @@ function btmDraw(){btmDraw0()}
 /* v68 · lanzar cualquier proceso de GitHub desde la web pública (con el token cifrado y la clave de ajustes) */
 async function wfCloud(wf,label,st,bt,pw,after){if(!st)return;const c=window.__CLOUD;if(!c){st.textContent="Abre la web publicada en GitHub Pages para lanzarlo.";return}
  if(!c.tok()){if(!c.hasEnc()){st.innerHTML="Para lanzarlo hace falta tu token de GitHub: pégalo una vez en <b>⚙️ Ajustes → Ajustes de la nube</b>.";return}
-  if(!pw){const id="wfpw"+Math.random().toString(36).slice(2,7);st.innerHTML='Escribe tu clave de ajustes: <input id="'+id+'" type="password" autocomplete="current-password" style="width:150px"> <button id="'+id+'b">Lanzar</button>';const go=()=>wfCloud(wf,label,st,bt,(document.getElementById(id)||{}).value||"",after);document.getElementById(id+"b").onclick=go;document.getElementById(id).onkeydown=e=>{if(e.key==="Enter")go()};document.getElementById(id).focus();return}
+  if(!pw){const id="wfpw"+Math.random().toString(36).slice(2,7);st.innerHTML='Escribe tu clave de ajustes: <input id="'+id+'" type="password" autocomplete="current-password" style="width:150px"> <button id="'+id+'b">Lanzar</button><label class="m" style="display:block;margin-top:4px"><input type="checkbox" class="pwrem" checked style="width:auto"> Recordarla en este dispositivo</label>';const go=()=>wfCloud(wf,label,st,bt,(document.getElementById(id)||{}).value||"",after);document.getElementById(id+"b").onclick=go;document.getElementById(id).onkeydown=e=>{if(e.key==="Enter")go()};document.getElementById(id).focus();return}
   try{st.textContent="Comprobando la clave…";await c.unlock(pw)}catch(e){st.textContent="Clave incorrecta.";return}}
  const ri=c.ri();if(!ri){st.textContent="No reconozco el repositorio de esta web.";return}
  if(wfCloud.on)return;wfCloud.on=true;if(bt)bt.disabled=true;
@@ -1809,7 +1812,7 @@ async function btFormInit(){if(BTFI)return;BTFI=true;if(S.btc)BTC=btcClean(S.btc
  if(window.__VIEWER){try{const r=await fetch("ajustes.json?t="+Date.now(),{cache:"no-store"});if(r.ok){const a=await r.json();if(a&&a.bt){BTC=btcClean(a.bt);btForm(BTC);btmDraw0()}}}catch{}}}
 async function btUnlock(stEl){const c=window.__CLOUD;if(!c){stEl.textContent="Abre la web publicada en GitHub Pages.";return null}if(c.tok())return c;
  if(!c.hasEnc()){stEl.innerHTML="Hace falta tu token de GitHub: pégalo una vez en <b>⚙️ Ajustes → Ajustes de la nube</b>.";return null}
- return await new Promise(res=>{stEl.innerHTML='Tu clave de ajustes: <input id="btpw" type="password" autocomplete="current-password" style="width:140px"> <button id="btgo">OK</button>';const go=async()=>{const pw=($("#btpw")||{}).value||"";try{stEl.textContent="Comprobando…";await c.unlock(pw);res(c)}catch(e){stEl.textContent="Clave incorrecta.";res(null)}};$("#btgo").onclick=go;$("#btpw").onkeydown=e=>{if(e.key==="Enter")go()};$("#btpw").focus()})}
+ return await new Promise(res=>{stEl.innerHTML='Tu clave de ajustes: <input id="btpw" type="password" autocomplete="current-password" style="width:140px"> <button id="btgo">OK</button><label class="m" style="display:block;margin-top:4px"><input type="checkbox" class="pwrem" checked style="width:auto"> Recordarla en este dispositivo</label>';const go=async()=>{const pw=($("#btpw")||{}).value||"";try{stEl.textContent="Comprobando…";await c.unlock(pw);res(c)}catch(e){stEl.textContent="Clave incorrecta.";res(null)}};$("#btgo").onclick=go;$("#btpw").onkeydown=e=>{if(e.key==="Enter")go()};$("#btpw").focus()})}
 async function btSaveCfg(nc,msg){const stEl=$("#btsvst")&&!$("#btcf").hidden?$("#btsvst"):$("#btst");nc=btcClean(nc);
  if(!window.__VIEWER){BTC=nc;S.btc={...BTC};S.simx=[...BTC.sim];applySimx();await save();btForm(BTC);btmDraw0();stEl.textContent="✔ Guardado en este navegador.";return true}
  const c=await btUnlock(stEl);if(!c)return false;const ri=c.ri();if(!ri){stEl.textContent="No reconozco el repositorio.";return false}
@@ -2094,7 +2097,24 @@ function draw(){try{capApply();mailUI()}catch{}try{nxDraw()}catch{}
   cartDraw();try{miDraw()}catch(e){try{console.error(e)}catch{}}
   radarDraw();$("#dg").textContent=S.diag.length?S.diag.map(mask).join("\n"):"—";$("#fx").value=S.fx;
 }
-function dl(name,data){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"text/plain"}));a.download=name;document.body.append(a);a.click();a.remove()}
+function dlFile(name,data){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"text/plain"}));a.download=name;document.body.append(a);a.click();a.remove()}
+/* ===== v97 · todo lo que se descarga también se puede ENVIAR A TU BOT DE TELEGRAM (directo desde este dispositivo) ===== */
+function tgDev(){try{const o=JSON.parse(localStorage.getItem("tgdev")||"{}");return o&&o.tok&&o.chat?o:null}catch(e){return null}}
+function tgDevSet(o){try{const c=JSON.parse(localStorage.getItem("tgdev")||"{}");if(o.tok)c.tok=String(o.tok).trim();if(o.chat)c.chat=String(o.chat).trim();localStorage.setItem("tgdev",JSON.stringify(c))}catch(e){}}
+async function tgSend(name,data,cap){const t=tgDev();if(!t)throw new Error("falta configurar Telegram en este dispositivo");
+ const f=new FormData();f.append("chat_id",t.chat);f.append("document",new Blob([data],{type:"text/plain"}),name);f.append("caption",(cap||"📄 "+name).slice(0,1000));
+ const u="https://api.telegram.org/bot"+encodeURIComponent(t.tok).replace(/%3A/gi,":")+"/sendDocument";
+ try{const r=await fetch(u,{method:"POST",body:f});const j=await r.json().catch(()=>({}));if(!j.ok)throw new Error(j.description||("HTTP "+r.status));return true}
+ catch(e){if(e instanceof TypeError)throw new Error("no pude confirmar el envío (¿sin conexión?). Mira tu Telegram antes de repetirlo");throw e}}
+function dl(name,data){let sh=document.getElementById("dlsheet");if(sh)sh.remove();sh=document.createElement("div");sh.id="dlsheet";
+ sh.style.cssText="position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center";
+ const kb=(String(data).length/1024).toFixed(0),has=!!tgDev();
+ sh.innerHTML=`<div style="background:var(--panel,#fff);color:var(--ink,#111);width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:16px 16px 22px;display:grid;gap:10px"><b style="word-break:break-all">📄 ${esc(name)}</b><span class="m">${kb} KB</span>
+ <button id="dls-tg" class="go">📤 Enviar a mi Telegram</button><button id="dls-dl">⬇️ Descargar en este dispositivo</button><button id="dls-x" class="ghost">Cancelar</button><div class="m" id="dls-st">${has?"":"Para enviar a Telegram, pon una vez el token de tu bot y tu número de chat en ⚙️ Ajustes → «📤 Telegram en este dispositivo»."}</div></div>`;
+ document.body.append(sh);const st=sh.querySelector("#dls-st"),close=()=>sh.remove();
+ sh.onclick=e=>{if(e.target===sh)close()};sh.querySelector("#dls-x").onclick=close;sh.querySelector("#dls-dl").onclick=()=>{dlFile(name,data);close()};
+ sh.querySelector("#dls-tg").onclick=async()=>{if(!tgDev()){close();try{go("ajustes");const p=[...document.querySelectorAll("#t-ajustes details.fold")].find(d=>/^📤 Telegram/.test(d.textContent.trim()));if(p){p.open=true;p.scrollIntoView({behavior:"smooth"})}}catch(e){}return}
+  const b=sh.querySelector("#dls-tg");b.disabled=true;st.textContent="Enviando a Telegram…";try{await tgSend(name,data);st.textContent="✔ Enviado. Míralo en tu chat con el bot.";setTimeout(close,1600)}catch(e){st.textContent="✖ No se pudo enviar: "+(e.message||e);b.disabled=false}}}
 function md(){let b="";try{if(S.btm)b=btmFull(S.btm).md}catch(e){b="\n(No se pudo añadir la prueba histórica: "+String(e.message||e)+")\n"}return md0()+"\n"+momMd()+radarMd()+optMd()+bookMd()+methodsMd()+learnMd()+extraMd()+auditMd()+b}function md0(){const e=eq();return`# Registro Bot Paper Trading\nGenerado: ${new Date().toISOString()} UTC · ${new Date().toLocaleString("es-ES")} (hora local)\n\n- Capital inicial: ${E(S.start)}\n- Valor actual: ${E(e)} (${P((e/S.start-1)*100)})\n- Efectivo: ${E(CB().cash)}\n- Último día de mercado: ${S.lastDate||"—"}\n- Rendimiento: ${stats().map(([k,v])=>k+": "+v).join(" · ")}\n- EUR/USD usado: ${S.fx}\n- Costes simulados: comisión ${E(CFG.fee)} por orden + deslizamiento ${(CFG.slip*100).toFixed(2)}% por lado.\n- Modo: simulación; no envía órdenes al bróker.\n\n## Posiciones\n${Object.entries(CB().pos).map(([s,p])=>`- ${s}: ${p.q.toFixed(4)} uds, compra $${p.avg.toFixed(2)}, ahora $${(S.last[s]?.px||0).toFixed(2)}`).join("\n")||"- (ninguna)"}\n\n## Operaciones\n${CB().trades.map(t=>`- ${t.d} ${t.side} ${t.s} ${E(t.eur)} @ $${t.px.toFixed(2)}${t.pnl!=null?" → "+E(t.pnl):""}`).join("\n")||"- (ninguna)"}\n\n## Decisiones recientes\n${S.events.slice(0,40).map(x=>`- ${x.d} ${x.t}`).join("\n")}\n\n## Evolución diaria\n${S.days.map(x=>`- ${x.d}: ${E(x.eq)}${x.b!=null?" (SPY: "+E(x.b)+")":""}`).join("\n")}\n\n## Auditoría de ejecuciones (últimas 10)\n${(S.runLog||[]).slice(0,10).map(x=>`- Inicio ${x.startedAt||"—"} · fin ${x.finishedAt||"—"} · estado ${x.status||"—"} · mercado ${x.marketDate||"—"} · solicitados ${x.requestedAssets??"—"} · frescos ${x.freshAssets??"—"} · caché reciente ${x.cacheRecentAssets??"—"} · decisiones ejecutadas ${x.decisionsRun?"sí":"no"} · motivo: ${x.decisionReason||"—"} · operaciones ${x.tradesBefore??"—"} → ${x.tradesAfter??"—"} · posiciones ${x.positionsBefore??"—"} → ${x.positionsAfter??"—"}`).join("\n")||"- Sin ejecuciones registradas"}\n\n## Procedencia y frescura de precios (resumen)\n${auditSummary()}\n\n## Diagnóstico\n${S.diag.map(mask).join("\n")}\n`}
 /* ===== v42: todo por método · auditoría de parámetros ===== */
 const LIM={slots:[1,6],slip:[0,0.02],fee:[0,5],mrisk:[0.001,0.03],dloss:[0.005,0.1],sweep:[0,1],minpos:[10,200],ddstop:[0.02,0.3]};
@@ -2245,6 +2265,10 @@ function auditMd(){try{return"\n## Auditoría de parámetros y datos ("+dtL(Date
 
 
 $("#aud").onclick=()=>{$("#audo").innerHTML=auditHtml()};
+{const st=t=>{const e=$("#tgd-st");if(e)e.textContent=t},show=()=>{const t=tgDev();st(t?"✔ Configurado (chat "+t.chat+").":"Sin configurar.");const c=$("#tgd-chat");if(c&&t&&!c.value)c.value=t.chat};show();
+ $("#tgd-sv").onclick=()=>{const tok=$("#tgd-tok").value.trim(),chat=$("#tgd-chat").value.trim();if(tok&&!/^\d+:[\w-]{20,}$/.test(tok)){st("✖ Eso no parece un token de bot (es como 123456:ABC…).");return}if(chat&&!/^-?\d{3,}$/.test(chat)){st("✖ El número de chat son solo cifras.");return}tgDevSet({tok,chat});$("#tgd-tok").value="";show()};
+ $("#tgd-test").onclick=async()=>{st("Enviando prueba…");try{await tgSend("prueba-bot-trading.txt","Prueba de envío desde la web del bot: "+new Date().toLocaleString("es-ES"),"✔ La web del bot ya puede mandarte archivos aquí");st("✔ Enviado: mira tu Telegram.")}catch(e){st("✖ "+(e.message||e))}};
+ $("#tgd-del").onclick=()=>{try{localStorage.removeItem("tgdev")}catch(e){}$("#tgd-chat").value="";show()}}
 $("#run").onclick=run;
 $("#fx").onchange=async()=>{const v=+$("#fx").value;if(v>0.3&&v<3){S.fx=v;await save();draw()}};
 $("#rs").onclick=async()=>{if(busy)return;if(!confirm("¿Reiniciar la cuenta ficticia a "+E(START)+"?\n\nSe borran ganancias, pérdidas, operaciones, posiciones y gráficas de TODAS las cuentas de los métodos.\nSe conservan: ajustes, claves, reglas, informes archivados y datos de precios."))return;await resetAccounts(START)};
@@ -2456,7 +2480,18 @@ G0.__SEAL={blake2b,seal,from_string:s=>new TextEncoder().encode(s),from_base64:t
  function ghH(){return{"Authorization":"Bearer "+TOK,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"}}
  function apiU(ri,p){return"https://api.github.com/repos/"+ri.o+"/"+ri.r+"/"+p}
  function lockNow(){TOK=null;clearTimeout(lockT);cloudRender()}
- function touch(){clearTimeout(lockT);if(TOK)lockT=setTimeout(lockNow,10*60*1000)}
+ /* v97 · «Recordarla en este dispositivo» para la clave de ajustes: se guarda cifrada con una clave AES propia de este navegador
+    (no exportable, en IndexedDB), igual que la contraseña de la cartera. Con ella marcada no hay que volver a escribirla ni se bloquea a los 10 min. */
+ var REMG="ghpw2";
+ function gdb(){return new Promise(function(ok,no){var r=indexedDB.open("rl-dev",1);r.onupgradeneeded=function(){r.result.createObjectStore("k")};r.onsuccess=function(){ok(r.result)};r.onerror=function(){no(r.error)}})}
+ async function gkey(create){var db=await gdb();var k=await new Promise(function(ok){var t=db.transaction("k").objectStore("k").get("g");t.onsuccess=function(){ok(t.result||null)};t.onerror=function(){ok(null)}});
+  if(!k&&create){k=await crypto.subtle.generateKey({name:"AES-GCM",length:256},false,["encrypt","decrypt"]);await new Promise(function(ok){var t=db.transaction("k","readwrite");t.objectStore("k").put(k,"g");t.oncomplete=ok;t.onerror=ok})}return k}
+ async function gRemSave(pw){try{var k=await gkey(true),iv=crypto.getRandomValues(new Uint8Array(12)),c=await crypto.subtle.encrypt({name:"AES-GCM",iv:iv},k,new TextEncoder().encode(pw));localStorage.setItem(REMG,JSON.stringify({i:b64(iv),c:b64(c)}))}catch(e){}}
+ async function gRemLoad(){try{var o=JSON.parse(localStorage.getItem(REMG)||"null");if(!o)return null;var k=await gkey(false);if(!k)return null;var pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(o.i)},k,unb64(o.c));return new TextDecoder().decode(pt)}catch(e){return null}}
+ function gRemForget(){try{localStorage.removeItem(REMG)}catch(e){}}
+ function gRemHas(){try{return!!localStorage.getItem(REMG)}catch(e){return false}}
+ function remWanted(){var e=document.querySelectorAll(".pwrem");if(!e.length)return gRemHas();for(var i=0;i<e.length;i++)if(e[i].checked)return true;return false}
+ function touch(){clearTimeout(lockT);if(TOK&&!gRemHas())lockT=setTimeout(lockNow,10*60*1000)}
  function stSet(t){var e=document.getElementById("cs_st");if(e)e.textContent=t}
  function setBusy(b){BUSY=b;["cs_apply","cs_reset","cs_bk","cs_lock"].forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=b})}
  function fields(){try{return FIELDS}catch(e){return[]}}
@@ -2497,7 +2532,7 @@ G0.__SEAL={blake2b,seal,from_string:s=>new TextEncoder().encode(s),from_base64:t
   return h}
 
  function hideLegacy(){/* en la web pública, los cuadros antiguos de Ajustes no guardan nada en la nube: todo se edita en el panel de arriba */
-  var keep=/^(Auditor|Diagn)/i;document.querySelectorAll("#t-ajustes > details.fold").forEach(function(f){var s=f.querySelector(":scope>summary");if(s&&!keep.test(s.textContent.trim()))f.style.setProperty("display","none","important")})}
+  var keep=/^(Auditor|Diagn|📤 Telegram)/i;document.querySelectorAll("#t-ajustes > details.fold").forEach(function(f){var s=f.querySelector(":scope>summary");if(s&&!keep.test(s.textContent.trim()))f.style.setProperty("display","none","important")})}
  function cloudPanel(){var host=document.querySelector("#t-ajustes");if(!host||document.getElementById("cloudset"))return;
   var d=document.createElement("div");d.id="cloudset";d.className="p";d.style.cssText="border:1px solid #4b5563;border-radius:10px;padding:10px;margin:10px 0";
   d.innerHTML='<h2>☁️ Ajustes (protegidos con clave)</h2><div id="cs_head"></div><div id="cs_body"></div>';host.insertBefore(d,host.firstChild);hideLegacy();cloudRender()}
@@ -2509,8 +2544,8 @@ G0.__SEAL={blake2b,seal,from_string:s=>new TextEncoder().encode(s),from_base64:t
    document.getElementById("cs_lock").onclick=lockNow;document.getElementById("cs_apply").onclick=cloudApply;document.getElementById("cs_reset").onclick=cloudReset;document.getElementById("cs_bk").onclick=cloudBackup;return}
   bd.innerHTML="";
   if(!has){hd.innerHTML='<div class="m">Primera vez en este navegador: pega un <b>token de GitHub</b> («fine-grained», solo este repositorio, permisos <b>Actions: Read and write</b> y <b>Secrets: Read and write</b>) y elige una <b>clave</b> (mínimo 8 caracteres). El token se guarda <b>cifrado</b> con tu clave; la clave no se guarda en ningún sitio. A partir de ahora solo necesitarás la clave.</div>'+
-    '<input id="cs_tok" type="password" placeholder="github_pat_…" style="width:100%;margin-top:6px" autocomplete="off"><input id="cs_pw" type="password" placeholder="Elige tu clave (mín. 12; mejor una frase)" style="width:100%;margin-top:6px" autocomplete="new-password"><div style="margin-top:6px"><button id="cs_go">Guardar y editar</button></div>'+st}
-  else{hd.innerHTML='<div class="m">🔒 Escribe tu clave y pulsa <b>Editar</b> para cambiar los ajustes.</div><input id="cs_pw" type="password" placeholder="Tu clave" style="width:100%;margin-top:6px" autocomplete="current-password"><div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button id="cs_go">Editar</button><button id="cs_forget">Olvidar token de este navegador</button></div>'+st}
+    '<input id="cs_tok" type="password" placeholder="github_pat_…" style="width:100%;margin-top:6px" autocomplete="off"><input id="cs_pw" type="password" placeholder="Elige tu clave (mín. 12; mejor una frase)" style="width:100%;margin-top:6px" autocomplete="new-password"><label class="m" style="display:block;margin-top:4px"><input type="checkbox" class="pwrem" checked style="width:auto"> Recordarla en este dispositivo</label><div style="margin-top:6px"><button id="cs_go">Guardar y editar</button></div>'+st}
+  else{hd.innerHTML='<div class="m">🔒 Escribe tu clave y pulsa <b>Editar</b> para cambiar los ajustes.</div><input id="cs_pw" type="password" placeholder="Tu clave" style="width:100%;margin-top:6px" autocomplete="current-password"><label class="m" style="display:block;margin-top:4px"><input type="checkbox" class="pwrem" checked style="width:auto"> Recordarla en este dispositivo</label><div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button id="cs_go">Editar</button><button id="cs_forget">Olvidar token de este navegador</button></div>'+st}
   var go=document.getElementById("cs_go"),pw=document.getElementById("cs_pw");go.onclick=cloudUnlock;pw.onkeydown=function(e){if(e.key==="Enter")cloudUnlock()};
   var fg=document.getElementById("cs_forget");if(fg)fg.onclick=function(){if(confirm("¿Borrar el token cifrado de este navegador?")){try{localStorage.removeItem(ENC)}catch(e){}cloudRender()}}}
  async function freshCL(ri){try{var r=await fetch(apiU(ri,"contents/ajustes.json?ref=main&t="+Date.now()),{headers:Object.assign({},ghH(),{"Accept":"application/vnd.github.raw+json"}),cache:"no-store"});if(r.ok){var a=await r.json();if(a&&typeof a==="object"){CL=a;return true}}}catch(e){}return false}
@@ -2521,6 +2556,7 @@ G0.__SEAL={blake2b,seal,from_string:s=>new TextEncoder().encode(s),from_base64:t
     if(pw.length<12){st.textContent="La clave debe tener al menos 12 caracteres (mejor una frase).";return}
     st.textContent="Cifrando…";localStorage.setItem(ENC,await encTok(tok,pw));try{localStorage.removeItem("ghtok")}catch(e){}TOK=tok}
    else{st.textContent="Comprobando…";TOK=await decTok(localStorage.getItem(ENC),pw)}
+   if(remWanted())await gRemSave(pw);else gRemForget();
    var ri=repoInfo();if(ri)await freshCL(ri);   /* valores reales de la nube, sin esperar a que GitHub Pages se republique */
    touch();cloudRender()}catch(e){TOK=null;st.textContent=t?("No se pudo guardar: "+e.message):"Clave incorrecta."}}
 
@@ -2604,9 +2640,11 @@ G0.__SEAL={blake2b,seal,from_string:s=>new TextEncoder().encode(s),from_base64:t
 
  /* ---- v47: la pestaña 💶 Real usa el mismo token cifrado y la misma clave ---- */
  window.__CLOUD={ri:repoInfo,tok:function(){return TOK},hasEnc:function(){try{return!!localStorage.getItem(ENC)}catch(e){return false}},
-  unlock:async function(pw){if(!crypto||!crypto.subtle)throw new Error("este navegador no permite cifrar");TOK=await decTok(localStorage.getItem(ENC),pw);var r=repoInfo();if(r)await freshCL(r);touch();cloudRender();return true},
-  lock:lockNow,touch:touch,dispatch:dispatch,waitRun:waitRun,secret:ghSecret,secretDel:ghSecretDel,sec:SEC,
-  forget:function(){try{localStorage.removeItem(ENC);localStorage.removeItem("ghtok")}catch(e){}lockNow()}};
+  unlock:async function(pw){if(!crypto||!crypto.subtle)throw new Error("este navegador no permite cifrar");TOK=await decTok(localStorage.getItem(ENC),pw);if(remWanted())await gRemSave(pw);else gRemForget();var r=repoInfo();if(r)await freshCL(r);touch();cloudRender();return true},
+  lock:function(){gRemForget();lockNow()},touch:touch,dispatch:dispatch,waitRun:waitRun,secret:ghSecret,secretDel:ghSecretDel,sec:SEC,
+  forget:function(){try{localStorage.removeItem(ENC);localStorage.removeItem("ghtok")}catch(e){}gRemForget();lockNow()}};
+ /* al abrir la web: si la clave está recordada, se desbloquea sola */
+ (async function(){try{if(TOK||!localStorage.getItem(ENC)||!gRemHas())return;var pw=await gRemLoad();if(!pw)return;try{TOK=await decTok(localStorage.getItem(ENC),pw)}catch(e){gRemForget();return}var r=repoInfo();if(r)await freshCL(r);touch();cloudRender();try{window.dispatchEvent(new Event("cloud-unlocked"))}catch(e){}}catch(e){}})();
  /* ---- el visor se mantiene al día solo: cada 5 min mira si el bot publicó datos nuevos ---- */
  (function(){var ri=repoInfo(),SHA0=null,idleAt=Date.now(),dead=0;if(!ri)return;
   ["pointerdown","keydown","touchstart","scroll"].forEach(function(ev){document.addEventListener(ev,function(){idleAt=Date.now()},true)});
@@ -2635,6 +2673,7 @@ try{(window.__busyChecks=window.__busyChecks||[]).push(()=>RL.busy||RL.loading)}
 const RL={R:null,meta:null,enc:null,err:null,cfg:null,cfgSrc:"",loading:false,msg:"",busy:false,rng:"all",showRep:30,pick:null,at:0};
 const $r=s=>document.querySelector(s);
 const C=()=>window.__CLOUD||null;
+try{window.addEventListener("cloud-unlocked",()=>{try{draw()}catch(e){}})}catch(e){}
 const NOMB={sect:"Rotación de sectores (Faber)",sectx:"Rotación ampliada (sectores + QQQ + SMH + IWM)",trq:"Tendencia QQQ de 10 meses (Faber)",dmu:"Dual Momentum EE. UU. (QQQ, SPY, IWM, SMH)",mix:"Mezcla 50/50: sectores + QQQ en tendencia"};
 const SECT=["XLK","XLV","XLE","XLF","XLY","XLP","XLI","XLU","XLB","XLC"];
 const UNI={sect:SECT,sectx:SECT.concat(["QQQ","SMH","IWM"]),trq:["QQQ"],dmu:["QQQ","SPY","IWM","SMH"],mix:SECT.concat(["QQQ"])};
@@ -2816,7 +2855,7 @@ function lockHtml(){const c=C();
  if(!c)return'<div class="m">Estás viendo el archivo en el ordenador: para aprobar órdenes o cambiar ajustes abre la web publicada en GitHub Pages.</div>';
  if(c.tok())return'<div class="m" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">🔓 <b>Desbloqueado</b> · puedes aprobar, lanzar y guardar (se bloquea solo a los 10 minutos) <button id="rl-lock">Bloquear</button></div>';
  if(!c.hasEnc())return'<div class="m">🔒 Para aprobar órdenes o cambiar ajustes, primero guarda tu <b>token de GitHub</b> una sola vez en <b>⚙️ Ajustes → «Ajustes (protegidos con clave)»</b>. Después basta con tu clave aquí.</div><div><button id="rl-goaj">Ir a Ajustes</button></div>';
- return'<div class="m">🔒 Escribe tu clave (la misma de Ajustes) para aprobar órdenes, lanzar acciones o cambiar ajustes. Mirar no necesita clave.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rl-pw" type="password" placeholder="Tu clave" autocomplete="current-password" style="flex:1 1 160px"><button id="rl-unl">Desbloquear</button></div>'}
+ return'<div class="m">🔒 Escribe tu clave (la misma de Ajustes) para aprobar órdenes, lanzar acciones o cambiar ajustes. Mirar no necesita clave.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rl-pw" type="password" placeholder="Tu clave" autocomplete="current-password" style="flex:1 1 160px"><button id="rl-unl">Desbloquear</button></div><label class="m" style="display:block;margin-top:4px"><input type="checkbox" class="pwrem" checked style="width:auto"> Recordarla en este dispositivo</label>'}
 function warns(){const R=RL.R,a=A(),w=[],sec=secState();
  if(RL.cfgEnc&&!RL.cfg)w.push("No puedo descifrar el archivo de ajustes con esta contraseña (¿la cambiaste hace poco?): muestro los ajustes de la última ejecución del bot. Al pulsar «Guardar todos los ajustes» se vuelven a cifrar con la contraseña actual.");
  if(sec.T212_KEY===false||sec.T212_SECRET===false)w.push("Faltan las claves de Trading 212: ponlas en «Ajustes de la cartera real» (abajo) y pulsa «Probar conexión».");
@@ -2987,6 +3026,7 @@ async function onSave(){const c0=C(),pwI=$r("#rl-c-pw");
  if(turnOn&&c.env==="live"&&!confirm("Vas a dejar la cartera real ACTIVADA con DINERO REAL en modo «"+({confirmar:"con tu confirmación",auto:"AUTOMÁTICO",pausa:"solo mirar"}[c.modo])+"».\n\nMétodo: "+(STR[c.metodo]?STR[c.metodo].n:c.metodo)+"\nDinero máximo que gestiona: "+c.limite+" €\n"+(c.modo==="auto"?"\nEl bot comprará y venderá SOLO, sin preguntarte.\n":"\nCada revisión te pedirá que apruebes las órdenes aquí.\n")+"\n¿Seguro?"))return;
  if(dels.length&&!confirm("Vas a quitar estas claves: "+dels.join(", ")+". ¿Seguro?"))return;
  const keys=secs.some(s=>/^T212_/.test(s[0]));const ok=await saveCfg(c,secs,dels,"Ajustes de la cartera real guardados");
+ if(ok){const tt=(secs.find(s=>s[0]==="TELEGRAM_TOKEN")||[])[1],tc=(secs.find(s=>s[0]==="TELEGRAM_CHAT")||[])[1];if((tt||tc)&&typeof tgDevSet==="function")tgDevSet({tok:tt,chat:tc})}
  if(ok&&keys&&confirm("Claves de Trading 212 guardadas. ¿Pruebo la conexión ahora? (no opera)"))runCloud("probar","","Probar conexión")}
 function repHtml(){const R=RL.R,s=summary(),rs=((R&&R.reports)||[]).slice().sort((a,b)=>a.ts<b.ts?1:-1);RL.repSorted=rs;let h="";
  if(s)h+=`<div class="kv"><div>Desde<b>${esc(fd(s.d0))}</b></div><div>Capital del bot<b>${E(s.cap)}</b></div><div>Vale<b>${E(s.be)}</b></div><div>Resultado<b class="${cls(s.res)}">${SG(s.res)}</b></div><div>Rentabilidad<b class="${cls(s.pct)}">${PC(s.pct)}</b></div><div>Simulación del método<b class="${cls(s.sim)}">${PC(s.sim)}</b></div><div>Peor caída<b class="${cls(s.dd)}">${PC(s.dd)}</b></div><div>Cobrado en ventas<b class="${cls(s.real)}">${SG(s.real)}</b></div><div>Días registrados<b>${s.nd}</b></div><div>Órdenes ejecutadas · con error<b>${s.ok} · ${s.bad}</b></div></div>`;
@@ -3027,7 +3067,7 @@ function draw(){const keep={};if(RL.dirty)document.querySelectorAll('#t-real [id
  for(const [k,x] of Object.entries(keep)){const e=k.startsWith("rk:")?document.querySelector('#t-real [data-rk="'+k.slice(3)+'"]'):k.startsWith("rd:")?document.querySelector('#t-real [data-rd="'+k.slice(3)+'"]'):document.getElementById(k);if(!e)continue;if("c" in x)e.checked=x.c;else e.value=x.v}}
 function draw0(){const root=$r("#rl-root");if(!root)return;const R=RL.R;let h="";
  const lockP='<div class="p" id="rl-lockp"><div id="rl-lockb">'+lockHtml()+'</div></div>',stP='<div class="m rl-st" id="rl-st" style="font-weight:700">'+esc(RL.msg||"")+"</div>";
- if((RL.enc&&!R)||(RL.cfgEnc&&!RL.cfg&&!R)){h=`<div class="p"><h2>🔐 Zona privada</h2><div class="m">Esta parte solo la puede ver el dueño. Escribe la <b>contraseña de la cartera</b>.${RL.err==="clave"?" <b>La contraseña guardada ya no sirve.</b>":""}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rl-vpw" type="password" placeholder="Contraseña de la cartera real" autocomplete="current-password" style="flex:1 1 180px"><button id="rl-vgo">Entrar</button></div><label class="m"><input type="checkbox" id="rl-vrem"> Recordarla en este dispositivo (se guarda cifrada con una clave propia del navegador; márcalo solo en tus dispositivos)</label><div class="m" id="rl-st" style="font-weight:700">${esc(RL.msg||"")}</div></div>`;root.innerHTML=h;bind();return}
+ if((RL.enc&&!R)||(RL.cfgEnc&&!RL.cfg&&!R)){h=`<div class="p"><h2>🔐 Zona privada</h2><div class="m">Esta parte solo la puede ver el dueño. Escribe la <b>contraseña de la cartera</b>.${RL.err==="clave"?" <b>La contraseña guardada ya no sirve.</b>":""}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rl-vpw" type="password" placeholder="Contraseña de la cartera real" autocomplete="current-password" style="flex:1 1 180px"><button id="rl-vgo">Entrar</button></div><label class="m"><input type="checkbox" id="rl-vrem" checked> Recordarla en este dispositivo (se guarda cifrada con una clave propia del navegador; márcalo solo en tus dispositivos)</label><div class="m" id="rl-st" style="font-weight:700">${esc(RL.msg||"")}</div></div>`;root.innerHTML=h;bind();return}
  if(!R){h+=`<div class="p"><h2>💶 Cartera real con Trading 212</h2><div class="m">${RL.loading?"Cargando…":RL.err&&RL.err!=="nada"?esc(RL.err):"Todavía no hay datos de tu cuenta real. Sigue los pasos de abajo: pon tus claves de Trading 212 en los ajustes y pulsa «Probar conexión»."}</div></div>`;
   h=lockP+h+warns()+'<div class="p"><h2>Acciones</h2>'+actHtml()+stP+"</div>"+fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),true)+fold("met","🧭 Elige el método",metHtml(),false)+fold("help","❓ Cómo ponerla en marcha",helpHtml(),true);root.innerHTML=h;bind();return}
  // v61: lo importante arriba (cuánto vale, qué va a hacer, botones); el detalle, plegado debajo
