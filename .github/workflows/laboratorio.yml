@@ -70,14 +70,18 @@ jobs:
         run: node runner.mjs backtest
       - name: Siguiente ronda (en cadena)
         if: always()
+        timeout-minutes: 35
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${{ steps.hueco.outputs.go }}" != "true" ]; then echo "Fuera de horario: la cadena sigue mañana."; exit 0; fi
           R="repos/${{ github.repository }}/actions/workflows/laboratorio.yml"
-          n=$(gh api "$R/runs?created=%3E%3D$(date -u +%F)&per_page=1" -q .total_count 2>/dev/null || echo 0)
+          n=$(timeout 60 gh api "$R/runs?created=%3E%3D$(date -u +%F)&per_page=1" -q .total_count 2>/dev/null || echo 0)
           echo "Rondas de hoy: $n"
           if [ "${n:-0}" -ge 30 ]; then echo "Tope de 30 rondas al día: sigue mañana."; exit 0; fi
-          if [ "${{ steps.libre.outputs.go }}" = "true" ]; then sleep 1500; else sleep 600; fi
           H=$((10#$(date -u +%H)))
-          if [ "$H" -ge 3 ] && [ "$H" -le 18 ]; then gh api -X POST "$R/dispatches" -f ref=main && echo "Siguiente ronda lanzada."; else echo "Se acaba el horario de hoy: la cadena sigue mañana."; fi
+          if [ "$H" -lt 3 ] || [ "$H" -gt 18 ]; then echo "Se acaba el horario de hoy: la cadena sigue mañana."; exit 0; fi
+          # se lanza YA (queda en cola hasta que esta termine) y luego se espera: aunque esta espera fallara, la siguiente ronda ya está pedida
+          timeout 60 gh api -X POST "$R/dispatches" -f ref=main && echo "Siguiente ronda pedida."
+          if [ "${{ steps.libre.outputs.go }}" = "true" ]; then sleep 1500; else sleep 600; fi
