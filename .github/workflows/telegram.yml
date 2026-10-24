@@ -10,7 +10,7 @@ on:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
 
 concurrency:
   group: telegram
@@ -46,3 +46,26 @@ jobs:
           echo "Última ronda: $t ($age min, $st)"
           if [ "$st" = "in_progress" ] || [ "$st" = "queued" ]; then exit 0; fi
           if [ "$age" -ge 125 ]; then gh api -X POST "repos/${{ github.repository }}/actions/workflows/laboratorio.yml/dispatches" -f ref=main && echo "Ronda del laboratorio lanzada."; fi
+      # v95 · que el bot no se pare NUNCA: GitHub desactiva los horarios de un repositorio público tras 60 días sin cambios.
+      # Una vez al día comprueba que todos los procesos siguen activos (si alguno está desactivado, lo reactiva) y,
+      # si la rama principal lleva más de 30 días sin cambios, deja una marca (.vivo) para que GitHub vea actividad.
+      - name: Mantener vivo el bot
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          H=$(date -u +%H); M=$(date -u +%M); H=$((10#$H)); M=$((10#$M))
+          if [ "$H" -ne 12 ] || [ "$M" -ge 10 ]; then exit 0; fi
+          R="repos/${{ github.repository }}"
+          for wf in diario.yml historico.yml laboratorio.yml real.yml telegram.yml; do
+            st=$(gh api "$R/actions/workflows/$wf" -q .state 2>/dev/null || echo "?")
+            if [ "$st" != "active" ] && [ "$st" != "?" ]; then gh api -X PUT "$R/actions/workflows/$wf/enable" && echo "Reactivado: $wf"; fi
+          done
+          last=$(gh api "$R/commits?sha=main&per_page=1" -q '.[0].commit.committer.date')
+          age=$(( ( $(date +%s) - $(date -d "$last" +%s) ) / 86400 ))
+          echo "Último cambio en main hace $age días"
+          if [ "$age" -ge 30 ]; then
+            sha=$(gh api "$R/contents/.vivo?ref=main" -q .sha 2>/dev/null || true)
+            body=$(date -u +%Y-%m-%dT%H:%M:%SZ | base64)
+            if [ -n "$sha" ]; then gh api -X PUT "$R/contents/.vivo" -f message="Bot vivo $(date -u +%F)" -f content="$body" -f branch=main -f sha="$sha"; else gh api -X PUT "$R/contents/.vivo" -f message="Bot vivo $(date -u +%F)" -f content="$body" -f branch=main; fi
+          fi

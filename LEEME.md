@@ -9,6 +9,12 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v53 (web v95): el laboratorio no se para nunca
+- Piezas con números (media del filtro de tendencia, media de la alarma, nivel del freno de volatilidad): cientos de millones de combinaciones, así que nunca se queda sin métodos por probar.
+- Si todo lo cercano ya está probado, salta más lejos (cambia 2-4 piezas a la vez) y mezcla entre sí a los de la liga.
+- Recuerda los últimos 30 000 métodos probados (antes 4 000) para no repetir.
+- Mantenimiento automático: una vez al día comprueba que todos los procesos de GitHub siguen activos (los reactiva si hace falta) y, si la rama principal lleva 30 días sin cambios, deja una marca para que GitHub no desactive los horarios (lo hace a los 60 días sin actividad).
+
 ## Novedades v52 (web v92): fuera el Vigilante
 - Se quita la pestaña **👁️ Vigilante** y todo su código (también el antiguo vigilante intradía, que ya no funcionaba). La prueba histórica y la ficticia ya cubren lo que hacía: la histórica examina 26 años y la ficticia prueba los ganadores con precios de hoy.
 - La web pesa menos (unas 400 líneas menos) y el estado publicado también (ya no guarda las curvas del último año de cada método).
