@@ -68,6 +68,25 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
         run: node runner.mjs backtest
+      - name: Mantener vivo el bot (procesos activos y actividad en el repositorio)
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          R="repos/${{ github.repository }}"
+          for wf in diario.yml historico.yml laboratorio.yml real.yml telegram.yml; do
+            st=$(gh api "$R/actions/workflows/$wf" -q .state 2>/dev/null || echo "?")
+            if [ "$st" != "active" ] && [ "$st" != "?" ]; then gh api -X PUT "$R/actions/workflows/$wf/enable" && echo "Reactivado: $wf"; fi
+          done
+          last=$(gh api "$R/commits?sha=main&per_page=1" -q '.[0].commit.committer.date')
+          age=$(( ( $(date +%s) - $(date -d "$last" +%s) ) / 86400 ))
+          echo "Último cambio en main hace $age días"
+          if [ "$age" -ge 30 ]; then
+            sha=$(gh api "$R/contents/.vivo?ref=main" -q .sha 2>/dev/null || true)
+            body=$(date -u +%Y-%m-%dT%H:%M:%SZ | base64)
+            if [ -n "$sha" ]; then gh api -X PUT "$R/contents/.vivo" -f message="Bot vivo $(date -u +%F)" -f content="$body" -f branch=main -f sha="$sha"; else gh api -X PUT "$R/contents/.vivo" -f message="Bot vivo $(date -u +%F)" -f content="$body" -f branch=main; fi
+          fi
       - name: Siguiente ronda (en cadena)
         if: always()
         timeout-minutes: 35
