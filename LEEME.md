@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v62 (web v106): «Elige el método» con 10 y comparado con el tuyo
+- En 💶 Real → «🧭 Elige el método» (y en el desplegable de los ajustes) solo salen 10: tu método y los 9 mejores que pasan tus condiciones.
+- Cada uno dice cuánto gana en la prueba de 26 años (después de impuestos) y cuántos puntos al año más o menos que el tuyo, y cuánto lleva con precios reales desde la misma fecha que el tuyo (según lo que compraría, su cartera en la ficticia).
+- Se ordenan de más a menos ganancia; dos botones para ordenar por la prueba o por lo que llevan con precios reales.
+
 ## Novedades v61 (web v105): top 20 y avisos solo por el podio
 - La pestaña Laboratorio muestra solo los 20 que más ganan al SPY (con tus condiciones), ordenados: los 5 primeros a la vista y los puestos 6-20 en un recuadro plegable. El resto ya no se muestra.
 - Avisos: solo cuando entra en el top 3 un método MEJOR que el que estaba 3.º. La prueba de cada noche y las rondas del laboratorio ya no avisan por cada ganador nuevo (los errores siguen avisando siempre).
