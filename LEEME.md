@@ -9,6 +9,12 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v55 (web v99): búsqueda inteligente en el laboratorio
+- Antes de probar un método, un modelo predice su nota con todos los ya examinados (los más parecidos) y el laboratorio prueba sobre todo los más prometedores (75 % de cada ronda).
+- Regla fija: el otro 25 % es SIEMPRE al azar, para que nunca deje de descubrir cosas nuevas ni se encierre en una idea.
+- Guarda la nota de los últimos 6 000 examinados y mide cuánto acierta el modelo (se ve en el recuadro del laboratorio).
+- En una simulación, los elegidos por el modelo sacaron de media un 0,74 frente al 0,55 de los elegidos al azar.
+
 ## Novedades v54 (web v97): todo a Telegram y claves recordadas
 - Cada botón de descarga (informes, datos, copias, CSV de la cartera real…) deja elegir **📤 Enviar a mi Telegram** o descargar. Se configura una vez en ⚙️ Ajustes → «📤 Telegram en este dispositivo» (al guardar las claves de Telegram en la cartera real se configura solo).
 - La **clave de ajustes** también se puede recordar en el dispositivo (cifrada con una clave propia del navegador): la web se desbloquea sola al abrirla y ya no se bloquea a los 10 minutos. «Bloquear» la olvida.
