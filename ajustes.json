@@ -1,5 +1,4 @@
 {
-  "vigilante_min": 30,
   "bt_max": 200,
   "bt": {
     "min": 100,
@@ -9,7 +8,8 @@
     "acc": 1,
     "auto": 1,
     "sim": [
-      "qldm"
+      "qldm",
+      "g_1v1a2nc"
     ]
   },
   "cfg": {
