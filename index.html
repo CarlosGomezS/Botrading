@@ -450,7 +450,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v100</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v101</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1557,7 +1557,8 @@ function labJudge(b,trials){const L=labS(),d=T0();let born=0;const keepRow=new S
   if(g&&!g.bl&&!g.base&&e.sc!=null){L.hist=Array.isArray(L.hist)?L.hist:[];L.hist.push([labVec(g),+e.sc.toFixed(3)]);if(L.hist.length>6000)L.hist=L.hist.slice(-6000);
    if(pr!=null){const er=Math.abs(pr-e.sc);L.ai=L.ai||{n:0,mae:null,base:null};L.ai.n++;L.ai.mae=L.ai.mae==null?er:0.95*L.ai.mae+0.05*er}}
   if(why&&why.startsWith("vecino:")){const pk=why.slice(7),P=L.pend[pk];if(P){P.nb=P.nb||[];P.nb.push(e.beat?1:0)}}
-  if(e.ok&&!(why||"").startsWith("vecino:")){L.pend[k]={g,born:d,an:e.an,nb:[]};born++;keepRow.add(k);L.log.unshift({d,k,n:labName(g),ev:"aprueba",why:`examen aprobado (${P(e.an*100)}/año): mañana prueba de estabilidad`})}
+  if(e.ok&&g&&(g.bl||g.base)){L.pop[k]={g,born:d,an:e.an};keepRow.add(k);born++;L.log.unshift({d,k,n:labName(g),ev:"nace",why:`mezcla de dos métodos ya estables que aprueba el examen y el examen oculto (${P(e.an*100)}/año): entra en la liga`})}
+  else if(e.ok&&!(why||"").startsWith("vecino:")){L.pend[k]={g,born:d,an:e.an,nb:[]};born++;keepRow.add(k);L.log.unshift({d,k,n:labName(g),ev:"aprueba",why:`examen aprobado (${P(e.an*100)}/año): mañana prueba de estabilidad`})}
   else{if(e.an!=null&&!g.bl&&!g.base){L.near.push({g,an:e.an,sc:+(e.sc||0).toFixed(3),dd:e.dd,why:e.why,d});L.near.sort((x,y)=>(y.sc||0)-(x.sc||0)||y.an-x.an);L.near=L.near.slice(0,15)}if(!L.pend[k]&&!L.pop[k]&&!L.keep[k]){delete BTX[k];delete b.rows[k];}}}
  // prueba de estabilidad: al menos 1 de sus 2 variantes cercanas gana al SPY
  for(const [k,x] of Object.entries(L.pend)){if(keepRow.has(k))continue;const nb=x.nb||[];
