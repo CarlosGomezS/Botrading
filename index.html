@@ -472,7 +472,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v90</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v91</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2310,8 +2310,15 @@ const opn=(id,def)=>(OPEN[id]!==undefined?OPEN[id]:def)?" open":"";
 const bkOf=k=>(S.books||{})[k]||null;
 function liveEq(k){const B=bkOf(k);if(!B)return START;const fx=S.fx||1;let t=B.cash;for(const[s,p]of Object.entries(B.pos||{}))t+=p.q*((S.last[s]&&S.last[s].px)||p.lastMark||p.avg)/fx;return t+bvLive(B)}
 const mGain=k=>liveEq(k)-START;
-const mSorted=()=>Object.keys(STR).filter(k=>bkOf(k)&&!(S.lab&&S.lab.off&&S.lab.off[k])).sort((a,b)=>mGain(b)-mGain(a));
-const vmGet=v=>{if(v==="cart"||v==="graf"||v==="inf")v="hoy";const k=VM[v];if(k&&STR[k]&&bkOf(k))return k;return STR[S.main]&&bkOf(S.main)?S.main:(mSorted()[0]||"sect")};
+/* v91 · en la ficticia solo se ven los que GANAN: ✅ Ganadores del histórico (≥2 puntos al SPY después de impuestos, caída no peor del −35 %, ganan en 2000-2015 y en 2016-hoy)
+   y los de prueba en vivo cuando ya llevan 12 meses ganando al SPY por ≥2 puntos. Tu método actual se ve siempre (es el que usa tu dinero). El resto sigue probándose sin mostrarse. */
+const curMet=()=>{try{return(typeof A==="function"&&A().metodo)||"sect"}catch(e){return"sect"}};
+function winVis(k){if(!STR[k])return false;if(k===curMet())return true;if(S.lab&&S.lab.off&&S.lab.off[k])return false;
+ if(STR[k].fwd){const c=(S.labConf||[]).find(x=>x.k===k);return!!(c&&c.ok)}
+ try{const b=S.btm;if(b&&b.rows&&b.rows[k]){const v=btmVerd(b,k);return!!(v&&v.c==="ok")}}catch(e){}return false}
+const mHidden=()=>Object.keys(STR).filter(k=>bkOf(k)&&!winVis(k));
+const mSorted=()=>Object.keys(STR).filter(k=>bkOf(k)&&winVis(k)).sort((a,b)=>mGain(b)-mGain(a));
+const vmGet=v=>{if(v==="cart"||v==="graf"||v==="inf")v="hoy";const k=VM[v];if(k&&STR[k]&&bkOf(k)&&winVis(k))return k;return STR[S.main]&&bkOf(S.main)?S.main:(mSorted()[0]||"sect")};
 /* ===== v9 · ranking sencillo en Hoy ===== */
 function hoyRank(){const A=document.getElementById("hoy-rank");if(!A)return;
  const ks=mSorted();
@@ -2321,7 +2328,7 @@ function hoyRank(){const A=document.getElementById("hoy-rank");if(!A)return;
   const act=(nb||ns)?`🟢 ${nb} · 🔴 ${ns} en el último día`:"sin cambios en el último día";
   return`<div class="rk-c" data-go="${k}"><div class="rk-n">${med[j]||(j+1)+"."}</div><div class="rk-t"><b>${esc(STR[k].n)}${STR[k].fwd?' <span class="bdg t">🔭 en vivo</span>':""}</b><small>${np} ${np===1?"activo":"activos"} en cartera · ${cl} ventas cerradas · ${act}</small></div><div class="rk-g ${g>=0?"up":"dn"}">${P2(pc)}<small>${E2(g)}</small></div></div>`}).join("");
  const dias=(S.days||[]).length,pocas=ks.every(k=>((bkOf(k).trades)||[]).filter(t=>t.pnl!=null).length<30);
- A.innerHTML=`<div class="rk">${rows}</div><div class="m">Aquí operan, con precios de hoy, los <b>✅ Ganadores</b> del histórico (entran solos), el método base y los métodos de <b>acciones, mixtos y bitcoin 🔭 en prueba en vivo</b> (con acciones la prueba histórica hace trampa: solo cuentan sus resultados desde hoy y necesitan 12 meses ganando al SPY para proponerse). Toca uno para ver qué hacer con él. Llevas ${dias} ${dias===1?"día":"días"} de datos${pocas?": todavía hay pocas ventas cerradas (menos de 30 por método), así que el ranking aún no demuestra nada. Sigue unas semanas.":"."}</div>`}
+ const cm=curMet(),hid=mHidden();A.innerHTML=`<div class="rk">${rows}</div><div class="m">Aquí solo están los que <b>ganan al SPY</b> según tus condiciones: ✅ Ganadores del histórico (≥2 puntos al año más que el SPY después de impuestos, caída no peor del −35 %, ganan en 2000-2015 y en 2016-hoy) y operan con precios de hoy.${STR[cm]&&!(S.btm&&S.btm.rows&&S.btm.rows[cm]&&(btmVerd(S.btm,cm)||{}).c==="ok")?` También ves <b>${esc(STR[cm].n)}</b> porque es el que usa ahora tu cartera real, aunque no pasa el examen.`:""}${hid.length?` Hay ${hid.length} métodos más (acciones, mixtos y bitcoin) probándose en segundo plano: aparecerán aquí solo si llevan 12 meses ganando al SPY por ≥2 puntos.`:""} Toca uno para ver qué hacer con él. Llevas ${dias} ${dias===1?"día":"días"} de datos${pocas?": todavía hay pocas ventas cerradas (menos de 30 por método), así que el ranking aún no demuestra nada. Sigue unas semanas.":"."}</div>`}
 document.addEventListener("click",e=>{const c=e.target&&e.target.closest&&e.target.closest("[data-go]");if(!c||!STR[c.dataset.go])return;VM.cart=c.dataset.go;VM.hoy=c.dataset.go;try{localStorage.setItem("pbvm",JSON.stringify(VM))}catch{}draw();const d=document.getElementById("hd-mi");if(d)d.open=true;const q=document.getElementById("hd-mi")||document.getElementById("mi-panel");if(q)q.scrollIntoView({behavior:"smooth",block:"start"})});
 const gtxt=g=>`<b class="${g>=0?"up":"dn"}">${E2(g)} (${P2(g/START*100)})</b>`;
 const hmL=t=>t?new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"";
@@ -3303,7 +3310,7 @@ function movHtml(){const R=RL.R,H=((R&&R.ledger&&R.ledger.hist)||[]).slice().sor
  return h}
 function btTxt(k){try{const b=S.btm;if(!b||!b.rows||!b.rows[k])return TESTED[k]||"Aún no está en la última prueba histórica";const a=annualOf(b.rows[k],b.cuts),sp=b.rows.spy?annualOf(b.rows.spy,b.cuts):null,r=b.rows[k],dd=r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null,v=btmVerd(b,k);return(v?v.t:"")+" en la prueba: "+(a==null?"—":P(a*100))+"/año"+(sp!=null?" (SPY "+P(sp*100)+")":"")+(dd!=null?" · peor caída "+P(dd*100):"")}catch(e){return TESTED[k]||""}}
 function coverage(k){const M=(RL.R&&RL.R.map)||{},t0=Object.keys((bkOf(k)&&bkOf(k).tgt&&bkOf(k).tgt.w)||{}),u=UNI[k]||(t0.length?t0:((STR[k]&&STR[k].syms)||[]).filter(x=>x!=="SPY"||k!=="m10")),ok=u.filter(s=>M[s]&&M[s].t),no=u.filter(s=>M[s]&&!M[s].t),unk=u.filter(s=>!M[s]);return{u,ok,no,unk}}
-function metHtml(){const a=A(),cur=a.metodo,ks=Object.keys(STR||{});if(!ks.length)return'<div class="m">El simulador aún no tiene métodos cargados.</div>';
+function metHtml(){const a=A(),cur=a.metodo,ks=Object.keys(STR||{}).filter(k=>k===cur||winVis(k));if(!ks.length)return'<div class="m">El simulador aún no tiene métodos cargados.</div>';
  const rows=ks.map(k=>{const B=bkOf(k),g=B?(liveEq(k)/START-1)*100:null;return{k,g}}).sort((x,y)=>(y.g??-1e9)-(x.g??-1e9));
  return'<div class="m">La cartera real copia la <b>cartera objetivo</b> del método que elijas (los mismos activos y pesos), con equivalentes UCITS en euros. Toca uno para elegirlo.</div><div class="rk">'+rows.map(({k,g},i)=>{const cv=coverage(k),sel=k===cur;
   const cvT=!RL.R||!Object.keys(RL.R.map||{}).length?"pulsa «Probar conexión» para saber si se puede comprar todo":cv.no.length?"✖ no disponible en tu cuenta: "+cv.no.join(", "):cv.unk.length?"sin comprobar: "+cv.unk.join(", "):!cv.u.length?"aún sin cartera en la simulación":"✔ se puede comprar todo ("+cv.ok.map(x=>x).join(", ")+")";
