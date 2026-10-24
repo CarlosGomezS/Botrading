@@ -450,7 +450,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v97</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v98</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2794,8 +2794,12 @@ function days(){return((RL.R&&RL.R.days)||[]).filter(x=>x.be!=null)}
 /* rentabilidad del bot «ponderada en el tiempo»: no cuenta como ganancia lo que le das ni como pérdida lo que le quitas */
 /* v96: el flujo del día es el registrado (bf); si falta, el cambio de capital del bot (bc); y si aun así el día sube o baja más de un 20 %
    (imposible para una cartera de ETF), se trata como un ingreso, no como ganancia. Las caídas NUNCA se esconden */
-function dayFlow(x,p){const f=+x.bf||0;if(f)return f;if(!(p.be>0))return 0;const r=x.be/p.be,dc=x.bc!=null&&p.bc!=null?x.bc-p.bc:0;if(Math.abs(dc)>0.5&&Math.abs((x.be-dc)/p.be-1)<Math.abs(r-1))return dc;return r>1.2?x.be-p.be:0}
-function twr(D){let idx=1;return D.map((x,i)=>{const p=D[i-1];if(p&&p.be>0){const r=(x.be-dayFlow(x,p))/p.be;if(isFinite(r)&&r>0)idx*=r}return Object.assign({},x,{i:idx})})}
+function dayFlow(x,p){const f=+x.bf||0;if(f)return f;if(!(p.be>0))return 0;const r=x.be/p.be,dc=x.bc!=null&&p.bc!=null?x.bc-p.bc:0;if(Math.abs(dc)>0.5&&Math.abs((x.be-dc)/p.be-1)<Math.abs(r-1))return dc;return 0}
+/* v98: flujo efectivo de un paso (día o lectura de 15 min). Un salto hacia arriba imposible (> thr) sin ingreso apuntado = ingreso que aún no se había apuntado.
+   Un salto hacia abajo solo se compensa con ingresos ya apuntados o saltos anteriores (si el ingreso se apunta antes o después de verse en el valor). Una caída de verdad nunca se esconde. */
+function flowFix(pv,v,rf,st,thr){if(!(pv>0))return rf;const g=v-pv-rf;if(g>thr*pv){st.J+=g;return rf+g}if(g<-thr*pv){const lim=Math.max(0,st.J)+Math.max(0,rf),a=Math.min(lim,-g);if(a>0){st.J-=a;return rf-a}}return rf}
+function flowsOf(D){const st={J:0};return D.map((x,i)=>{const p=D[i-1];return p?flowFix(p.be,x.be,dayFlow(x,p),st,0.2):0})}
+function twr(D){let idx=1;const FL=flowsOf(D);return D.map((x,i)=>{const p=D[i-1];if(p&&p.be>0){const r=(x.be-FL[i])/p.be;if(isFinite(r)&&r>0)idx*=r}return Object.assign({},x,{i:idx})})}
 const dayKey=t=>{try{return new Date(t).toLocaleDateString("sv-SE",{timeZone:"Europe/Madrid"})}catch(e){return String(t).slice(0,10)}};
 const hora=t=>{try{return new Date(t).toLocaleTimeString("es-ES",{timeZone:"Europe/Madrid",hour:"2-digit",minute:"2-digit",second:"2-digit"})}catch(e){return""}};
 const fdL=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}catch(e){return d}};
@@ -2805,7 +2809,7 @@ function summary(){const R=RL.R,D=days();if(!D.length)return null;const T=twr(D)
  const O=R.orders||[],B=bkOf(simKey());let sim=null;
  if(B&&B.days&&B.days.length&&T.length>1){const e0=simEqAt(B,T[0].d)||B.days[0].eq,e1=B.days[B.days.length-1].eq;if(e0>0)sim=(e1/e0-1)*100}
  const L=R.ledger||{},acc=(R.days||[]).filter(x=>x.v>0).pop()||{};
- return{d0:T[0].d,cap:l.bc,be:l.be,res:l.be-l.bc,pct:(l.i-1)*100,dia:prev?l.be-prev.be-dayFlow(l,prev):null,dd:dd*100,green,nd:T.length,ok:O.filter(o=>o.estado==="ejecutada").length,bad:O.filter(o=>/error|rechazada/.test(o.estado)).length,sim,cashBot:l.bcash,invBot:l.be-(l.bcash||0),real:L.real||0,acc:acc.v,accCash:acc.cash,ap:acc.ap}}
+ return{d0:T[0].d,cap:l.bc,be:l.be,res:l.be-l.bc,pct:(l.i-1)*100,dia:prev?l.be-prev.be-flowsOf(D)[D.length-1]:null,dd:dd*100,green,nd:T.length,ok:O.filter(o=>o.estado==="ejecutada").length,bad:O.filter(o=>/error|rechazada/.test(o.estado)).length,sim,cashBot:l.bcash,invBot:l.be-(l.bcash||0),real:L.real||0,acc:acc.v,accCash:acc.cash,ap:acc.ap}}
 /* ---------- gráfica: tu dinero real frente al mismo método en simulación ---------- */
 const fdx=d=>/:/.test(String(d))?String(d):fd(d);
 function chartHtml(){const D=days(),R0=RL.R||{},IN=(R0.intra&&R0.intra.p)||[],hasIn=IN.length>=2;
@@ -2815,9 +2819,10 @@ function chartHtml(){const D=days(),R0=RL.R||{},IN=(R0.intra&&R0.intra.p)||[],ha
  if((RL.rng==="d"||D.length<2)&&hasIn){const pv=(R0.days||[]).filter(x=>x.d<R0.intra.d&&x.be>0).pop(),base=pv?pv.be:IN[0][1];
   const fT=+(((R0.days||[]).find(x=>x.d===R0.intra.d)||{}).bf||0);let fk=0;
   /* v73: lo que metes o sacas ese día no es ganancia: se descuenta desde el punto en que entra (3.er dato del punto o, en puntos antiguos, al detectar el salto) */
-  let b0=base,pa=null,jk=0;/* v96: subidas de más de un 10 % entre dos lecturas (o de la apertura frente al cierre de ayer) son un ingreso, no ganancia (las bajadas se ven siempre) */
-  pts=IN.map(([h,v,f],i)=>{if(f!=null)fk=+f;else if(fT&&i&&Math.abs(v-IN[i-1][1]-fT)<Math.abs(v-IN[i-1][1])*0.6+0.01&&Math.abs(v-IN[i-1][1])>Math.abs(fT)*0.5)fk=fT;let adj=v-fk-jk;
-   if(i===0&&b0>0&&adj/b0>1.1)b0=adj;else if(pa>0&&adj/pa>1.1){jk+=adj-pa;adj=pa}pa=adj;return{d:h,v,ap:null,p:b0>0?(adj/b0-1)*100:0,s:null}});sl=[{d:R0.intra.d}];RL.rng="d"}
+  /* v98: cadena de lecturas: en cada paso, lo que cambia el valor menos el dinero que entra o sale en ese paso (ver flowFix) */
+  const st={J:0};let idx=1,pv0=base,pf=0;
+  pts=IN.map(([h,v,f],i)=>{if(f!=null)fk=+f;else if(fT&&i&&Math.abs(v-IN[i-1][1]-fT)<Math.abs(v-IN[i-1][1])*0.6+0.01&&Math.abs(v-IN[i-1][1])>Math.abs(fT)*0.5)fk=fT;
+   const fl=flowFix(pv0,v,fk-pf,st,0.1);pf=fk;if(pv0>0){const r=1+(v-pv0-fl)/pv0;if(isFinite(r)&&r>0)idx*=r}pv0=v;return{d:h,v,ap:null,p:(idx-1)*100,s:null}});sl=[{d:R0.intra.d}];RL.rng="d"}
  else{if(RL.rng==="d")RL.rng="all";const T=twr(D),nd={w:5,m:21,q:63}[RL.rng];sl=nd?T.slice(-(nd+1)):T;
   const i0=sl[0].i,e0=B?simEqAt(B,sl[0].d):null;
   pts=sl.map(x=>({d:x.d,v:x.be,ap:x.bc,p:(x.i/i0-1)*100,s:e0&&B?((simEqAt(B,x.d)||e0)/e0-1)*100:null}))}
@@ -2915,7 +2920,7 @@ function betterHtml(){try{const b=S&&S.btm;if(!b||!b.rows||!b.rows.spy)return"";
 /* v72 · resultado de cada método que has tenido en la cartera real (por periodos) */
 function metResHtml(){const R=RL.R,D=days();if(D.length<2)return"";const H=((R&&R.metHist)||[]).slice().sort((x,y)=>x.d<y.d?-1:1);
  const cur=A().metodo,nm=k=>NOMB[k]||(STR[k]&&STR[k].n)||k,P=[];const at=d=>{let j=-1;H.forEach((h,i)=>{if(h.d<=d)j=i});return j<0?0:j};
- for(let i=1;i<D.length;i++){const x=D[i],p=D[i-1];if(!(p.be>0))continue;const fl=dayFlow(x,p),g=x.be-p.be-fl,base=p.be+Math.max(0,fl),j=H.length?at(x.d):-1;
+ const FL=flowsOf(D);for(let i=1;i<D.length;i++){const x=D[i],p=D[i-1];if(!(p.be>0))continue;const fl=FL[i],g=x.be-p.be-fl,base=p.be+Math.max(0,fl),j=H.length?at(x.d):-1;
   let q=P[P.length-1];if(!q||q.j!==j){q={j,k:j>=0?H[j].metodo:cur,n:j>=0?(H[j].nombre||nm(H[j].metodo)):nm(cur),d0:j>=0&&H[j].d>D[0].d?H[j].d:D[0].d,d1:x.d,g:0,idx:1};P.push(q)}
   q.g+=g;q.d1=x.d;if(base>0)q.idx*=1+g/base}
  if(!P.length)return"";const tot=P.reduce((t,q)=>t+q.g,0);

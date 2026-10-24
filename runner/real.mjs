@@ -291,7 +291,10 @@ function pick(sym, i, why) { return { sym, t: i.ticker, name: i.name || i.shortN
 // Así: si ingresas dinero en Trading 212, el bot no lo toca hasta que subas su capital; sus ganancias se reinvierten solas.
 const unitVal = (p) => { const q = +p.quantity || 0, v = +((p.walletImpact && p.walletImpact.currentValue) || 0); return q > 0 ? v / q : 0; };
 function hist(R, e) { R.ledger.hist.unshift({ ts: new Date().toISOString(), ...e, cashBot: r2(R.ledger.cash) }); }
-function dayFlowR(x, p) { const f = +x.bf || 0; if (f) return f; if (!(p.be > 0)) return 0; const r = x.be / p.be, dc = x.bc != null && p.bc != null ? x.bc - p.bc : 0; if (Math.abs(dc) > 0.5 && Math.abs((x.be - dc) / p.be - 1) < Math.abs(r - 1)) return dc; return r > 1.2 ? x.be - p.be : 0; }  // solo subidas imposibles: una caída de verdad nunca se esconde (el freno por pérdidas depende de esto)
+function dayFlowR(x, p) { const f = +x.bf || 0; if (f) return f; if (!(p.be > 0)) return 0; const r = x.be / p.be, dc = x.bc != null && p.bc != null ? x.bc - p.bc : 0; if (Math.abs(dc) > 0.5 && Math.abs((x.be - dc) / p.be - 1) < Math.abs(r - 1)) return dc; return 0; }
+// flujo efectivo de cada día: una subida imposible (>20 %) sin ingreso apuntado es un ingreso; una bajada solo se compensa con ingresos ya apuntados
+// o saltos anteriores. Una caída de verdad nunca se esconde (el freno por pérdidas depende de esto).
+function flowsOfR(D) { const st = { J: 0 }; return D.map((x, i) => { const p = D[i - 1]; if (!p || !(p.be > 0)) return 0; const rf = dayFlowR(x, p), g = x.be - p.be - rf; if (g > 0.2 * p.be) { st.J += g; return rf + g; } if (g < -0.2 * p.be) { const a = Math.min(Math.max(0, st.J) + Math.max(0, rf), -g); if (a > 0) { st.J -= a; return rf - a; } } return rf; }); }
 function flowAdd(R, d, v) { R.flows = R.flows || {}; R.flows[d] = r2((R.flows[d] || 0) + v); }
 export function ensureLedger(R, A, positions, m, notas) {
   const byT = Object.fromEntries(positions.map((p) => [p.instrument.ticker, p]));
@@ -743,12 +746,12 @@ function planMd(p) {
 // ---------- rentabilidad del bot (descontando aportaciones y retiradas) y comparación con la simulación ----------
 // Rentabilidad «ponderada en el tiempo»: cada día cuenta lo que ha variado el dinero del bot SIN contar lo que le has dado o quitado ese día.
 export function twr(days) {
-  const D = (days || []).filter((x) => x.be != null), out = [];
+  const D = (days || []).filter((x) => x.be != null), out = [], FL = flowsOfR(D);
   let idx = 1;
   for (let i = 0; i < D.length; i++) {
     const x = D[i], prev = D[i - 1];
     // flujo del día: el registrado; si falta, el cambio de capital del bot; si aun así se mueve más de un 20 %, es dinero que entra o sale
-    if (prev && prev.be > 0) { const r = (x.be - dayFlowR(x, prev)) / prev.be; if (isFinite(r) && r > 0) idx *= r; }
+    if (prev && prev.be > 0) { const r = (x.be - FL[i]) / prev.be; if (isFinite(r) && r > 0) idx *= r; }
     out.push({ d: x.d, i: idx, be: x.be, bc: x.bc });
   }
   return out;
@@ -766,7 +769,7 @@ export function resumen(R, S, A) {
   let pk = -Infinity, dd = 0; for (const x of T) { pk = Math.max(pk, x.i); dd = Math.min(dd, x.i / pk - 1); }
   const prev = D.length > 1 ? D[D.length - 2] : null, O = R.orders || [];
   const key = (A && A.metodo) || (S && S.main) || "sect", sim = S ? simCompare(R, S, key) : null, L = R.ledger || {};
-  return { d0: D[0].d, cap: last.bc, be: last.be, res: r2(last.be - last.bc), pct: T.length ? (T[T.length - 1].i - 1) * 100 : 0, dia: prev ? r2(last.be - prev.be - dayFlowR(last, prev)) : null,
+  return { d0: D[0].d, cap: last.bc, be: last.be, res: r2(last.be - last.bc), pct: T.length ? (T[T.length - 1].i - 1) * 100 : 0, dia: prev ? r2(last.be - prev.be - flowsOfR(D)[D.length - 1]) : null,
     dd: dd * 100, real: L.real || 0, nOrd: O.filter((o) => o.estado === "ejecutada").length, nBad: O.filter((o) => /error|rechazada/.test(o.estado)).length, key, sim,
     cashBot: last.bcash, invBot: r2(last.be - (last.bcash || 0)), v: acc ? acc.v : null, ap: acc ? acc.ap : null, cash: acc ? acc.cash : null };
 }
@@ -786,7 +789,7 @@ function semanaMd(R, S, A, m) {
   const first = D.filter((x) => Date.parse(x.d) <= t0).pop() || D[0], last = D[D.length - 1], wk = D.filter((x) => Date.parse(x.d) > t0);
   const ords = (R.orders || []).filter((o) => Date.parse(o.ts) > t0), L = [`## Semana del ${new Date(t0 + 864e5).toISOString().slice(0, 10)} al ${m.date}`, ""];
   if (first && last) {
-    const flow = wk.filter((x) => x !== first).reduce((t, x) => { const i = D.indexOf(x); return t + (i > 0 ? dayFlowR(x, D[i - 1]) : +x.bf || 0); }, 0), g = r2(last.be - first.be - flow);
+    const FLW = flowsOfR(D), flow = wk.filter((x) => x !== first).reduce((t, x) => { const i = D.indexOf(x); return t + (i > 0 ? FLW[i] : +x.bf || 0); }, 0), g = r2(last.be - first.be - flow);
     L.push(`- Dinero del bot: ${eur(first.be)} → ${eur(last.be)}${flow ? ` (le diste ${flow > 0 ? "+" : ""}${eur(flow)})` : ""} · resultado de la semana **${seur(g)}** (${pct(first.be > 0 ? (g / first.be) * 100 : 0)})`);
   }
   L.push(`- Órdenes esta semana: ${ords.length}${ords.length ? "" : " (ninguna: el método no ha cambiado su cartera)"}`);
