@@ -9,6 +9,10 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v60 (web v104): métodos «⚡ invencibles»
+- Si un método cumple TODO esto, se te propone para la cartera real sin esperar los 30 días de ficticia (basta con 1 día, para que tenga su cartera calculada): ≥5 puntos al año más que el SPY después de impuestos, le gana en los 3 tramos, caída máxima no peor del −30 %, y en el examen oculto le gana por ≥10 puntos.
+- El aviso de Telegram lo dice claro: todavía no tiene resultados con precios reales. Siempre con tu aprobación, y como mucho un cambio al mes.
+
 ## Novedades v59 (web v103): de la ficticia a tu dinero real, más rápido
 - Un método se considera confirmado tras **30 días** en la ficticia (antes 3 meses) sin quedarse más de 2 puntos por detrás de tu método ni del SPY. Los del laboratorio, además, con el examen oculto aprobado.
 - Solo se te propone si gana a tu método por **2 puntos al año o más** (antes medio punto).

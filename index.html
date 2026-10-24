@@ -450,7 +450,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v103</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v104</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1580,13 +1580,18 @@ function labJudge(b,trials){const L=labS(),d=T0();let born=0;const keepRow=new S
 function labLearnt(){const L=labS(),out=[];for(const pc of Object.keys(LABV)){for(const [v,[n,ok]] of Object.entries(L.st[pc]||{}))if(n>=6)out.push({pc,v,n,ok,r:ok/n})}return out.sort((a,b)=>b.r-a.r)}
 function labValTxt(pc,v){if(pc==="u")return LABU[v]?LABU[v].n:v;if(pc==="l")return(LABLB[+v]||[]).map(x=>Math.round(x/21)).join("/")+" meses";if(pc==="t")return v==="1"?"1":"los "+v+" mejores";if(pc==="r")return v===""?"efectivo":v==="GLD"?"oro":v==="dyn"?"dinámico (oro, bonos o liquidez)":"bonos";if(pc==="p")return v==="q"?"trimestral":"mensual";if(pc==="m"||pc==="k")return v+" sesiones";if(pc==="vt")return Math.round(v*100)+" %";return v==="1"?"sí":"no"}
 /* seguimiento en la ficticia: datos para la tarjeta «¿Hay algo mejor?» y para la cartera real (S.labConf, S.labAn) */
+/* v104 · «INVENCIBLE»: tan claramente mejor que se propone para tu dinero real sin esperar los 30 días de ficticia.
+   Tiene que cumplir TODO: ≥5 puntos al año más que el SPY después de impuestos, ganarle en los 3 tramos, caída no peor del −30 %,
+   y en el examen oculto (2 años que no vio) ganarle por ≥10 puntos. */
+function labInv(b,k,v){try{const c=(v||btmVerd(b,k)||{}).ck||{},H=b.hold&&b.hold.v;if(!(v||{}).c==="ok")return false;
+ const hm=H&&H[k]&&H.spy?H[k].ht-H.spy.ht:null;return (v||{}).c==="ok"&&c.gap>=0.05&&c.beat===3&&c.n===3&&c.ddm>=-0.30&&hm!=null&&hm>=0.10&&labHoldOk(k)}catch(e){return false}}
 function labConfUpdate(){try{const b=S.btm,L=labS();if(!b||!b.rows||!b.rows.spy)return;const tx=!!(b.rows.spy[0]&&b.rows.spy[0].atax!=null),AN=r=>tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts);
  const H=hG(),spyRows=H.SPY&&H.SPY.r||[],spyAt=d=>{const n=dayN(d);let v=null;for(const x of spyRows){if(x[0]<=n)v=x[4];else break}return v},spyNow=spyRows.length?spyRows[spyRows.length-1][4]:null,today=T0();
  S.labAn={};for(const k of Object.keys(b.rows))if(k!=="spy"&&MX(k)){const a=AN(b.rows[k]);if(a!=null)S.labAn[k]=+a.toFixed(5)}
  const C=[];for(const k of Object.keys(STR)){const B=S.books&&S.books[k],fwd=!!STR[k].fwd,v=fwd?{c:"fwd",opy:null}:btmVerd(b,k);if(!B||!B.days||B.days.length<2||!v)continue;const d0=B.days[0].d,e0=B.days[0].eq,e1=B.days[B.days.length-1].eq,g=e0>0?e1/e0-1:null,s0=spyAt(d0),gs=s0&&spyNow?spyNow/s0-1:null,nd=dayN(today)-dayN(d0);
   const r=b.rows[k],dd=r&&r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null;
   if(nd>=365&&g!=null&&gs!=null&&g<gs-0.05&&k!=="sect"&&!L.off[k]){L.off[k]=today;L.log.unshift({d:today,k,n:MX(k).n,ev:"apartado",why:`en 12 meses de ficticia va ${P((g-gs)*100)} peor que el SPY`})}
-  C.push({k,n:MX(k).n,an:fwd?null:(S.labAn[k]??null),dd:fwd?null:dd,opy:v.opy,d0,g,gs,nd,fwd,ok:fwd?(!L.off[k]&&nd>=365&&g!=null&&gs!=null&&g-gs>=0.02):(v.c==="ok"&&!L.off[k]&&labHoldOk(k)&&nd>=30&&g!=null&&(gs==null||g>=gs-0.02))})}
+  C.push({k,n:MX(k).n,an:fwd?null:(S.labAn[k]??null),dd:fwd?null:dd,opy:v.opy,d0,g,gs,nd,fwd,inv:fwd?false:labInv(b,k,v),ok:fwd?(!L.off[k]&&nd>=365&&g!=null&&gs!=null&&g-gs>=0.02):(v.c==="ok"&&!L.off[k]&&labHoldOk(k)&&((nd>=30&&g!=null&&(gs==null||g>=gs-0.02))||(labInv(b,k,v)&&nd>=1)))})}
  S.labConf=C}catch(e){}}
 
 /* ===== v81 · ACCIONES QUE EVOLUCIONAN EN VIVO: cada 3 meses, el método de acciones que peor va frente al SPY (con ≥6 meses en la
