@@ -381,6 +381,10 @@ async function boot() {
     window.__NOTIFY_QUIET = /./;
     try { localStorage.setItem("pbt", String(Date.now())); } catch {}   // evita el arranque automático de "Actualizar" al abrir
   });
+  // v102: métodos que usa la cartera real (solo sus claves, públicas en real.json): la ficticia no los quita nunca
+  let realMet = [];
+  try { if (REPO) { const r = await fetch(`https://raw.githubusercontent.com/${REPO}/real/real.json?t=${Date.now()}`, { signal: AbortSignal.timeout(15000) }); if (r.ok) { const j = await r.json(); realMet = ((j.meta && j.meta.metodos) || []).filter((x) => typeof x === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(x)); } } } catch {}
+  await ctx.addInitScript((m) => { window.__REALMET = m; }, realMet);
   const page = await ctx.newPage();
   page.on("pageerror", (e) => log("pageerror:", String(e.message).slice(0, 200)));
   page.on("dialog", (d) => d.dismiss().catch(() => {}));
@@ -563,7 +567,7 @@ async function main() {
           const pc = (x) => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1).replace(".", ",") + " %";
           const nuevos = lab.ev.filter((x) => x.ev === "nace" || x.ev === "a la ficticia"), muy = 0.04 + 0.01 * Math.max(0, Math.log10((lab.tried || 0) / 1000)), top = nuevos.filter((x) => x.an != null && lab.as != null && x.an - lab.as >= muy);   // v100: cuantos más prueba, más alto el listón del «MUY bueno»
           const L2 = [`🤖 Laboratorio: ${lab.last.n} métodos nuevos probados · ${lab.last.ok} aprueban el examen · liga ${lab.pop}/20${lab.pend ? " · " + lab.pend + " en prueba de estabilidad" : ""}`];
-          for (const x of lab.ev.slice(0, 6)) L2.push(`${{ nace: "🌱", aprueba: "📝", descartado: "🎲", sale: "🗑️", "a la ficticia": "🧪", apartado: "⛔", evoluciona: "🔄" }[x.ev] || "•"} ${x.n.replace(/^🤖 /, "")}: ${x.ev}${x.an != null ? " (" + pc(x.an) + "/año)" : ""}`);
+          for (const x of lab.ev.slice(0, 6)) L2.push(`${{ nace: "🌱", aprueba: "📝", descartado: "🎲", sale: "🗑️", "a la ficticia": "🧪", "sale de la ficticia": "↩️", apartado: "⛔", evoluciona: "🔄" }[x.ev] || "•"} ${x.n.replace(/^🤖 /, "")}: ${x.ev}${x.an != null ? " (" + pc(x.an) + "/año)" : ""}`);
           if (!lab.last.ok && lab.near && lab.near[0]) { const z = lab.near[0]; L2.push(`🎯 El que más se acerca: ${z.n.replace(/^🤖 /, "")} (${pc(z.an)}/año, nota ${Math.round((z.sc || 0) * 10)}/10). Le falta: ${z.why}.`); }
           if (nuevos.length) L2.push("", `Los nuevos ganadores se prueban ahora 3 meses en la ficticia con precios de hoy. Si siguen ganando al SPY y a tu método, te llegará aquí la propuesta con «✅ Cambiar».`);
           shortTxt = L2.join("\n") + "\n\n" + shortTxt;

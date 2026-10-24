@@ -139,7 +139,8 @@ async function publishReal(R) {
   const plain = JSON.stringify(R);
   const pw = env("REAL_VIEW_PASS");
   if (!pw) throw new Error("sin REAL_VIEW_PASS no se publica nada (privacidad)");
-  const out = JSON.stringify({ enc: 1, v: 1, savedAt: R.savedAt, meta: { secrets: secretsMeta() }, ...(await encrypt(plain, pw)) });
+  // v102: meta.metodos = solo las claves de los métodos que usa (sin importes): así la ficticia nunca quita el método de tu cartera real
+  const out = JSON.stringify({ enc: 1, v: 1, savedAt: R.savedAt, meta: { secrets: secretsMeta(), metodos: [...new Set([R.cfg && R.cfg.metodo, R.metOv && R.metOv.k, R.metSug && R.metSug.estado === "pendiente" && R.metSug.k].filter((x) => typeof x === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(x)))] }, ...(await encrypt(plain, pw)) });
   const local = path.join(process.cwd(), "real.json");
   writeFileSync(local, out);
   if (!REPO || !TOKEN) { log("Ejecución local: guardado en", local); return; }

@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v58 (web v102): la ficticia lleva siempre los 20 más rentables
+- En cada ronda la ficticia se queda con los 20 métodos más rentables (después de impuestos) que pasan tus condiciones y, los del laboratorio, el examen oculto. Un ganador nuevo entra en la misma ronda en que aprueba; el que baja del puesto 20 sale. El que ya está tiene 0,25 puntos de ventaja para no cambiar por décimas.
+- El método de tu cartera real (y el que te propone el bot) no sale nunca: la cartera real publica solo sus claves (sin importes) y el bot las respeta.
+- La pestaña Ficticia ordena por lo que gana cada método al año: los 5 primeros a la vista, los otros en un recuadro plegable y tu método actual aparte.
+
 ## Novedades v57 (web v100): examen oculto
 - El laboratorio busca y aprende solo con los datos hasta hace ~2 años (505 sesiones). Esos 2 últimos años son un **examen oculto**: para entrar en la liga, un método tiene que ganar también al SPY ahí, en datos que no pudo ver al buscar (después de impuestos).
 - El modelo de la búsqueda inteligente tampoco ve el examen oculto: así no puede «aprendérselo».
