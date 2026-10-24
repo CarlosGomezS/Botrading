@@ -9,6 +9,12 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v57 (web v100): examen oculto
+- El laboratorio busca y aprende solo con los datos hasta hace ~2 años (505 sesiones). Esos 2 últimos años son un **examen oculto**: para entrar en la liga, un método tiene que ganar también al SPY ahí, en datos que no pudo ver al buscar (después de impuestos).
+- El modelo de la búsqueda inteligente tampoco ve el examen oculto: así no puede «aprendérselo».
+- Los de la liga se vuelven a examinar cada noche con esta regla; el top 5 y la ficticia solo muestran a los del laboratorio que la pasan.
+- El aviso de «MUY bueno» sube el listón cuantos más métodos se han probado: 4 puntos sobre el SPY con 1 000 probados, 5 con 10 000, 6 con 100 000.
+
 ## Novedades v56: laboratorio en cadena
 - GitHub casi no respeta los horarios frecuentes (el laboratorio «cada 2 horas» arrancaba 2-3 veces al día). Ahora cada ronda lanza la siguiente al terminar: una cada ~35-40 minutos entre las 03 y las 19 UTC (05-21 en España), como mucho 30 al día.
 - Si la cadena se corta, el horario del flujo y el de Telegram la vuelven a arrancar.
