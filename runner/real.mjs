@@ -950,11 +950,17 @@ async function main() {
     const syms = new Set(BASE_UNI);
     if (bot.S) for (const B of Object.values(bot.S.books || {})) { Object.keys((B.tgt && B.tgt.w) || {}).forEach((s) => syms.add(s)); Object.keys(B.pos || {}).forEach((s) => syms.add(s)); }
     const cfgSig = JSON.stringify([A.mapa, A.divisa, A.acciones, [...syms].sort()]);
-    if (!R.inst || Date.now() - Date.parse(R.inst.at) > 5 * 864e5 || R.inst.sig !== cfgSig || tipo === "probar" || Object.values(R.map).length === 0) {
+    if (!R.inst || Date.now() - Date.parse(R.inst.at) > 5 * 864e5 || R.inst.sig !== cfgSig || tipo === "probar" || Object.values(R.map).length === 0 || !R.stk) {
       try {
         const insts = await T.call("GET", "/equity/metadata/instruments");
         R.map = resolveMap(insts || [], [...syms], A);
         R.inst = { at: now.toISOString(), n: (insts || []).length, sig: cfgSig };
+        // v111: ficha de Trading 212 (ticker, ISIN, nombre) de las acciones que analiza la pestaña 📈 Acciones, para poder buscarlas en la app
+        try {
+          const html = readFileSync(path.join(ROOT, "index.html"), "utf8"), mm = html.match(/const MOM_UNI=\[([^\]]*)\]/), uni = mm ? [...mm[1].matchAll(/"([A-Z][A-Z0-9.\-]{0,9})"/g)].map((x) => x[1]) : [];
+          const byT2 = new Map((insts || []).map((i) => [i.ticker, i]));
+          R.stk = Object.fromEntries(uni.map((s) => { const i = byT2.get(s.replace(/[.\-]/g, "_") + "_US_EQ"); return [s, i ? { t: i.ticker, isin: i.isin || "", name: i.name || i.shortName || s } : { t: null }]; }));
+        } catch (e) { log("No pude preparar la ficha de las acciones:", String(e.message).slice(0, 100)); }
         log(`Instrumentos de Trading 212: ${R.inst.n} · mapeados ${Object.values(R.map).filter((x) => x.t).length}/${syms.size}`);
       } catch (e) { rep.push("· No pude descargar la lista de instrumentos (" + explainT212(e) + "): uso el mapeo guardado."); }
     }
