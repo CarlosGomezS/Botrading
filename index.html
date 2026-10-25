@@ -450,7 +450,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v111</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v112</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3362,7 +3362,7 @@ function draw(){const el=$a("#acc-root");if(!el)return;const R=analyze();
   <span style="font-size:20px;min-width:30px;text-align:center">${["🥇","🥈","🥉"][i]||(i+1)+"."}</span>
   <span style="flex:1"><b style="font-size:17px">${esc(x.s)}</b>${(()=>{const F=window.__T212STK,f=F&&F[x.s];return F&&!(f&&f.t)?' <span class="bdg no">no en T212</span>':""})()} <span class="bdg ${x.pull?"ok":"mid"}">${x.pull?"🟢 Comprar ya":"🟡 Esperar a "+usd(x.entry)}</span><br><span class="m" style="font-size:12px">${usd(x.c)} · fuerza 12 meses ${pc(x.mom)} · a ${pc(x.near-1).replace("+","")} de su máximo anual</span></span>
   <span style="text-align:right"><b style="font-size:18px">${x.w.toFixed(0)} %</b><br><span class="m" style="font-size:11px">de la cartera</span></span></summary>
-  ${(()=>{const F=window.__T212STK,f=F&&F[x.s];return F?(f&&f.t?`<div class="m" style="margin-top:8px">✔ En tu Trading 212: <b>${esc(f.name||x.s)}</b>${f.isin?` · ISIN <b style="user-select:all">${esc(f.isin)}</b>`:""}</div>`:`<div class="m" style="margin-top:8px">✖ No está en tu Trading 212.</div>`):`<div class="m" style="margin-top:8px">ISIN y si está en tu Trading 212: abre antes la pestaña 💶 Real con tu contraseña.</div>`})()}
+  ${(()=>{const F=window.__T212STK,f=F&&F[x.s];return F?(f&&f.t?`<div class="m" style="margin-top:8px">✔ En tu Trading 212: <b>${esc(f.name||x.s)}</b>${f.isin?` · ISIN <b style="user-select:all">${esc(f.isin)}</b> <button class="ghost" data-copy="${esc(f.isin)}" style="padding:4px 10px;font-size:12px;margin-left:4px">📋 Copiar</button>`:""}</div>`:`<div class="m" style="margin-top:8px">✖ No está en tu Trading 212.</div>`):`<div class="m" style="margin-top:8px">ISIN y si está en tu Trading 212: abre antes la pestaña 💶 Real con tu contraseña.</div>`})()}
   <div class="kv" style="margin-top:8px"><div>Entrar en<b>${usd(x.entry)}</b></div><div>Stop loss<b class="dn">${usd(x.stop)} (${pc(x.stop/x.entry-1)})</b></div><div>Take profit<b class="up">${usd(x.tp)} (${pc(x.tp/x.entry-1)})</b></div><div>Nota<b>${x.sc}/100</b></div></div>
   <div class="m" style="margin-top:6px">${x.pull?`Está en un <b>retroceso dentro de su tendencia</b> (cerca de su media de 20 sesiones o tras dos días de bajadas): buen punto para entrar.`:`Ahora está algo estirada. Mejor <b>esperar a que baje hasta ${usd(x.entry)}</b> (su media de 20 sesiones o un retroceso normal) con una orden limitada.`}
   Sube en tendencia: está sobre sus medias de 50, 150 y 200 sesiones. El stop está a 2,5 veces su movimiento normal de un día (ATR). El objetivo es 2,5 veces lo que arriesgas. Con ${x.w.toFixed(0)} % de la cartera, si salta el stop pierdes como mucho un 1 % del total.</div></details>`).join("")}</div>`;
@@ -3378,7 +3378,10 @@ function draw(){const el=$a("#acc-root");if(!el)return;const R=analyze();
  el.innerHTML=h}
 try{const sec=document.createElement("section");sec.className="tab";sec.id="t-acciones";sec.innerHTML='<div id="acc-root"></div>';const ref=document.getElementById("t-ajustes");ref.parentNode.insertBefore(sec,ref);
  const nav=$a("#nav"),b=document.createElement("button");b.dataset.t="acciones";b.innerHTML="<span>📈</span>Acciones";b.onclick=()=>{window.__userNav=true;go("acciones");draw()};const a=nav.querySelector('button[data-t="ajustes"]');nav.insertBefore(b,a||null);
- window.__accDraw=draw}catch(e){}
+ window.__accDraw=draw;
+ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&e.target.closest("[data-copy]");if(!b)return;e.preventDefault();const v=b.dataset.copy;let ok=false;
+  try{await navigator.clipboard.writeText(v);ok=true}catch(err){try{const t=document.createElement("textarea");t.value=v;t.style.position="fixed";t.style.opacity="0";document.body.append(t);t.select();ok=document.execCommand("copy");t.remove()}catch(e2){}}
+  const o=b.textContent;b.textContent=ok?"✔ Copiado":"Mantén pulsado el código";setTimeout(()=>{b.textContent=o},1800)})}catch(e){}
 })();
 </script>
 </body></html>
