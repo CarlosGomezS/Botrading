@@ -9,6 +9,9 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v63 (web v107): «🔭 En observación» en el Laboratorio
+- Recuadro plegable con los métodos de acciones, mixtos (ETF + acciones + cripto) y cripto que se prueban en vivo: cuánto llevan ganado con precios reales, frente al SPY en el mismo tiempo, y cuántos meses les faltan para poder entrar. Solo para mirar: no se pueden elegir.
+
 ## Novedades v62 (web v106): «Elige el método» con 10 y comparado con el tuyo
 - En 💶 Real → «🧭 Elige el método» (y en el desplegable de los ajustes) solo salen 10: tu método y los 9 mejores que pasan tus condiciones.
 - Cada uno dice cuánto gana en la prueba de 26 años (después de impuestos) y cuántos puntos al año más o menos que el tuyo, y cuánto lleva con precios reales desde la misma fecha que el tuyo (según lo que compraría, su cartera en la ficticia).
