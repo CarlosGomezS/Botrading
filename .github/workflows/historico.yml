@@ -26,7 +26,7 @@ concurrency:
 jobs:
   historico:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # v109: fijo (el paso de GitHub a Ubuntu 26 rompía la instalación del navegador)
     timeout-minutes: 195
     steps:
       - uses: actions/checkout@v4
@@ -47,8 +47,9 @@ jobs:
         if: steps.hora.outputs.go == 'true'
         working-directory: runner
         run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+          # v109: 3 intentos y, si falla, el motivo queda en el resumen de la ejecución (se ve sin abrir los registros)
+          ok=0; for i in 1 2 3; do if { npm install --no-audit --no-fund && npx playwright install --with-deps chromium; } > /tmp/inst.log 2>&1; then ok=1; break; fi; sleep 20; done
+          if [ "$ok" != 1 ]; then echo "::error title=Instalar navegador::$(tail -c 700 /tmp/inst.log | tr '\n\r' '  ' | sed 's/%/%25/g')"; exit 1; fi
       - name: Prueba histórica (nº aleatorio de acciones, entre 200 y el máximo de ajustes.json)
         if: steps.hora.outputs.go == 'true'
         working-directory: runner

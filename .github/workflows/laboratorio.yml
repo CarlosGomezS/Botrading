@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   lab:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # v109: fijo (el paso de GitHub a Ubuntu 26 rompía la instalación del navegador)
     timeout-minutes: 120
     steps:
       - name: ¿Hueco libre?
@@ -52,8 +52,9 @@ jobs:
         if: steps.libre.outputs.go == 'true'
         working-directory: runner
         run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+          # v109: 3 intentos y, si falla, el motivo queda en el resumen de la ejecución (se ve sin abrir los registros)
+          ok=0; for i in 1 2 3; do if { npm install --no-audit --no-fund && npx playwright install --with-deps chromium; } > /tmp/inst.log 2>&1; then ok=1; break; fi; sleep 20; done
+          if [ "$ok" != 1 ]; then echo "::error title=Instalar navegador::$(tail -c 700 /tmp/inst.log | tr '\n\r' '  ' | sed 's/%/%25/g')"; exit 1; fi
       - name: Ronda del laboratorio
         if: steps.libre.outputs.go == 'true'
         working-directory: runner
