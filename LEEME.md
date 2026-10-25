@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v65 (web v110): pestaña 📈 Acciones
+- Las 10 mejores acciones grandes de EE. UU. para entrar ahora, con: precio de entrada (comprar ya si está en un retroceso dentro de su tendencia o esperar a un precio), stop loss, take profit y % de la cartera.
+- Reglas: filtro de mercado (S&P 500 sobre su media de 200), plantilla de tendencia de Minervini, nota por fuerza de 12 meses (Jegadeesh y Titman), cercanía al máximo anual (George y Hwang) y fuerza por riesgo (Barroso y Santa-Clara); entrada en retroceso (Connors), stop 2,5 ATR (Wilder), objetivo 2,5R, peso arriesgando el 1 % (Van Tharp, máx. 10 %), y nunca dos que se muevan casi igual.
+- Solo orientativo: el bot no compra estas acciones.
+
 ## Novedades v64 (web v108): arreglos en los métodos en vivo
 - «En observación» y la comparación con el SPY cuentan desde el capital inicial (500 €), no desde el cierre del primer día: ya se ve lo que llevan ganado o perdido desde el principio.
 - Precios: si un proveedor trae menos historia que la que había (Alpha Vantage solo da 100 días), se conserva la anterior. Por eso QQQ se había quedado con 100 velas y las mezclas con «Nasdaq 100 en tendencia» dejaban esa parte en efectivo.

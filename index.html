@@ -450,7 +450,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v108</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v110</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3307,6 +3307,77 @@ let rz=null;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{c
  "#workpill span{font-variant-numeric:tabular-nums;font-size:12px;color:#ffd36b}"+
  "#workpill.done{background:#14382b}#workpill.bad{background:#4a1d22}";
  document.head.appendChild(css)}catch(e){}
+})();
+</script>
+<script id="acciones-ui">
+/* ===== v110 · 📈 ACCIONES: las 10 mejores acciones para entrar ahora, según reglas con décadas de estudios detrás =====
+   1) Filtro de mercado: el S&P 500 sobre su media de 200 sesiones (Faber 2007). Si no, no se compra nada.
+   2) Plantilla de tendencia de Mark Minervini (campeón del US Investing Championship): precio > media 50 > media 150 > media 200,
+      la de 200 subiendo, a menos de un 25 % de su máximo de 52 semanas y al menos un 30 % por encima de su mínimo.
+   3) Puntuación: momentum de 12 meses sin el último (Jegadeesh y Titman 1993) 40 % · cercanía al máximo de 52 semanas
+      (George y Hwang 2004) 30 % · momentum por unidad de volatilidad (Barroso y Santa-Clara 2015) 30 %.
+   4) Entrada: en un retroceso dentro de la tendencia (cerca de su media de 20 sesiones o RSI(2) bajo, Connors);
+      si está estirada, se espera a que baje hasta su media de 20 sesiones o 1 ATR.
+   5) Stop: 2,5 ATR (Wilder) por debajo de la entrada (entre −5 % y −15 %). Objetivo: 2,5 veces lo que se arriesga.
+   6) Peso: arriesgando como mucho un 1 % de la cartera en cada una (Van Tharp), con un máximo del 10 % por acción.
+   Solo orientativo: el bot no compra estas acciones. Los precios son en dólares y del último cierre. */
+(function(){
+"use strict";
+const $a=s=>document.querySelector(s);
+function bars(s){try{const h=hG()[s];if(!h||!h.r||h.r.length<253)return null;return h.r.map(x=>({d:dayS(x[0]),o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}))}catch(e){return null}}
+const avg=(b,i,n,f)=>{if(i<n-1)return null;let t=0;for(let j=i-n+1;j<=i;j++)t+=f(b[j],j);return t/n};
+const sma=(b,i,n)=>avg(b,i,n,x=>x.c);
+const atr=(b,i,n=14)=>avg(b,i,n,(x,j)=>j?Math.max(x.h-x.l,Math.abs(x.h-b[j-1].c),Math.abs(x.l-b[j-1].c)):x.h-x.l);
+function rsi2(b,i){let up=0,dn=0;for(let j=i-1;j<=i;j++){const d=b[j].c-b[j-1].c;if(d>0)up+=d;else dn-=d}return dn===0?100:100-100/(1+up/dn)}
+const pct=(a,x)=>{const s=a.filter(v=>v<x).length;return a.length>1?s/(a.length-1):1};
+function analyze(){const sp=bars("SPY");if(!sp)return null;const si=sp.length-1,s200=sma(sp,si,200),bull=sp[si].c>s200;
+ const C=[];let n=0;
+ for(const s of (typeof MOM_UNI!=="undefined"?MOM_UNI:[])){const b=bars(s);if(!b)continue;n++;const i=b.length-1,c=b[i].c;
+  const m20=sma(b,i,20),m50=sma(b,i,50),m150=sma(b,i,150),m200=sma(b,i,200),m200p=sma(b,i-21,200);if(!m200p)continue;
+  let hi=0,lo=Infinity;for(let j=i-251;j<=i;j++){hi=Math.max(hi,b[j].h);lo=Math.min(lo,b[j].l)}
+  const tt=c>m50&&m50>m150&&m150>m200&&m200>m200p&&c>=0.75*hi&&c>=1.3*lo;
+  const mom=rtSk(b,i,231,21),v=vol63(b,i);if(!tt||!(mom>0)||!(v>0))continue;
+  const rr=[];for(let j=i-125;j<=i;j++)rr.push(b[j].c/b[j-1].c-1);
+  C.push({s,c,d:b[i].d,mom,v,near:c/hi,hi,lo,m20,m50,m200,at:atr(b,i),r2:rsi2(b,i),ra:mom/v,rr})}
+ const A=k=>C.map(x=>x[k]);const Am=A("mom"),An=A("near"),Ar=A("ra");
+ C.forEach(x=>{x.sc=Math.round(100*(0.4*pct(Am,x.mom)+0.3*pct(An,x.near)+0.3*pct(Ar,x.ra)))});
+ /* diversificar: no se eligen dos que se muevan casi igual (correlación de 6 meses > 0,75; p. ej. varias petroleras a la vez) */
+ const corr=(a,b)=>{const n=Math.min(a.length,b.length);let ma=0,mb=0;for(let k=0;k<n;k++){ma+=a[k];mb+=b[k]}ma/=n;mb/=n;let sab=0,sa=0,sb=0;for(let k=0;k<n;k++){const x=a[k]-ma,y=b[k]-mb;sab+=x*y;sa+=x*x;sb+=y*y}return sa&&sb?sab/Math.sqrt(sa*sb):0};
+ const pickD=[];for(const x of C.sort((a,b)=>b.sc-a.sc||b.mom-a.mom)){if(pickD.length>=10)break;const tw=pickD.find(y=>corr(x.rr,y.rr)>0.75);if(tw){x.twin=tw.s;continue}pickD.push(x)}
+ const top=pickD.map(x=>{
+  const pull=x.c<=x.m20*1.02||x.r2<15,entry=pull?x.c:Math.max(x.m20,x.c-x.at);
+  let stop=entry-2.5*x.at;stop=Math.min(entry*0.95,Math.max(entry*0.85,stop));const risk=entry-stop,tp=entry+2.5*risk;
+  const w=Math.min(10,0.01/(risk/entry)*100);
+  return{...x,pull,entry,stop,tp,w}});
+ return{bull,spy:sp[si].c,s200,d:sp[si].d,n,ok:C.length,top}}
+const usd=x=>"$"+(x>=100?x.toFixed(0):x.toFixed(2)).replace(".",",");
+const pc=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",",")+" %";
+function draw(){const el=$a("#acc-root");if(!el)return;const R=analyze();
+ if(!R){el.innerHTML='<div class="p"><h2>📈 Acciones</h2><div class="m">Aún no hay precios suficientes. Aparecerá tras la próxima actualización de precios.</div></div>';return}
+ let h=`<div class="p hero"><h2>📈 Las 10 mejores acciones para entrar</h2><div class="m">Analizadas con las reglas de inversores profesionales (y repartidas: nunca dos que se muevan casi igual) y estudios académicos: tendencia (Minervini), fuerza de 12 meses (Jegadeesh y Titman), cercanía al máximo anual (George y Hwang) y fuerza por riesgo. Datos del cierre del ${esc(fd(R.d))} · ${R.n} acciones grandes de EE. UU. analizadas · ${R.ok} pasan el filtro de tendencia.</div></div>`;
+ h+=R.bull?`<div class="p" style="border-left:4px solid var(--go)"><b>🟢 Mercado alcista</b><div class="m">El S&P 500 está por encima de su media de 200 sesiones: es buen momento para este tipo de compras.</div></div>`
+  :`<div class="p" style="border-left:4px solid var(--stop)"><b>🔴 Mercado bajista: mejor no comprar</b><div class="m">El S&P 500 está por debajo de su media de 200 sesiones. Estas reglas dicen <b>no abrir compras nuevas</b> hasta que vuelva a subir: la lista es solo para que la vayas viendo.</div></div>`;
+ if(!R.top.length)h+='<div class="p"><div class="m">Ahora mismo ninguna acción cumple todas las condiciones.</div></div>';
+ h+=`<div class="rk">${R.top.map((x,i)=>`<details class="p" style="margin:0" data-id="acc:${esc(x.s)}"><summary style="display:flex;gap:10px;align-items:center;cursor:pointer;list-style:none">
+  <span style="font-size:20px;min-width:30px;text-align:center">${["🥇","🥈","🥉"][i]||(i+1)+"."}</span>
+  <span style="flex:1"><b style="font-size:17px">${esc(x.s)}</b> <span class="bdg ${x.pull?"ok":"mid"}">${x.pull?"🟢 Comprar ya":"🟡 Esperar a "+usd(x.entry)}</span><br><span class="m" style="font-size:12px">${usd(x.c)} · fuerza 12 meses ${pc(x.mom)} · a ${pc(x.near-1).replace("+","")} de su máximo anual</span></span>
+  <span style="text-align:right"><b style="font-size:18px">${x.w.toFixed(0)} %</b><br><span class="m" style="font-size:11px">de la cartera</span></span></summary>
+  <div class="kv" style="margin-top:8px"><div>Entrar en<b>${usd(x.entry)}</b></div><div>Stop loss<b class="dn">${usd(x.stop)} (${pc(x.stop/x.entry-1)})</b></div><div>Take profit<b class="up">${usd(x.tp)} (${pc(x.tp/x.entry-1)})</b></div><div>Nota<b>${x.sc}/100</b></div></div>
+  <div class="m" style="margin-top:6px">${x.pull?`Está en un <b>retroceso dentro de su tendencia</b> (cerca de su media de 20 sesiones o tras dos días de bajadas): buen punto para entrar.`:`Ahora está algo estirada. Mejor <b>esperar a que baje hasta ${usd(x.entry)}</b> (su media de 20 sesiones o un retroceso normal) con una orden limitada.`}
+  Sube en tendencia: está sobre sus medias de 50, 150 y 200 sesiones. El stop está a 2,5 veces su movimiento normal de un día (ATR). El objetivo es 2,5 veces lo que arriesgas. Con ${x.w.toFixed(0)} % de la cartera, si salta el stop pierdes como mucho un 1 % del total.</div></details>`).join("")}</div>`;
+ h+=`<div class="p"><details class="rd"><summary><span>ℹ️ Cómo se eligen</span></summary><div class="rb"><div class="m">
+ <b>1. Mercado:</b> solo se compra si el S&P 500 está sobre su media de 200 sesiones (Faber, 2007).<br>
+ <b>2. Tendencia (plantilla de Mark Minervini):</b> precio por encima de sus medias de 50, 150 y 200 sesiones, ordenadas de más corta a más larga; la de 200 subiendo; a menos de un 25 % de su máximo de 52 semanas y al menos un 30 % por encima de su mínimo.<br>
+ <b>3. Nota de 0 a 100:</b> 40 % fuerza de 12 meses sin el último (Jegadeesh y Titman, 1993) · 30 % cercanía al máximo de 52 semanas (George y Hwang, 2004) · 30 % fuerza por unidad de riesgo (Barroso y Santa-Clara, 2015).<br>
+ <b>4. Entrada:</b> en un retroceso dentro de la tendencia (cerca de su media de 20 sesiones o con el RSI de 2 días bajo, como propone Larry Connors). Si está estirada, se espera.<br>
+ <b>5. Stop loss:</b> 2,5 veces el ATR de 14 días por debajo de la entrada (Welles Wilder), entre un −5 % y un −15 %. <b>Take profit:</b> 2,5 veces lo que se arriesga. Otra opción es ir subiendo el stop a medida que sube.<br>
+ <b>6. Reparto:</b> no se eligen dos acciones que se muevan casi igual (correlación de 6 meses mayor de 0,75), para no tener, por ejemplo, cinco petroleras a la vez.<br>
+ <b>7. Peso:</b> que si salta el stop pierdas como mucho un 1 % de toda la cartera (Van Tharp), con un máximo del 10 % por acción.</div></div></details>
+ <div class="m" style="margin-top:8px">⚠️ <b>Solo orientativo, no es una recomendación.</b> El bot no compra estas acciones por ti. Cotizan en dólares (Trading 212 cobra un 0,15 % de cambio por operación) y comprueba que estén disponibles en tu cuenta. Con acciones sueltas el riesgo es mayor que con ETF: una mala noticia puede hacer saltar el stop de un día para otro.</div></div>`;
+ el.innerHTML=h}
+try{const sec=document.createElement("section");sec.className="tab";sec.id="t-acciones";sec.innerHTML='<div id="acc-root"></div>';const ref=document.getElementById("t-ajustes");ref.parentNode.insertBefore(sec,ref);
+ const nav=$a("#nav"),b=document.createElement("button");b.dataset.t="acciones";b.innerHTML="<span>📈</span>Acciones";b.onclick=()=>{window.__userNav=true;go("acciones");draw()};const a=nav.querySelector('button[data-t="ajustes"]');nav.insertBefore(b,a||null);
+ window.__accDraw=draw}catch(e){}
 })();
 </script>
 </body></html>
