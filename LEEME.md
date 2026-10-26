@@ -9,6 +9,14 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v66 (web v114): ideas de traders profesionales en el laboratorio
+- Piezas nuevas que el laboratorio combinará solo (y probará con el examen y el examen oculto):
+  - **Canal de Donchian** (Richard Dennis y las «tortugas»): en tendencia si el precio está en la mitad alta de su rango de 6 meses.
+  - **Momentum absoluto** (Gary Antonacci): solo se queda lo que ha ganado más que la liquidez en 12 meses.
+  - **Estacionalidad** (Larry Williams, Yale Hirsch; «efecto Halloween»): de mayo a octubre, media posición.
+- 4 métodos de partida con estas piezas sobre el campeón actual y sobre la rotación de sectores.
+- 📈 Acciones: el **%R de Larry Williams** (sobreventa por debajo de −80) también cuenta como buen momento para entrar.
+
 ## Novedades v65 (web v110): pestaña 📈 Acciones
 - Las 10 mejores acciones grandes de EE. UU. para entrar ahora, con: precio de entrada (comprar ya si está en un retroceso dentro de su tendencia o esperar a un precio), stop loss, take profit y % de la cartera.
 - Reglas: filtro de mercado (S&P 500 sobre su media de 200), plantilla de tendencia de Minervini, nota por fuerza de 12 meses (Jegadeesh y Titman), cercanía al máximo anual (George y Hwang) y fuerza por riesgo (Barroso y Santa-Clara); entrada en retroceso (Connors), stop 2,5 ATR (Wilder), objetivo 2,5R, peso arriesgando el 1 % (Van Tharp, máx. 10 %), y nunca dos que se muevan casi igual.

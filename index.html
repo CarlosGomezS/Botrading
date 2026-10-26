@@ -450,7 +450,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v113</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v114</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1266,9 +1266,11 @@ FREQ.y=d=>d.slice(0,4);
 const BTX_SYMS=["XLRE","BRK.B"],BTN=7000; // BTN: velas diarias a bajar de cada ETF (~28 años: entra la crisis de 2000-2002)
 const vol63=(b,i,n=63)=>{if(i<n+1)return null;let s=0,s2=0;for(let j=i-n+1;j<=i;j++){const r=b[j].c/b[j-1].c-1;s+=r;s2+=r*r}const m=s/n;return Math.sqrt(Math.max(0,s2/n-m*m))*Math.sqrt(252)};
 const rtSk=(b,i,n,sk)=>(i-sk>=n&&b[i-sk-n])?b[i-sk].c/b[i-sk-n].c-1:null;
+/* v114 · canal de Donchian (Richard Dennis y las «tortugas»): en tendencia si el precio está en la mitad alta de su rango de n sesiones */
+function dchUp(b,i,n){if(i<n)return null;let hi=-Infinity,lo=Infinity;for(let j=i-n+1;j<=i;j++){hi=Math.max(hi,b[j].h??b[j].c);lo=Math.min(lo,b[j].l??b[j].c)}return b[i].c>(hi+lo)/2}
 function rotV(D,o){const U=o.U||SECU,LB=o.lb||[63,126,252],sk=o.skip||0,top=o.top||3,sc=[];
  for(const s of U){const q=D[s];if(!q||q.i<Math.max(...LB)+sk+1)continue;const r=LB.map(n=>rtSk(q.b,q.i,n,sk));if(r.some(v=>v==null))continue;
-  const m=r.reduce((a,x)=>a+x,0)/r.length,v=vol63(q.b,q.i);if(o.adj&&!(v>0))continue;sc.push({s,m,v,sc:o.adj?m/v:m,up:o.nofilt?true:upS(q.b,q.i,o.ma||210)})}
+  const m=r.reduce((a,x)=>a+x,0)/r.length,v=vol63(q.b,q.i);if(o.adj&&!(v>0))continue;sc.push({s,m,v,sc:o.adj?m/v:m,up:o.nofilt?true:o.dch?dchUp(q.b,q.i,o.dch):upS(q.b,q.i,o.ma||210)})}
  if(sc.length<(o.minN||5))return null;sc.sort((a,b)=>b.sc-a.sc);
  const pk=sc.slice(0,top),ok=pk.filter(x=>x.up&&x.m>0),w={},why={};
  if(o.iv){const inv=ok.map(x=>1/(x.v||1)),t=inv.reduce((a,x)=>a+x,0);ok.forEach((x,j)=>{w[x.s]=(ok.length/top)*inv[j]/t})}else ok.forEach(x=>{w[x.s]=1/top});
@@ -1478,22 +1480,26 @@ function btcClean(o){const r={...BTC},n=(v,a,b)=>{v=Math.round(+v);return Number
 const LABU={sec:{n:"los 10 sectores",U:SECU},sec11:{n:"11 sectores (con inmobiliario)",U:SECU11},secg:{n:"sectores + Nasdaq, semiconductores y pequeñas",U:SECU.concat(["QQQ","SMH","IWM"])},secd:{n:"sectores + oro y bonos",U:SECU.concat(["GLD","IEF"])},grw:{n:"5 ETF de crecimiento de EE. UU.",U:["QQQ","SMH","XLK","SPY","IWM"]},core4:{n:"S&P 500, Nasdaq, bonos y oro",U:["SPY","QQQ","IEF","GLD"]},mix:{n:"8 activos (bolsa, oro, bonos y materias primas)",U:["SPY","QQQ","IWM","EEM","GLD","IEF","DBC","XLRE"]}};
 const LABN=48; /* v83: métodos nuevos por noche (antes 12): aprende 4 veces más rápido */
 const LABLB=[[63],[126],[252],[63,126,252],[21,63,126,189,252],[126,252],[21,63,126],[42,126],[189]],LABMAX=20,LABFIC=20;
-const LABV={u:Object.keys(LABU),l:LABLB.map((x,i)=>i),s:[0,1],t:[1,2,3,4],f:[1,0],i:[0,1],a:[0,1],r:["","IEF","GLD","dyn"],p:["m","q"],c:[0,1],v:[0,1],m:[100,120,140,160,180,200,210,220,240,260,280,300],k:[100,120,140,160,180,200,210,220,240,260,280,300],vt:[0.18,0.2,0.22,0.24,0.26,0.28,0.3,0.32,0.35,0.4,0.45]};
-const LABD={m:210,k:210,vt:0.28};
-const LABPN={u:"grupo de ETF",l:"plazo de la fuerza",s:"sin el último mes",t:"cuántos compra",f:"filtro de tendencia",i:"pesos por riesgo",a:"fuerza ajustada por riesgo",r:"refugio",p:"revisión",c:"alarma del S&P 500",v:"freno de volatilidad",m:"media del filtro de tendencia",k:"media de la alarma",vt:"nervios del freno"};
+const LABV={u:Object.keys(LABU),l:LABLB.map((x,i)=>i),s:[0,1],t:[1,2,3,4],f:[1,0,2],i:[0,1],a:[0,1],r:["","IEF","GLD","dyn"],p:["m","q"],c:[0,1],v:[0,1],sz:[0,1],ab:[0,1],m:[100,120,140,160,180,200,210,220,240,260,280,300],k:[100,120,140,160,180,200,210,220,240,260,280,300],vt:[0.18,0.2,0.22,0.24,0.26,0.28,0.3,0.32,0.35,0.4,0.45]};
+const LABD={m:210,k:210,vt:0.28,sz:0,ab:0};
+const LABPN={u:"grupo de ETF",l:"plazo de la fuerza",s:"sin el último mes",t:"cuántos compra",f:"filtro de tendencia",i:"pesos por riesgo",a:"fuerza ajustada por riesgo",r:"refugio",p:"revisión",c:"alarma del S&P 500",v:"freno de volatilidad",sz:"estacionalidad (mayo-octubre a media posición)",ab:"momentum absoluto (ganar a la liquidez)",m:"media del filtro de tendencia",k:"media de la alarma",vt:"nervios del freno"};
 const labHash=t=>{let h=5381;for(let i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))>>>0;return h.toString(36)};
-const labNorm=g=>g.bl?{bl:g.bl.map(labNorm).sort((x,y)=>JSON.stringify(x)<JSON.stringify(y)?-1:1)}:g.base?{base:g.base}:{u:g.u,l:g.l,s:+!!g.s,t:Math.max(1,Math.min(g.t,Math.floor(LABU[g.u].U.length/2))),f:+!!g.f,i:+!!g.i,a:+!!g.a,r:g.r||"",p:g.p==="q"?"q":"m",...(g.c?{c:1}:{}),...(g.v?{v:1}:{}),...(g.f&&g.m&&+g.m!==210?{m:+g.m}:{}),...(g.c&&g.k&&+g.k!==210?{k:+g.k}:{}),...(g.v&&g.vt&&+g.vt!==0.28?{vt:+g.vt}:{})};
+const labNorm=g=>g.bl?{bl:g.bl.map(labNorm).sort((x,y)=>JSON.stringify(x)<JSON.stringify(y)?-1:1)}:g.base?{base:g.base}:{u:g.u,l:g.l,s:+!!g.s,t:Math.max(1,Math.min(g.t,Math.floor(LABU[g.u].U.length/2))),f:+g.f===2?2:+!!g.f,i:+!!g.i,a:+!!g.a,r:g.r||"",p:g.p==="q"?"q":"m",...(g.c?{c:1}:{}),...(g.v?{v:1}:{}),...(g.sz?{sz:1}:{}),...(g.ab?{ab:1}:{}),...(g.f===1&&g.m&&+g.m!==210?{m:+g.m}:{}),...(g.c&&g.k&&+g.k!==210?{k:+g.k}:{}),...(g.v&&g.vt&&+g.vt!==0.28?{vt:+g.vt}:{})};
 const labKey=g=>{const n=labNorm(g);return(n.bl?"b_":"g_")+labHash(JSON.stringify(n))};
 const labLbT=g=>LABLB[g.l].map(x=>Math.round(x/21)).join("/");
 function labName(g){if(g.base)return(MX(g.base)||{n:g.base}).n;if(g.bl)return"🤖 Mezcla 50/50: «"+labName(g.bl[0]).replace(/^🤖 /,"")+"» + «"+labName(g.bl[1]).replace(/^🤖 /,"")+"»";
- return`🤖 ${g.t===1?"El mejor":"Los "+g.t+" mejores"} de ${LABU[g.u].n} · fuerza ${labLbT(g)} meses${g.s?" sin el último":""}${g.a?" ajustada por riesgo":""}${g.f?" · con filtro de tendencia"+(g.m?" ("+g.m+" sesiones)":""):""}${g.i?" · pesos por riesgo":""}${g.c?" · alarma del S&P 500"+(g.k?" ("+g.k+" sesiones)":""):""}${g.v?" · freno de volatilidad"+(g.vt?" (al "+Math.round(g.vt*100)+" %)":""):""}${g.r==="dyn"?" · refugio dinámico (oro, bonos o liquidez)":g.r?" · refugio en "+(g.r==="GLD"?"oro":"bonos"):""}${g.p==="q"?" · trimestral":""}`}
+ return`🤖 ${g.t===1?"El mejor":"Los "+g.t+" mejores"} de ${LABU[g.u].n} · fuerza ${labLbT(g)} meses${g.s?" sin el último":""}${g.a?" ajustada por riesgo":""}${g.f===2?" · con canal de Donchian (tortugas)":g.f?" · con filtro de tendencia"+(g.m?" ("+g.m+" sesiones)":""):""}${g.ab?" · momentum absoluto":""}${g.sz?" · estacional (mayo-oct. a media)":""}${g.i?" · pesos por riesgo":""}${g.c?" · alarma del S&P 500"+(g.k?" ("+g.k+" sesiones)":""):""}${g.v?" · freno de volatilidad"+(g.vt?" (al "+Math.round(g.vt*100)+" %)":""):""}${g.r==="dyn"?" · refugio dinámico (oro, bonos o liquidez)":g.r?" · refugio en "+(g.r==="GLD"?"oro":"bonos"):""}${g.p==="q"?" · trimestral":""}`}
 function labTgt(g){if(g.base){const M=MX(g.base);return M&&M.target?M.target:()=>null}if(g.bl){const A=labTgt(g.bl[0]),B=labTgt(g.bl[1]);return(x)=>{const a=A(x),b=B(x);if(!a||!b)return null;const w={},why={};for(const[t,lbl]of[[a,"1.ª mitad"],[b,"2.ª mitad"]])for(const s in t.w){w[s]=(w[s]||0)+t.w[s]/2;why[s]=(why[s]?why[s]+"; ":"")+lbl+": "+(t.why[s]||"")}return{w,why,bull:a.bull!==false||b.bull!==false,out:"sale de alguna de las dos mitades"}}}
- const U=LABU[g.u].U;return({D})=>{const t=rotV(D,{U,lb:LABLB[g.l],skip:g.s?21:0,top:g.t,nofilt:!g.f,ma:g.m||210,iv:!!g.i,adj:!!g.a,minN:Math.min(5,U.length-2),lbl:"laboratorio"});if(!t)return null;
+ const U=LABU[g.u].U;return({D})=>{const t=rotV(D,{U,lb:LABLB[g.l],skip:g.s?21:0,top:g.t,nofilt:!g.f,ma:g.m||210,dch:g.f===2?126:0,iv:!!g.i,adj:!!g.a,minN:Math.min(5,U.length-2),lbl:"laboratorio"});if(!t)return null;
   if(g.c){const q=D.SPY;if(q&&upS(q.b,q.i,g.k||210)===false){for(const s in t.w)delete t.w[s];t.why={};t.bull=false;t.out="el S&P 500 cae bajo su media de 10 meses (alarma)"}}
+  /* v114 · momentum absoluto (Antonacci): solo se queda lo que ha ganado más que la liquidez (SHY) en 12 meses */
+  if(g.ab&&D.SHY){const sh=rtSk(D.SHY.b,D.SHY.i,252,0);for(const s of Object.keys(t.w)){const q=D[s],m=q?rtSk(q.b,q.i,252,0):null;if(m==null||sh==null||m<=sh){delete t.w[s];delete t.why[s]}}}
+  /* v114 · estacionalidad (Larry Williams, Yale Hirsch; «efecto Halloween», Bouman y Jacobsen 2002): de mayo a octubre, solo media posición */
+  if(g.sz){const q=D.SPY||D[Object.keys(D)[0]],mo=q?+String(q.b[q.i].d).slice(5,7):0;if(mo>=5&&mo<=10)for(const s in t.w){t.w[s]/=2;t.why[s]=(t.why[s]||"")+" · estacionalidad: de mayo a octubre, media posición"}}
   if(g.v){const q=D.QQQ||D.SPY,vv=q?vol63(q.b,q.i):null;if(vv>(g.vt||0.28)){for(const s in t.w){t.w[s]/=2;t.why[s]=(t.why[s]||"")+" · freno: el mercado está muy nervioso, solo media posición"}}}
   if(g.r==="dyn"){const tot=Object.values(t.w).reduce((x,y)=>x+y,0);if(tot<0.999){const c=["GLD","IEF","SHY"].filter(s=>D[s]).map(s=>({s,m:rtSk(D[s].b,D[s].i,63,0)})).filter(x=>x.m!=null&&x.m>0).sort((x,y)=>y.m-x.m)[0];if(c){t.w[c.s]=(t.w[c.s]||0)+(1-tot);t.why[c.s]=(t.why[c.s]?t.why[c.s]+"; ":"")+"refugio dinámico: el más fuerte de oro, bonos y liquidez en los últimos 3 meses"}}return t}
   if(g.r&&D[g.r]){const tot=Object.values(t.w).reduce((x,y)=>x+y,0);if(tot<0.999){t.w[g.r]=(t.w[g.r]||0)+(1-tot);t.why[g.r]=(t.why[g.r]?t.why[g.r]+"; ":"")+"refugio: los huecos sin candidato fuerte van a "+(g.r==="GLD"?"oro":"bonos")}}return t}}
-function labSyms(g){return g.base?((MX(g.base)||{}).syms||[]):g.bl?[...new Set(g.bl.flatMap(labSyms))]:[...new Set(LABU[g.u].U.concat(g.r==="dyn"?["GLD","IEF","SHY"]:g.r?[g.r]:[],g.c?["SPY"]:[],g.v?["QQQ"]:[]))]}
+function labSyms(g){return g.base?((MX(g.base)||{}).syms||[]):g.bl?[...new Set(g.bl.flatMap(labSyms))]:[...new Set(LABU[g.u].U.concat(g.r==="dyn"?["GLD","IEF","SHY"]:g.r?[g.r]:[],g.c?["SPY"]:[],g.v?["QQQ"]:[],g.ab?["SHY"]:[],g.sz?["SPY"]:[]))]}
 function labM(g){g=labNorm(g);const per=g.bl||g.base?"m":g.p;return{n:labName(g),v:"1.0",tg:true,bt:true,lab:g,fam:"lab",N:g.bl?6:g.t+(g.r?1:0),per,syms:labSyms(g),cat:"🤖 Creado por el laboratorio",rev:per==="q"?"Revisión trimestral":"Revisión mensual",
  src:"Creado por el laboratorio del bot combinando reglas con estudios: fuerza relativa (Faber 2010; Jegadeesh y Titman 1993), tendencia de 10 meses (Faber 2007) y momentum ajustado por riesgo (Barroso y Santa-Clara 2015).",
  d:g.bl?"La mitad del dinero sigue un método y la otra mitad el otro: dos reglas que funcionan por separado suelen dar menos sustos juntas.":`Cada ${g.p==="q"?"trimestre":"mes"} elige ${g.t===1?"el más fuerte":"los "+g.t+" más fuertes"} de ${LABU[g.u].n} según su subida de ${labLbT(g)} meses${g.s?" (sin contar el último mes)":""}${g.a?", dividida por su volatilidad":""}${g.f?"; solo compra los que están sobre su media de 10 meses":""}${g.r?"; lo que no se invierte va a "+(g.r==="GLD"?"oro":"bonos de EE. UU. a 7-10 años"):"; lo que no se invierte queda en efectivo"}${g.i?"; pone menos dinero en los más volátiles":""}.`,
@@ -1507,13 +1513,13 @@ function labMut(L,g){const n={...g},pcs=Object.keys(LABV).filter(x=>x!=="u"||Mat
 /* 2 variantes cercanas para la prueba de estabilidad: plazo vecino y uno más / menos */
 function labNbrs(g){const a={...g,l:g.l===3?5:g.l===5?3:g.l===0?6:g.l===6?0:(g.l+1)%LABLB.length},b={...g,t:g.t>1?g.t-1:g.t+1};return[labNorm(a),labNorm(b)]}
 /* v89 · métodos inventados por Claude (piezas nuevas: alarma del S&P 500, freno de volatilidad y refugio dinámico). Se examinan primero, como cualquier otro: si no aprueban, no se quedan */
-const LABSEED=[{u:"grw",l:3,s:0,t:2,f:1,i:0,a:0,r:"dyn",p:"m",c:1,v:1},{u:"grw",l:3,s:0,t:2,f:1,i:0,a:0,r:"dyn",p:"m",c:1},{u:"secg",l:3,s:0,t:3,f:1,i:0,a:0,r:"dyn",p:"m",c:1,v:1}];
+const LABSEED=[{u:"grw",l:7,s:1,t:1,f:1,i:1,a:0,r:"GLD",p:"q",c:1,m:100,k:240,ab:1},{u:"grw",l:7,s:1,t:1,f:2,i:1,a:0,r:"GLD",p:"q",c:1,k:240},{u:"grw",l:7,s:1,t:1,f:1,i:1,a:0,r:"GLD",p:"m",c:1,m:100,k:240,sz:1},{u:"sec",l:3,s:0,t:3,f:2,i:0,a:0,r:"dyn",p:"m",c:1,ab:1},{u:"grw",l:3,s:0,t:2,f:1,i:0,a:0,r:"dyn",p:"m",c:1,v:1},{u:"grw",l:3,s:0,t:2,f:1,i:0,a:0,r:"dyn",p:"m",c:1},{u:"secg",l:3,s:0,t:3,f:1,i:0,a:0,r:"dyn",p:"m",c:1,v:1}];
 /* ===== v99 · BÚSQUEDA INTELIGENTE: antes de gastar una prueba, un modelo predice la nota que sacará cada candidato
    (vecinos más parecidos entre todos los ya examinados) y se prueban sobre todo los más prometedores. Regla fija: el 25 % de cada
    ronda es SIEMPRE exploración al azar, para que el laboratorio nunca deje de aprender cosas nuevas ni se encierre en una idea. ===== */
-const LABGK=["u","l","s","t","f","i","a","r","p","c","v","m","k","vt"],LABNUM={m:200,k:200,vt:0.27};
+const LABGK=["u","l","s","t","f","i","a","r","p","c","v","m","k","vt","sz","ab"],LABNUM={m:200,k:200,vt:0.27};
 const labVec=g=>{const n=labNorm(g);return LABGK.map(k=>n[k]??LABD[k]??0)};
-function labDist(a,b){let d=0;for(let i=0;i<LABGK.length;i++){const x=a[i],y=b[i];if(x===y)continue;const R=LABNUM[LABGK[i]];d+=R&&typeof x==="number"&&typeof y==="number"?Math.min(1,Math.abs(x-y)/R):1}return d}
+function labDist(a,b){let d=0;for(let i=0;i<LABGK.length;i++){const x=a[i]??0,y=b[i]??0;if(x===y)continue;const R=LABNUM[LABGK[i]];d+=R&&typeof x==="number"&&typeof y==="number"?Math.min(1,Math.abs(x-y)/R):1}return d}
 function labPred(L,g){const H=L.hist||[];if(H.length<30)return null;const v=labVec(g),K=10,best=[];
  for(const [hv,sc] of H){const d=labDist(v,hv);if(best.length<K){best.push([d,sc]);best.sort((a,b)=>a[0]-b[0])}else if(d<best[K-1][0]){best[K-1]=[d,sc];best.sort((a,b)=>a[0]-b[0])}}
  let sw=0,ss=0,sd=0;for(const [d,sc] of best){const w=1/((1+d)*(1+d));sw+=w;ss+=w*sc;sd+=d}const pred=ss/sw,unc=Math.min(1,sd/best.length/3);return{pred,unc,acq:pred+0.15*unc}}
@@ -1578,7 +1584,7 @@ function labJudge(b,trials){const L=labS(),d=T0();let born=0;const keepRow=new S
  L.tried=L.tried.slice(-30000);L.log=L.log.slice(0,80);L.last={d,n:trials.length,ok:born};S.promo=Array.isArray(S.promo)?S.promo:[]}
 /* lo que va aprendiendo: las piezas que más aciertan (con al menos 6 pruebas) */
 function labLearnt(){const L=labS(),out=[];for(const pc of Object.keys(LABV)){for(const [v,[n,ok]] of Object.entries(L.st[pc]||{}))if(n>=6)out.push({pc,v,n,ok,r:ok/n})}return out.sort((a,b)=>b.r-a.r)}
-function labValTxt(pc,v){if(pc==="u")return LABU[v]?LABU[v].n:v;if(pc==="l")return(LABLB[+v]||[]).map(x=>Math.round(x/21)).join("/")+" meses";if(pc==="t")return v==="1"?"1":"los "+v+" mejores";if(pc==="r")return v===""?"efectivo":v==="GLD"?"oro":v==="dyn"?"dinámico (oro, bonos o liquidez)":"bonos";if(pc==="p")return v==="q"?"trimestral":"mensual";if(pc==="m"||pc==="k")return v+" sesiones";if(pc==="vt")return Math.round(v*100)+" %";return v==="1"?"sí":"no"}
+function labValTxt(pc,v){if(pc==="u")return LABU[v]?LABU[v].n:v;if(pc==="l")return(LABLB[+v]||[]).map(x=>Math.round(x/21)).join("/")+" meses";if(pc==="t")return v==="1"?"1":"los "+v+" mejores";if(pc==="r")return v===""?"efectivo":v==="GLD"?"oro":v==="dyn"?"dinámico (oro, bonos o liquidez)":"bonos";if(pc==="p")return v==="q"?"trimestral":"mensual";if(pc==="m"||pc==="k")return v+" sesiones";if(pc==="f")return v==="2"?"Donchian (tortugas)":v==="1"?"media móvil":"sin filtro";if(pc==="vt")return Math.round(v*100)+" %";return v==="1"?"sí":"no"}
 /* seguimiento en la ficticia: datos para la tarjeta «¿Hay algo mejor?» y para la cartera real (S.labConf, S.labAn) */
 /* v104 · «INVENCIBLE»: tan claramente mejor que se propone para tu dinero real sin esperar los 30 días de ficticia.
    Tiene que cumplir TODO: ≥5 puntos al año más que el SPY después de impuestos, ganarle en los 3 tramos, caída no peor del −30 %,
@@ -3339,14 +3345,15 @@ function analyze(){const sp=bars("SPY");if(!sp)return null;const si=sp.length-1,
   const tt=c>m50&&m50>m150&&m150>m200&&m200>m200p&&c>=0.75*hi&&c>=1.3*lo;
   const mom=rtSk(b,i,231,21),v=vol63(b,i);if(!tt||!(mom>0)||!(v>0))continue;
   const rr=[];for(let j=i-125;j<=i;j++)rr.push(b[j].c/b[j-1].c-1);
-  C.push({s,c,d:b[i].d,mom,v,near:c/hi,hi,lo,m20,m50,m200,at:atr(b,i),r2:rsi2(b,i),ra:mom/v,rr})}
+  let h10=-Infinity,l10=Infinity;for(let j=i-9;j<=i;j++){h10=Math.max(h10,b[j].h);l10=Math.min(l10,b[j].l)}const wr=h10>l10?-100*(h10-c)/(h10-l10):-50;
+  C.push({s,c,d:b[i].d,mom,v,near:c/hi,hi,lo,m20,m50,m200,at:atr(b,i),r2:rsi2(b,i),wr,ra:mom/v,rr})}
  const A=k=>C.map(x=>x[k]);const Am=A("mom"),An=A("near"),Ar=A("ra");
  C.forEach(x=>{x.sc=Math.round(100*(0.4*pct(Am,x.mom)+0.3*pct(An,x.near)+0.3*pct(Ar,x.ra)))});
  /* diversificar: no se eligen dos que se muevan casi igual (correlación de 6 meses > 0,75; p. ej. varias petroleras a la vez) */
  const corr=(a,b)=>{const n=Math.min(a.length,b.length);let ma=0,mb=0;for(let k=0;k<n;k++){ma+=a[k];mb+=b[k]}ma/=n;mb/=n;let sab=0,sa=0,sb=0;for(let k=0;k<n;k++){const x=a[k]-ma,y=b[k]-mb;sab+=x*y;sa+=x*x;sb+=y*y}return sa&&sb?sab/Math.sqrt(sa*sb):0};
  const pickD=[];for(const x of C.sort((a,b)=>b.sc-a.sc||b.mom-a.mom)){if(pickD.length>=10)break;const tw=pickD.find(y=>corr(x.rr,y.rr)>0.75);if(tw){x.twin=tw.s;continue}pickD.push(x)}
  const top=pickD.map(x=>{
-  const pull=x.c<=x.m20*1.02||x.r2<15,entry=pull?x.c:Math.max(x.m20,x.c-x.at);
+  const pull=x.c<=x.m20*1.02||x.r2<15||x.wr<-80,entry=pull?x.c:Math.max(x.m20,x.c-x.at);
   let stop=entry-2.5*x.at;stop=Math.min(entry*0.95,Math.max(entry*0.85,stop));const risk=entry-stop,tp=entry+2.5*risk;
   const w=Math.min(10,0.01/(risk/entry)*100);
   return{...x,pull,entry,stop,tp,w}});
@@ -3365,13 +3372,13 @@ function draw(){const el=$a("#acc-root");if(!el)return;if(!window.__T212STK&&win
   <span style="text-align:right"><b style="font-size:18px">${x.w.toFixed(0)} %</b><br><span class="m" style="font-size:11px">de la cartera</span></span></summary>
   ${(()=>{const F=window.__T212STK,f=F&&F[x.s];if(F===false)return`<div class="m" style="margin-top:8px">La ficha de Trading 212 (ISIN) aún no está: se descarga en la próxima revisión de tu cartera real (o pulsa «Probar conexión» en 💶 Real) y tarda unos minutos.</div>`;return F?(f&&f.t?`<div class="m" style="margin-top:8px">✔ En tu Trading 212: <b>${esc(f.name||x.s)}</b>${f.isin?` · ISIN <b style="user-select:all">${esc(f.isin)}</b> <button class="ghost" data-copy="${esc(f.isin)}" style="padding:4px 10px;font-size:12px;margin-left:4px">📋 Copiar</button>`:""}</div>`:`<div class="m" style="margin-top:8px">✖ No está en tu Trading 212.</div>`):`<div class="m" style="margin-top:8px">ISIN y si está en tu Trading 212: abre antes la pestaña 💶 Real con tu contraseña.</div>`})()}
   <div class="kv" style="margin-top:8px"><div>Entrar en<b>${usd(x.entry)}</b></div><div>Stop loss<b class="dn">${usd(x.stop)} (${pc(x.stop/x.entry-1)})</b></div><div>Take profit<b class="up">${usd(x.tp)} (${pc(x.tp/x.entry-1)})</b></div><div>Nota<b>${x.sc}/100</b></div></div>
-  <div class="m" style="margin-top:6px">${x.pull?`Está en un <b>retroceso dentro de su tendencia</b> (cerca de su media de 20 sesiones o tras dos días de bajadas): buen punto para entrar.`:`Ahora está algo estirada. Mejor <b>esperar a que baje hasta ${usd(x.entry)}</b> (su media de 20 sesiones o un retroceso normal) con una orden limitada.`}
+  <div class="m" style="margin-top:6px">${x.pull?`Está en un <b>retroceso dentro de su tendencia</b> (cerca de su media de 20 sesiones, tras dos días de bajadas o con el %R de Larry Williams en sobreventa): buen punto para entrar.`:`Ahora está algo estirada. Mejor <b>esperar a que baje hasta ${usd(x.entry)}</b> (su media de 20 sesiones o un retroceso normal) con una orden limitada.`}
   Sube en tendencia: está sobre sus medias de 50, 150 y 200 sesiones. El stop está a 2,5 veces su movimiento normal de un día (ATR). El objetivo es 2,5 veces lo que arriesgas. Con ${x.w.toFixed(0)} % de la cartera, si salta el stop pierdes como mucho un 1 % del total.</div></details>`).join("")}</div>`;
  h+=`<div class="p"><details class="rd"><summary><span>ℹ️ Cómo se eligen</span></summary><div class="rb"><div class="m">
  <b>1. Mercado:</b> solo se compra si el S&P 500 está sobre su media de 200 sesiones (Faber, 2007).<br>
  <b>2. Tendencia (plantilla de Mark Minervini):</b> precio por encima de sus medias de 50, 150 y 200 sesiones, ordenadas de más corta a más larga; la de 200 subiendo; a menos de un 25 % de su máximo de 52 semanas y al menos un 30 % por encima de su mínimo.<br>
  <b>3. Nota de 0 a 100:</b> 40 % fuerza de 12 meses sin el último (Jegadeesh y Titman, 1993) · 30 % cercanía al máximo de 52 semanas (George y Hwang, 2004) · 30 % fuerza por unidad de riesgo (Barroso y Santa-Clara, 2015).<br>
- <b>4. Entrada:</b> en un retroceso dentro de la tendencia (cerca de su media de 20 sesiones o con el RSI de 2 días bajo, como propone Larry Connors). Si está estirada, se espera.<br>
+ <b>4. Entrada:</b> en un retroceso dentro de la tendencia: cerca de su media de 20 sesiones, con el RSI de 2 días bajo (Larry Connors) o con el %R de 10 días de Larry Williams por debajo de −80 (sobreventa). Si está estirada, se espera.<br>
  <b>5. Stop loss:</b> 2,5 veces el ATR de 14 días por debajo de la entrada (Welles Wilder), entre un −5 % y un −15 %. <b>Take profit:</b> 2,5 veces lo que se arriesga. Otra opción es ir subiendo el stop a medida que sube.<br>
  <b>6. Reparto:</b> no se eligen dos acciones que se muevan casi igual (correlación de 6 meses mayor de 0,75), para no tener, por ejemplo, cinco petroleras a la vez.<br>
  <b>7. Peso:</b> que si salta el stop pierdas como mucho un 1 % de toda la cartera (Van Tharp), con un máximo del 10 % por acción.</div></div></details>
