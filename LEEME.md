@@ -9,6 +9,10 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v70 (web v120): fuera la pestaña Acciones
+
+- Se quita la pestaña 📈 Acciones (ideas de acciones sueltas sin prueba histórica del conjunto). Todo lo demás sigue igual.
+
 ## Novedades v69 (web v119): un laboratorio con más variedad
 
 - 🌈 **Variedad de familias**: el 30 % de cada ronda del laboratorio busca en familias distintas de la que domina la liga (otros grupos de ETF, comprar 2 o 3 en vez de 1…), partiendo de lo mejor que ya sabe de cada una. El 25 % sigue siendo siempre al azar.
