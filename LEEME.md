@@ -9,6 +9,13 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v69 (web v119): un laboratorio con más variedad
+
+- 🌈 **Variedad de familias**: el 30 % de cada ronda del laboratorio busca en familias distintas de la que domina la liga (otros grupos de ETF, comprar 2 o 3 en vez de 1…), partiendo de lo mejor que ya sabe de cada una. El 25 % sigue siendo siempre al azar.
+- En la liga, como mucho 12 métodos de la misma familia si hay otras que también aprueban el examen (si no, se rellena con los mejores, como antes).
+- **Valor en directo de verdad cada ~15 minutos**: el flujo «Cartera real · valor en directo» va en cadena (GitHub solo lo lanzaba 2 veces al día). Solo lee, nunca envía órdenes.
+- Flujos de GitHub actualizados a checkout@v5 y setup-node@v5 (los v4 quedaban obsoletos).
+
 ## Novedades v68 (web v118): métodos por familias en la cartera real
 
 - En 💶 Real → «Elige el método», los métodos se agrupan por **familias** (los que nacen de la misma idea), cada una plegable: «El mejor de 5 ETF de crecimiento», mezclas del laboratorio, tendencia y tecnología, rotación de sectores, asignación táctica, carteras prudentes…

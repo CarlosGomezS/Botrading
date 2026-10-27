@@ -29,7 +29,7 @@ jobs:
         run: |
           H=$(date -u +%H)
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] || { [ "$H" -ge 3 ] && [ "$H" -le 19 ]; }; then echo "go=true" >> "$GITHUB_OUTPUT"; else echo "go=false" >> "$GITHUB_OUTPUT"; echo "Hora $H UTC: es el hueco de la actualización de la noche, no hago nada."; fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.hueco.outputs.go == 'true'
       - name: ¿Hay otra tarea del bot escribiendo ahora?
         id: libre
@@ -44,7 +44,7 @@ jobs:
             n=$((n + ${c:-0} + ${q:-0}))
           done
           if [ "$n" -gt 0 ]; then echo "go=false" >> "$GITHUB_OUTPUT"; echo "Hay otra tarea del bot en marcha: esta ronda se salta."; else echo "go=true" >> "$GITHUB_OUTPUT"; echo "JOB_DEADLINE=$(( $(date +%s) + 80*60 ))" >> "$GITHUB_ENV"; fi
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: steps.libre.outputs.go == 'true'
         with:
           node-version: 22

@@ -2,6 +2,8 @@ name: Cartera real · valor en directo (cada 15 min)
 
 # Con la bolsa abierta, cada ~15 minutos LEE tu cuenta de Trading 212 y actualiza el valor del bot para la web
 # (gráfica y «Dinero del bot hoy»). No envía órdenes, no avisa y no crea informes. Va cifrado igual que todo lo demás.
+# v119 · EN CADENA: GitHub apenas respeta los horarios cada 15 min (salían 2 al día), así que cada lectura pide la siguiente
+# y espera ~14 min. El horario de abajo solo sirve para arrancar la cadena cada mañana (o si se corta).
 on:
   schedule:
     - cron: "*/15 7-16 * * 1-5"
@@ -9,19 +11,24 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
-# mismo grupo que «Cartera real»: nunca escriben a la vez
+# una sola cadena: como mucho una en marcha y otra esperando
 concurrency:
-  group: cartera-real
+  group: pulso
   cancel-in-progress: false
 
 jobs:
   pulso:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # mismo grupo que «Cartera real»: nunca escriben a la vez (la espera de la cadena va aparte, para no bloquearla)
+    concurrency:
+      group: cartera-real
+      cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Leer el valor de la cuenta
@@ -34,3 +41,20 @@ jobs:
           REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
           REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
         run: node real.mjs
+  cadena:
+    needs: pulso
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Siguiente lectura (en cadena)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          D=$(date -u +%u); M=$((10#$(date -u +%H) * 60 + 10#$(date -u +%M)))
+          # de lunes a viernes, de 07:00 a 16:40 UTC (bolsas europeas abiertas)
+          if [ "$D" -gt 5 ] || [ "$M" -lt 420 ] || [ "$M" -gt 1000 ]; then echo "Bolsa cerrada: la cadena sigue el próximo día de bolsa."; exit 0; fi
+          R="repos/${{ github.repository }}/actions/workflows/real-pulso.yml"
+          timeout 60 gh api -X POST "$R/dispatches" -f ref=main && echo "Siguiente lectura pedida."
+          sleep 840

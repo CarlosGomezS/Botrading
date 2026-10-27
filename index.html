@@ -451,7 +451,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v118</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v119</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1481,7 +1481,9 @@ function btcClean(o){const r={...BTC},n=(v,a,b)=>{v=Math.round(+v);return Number
    Liga de 20 que se renueva sola; los ganadores pasan a la ficticia (máx. 5). Nunca toca tu dinero sin tu «✅ Cambiar». */
 const LABU={sec:{n:"los 10 sectores",U:SECU},sec11:{n:"11 sectores (con inmobiliario)",U:SECU11},secg:{n:"sectores + Nasdaq, semiconductores y pequeñas",U:SECU.concat(["QQQ","SMH","IWM"])},secd:{n:"sectores + oro y bonos",U:SECU.concat(["GLD","IEF"])},grw:{n:"5 ETF de crecimiento de EE. UU.",U:["QQQ","SMH","XLK","SPY","IWM"]},core4:{n:"S&P 500, Nasdaq, bonos y oro",U:["SPY","QQQ","IEF","GLD"]},mix:{n:"8 activos (bolsa, oro, bonos y materias primas)",U:["SPY","QQQ","IWM","EEM","GLD","IEF","DBC","XLRE"]}};
 const LABN=48; /* v83: métodos nuevos por noche (antes 12): aprende 4 veces más rápido */
-const LABLB=[[63],[126],[252],[63,126,252],[21,63,126,189,252],[126,252],[21,63,126],[42,126],[189]],LABMAX=20,LABFIC=20;
+const LABLB=[[63],[126],[252],[63,126,252],[21,63,126,189,252],[126,252],[21,63,126],[42,126],[189]],LABMAX=20,LABFIC=20,LABFAMMAX=12,LABDIV=0.3;
+/* v119 · familia de un método del laboratorio: el grupo de ETF y cuántos compra (las mezclas, aparte) */
+const labFam=g=>!g?"?":g.bl?"mez":g.base?"base:"+g.base:g.u+"_"+g.t;
 const LABV={u:Object.keys(LABU),l:LABLB.map((x,i)=>i),s:[0,1],t:[1,2,3,4],f:[1,0,2],i:[0,1],a:[0,1],r:["","IEF","GLD","dyn"],p:["m","q"],c:[0,1],v:[0,1],sz:[0,1],ab:[0,1],m:[100,120,140,160,180,200,210,220,240,260,280,300],k:[100,120,140,160,180,200,210,220,240,260,280,300],vt:[0.18,0.2,0.22,0.24,0.26,0.28,0.3,0.32,0.35,0.4,0.45]};
 const LABD={m:210,k:210,vt:0.28,sz:0,ab:0};
 const LABPN={u:"grupo de ETF",l:"plazo de la fuerza",s:"sin el último mes",t:"cuántos compra",f:"filtro de tendencia",i:"pesos por riesgo",a:"fuerza ajustada por riesgo",r:"refugio",p:"revisión",c:"alarma del S&P 500",v:"freno de volatilidad",sz:"estacionalidad (mayo-octubre a media posición)",ab:"momentum absoluto (ganar a la liquidez)",m:"media del filtro de tendencia",k:"media de la alarma",vt:"nervios del freno"};
@@ -1542,8 +1544,22 @@ function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=
   else put(labRand(L),"nuevo")}
  // 4) el modelo elige el 75 % (los de mejor nota prevista + un poco de curiosidad por lo desconocido); el 25 % restante, al azar
  const mdl=(L.hist||[]).length>=30;pool.forEach(x=>{x.p=mdl?labPred(L,x.g):null});
- const nAI=mdl?Math.round(left*0.75):0,byAI=pool.slice().sort((a,b)=>(b.p?b.p.acq:0)-(a.p?a.p.acq:0));
- for(const x of byAI){if(out.length>=n-(left-nAI))break;add(x.g,"🧠 "+x.why,x.p&&x.p.pred)}
+ /* v119 · VARIEDAD: el 30 % de cada ronda busca en familias distintas de la que domina la liga (otros grupos de ETF, comprar 2 o 3 en vez de 1…),
+    partiendo de lo mejor que ya se sabe de cada familia. Así el laboratorio no se encierra en una sola idea. */
+ try{const fams={};for(const x of Object.values(L.pop))if(x.g&&!x.g.bl&&!x.g.base){const f=labFam(x.g);fams[f]=(fams[f]||0)+1}
+  const dom=Object.keys(fams).sort((a,b)=>fams[b]-fams[a])[0]||null,byF={};
+  for(const [hv,sc] of (L.hist||[])){const g={};LABGK.forEach((k,i)=>{if(hv[i]!=null)g[k]=hv[i]});if(!LABU[g.u])continue;const f=labFam(g);if(f===dom)continue;(byF[f]=byF[f]||[]).push({g,sc})}
+  for(const x of [...L.near.map(z=>({g:z.g,sc:z.sc||0}))])if(x.g&&!x.g.bl&&!x.g.base&&LABU[x.g.u]&&labFam(x.g)!==dom)(byF[labFam(x.g)]=byF[labFam(x.g)]||[]).push(x);
+  const par2=Object.values(byF).flatMap(a=>a.sort((x,y)=>y.sc-x.sc).slice(0,3).map(z=>z.g)),pool2=[],pk2=new Set(),uk=Object.keys(LABU);
+  const put2=(g,why)=>{try{g=labNorm(g)}catch(e){return}const k=labKey(g);if(labFam(g)===dom||!ok(k)||pk2.has(k))return;pk2.add(k);pool2.push({g,why,p:mdl?labPred(L,g):null})};
+  const nDiv=Math.round(left*LABDIV);let gd=0;
+  while(pool2.length<nDiv*10&&gd++<nDiv*80){const r=Math.random();
+   if(r<0.55&&par2.length){let g=par2[Math.floor(Math.random()*par2.length)];const j=1+Math.floor(Math.random()*2);for(let z=0;z<j;z++){const m=labMut(L,g);if(labFam(m)!==dom)g=m}put2(g,"otra familia")}
+   else{const g=labRand(L);if(Math.random()<0.5)g.u=uk[Math.floor(Math.random()*uk.length)];if(Math.random()<0.4)g.t=1+Math.floor(Math.random()*3);put2(g,"otra familia (nueva)")}}
+  pool2.sort((a,b)=>(b.p?b.p.acq:0)-(a.p?a.p.acq:0));let nd=0;for(const x of pool2){if(nd>=nDiv)break;if(add(x.g,"🌈 "+x.why,x.p&&x.p.pred))nd++}
+ }catch(e){}
+ const left2=n-out.length,nAI=mdl?Math.round(left2*0.64):0,byAI=pool.slice().sort((a,b)=>(b.p?b.p.acq:0)-(a.p?a.p.acq:0));
+ for(const x of byAI){if(out.length>=n-(left2-nAI))break;add(x.g,"🧠 "+x.why,x.p&&x.p.pred)}
  const rest=pool.filter(x=>!out.some(o=>o.k===labKey(x.g)));for(let z=rest.length-1;z>0;z--){const w=Math.floor(Math.random()*(z+1));[rest[z],rest[w]]=[rest[w],rest[z]]}
  for(const x of rest){if(out.length>=n)break;add(x.g,"🎲 "+x.why,x.p&&x.p.pred)}
  // 5) si aun así faltan (casi imposible): mezclas 50/50 entre cualquier par de la liga y exploración pura, hasta completar la ronda
@@ -1582,7 +1598,10 @@ function labJudge(b,trials){const L=labS(),d=T0();let born=0;const keepRow=new S
   else if(nb.length>=2||dayN(d)-dayN(x.born)>7){L.log.unshift({d,k,n:labName(x.g),ev:"descartado",why:"sus variantes cercanas no ganan al SPY: era suerte"});delete L.pend[k];if(!L.keep[k]){delete BTX[k];delete b.rows[k]}}}
  // la liga se revisa cada noche con los datos nuevos
  for(const k of Object.keys(L.pop)){if(trials.some(x=>x.k===k))continue;const e=labExam(b,k);if(!e.ok){L.log.unshift({d,k,n:labName(L.pop[k].g),ev:"sale",why:"ya no aprueba: "+e.why});delete L.pop[k];if(!L.keep[k]){delete BTX[k];delete b.rows[k]}}else L.pop[k].an=e.an}
- const ks=Object.keys(L.pop).sort((x,y)=>(L.pop[y].an||0)-(L.pop[x].an||0));for(const k of ks.slice(LABMAX)){L.log.unshift({d,k,n:labName(L.pop[k].g),ev:"sale",why:"hay "+LABMAX+" mejores en la liga"});delete L.pop[k];if(!L.keep[k]){delete BTX[k];delete b.rows[k]}}
+ const ks0=Object.keys(L.pop).sort((x,y)=>(L.pop[y].an||0)-(L.pop[x].an||0)),fc={},sel=[];
+  /* v119 · variedad: como mucho LABFAMMAX de la misma familia en la liga si hay otras familias que también aprueban (si no, se rellena con los mejores) */
+  for(const k of ks0){const f=labFam(L.pop[k].g);if(sel.length<LABMAX&&(fc[f]||0)<LABFAMMAX){sel.push(k);fc[f]=(fc[f]||0)+1}}for(const k of ks0)if(sel.length<LABMAX&&!sel.includes(k))sel.push(k);
+  const ks=[...sel,...ks0.filter(k=>!sel.includes(k))];for(const k of ks.slice(LABMAX)){L.log.unshift({d,k,n:labName(L.pop[k].g),ev:"sale",why:"hay "+LABMAX+" mejores en la liga"});delete L.pop[k];if(!L.keep[k]){delete BTX[k];delete b.rows[k]}}
  /* v116 · evolución día a día (para ver que la «bola» crece): el mejor de la liga, el 20.º, probados en total y acierto del modelo */
  {L.ntot=(L.ntot||L.tried.length)+trials.length;const pv=Object.values(L.pop).map(x=>x.an||0).sort((a,b)=>b-a);L.prog=Array.isArray(L.prog)?L.prog:[{d:"2026-10-23",best:null,tried:60},{d:"2026-10-24",best:0.1283,tried:396}];
   const e={d,best:pv[0]||null,p20:pv.length>=20?pv[19]:null,n:pv.length,tried:L.ntot,mae:L.ai&&L.ai.mae!=null?+L.ai.mae.toFixed(3):null},j=L.prog.findIndex(x=>x.d===d);if(j>=0)L.prog[j]=e;else L.prog.push(e);L.prog=L.prog.slice(-400)}
@@ -1820,7 +1839,7 @@ function labHtml(){try{const L=S.lab;if(!L||!L.last&&!Object.keys(L.pop||{}).len
  ${(()=>{const lt=labLearnt();if(!lt.length)return"";const best=lt.slice(0,3),worst=lt.slice(-2).reverse();return`<div class="m">🧠 <b>Lo que va aprendiendo</b> (qué piezas sacan mejor nota en el examen): ${best.map(x=>`${esc(LABPN[x.pc])}: <b>${esc(labValTxt(x.pc,x.v))}</b> (${Math.round(x.r*100)} % de ${x.n})`).join(" · ")}. Lo que peor funciona: ${worst.map(x=>`${esc(LABPN[x.pc])}: ${esc(labValTxt(x.pc,x.v))} (${Math.round(x.r*100)} %)`).join(" · ")}.</div>`})()}
  ${(()=>{const G=(L.prog||[]).filter(x=>x.best!=null);if(G.length<2)return"";const a=G[0],z=G[G.length-1],w=G.length>=8?G[G.length-8]:a,pt=x=>x==null?"—":P(x*100);
   return`<div class="m">📈 <b>Cómo crece</b>: el mejor de la liga gana hoy <b>${pt(z.best)}/año</b> (el ${esc(fd(a.d))}: ${pt(a.best)}${w!==a?` · hace una semana: ${pt(w.best)}`:""})${z.p20!=null?` y hasta el 20.º gana ${pt(z.p20)}`:""}. Métodos probados en total: <b>${(z.tried||0).toLocaleString("es-ES")}</b>.</div>`})()}
- ${L.ai&&L.ai.n?`<div class="m">🧠 <b>Búsqueda inteligente</b>: antes de probar, un modelo predice la nota de cada candidato con los ${(L.hist||[]).length} ya examinados y elige los más prometedores (el 75 % de cada ronda; el otro 25 % es siempre al azar para seguir descubriendo). Error medio de sus predicciones: ±${Math.round((L.ai.mae||0)*10*10)/10} puntos sobre 10.</div>`:""}
+ ${L.ai&&L.ai.n?`<div class="m">🧠 <b>Búsqueda inteligente</b>: antes de probar, un modelo predice la nota de cada candidato con los ${(L.hist||[]).length} ya examinados y elige los más prometedores. En cada ronda: 🌈 un 30 % busca en <b>otras familias</b> (otros grupos de ETF, comprar 2 o 3 en vez de 1…) para no encerrarse en una sola idea, unos 45 % los elige el modelo y un 25 % es siempre al azar para seguir descubriendo. En la liga, como mucho ${LABFAMMAX} de la misma familia si otras también aprueban. Error medio de sus predicciones: ±${Math.round((L.ai.mae||0)*10*10)/10} puntos sobre 10.</div>`:""}
  ${(L.near||[]).filter(x=>x.why&&((x.sc||0)<1||/oculto/.test(x.why))).length?`<div class="m">🎯 <b>Los que más se acercan a aprobar</b> (y lo que les falta):</div>${L.near.filter(x=>x.why&&((x.sc||0)<1||/oculto/.test(x.why))).slice(0,3).map(x=>`<div class="m">• ${esc(labName(x.g).replace(/^🤖 /,""))}: <b>${P(x.an*100)}/año</b> después de impuestos · nota ${Math.round((x.sc||0)*10)}/10 · falla: ${esc(x.why)}</div>`).join("")}`:""}
  ${(L.log||[]).length?`<details class="rd"><summary><span>Últimos movimientos (${Math.min(10,L.log.length)})</span></summary><div class="rb">${L.log.slice(0,10).map(x=>`<div class="m">${ic[x.ev]||"•"} <b>${esc(fd(x.d))}</b> · ${esc(x.n)}: ${esc(x.ev)} (${esc(x.why)})</div>`).join("")}</div></details>`:""}</div>`}catch(e){return""}}
 /* v94 · arriba, los 5 que más ganan al SPY con tus condiciones: ✅ Ganadores de la prueba histórica (después de impuestos, caída ≤35 %, ganan en 2000-2015 y 2016-hoy)

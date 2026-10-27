@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-24.04   # v109: fijo (el paso de GitHub a Ubuntu 26 rompía la instalación del navegador)
     timeout-minutes: 225
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: ¿Toca actualizar precios en este disparo?
         id: hora
         env:
@@ -39,7 +39,7 @@ jobs:
           if grep -q "go=true" "$GITHUB_OUTPUT"; then
             echo "JOB_DEADLINE=$(( $(date +%s) + 210*60 ))" >> "$GITHUB_ENV"   # hora límite (epoch) de esta actualización
           fi
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: steps.hora.outputs.go == 'true'
         with:
           node-version: 22

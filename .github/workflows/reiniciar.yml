@@ -32,7 +32,7 @@ jobs:
           CONF: ${{ inputs.confirmar }}
         run: |
           if [ "$CONF" != "REINICIAR" ]; then echo "Hay que escribir REINICIAR (en mayúsculas) para confirmar."; exit 1; fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Parar las ejecuciones del bot que estén en marcha
         run: |
           # si una actualización o una ronda del laboratorio siguiera corriendo, volvería a publicar los datos viejos encima del reinicio
