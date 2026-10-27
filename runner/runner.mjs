@@ -492,6 +492,35 @@ async function boot() {
 const DEADLINE = (+env("JOB_DEADLINE") || 0) * 1000 || Date.now() + 5.5 * 3600e3;
 
 // ---------- programa principal ----------
+// v117 · revisión automática: comprueba cada día que todo sigue funcionando (precios, laboratorio, cartera real)
+// y avisa por Telegram si algo falla. Solo mira fechas y recuentos: nunca importes, tickers ni secretos.
+export function revisarSalud(st, realSavedAt, now = Date.now()) {
+  const P = [], dayMs = 864e5, age = (d) => (d ? (now - Date.parse(String(d).slice(0, 10) + "T21:00:00Z")) / dayMs : Infinity);
+  const wd = new Date(now).getUTCDay();
+  if (st) {
+    const a = age(st.lastDate);
+    if (a > (wd === 1 ? 4.2 : wd === 0 ? 3.2 : 2.2)) P.push(`📉 Los precios no se actualizan desde el ${st.lastDate || "—"}: el bot no está viendo el mercado.`);
+    if (st.nSym > 10 && st.nOld / st.nSym > 0.2) P.push(`🕰️ ${st.nOld} de ${st.nSym} símbolos tienen precios de hace más de 5 días (el proveedor de datos falla).`);
+    const l = age(st.labLast);
+    if (l > 2.2) P.push(`🤖 El laboratorio no ha terminado ninguna ronda desde el ${st.labLast || "—"}. Debería hacer muchas al día: revisa «Laboratorio» en GitHub → Actions.`);
+    if (st.noBook > 0) P.push(`🧪 ${st.noBook} método${st.noBook > 1 ? "s" : ""} de la ficticia sin cartera calculada (se arregla solo en la próxima actualización; si se repite, avísame).`);
+  }
+  if (realSavedAt != null) {
+    const h = (now - realSavedAt) / 36e5;
+    if ((wd >= 2 && wd <= 5 && h > 30) || h > 80) P.push(`💶 La cartera real no se ha revisado en ${Math.round(h)} horas: comprueba «Cartera real (Trading 212)» en GitHub → Actions.`);
+  }
+  return P;
+}
+async function saludDe(page, diario = false) {
+  let st = null, real = null;
+  try {
+    st = await page.evaluate(() => { try { const last = S.lastDate || null, n = last ? dayN(last) : 0, L = Object.values(S.last || {}), old = L.filter((x) => x && x.d && n - dayN(x.d) > 5).length;
+      return { lastDate: last, nSym: L.length, nOld: old, labLast: (S.lab && S.lab.last && S.lab.last.d) || null, noBook: (S.promo || []).filter((k) => STR[k] && !(S.books || {})[k]).length, sent: S.health || null }; } catch (e) { return null; } });
+  } catch {}
+  try { if (REPO) { const r = await fetch(`https://raw.githubusercontent.com/${REPO}/real/real.json?t=${Date.now()}`, { signal: AbortSignal.timeout(15000) }); if (r.ok) { const j = await r.json(); if (j && j.savedAt) real = +j.savedAt || Date.parse(j.savedAt) || null; } } } catch {}
+  if (st && !diario) st.noBook = 0;   // en las rondas del laboratorio los recién llegados aún no tienen cartera (se calcula en la actualización diaria)
+  return { st, P: revisarSalud(st, real) };
+}
 async function main() {
   const AJ = loadAjustes();
   const { browser, page } = await boot();
@@ -526,6 +555,7 @@ async function main() {
       titleTxt = "Bot Trading: actualización diaria · " + rep.status;
       subj = "Bot Trading · Actualización diaria · " + rep.status;
       shortTxt = shortDaily(rep);
+      try { const H = await saludDe(page, true); shortTxt = (H.P.length ? "🩺 Revisión automática: hay que mirar esto\n" + H.P.join("\n") : "🩺 Revisión automática: todo en orden (precios, laboratorio y cartera real).") + "\n\n" + shortTxt; if (H.P.length) titleTxt = "⚠️ " + titleTxt; log("Revisión:", H.P.length ? H.P.length + " avisos" : "todo en orden"); } catch (e) { log("revisión:", String(e.message).slice(0, 120)); }
     } else if (MODE === "backtest") {
       const n = btCount(AJ.bt.max, AJ.bt.min);
       log(`Prueba histórica: ${AJ.bt.acc ? n + " acciones al azar (entre " + AJ.bt.min + " y " + AJ.bt.max + ")" : "sin acciones sueltas"}${AJ.bt.excl ? " · sin las " + AJ.bt.excl + " que más subieron" : ""} · desde ${AJ.bt.ini}`);
@@ -590,6 +620,14 @@ async function main() {
       shortTxt = "Si lees esto en Telegram, los avisos del simulador funcionan.\n" + sec.filter((k) => !env(k)).map((k) => "Falta " + k).join("\n");
     } else throw new Error("Modo desconocido: " + MODE);
 
+    if (MODE === "backtest") {
+      try { const H = await saludDe(page), d = new Date().toISOString().slice(0, 10), sig = H.P.map((x) => x.slice(0, 3)).join("");
+        if (H.P.length && !(H.st && H.st.sent && H.st.sent.d === d && H.st.sent.sig === sig)) {
+          const r = await sendTg("⚠️ Bot Trading: revisión automática\n\n" + H.P.join("\n")); log("Revisión (aviso):", r.txt);
+          await page.evaluate(async (o) => { try { S.health = o; await save(); } catch (e) {} }, { d, sig });
+        }
+      } catch (e) { log("revisión:", String(e.message).slice(0, 120)); }
+    }
     await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj, silent: (MODE === "backtest" && !labNews && /completada/.test(String((rep && rep.status) || ""))) });   // v105: la prueba de cada noche solo avisa si entra uno nuevo en el top 3 (o si algo falla)
   } catch (e) {
     // cualquier fallo queda registrado en un informe y avisado

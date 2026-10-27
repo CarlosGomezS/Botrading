@@ -9,6 +9,12 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v67 (web v117): reparto entre 2 o 3 métodos y revisión automática
+
+- **Reparto de la cartera real**: además del método principal puedes elegir un 2.º y un 3.º método (💶 Real → «Elige el método» → «➕ Añadir al reparto», o en «Ajustes de la cartera real»). El dinero se reparte a partes iguales: la cartera objetivo es la media de las carteras de cada método. Si no eliges ninguno más, todo sigue exactamente igual que antes.
+- Con reparto, las propuestas de cambio sustituyen al método **más flojo** del reparto (nunca proponen uno que ya tienes), y la gráfica deja de comparar con una sola simulación.
+- **Revisión automática**: cada día el aviso de la actualización empieza con «🩺 Revisión automática» (todo en orden o qué mirar): precios sin actualizar, muchos símbolos con datos viejos, laboratorio parado, cartera real sin revisar o métodos sin cartera. Si algo falla entre medias, las rondas del laboratorio avisan por Telegram como mucho una vez al día por el mismo problema.
+
 ## Novedades v66 (web v114): ideas de traders profesionales en el laboratorio
 - Piezas nuevas que el laboratorio combinará solo (y probará con el examen y el examen oculto):
   - **Canal de Donchian** (Richard Dennis y las «tortugas»): en tendencia si el precio está en la mitad alta de su rango de 6 meses.

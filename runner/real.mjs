@@ -140,7 +140,7 @@ async function publishReal(R) {
   const pw = env("REAL_VIEW_PASS");
   if (!pw) throw new Error("sin REAL_VIEW_PASS no se publica nada (privacidad)");
   // v102: meta.metodos = solo las claves de los métodos que usa (sin importes): así la ficticia nunca quita el método de tu cartera real
-  const out = JSON.stringify({ enc: 1, v: 1, savedAt: R.savedAt, meta: { secrets: secretsMeta(), metodos: [...new Set([R.cfg && R.cfg.metodo, R.metOv && R.metOv.k, R.metSug && R.metSug.estado === "pendiente" && R.metSug.k].filter((x) => typeof x === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(x)))] }, ...(await encrypt(plain, pw)) });
+  const out = JSON.stringify({ enc: 1, v: 1, savedAt: R.savedAt, meta: { secrets: secretsMeta(), metodos: [...new Set([R.cfg && R.cfg.metodo, ...((R.cfg && Array.isArray(R.cfg.extra)) ? R.cfg.extra : []), R.metOv && R.metOv.k, R.metSug && R.metSug.estado === "pendiente" && R.metSug.k].filter((x) => typeof x === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(x)))] }, ...(await encrypt(plain, pw)) });
   const local = path.join(process.cwd(), "real.json");
   writeFileSync(local, out);
   if (!REPO || !TOKEN) { log("Ejecución local: guardado en", local); return; }
@@ -421,25 +421,44 @@ export const euOpen = (m) => m.wk && !xetraHoliday(m.date) && m.min >= 9 * 60 + 
 // ---------- v77 · ¿hay un método confirmado mejor que el de la cartera real? (lo calcula el bot cada noche en S.labConf) ----------
 // Candidato: ✅ Ganador en la prueba histórica (después de impuestos) y examen oculto, ≥30 días en la ficticia sin quedarse atrás (v103),
 // y en ese tiempo no peor que tu método; además, más rentabilidad histórica que tu método. Solo se PROPONE: tú apruebas por Telegram.
-export function sugerencia(S, cur, map) {
+export function sugerencia(S, cur, map, excl) {
   if (!S || !Array.isArray(S.labConf)) return null;
   const Bc = (S.books || {})[cur], an = (S.labAn || {})[cur];
   const fw = (d0) => { if (!Bc || !Bc.days || !Bc.days.length) return null; const a = Bc.days.find((z) => z.d >= d0), b = Bc.days[Bc.days.length - 1]; return a && a.eq > 0 ? b.eq / a.eq - 1 : null; };
   // v78: solo métodos que se pueden comprar enteros en tu cuenta (si un ETF no está en Trading 212, esa parte se quedaría en efectivo)
   // v80: «acc» = solo falla porque tienes desactivada la compra de acciones en los ajustes (se te avisa, sin botón de cambiar)
   const buyable = (k) => { if (!map || !Object.keys(map).length) return true; const B = (S.books || {})[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})), bad = sy.filter((s) => map[s] && !map[s].t); return !bad.length ? true : bad.every((s) => /acciones desactivadas|Divisa: solo euros/.test(map[s].why || "")) ? "acc" : false; };
-  const L = S.labConf.filter((x) => x && x.ok && x.k !== cur && (S.books || {})[x.k] && (x.fwd || an == null || x.an >= an + 0.02) && buyable(x.k)).filter((x) => { const gc = fw(x.d0); return gc == null || x.g >= gc - 0.02; })   // v103: ≥2 puntos al año más que tu método (tras 30 días en la ficticia sin quedarse atrás).sort((a, b) => b.an - a.an);
+  const L = S.labConf.filter((x) => x && x.ok && x.k !== cur && !(excl || []).includes(x.k) && (S.books || {})[x.k] && (x.fwd || an == null || x.an >= an + 0.02) && buyable(x.k)).filter((x) => { const gc = fw(x.d0); return gc == null || x.g >= gc - 0.02; })   // v103: ≥2 puntos al año más que tu método (tras 30 días en la ficticia sin quedarse atrás).sort((a, b) => b.an - a.an);
   const best = L[0] || null;
   return best ? { ...best, needAcc: buyable(best.k) === "acc" } : null;
+}
+
+// ---------- v117: la cartera real puede repartirse entre 1, 2 o 3 métodos (a partes iguales) ----------
+// cambia «de» por «a» (si «de» es uno de los métodos extra, se sustituye ese; si no, el principal)
+export function aplicaCambio(A, de, a) { if (de && Array.isArray(A.extra) && A.extra.includes(de)) A.extra = A.extra.map((x) => (x === de ? a : x)).filter((x) => x !== A.metodo); else { A.metodo = a; if (Array.isArray(A.extra)) A.extra = A.extra.filter((x) => x !== a); } }
+export function metodosDe(A, S) { return [...new Set([A.metodo || (S && S.main) || "sect", ...(Array.isArray(A.extra) ? A.extra : [])].filter((k) => typeof k === "string" && k))].slice(0, 3); }
+export function nombreDe(S, k) { return NOMBRES[k] || (((S && S.labConf) || []).find((x) => x.k === k) || {}).n || k; }
+// cartera objetivo: la del método o, si hay varios, la media de sus carteras (cada uno pone 1/n del dinero en lo suyo)
+export function objetivoDe(S, ks) {
+  const books = (S && S.books) || {};
+  for (const k of ks) {
+    if (!books[k]) return { block: `el método «${nombreDe(S, k)}» no tiene cartera en el bot (¿lo han quitado?). Elige otro en los ajustes de la cartera real.` };
+    if (!books[k].tgt || !books[k].tgt.w) return { block: `el método «${nombreDe(S, k)}» todavía no ha calculado su cartera objetivo` };
+  }
+  if (ks.length === 1) { const t = books[ks[0]].tgt; return { key: ks[0], name: nombreDe(S, ks[0]), tgt: { ...t, sig: t.d || null } }; }
+  const w = {}, why = {}, n = ks.length; let d = "", bull = false;
+  ks.forEach((k, j) => { const t = books[k].tgt; if ((t.d || "") > d) d = t.d || ""; if (t.bull !== false) bull = true;
+    const sw = Object.values(t.w).reduce((a, x) => a + (+x > 0 ? +x : 0), 0), f = sw > 1 ? 1 / sw : 1;
+    for (const [s, x] of Object.entries(t.w)) { if (!(+x > 0)) continue; w[s] = (w[s] || 0) + (+x * f) / n; why[s] = (why[s] ? why[s] + " · " : "") + `método ${j + 1} (${Math.round(100 / n)} %): ${(t.why && t.why[s]) || ""}`; } });
+  return { key: "mix:" + ks.join("+"), name: "Reparto a partes iguales: " + ks.map((k) => nombreDe(S, k)).join(" + "), tgt: { d: d || null, w, why, bull, sig: ks.map((k) => k + "@" + (books[k].tgt.d || "")).join(",") } };
 }
 
 // ---------- plan: qué comprar y vender para parecerse al método ----------
 export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
   const notas = [], orders = [], m = madrid(now);
-  const S = bot.S, key = A.metodo || S.main || "sect", B = (S.books || {})[key];
-  if (!B) return { block: `el método «${key}» no tiene cartera en el bot (¿lo han quitado?). Elige otro en los ajustes de la cartera real.` };
-  const tgt = B.tgt;
-  if (!tgt || !tgt.w) return { block: `el método «${NOMBRES[key] || key}» todavía no ha calculado su cartera objetivo` };
+  const S = bot.S, OB = objetivoDe(S, metodosDe(A, S));
+  if (OB.block) return { block: OB.block };
+  const key = OB.key, tgt = OB.tgt;
   const age = S.lastDate ? (now - Date.parse(S.lastDate + "T22:00:00Z")) / 864e5 : 99;
   if (age > 5) return { block: `los datos del bot son del ${S.lastDate || "—"} (hace ${Math.floor(age)} días): no opero con datos viejos. Revisa la actualización diaria.` };
 
@@ -453,7 +472,7 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
   const thr = Math.max(A.minOrden, (A.umbral / 100) * invest);
   if (others.length) notas.push(`Posiciones tuyas que el bot no toca: ${others.map((x) => `${x.t} (${qtyTxt(x.uq)})`).join(", ")}.`);
   const pend = new Set((pending || []).map((o) => o.ticker || (o.instrument && o.instrument.ticker)));
-  const yaAplicada = A.reajuste !== "desvio" && R.applied && R.applied.metodo === key && R.applied.tgtD === (tgt.d || null) && R.ledger.cash >= -0.5;
+  const yaAplicada = A.reajuste !== "desvio" && R.applied && R.applied.metodo === key && R.applied.tgtD === (tgt.sig || tgt.d || null) && R.ledger.cash >= -0.5;
   if (yaAplicada) notas.push(`La cartera objetivo del ${tgt.d || "—"} ya está aplicada: hasta la próxima revisión del método solo se compra lo que falte o con dinero nuevo (como en la simulación).`);
 
   const objetivo = [], tv = {}, symOf = {};
@@ -512,7 +531,7 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
   while (orders.length > A.maxOrdenes) { orders.pop(); cut++; }
   if (cut) notas.push(`Se han dejado ${cut} órdenes para la próxima revisión (máximo ${A.maxOrdenes} por vez).`);
   const firma = orders.map((o) => o.side + ":" + o.t).sort().join("|");
-  return { plan: { id: m.date.replace(/-/g, "") + "-" + Math.random().toString(36).slice(2, 7), ts: now.toISOString(), d: m.date, metodo: key, metodoNombre: NOMBRES[key] || key, tgtD: tgt.d || null, yaAplicada: !!yaAplicada, bull: tgt.bull !== false, datos: S.lastDate || null, presupuesto: r2(presupuesto), invertible: r2(invest), umbral: r2(thr), cash: r2(cash), cashCuenta: r2(accCash), gestionado: r2(managedVal), capital: R.ledger.cap, reajuste: A.reajuste, orders, notas, objetivo, firma, estado: orders.length ? "pendiente" : "sin-cambios" } };
+  return { plan: { id: m.date.replace(/-/g, "") + "-" + Math.random().toString(36).slice(2, 7), ts: now.toISOString(), d: m.date, metodo: key, metodoNombre: OB.name, tgtD: tgt.d || null, tgtSig: tgt.sig || tgt.d || null, yaAplicada: !!yaAplicada, bull: tgt.bull !== false, datos: S.lastDate || null, presupuesto: r2(presupuesto), invertible: r2(invest), umbral: r2(thr), cash: r2(cash), cashCuenta: r2(accCash), gestionado: r2(managedVal), capital: R.ledger.cap, reajuste: A.reajuste, orders, notas, objetivo, firma, estado: orders.length ? "pendiente" : "sin-cambios" } };
 }
 
 // ---------- ejecución de órdenes (a mercado) ----------
@@ -769,7 +788,7 @@ export function resumen(R, S, A) {
   if (!last) return null;
   let pk = -Infinity, dd = 0; for (const x of T) { pk = Math.max(pk, x.i); dd = Math.min(dd, x.i / pk - 1); }
   const prev = D.length > 1 ? D[D.length - 2] : null, O = R.orders || [];
-  const key = (A && A.metodo) || (S && S.main) || "sect", sim = S ? simCompare(R, S, key) : null, L = R.ledger || {};
+  const ksR = A ? metodosDe(A, S) : [], key = ksR.length === 1 ? ksR[0] : (A && A.metodo) || (S && S.main) || "sect", sim = S && ksR.length <= 1 ? simCompare(R, S, key) : null, L = R.ledger || {};
   return { d0: D[0].d, cap: last.bc, be: last.be, res: r2(last.be - last.bc), pct: T.length ? (T[T.length - 1].i - 1) * 100 : 0, dia: prev ? r2(last.be - prev.be - flowsOfR(D)[D.length - 1]) : null,
     dd: dd * 100, real: L.real || 0, nOrd: O.filter((o) => o.estado === "ejecutada").length, nBad: O.filter((o) => /error|rechazada/.test(o.estado)).length, key, sim,
     cashBot: last.bcash, invBot: r2(last.be - (last.bcash || 0)), v: acc ? acc.v : null, ap: acc ? acc.ap : null, cash: acc ? acc.cash : null };
@@ -824,7 +843,7 @@ async function main() {
   try { R = await loadReal(); } catch (e) { if (A.on || EVENT !== "schedule") { await avisa("✖ Cartera real: error", String(e.message), { prio: 4 }); } throw e; }
   R.cfg = A;
   // v77: método cambiado por Telegram («✅ Cambiar»): manda hasta que guardes los ajustes desde la web
-  if (R.metOv && R.metOv.k) { if (LC.savedAt && Date.parse(LC.savedAt) >= Date.parse(R.metOv.ts)) R.metOv = null; else { A.metodo = R.metOv.k; if (R.metOv.acc) { A.acciones = 1; A.divisa = "cualquiera"; } } }
+  if (R.metOv && R.metOv.k) { if (LC.savedAt && Date.parse(LC.savedAt) >= Date.parse(R.metOv.ts)) R.metOv = null; else { aplicaCambio(A, R.metOv.de, R.metOv.k); if (R.metOv.acc) { A.acciones = 1; A.divisa = "cualquiera"; } } }
   const rep = [], head = [];
   let botC = null;
   const getBot = () => botC || (botC = loadBot());
@@ -876,7 +895,7 @@ async function main() {
       if (!P || P.estado !== "pendiente" || env("PLAN_ID") !== P.id) { titulo = "No había esa propuesta de cambio"; rep.push("No hay ninguna propuesta de cambio de método pendiente con ese identificador (quizá ya la contestaste)."); return; }
       P.fin = now.toISOString();
       if (tipo === "metodo-no") { P.estado = "rechazada"; titulo = "Cambio de método rechazado"; rep.push(`Sigues con «${NOMBRES[A.metodo] || A.metodo}». No te volveré a proponer «${P.n}» en 60 días.`); aviso = { title: "❌ Cambio de método rechazado", msg: rep.join("\n"), prio: 2 }; return; }
-      P.estado = "aprobada"; R.metOv = { k: P.k, n: P.n, ts: now.toISOString(), de: A.metodo, acc: P.needAcc ? 1 : undefined }; A.metodo = P.k; if (P.needAcc) { A.acciones = 1; A.divisa = "cualquiera"; } R.lastNormal = null;
+      P.estado = "aprobada"; R.metOv = { k: P.k, n: P.n, ts: now.toISOString(), de: P.de || A.metodo, acc: P.needAcc ? 1 : undefined }; aplicaCambio(A, P.de || A.metodo, P.k); if (P.needAcc) { A.acciones = 1; A.divisa = "cualquiera"; } R.lastNormal = null;
       titulo = "Cambio de método aprobado"; rep.push(`A partir de la próxima revisión con la bolsa abierta, la cartera real sigue «${P.n}»: venderá lo que no esté en su cartera objetivo y comprará lo nuevo${A.modo === "confirmar" ? " (te pedirá aprobar las órdenes, como siempre)" : ""}.`, "Si guardas los ajustes desde la web, manda el método que tengas elegido allí.");
       aviso = { title: "✅ Cambio de método aprobado", msg: rep.join("\n"), prio: 3 }; return;
     }
@@ -1029,12 +1048,12 @@ async function main() {
       if (plan.firma !== P.firma) { P.estado = "sustituida"; R.planHist.unshift(P); R.plan = plan.orders.length ? plan : null; titulo = "La propuesta ha cambiado"; rep.push("", "Desde que se hizo la propuesta han cambiado los activos a comprar o vender. No se ejecuta: revisa la nueva."); if (plan.orders.length) aviso = { title: "🟡 Cartera real: la propuesta ha cambiado", msg: plan.orders.map(oneLine).join("\n") + "\n\nConfírmala de nuevo en la web.", prio: 4 }; return; }
       ejecutar = plan.orders.length > 0; P.estado = "aprobada"; R.planHist.unshift({ ...P, fin: now.toISOString() }); R.plan = null;
       R.approved = { firma: plan.firma, metodo: plan.metodo, ts: now.toISOString(), d: m.date };
-      if (!ejecutar) { titulo = "Nada que ejecutar"; R.applied = { metodo: plan.metodo, tgtD: plan.tgtD, d: m.date }; rep.push("", "Al recalcular, ya no hace falta ninguna orden."); return; }
+      if (!ejecutar) { titulo = "Nada que ejecutar"; R.applied = { metodo: plan.metodo, tgtD: plan.tgtSig || plan.tgtD, d: m.date }; rep.push("", "Al recalcular, ya no hace falta ninguna orden."); return; }
     } else if (R.approved && plan.orders.length && R.approved.firma === plan.firma && R.approved.metodo === plan.metodo && Date.now() - Date.parse(R.approved.ts) < 4 * 864e5) {
       ejecutar = true; rep.push("", `Ya aprobaste estas órdenes el ${R.approved.d}, pero entonces la bolsa estaba cerrada: se ejecutan ahora sin volver a preguntarte.`);
     } else if (A.modo === "auto") ejecutar = plan.orders.length > 0;
     else if (A.modo === "confirmar") {
-      if (!plan.orders.length) { if (R.plan && R.plan.estado === "pendiente") { R.plan.estado = "ya-no-hace-falta"; R.planHist.unshift(R.plan); R.plan = null; } titulo = "Sin cambios"; R.lastNormal = m.date; R.applied = { metodo: plan.metodo, tgtD: plan.tgtD, d: m.date }; R.lastPlan = plan; return; }
+      if (!plan.orders.length) { if (R.plan && R.plan.estado === "pendiente") { R.plan.estado = "ya-no-hace-falta"; R.planHist.unshift(R.plan); R.plan = null; } titulo = "Sin cambios"; R.lastNormal = m.date; R.applied = { metodo: plan.metodo, tgtD: plan.tgtSig || plan.tgtD, d: m.date }; R.lastPlan = plan; return; }
       if (R.plan && R.plan.estado === "pendiente" && R.plan.d === m.date && R.plan.firma === plan.firma) { titulo = "Propuesta pendiente (sin cambios)"; R.lastNormal = m.date; return; }
       if (R.plan && R.plan.estado === "pendiente") { R.plan.estado = "sustituida"; R.planHist.unshift(R.plan); }
       R.plan = plan; R.lastNormal = m.date;
@@ -1043,7 +1062,7 @@ async function main() {
       return;
     } else { titulo = plan.orders.length ? `En pausa: haría ${plan.orders.length} órdenes` : "En pausa · sin cambios"; R.lastNormal = m.date; return; }
 
-    if (!ejecutar) { titulo = "Sin cambios · la cartera ya sigue al método"; R.lastNormal = m.date; R.applied = { metodo: plan.metodo, tgtD: plan.tgtD, d: m.date }; return; }
+    if (!ejecutar) { titulo = "Sin cambios · la cartera ya sigue al método"; R.lastNormal = m.date; R.applied = { metodo: plan.metodo, tgtD: plan.tgtSig || plan.tgtD, d: m.date }; return; }
     rep.push("", "## Ejecución");
     const res = await execute(T, A, R, plan, { account, positions, map: R.map }, rep);
     const ok = res.filter((x) => x.estado === "ejecutada"), bad = res.filter((x) => x.estado === "error" || x.estado === "rechazada"), later = res.filter((x) => x.estado === "aplazada"), omit = res.filter((x) => x.estado === "omitida"), pendQ = res.filter((x) => x.estado === "pendiente");
@@ -1052,7 +1071,7 @@ async function main() {
     plan.estado = bad.length ? "con-errores" : "ejecutada"; plan.res = res.map((x) => ({ t: x.t, side: x.side, estado: x.estado, err: x.err || "" }));
     R.planHist.unshift({ ...plan, fin: new Date().toISOString() });
     if (!later.length) R.lastNormal = m.date;
-    if (!bad.length && !later.length && !omit.length) R.applied = { metodo: plan.metodo, tgtD: plan.tgtD, d: m.date };
+    if (!bad.length && !later.length && !omit.length) R.applied = { metodo: plan.metodo, tgtD: plan.tgtSig || plan.tgtD, d: m.date };
     if (bad.length) estado = "error";
     titulo = `${ok.length} ${ok.length === 1 ? "orden ejecutada" : "órdenes ejecutadas"}${bad.length ? ` · ${bad.length} con error` : ""}${pendQ.length ? ` · ${pendQ.length} pendientes en Trading 212` : ""}${later.length ? ` · ${later.length} aplazadas (bolsa cerrada)` : ""}${omit.length ? ` · ${omit.length} omitidas` : ""}`;
     aviso = { title: `${bad.length ? "✖" : later.length && !ok.length ? "⏳" : "💶"} Cartera real: ${titulo}`, msg: res.map((x) => `${x.side === "COMPRA" ? "🟢" : "🔴"} ${x.side} ${x.t}${x.sym ? " (" + x.sym + ")" : ""} · ${x.estado}${x.eurReal != null ? " · " + eur(x.eurReal) : x.eur ? " · ≈" + eur(x.eur) : ""}${x.pnl != null ? ` · resultado ${seur(x.pnl)}` : ""}${x.err ? " · " + x.err : ""}\n   ${String(x.why || "").slice(0, 120)}`).join("\n") + `\n\nMétodo: ${plan.metodoNombre} · ${A.env === "demo" ? "DEMO" : "dinero real"}`, prio: bad.length ? 5 : 4 };
@@ -1076,18 +1095,18 @@ async function main() {
     // v77: propuesta de cambio de método (una vez; si la rechazas, no se repite en 60 días)
     try {
       if ((tipo === "normal" || tipo === "foto") && estado !== "error" && A.on) {
-        const b = getBot(), sg = b && b.S ? sugerencia(b.S, A.metodo, R.map) : null, P = R.metSug;
+        const b = getBot(), ksA = metodosDe(A, b && b.S), anS = (b && b.S && b.S.labAn) || {}, flojo = ksA.slice().sort((x, y) => (anS[x] ?? -9) - (anS[y] ?? -9))[0] || A.metodo, sg0 = b && b.S ? sugerencia(b.S, flojo, R.map, ksA) : null, sg = sg0 ? { ...sg0, de: flojo } : null, P = R.metSug;
         // v103: como mucho un cambio de método cada 90 días (los costes y los impuestos de cambiar a menudo se comen la ventaja);
         // si el nuevo es MUCHO mejor (≥4 puntos al año más que el tuyo), basta con 30 días desde el último cambio
         const lastCh = Math.max(0, R.metOv && R.metOv.ts ? Date.parse(R.metOv.ts) : 0, ...((R.metHist || []).slice(1).map((h) => Date.parse(h.d || "") || 0)));
-        const anCur = b && b.S && b.S.labAn ? b.S.labAn[A.metodo] : null, muchoMejor = sg && sg.an != null && anCur != null && sg.an - anCur >= 0.04;
+        const anCur = b && b.S && b.S.labAn ? b.S.labAn[flojo] : null, muchoMejor = sg && sg.an != null && anCur != null && sg.an - anCur >= 0.04;
         const busy = (lastCh && now - lastCh < (muchoMejor || (sg && sg.inv) ? 30 : 90) * 864e5) || (P && P.k === (sg && sg.k) && (P.estado === "pendiente" || (P.estado === "rechazada" && now - Date.parse(P.fin || P.ts) < 60 * 864e5)));
         if (sg && !busy) {
           const id = "m" + now.getTime().toString(36);
           if (P && P.estado === "pendiente") { P.estado = "sustituida"; P.fin = now.toISOString(); }
-          R.metSug = { id, k: sg.k, n: sg.n, ts: now.toISOString(), estado: "pendiente", an: sg.an, g: sg.g, gs: sg.gs, d0: sg.d0, needAcc: !!sg.needAcc, inv: !!sg.inv };
+          R.metSug = { id, k: sg.k, n: sg.n, de: sg.de, ts: now.toISOString(), estado: "pendiente", an: sg.an, g: sg.g, gs: sg.gs, d0: sg.d0, needAcc: !!sg.needAcc, inv: !!sg.inv };
           const pc = (x) => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1).replace(".", ",") + " %";
-          const txt = `Tu cartera real sigue «${NOMBRES[A.metodo] || A.metodo}». El bot ha encontrado uno que lo hace mejor${sg.inv ? " y es ⚡ INVENCIBLE en todas las pruebas (≥5 puntos al año más que el SPY, le gana en las 3 épocas y por ≥10 puntos en los 2 años que no vio, caída máxima ≤30 %). Te lo propongo SIN esperar a la ficticia: todavía no tiene resultados con precios reales" : " y ya está confirmado"}:\n\n🏆 ${sg.n}${sg.fwd ? "\n· Método de acciones en prueba en vivo (sin prueba histórica, que con acciones hace trampa)" : `\n· Prueba histórica (después de impuestos): ${pc(sg.an)}/año${(b.S.labAn || {})[A.metodo] != null ? " (el tuyo " + pc(b.S.labAn[A.metodo]) + "/año)" : ""}`}\n· En la ficticia desde el ${sg.d0}: ${pc(sg.g)} (SPY ${pc(sg.gs)})${sg.fwd ? "" : `\n· Peor caída histórica ${pc(sg.dd || 0)} · ~${Math.max(1, Math.round(sg.opy || 1))} ventas al año`}\n\nSi lo cambias, en la próxima revisión el bot venderá lo de ahora y comprará lo nuevo (las ventas con ganancia tributan).`;
+          const txt = `${ksA.length > 1 ? `Tu cartera real se reparte entre ${ksA.length} métodos. El más flojo es «${nombreDe(b.S, flojo)}», y el bot` : `Tu cartera real sigue «${nombreDe(b.S, A.metodo)}». El bot`} ha encontrado uno que lo hace mejor${sg.inv ? " y es ⚡ INVENCIBLE en todas las pruebas (≥5 puntos al año más que el SPY, le gana en las 3 épocas y por ≥10 puntos en los 2 años que no vio, caída máxima ≤30 %). Te lo propongo SIN esperar a la ficticia: todavía no tiene resultados con precios reales" : " y ya está confirmado"}:\n\n🏆 ${sg.n}${sg.fwd ? "\n· Método de acciones en prueba en vivo (sin prueba histórica, que con acciones hace trampa)" : `\n· Prueba histórica (después de impuestos): ${pc(sg.an)}/año${(b.S.labAn || {})[A.metodo] != null ? " (el tuyo " + pc(b.S.labAn[A.metodo]) + "/año)" : ""}`}\n· En la ficticia desde el ${sg.d0}: ${pc(sg.g)} (SPY ${pc(sg.gs)})${sg.fwd ? "" : `\n· Peor caída histórica ${pc(sg.dd || 0)} · ~${Math.max(1, Math.round(sg.opy || 1))} ventas al año`}\n\nSi lo cambias, en la próxima revisión el bot venderá lo de ahora y comprará lo nuevo (las ventas con ganancia tributan).`;
           rep.push("", "## Propuesta de cambio de método", "", txt);
           await avisa("🔎 Cartera real: hay un método mejor", txt + (sg.needAcc ? "\n\nCompra acciones de EE. UU.: si pulsas «✅ Cambiar» se activa también la compra de acciones y de productos en dólares. Cotizan en dólares (0,15 % de cambio por operación, salvo que tengas saldo en dólares en Trading 212)." : ""), { prio: 3, kb: [[{ text: "✅ Cambiar", callback_data: "mc:" + id }, { text: "❌ No cambiar", callback_data: "mr:" + id }]] });
         }

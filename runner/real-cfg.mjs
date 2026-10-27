@@ -12,6 +12,7 @@ export const DEF = {
   env: "live",        // live = dinero real · demo = cuenta de práctica de Trading 212
   modo: "confirmar",  // confirmar = propone y esperas a aprobar · auto = ejecuta solo · pausa = solo mira
   metodo: "sect",     // clave interna del método · sect = Rotación de sectores, el único que ha batido al SPY en la prueba histórica
+  extra: [],          // v117: hasta 2 métodos más; el dinero del bot se reparte a partes iguales entre todos (máx. 3)
   limite: 100,        // € como máximo que gestiona el bot (aunque haya más dinero en la cuenta)
   sumarIngresos: 1,   // 1 = lo que ingreses (o retires) en Trading 212 se suma (o se resta) solo al dinero del bot
   minOrden: 5,        // € · no envía órdenes más pequeñas
@@ -78,6 +79,9 @@ export function validate(inp, prev = {}) {
     } else if (k === "metodo") {
       if (v !== "" && !/^[A-Za-z0-9_-]{1,40}$/.test(String(v))) return { error: "método no válido" };
       out.metodo = String(v);
+    } else if (k === "extra") {
+      if (!Array.isArray(v) || v.length > 3 || v.some((x) => typeof x !== "string" || !/^[A-Za-z0-9_-]{1,40}$/.test(x))) return { error: "métodos extra no válidos (máx. 2)" };
+      out.extra = [...new Set(v)];
     } else if (k === "mapa") {
       if (!v || typeof v !== "object" || Array.isArray(v)) return { error: "mapa debe ser un objeto {SIMBOLO: TICKER_T212}" };
       const m = {};
@@ -92,6 +96,8 @@ export function validate(inp, prev = {}) {
     } else if (k === "savedAt") continue;
     else return { error: "ajuste desconocido: " + String(k).slice(0, 20) };
   }
+  out.extra = [...new Set(out.extra || [])].filter((x) => x !== out.metodo);
+  if (out.extra.length > 2) return { error: "métodos extra no válidos (máx. 2)" };
   if (out.minOrden > out.limite) return { error: "la orden mínima no puede ser mayor que el límite" };
   return { cfg: out };
 }

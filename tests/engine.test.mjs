@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { startMock, PX0 } from "./mock-t212.mjs";
 import { validate, encrypt, decrypt, openAny, DEF } from "../runner/real-cfg.mjs";
-import { makePlan, resolveMap, ensureLedger, syncLots, applyFill, botEquity, twr, xetraHoliday, euOpen, madrid, sugerencia } from "../runner/real.mjs";
+import { makePlan, resolveMap, ensureLedger, syncLots, applyFill, botEquity, twr, xetraHoliday, euOpen, madrid, sugerencia, objetivoDe, metodosDe, aplicaCambio } from "../runner/real.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), RUNNER = path.join(HERE, "..", "runner");
 const near = (a, b, tol = 0.02, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg || ""} esperaba ${b} ± ${tol} y salió ${a}`);
@@ -67,6 +67,22 @@ test("plan: primer día con 100 € → 3 compras de ~32,67 €; tu posición pr
   assert.equal(plan.orders.length, 3); assert.ok(plan.orders.every((o) => o.side === "COMPRA"));
   near(plan.orders.reduce((t, o) => t + o.eur, 0), 98, 0.05, "invierte el 98% (2% de reserva)");
   assert.ok(plan.notas.some((x) => /Posiciones tuyas/.test(x)));
+});
+test("reparto entre 2 o 3 métodos: cartera objetivo = media de las suyas; ajustes y cambios correctos", () => {
+  const S = { main: "sect", lastDate: "2026-10-21", books: { sect: { tgt: { d: "2026-10-01", w: { XLK: 0.5, XLE: 0.5 }, why: {}, bull: true }, days: [] }, trq: { tgt: { d: "2026-10-05", w: { XLF: 1 }, why: {}, bull: true }, days: [] }, gx: { tgt: { d: "2026-10-03", w: { XLK: 1 }, why: {}, bull: true }, days: [] } } };
+  const A2 = { ...A0, metodo: "sect", extra: ["trq"] };
+  assert.deepEqual(metodosDe(A2, S), ["sect", "trq"]);
+  const ob = objetivoDe(S, ["sect", "trq"]); near(ob.tgt.w.XLK, 0.25, 1e-9); near(ob.tgt.w.XLE, 0.25, 1e-9); near(ob.tgt.w.XLF, 0.5, 1e-9); assert.equal(ob.tgt.d, "2026-10-05"); assert.ok(/^mix:/.test(ob.key));
+  const ob3 = objetivoDe(S, ["sect", "trq", "gx"]); near(Object.values(ob3.tgt.w).reduce((a, x) => a + x, 0), 1, 1e-9); near(ob3.tgt.w.XLK, 1 / 6 + 1 / 3, 1e-9);
+  assert.ok(objetivoDe(S, ["sect", "nada"]).block, "si un método no tiene cartera, no opera");
+  const R = freshR(), n = []; ensureLedger(R, A2, [], M0, n);
+  const { plan } = makePlan({ A: A2, R, bot: { S }, account: { cash: { availableToTrade: 100 } }, positions: [], pending: [], map: MAP, now: NOW });
+  assert.equal(plan.orders.length, 3); near(plan.orders.find((o) => o.t === "SXLFd_EQ").eur, 49, 0.05, "la mitad del dinero va al 2.º método"); assert.ok(/Reparto/.test(plan.metodoNombre));
+  assert.deepEqual(validate({ metodo: "sect", extra: ["trq", "trq", "sect"] }).cfg.extra, ["trq"], "sin repetidos ni el principal");
+  assert.ok(validate({ extra: ["a", "b", "c"] }).error, "como mucho 2 extra (3 en total)");
+  const A3 = { metodo: "sect", extra: ["trq", "gx"] }; aplicaCambio(A3, "trq", "nuevo"); assert.deepEqual([A3.metodo, ...A3.extra], ["sect", "nuevo", "gx"]);
+  aplicaCambio(A3, "sect", "otro"); assert.equal(A3.metodo, "otro");
+  assert.equal(sugerencia({ labConf: [{ k: "trq", ok: true, an: 0.2, g: 0.1, d0: "2026-10-01" }], labAn: { sect: 0.07 }, books: { sect: { days: [] }, trq: { days: [] } } }, "sect", null, ["sect", "trq"]), null, "no propone uno que ya está en el reparto");
 });
 test("plan: si el método saca un ETF, vende SOLO las participaciones del bot, nunca las tuyas", () => {
   const R = freshR(), n = []; R.ledger = { cap: 100, cash: 3, lots: { QDVEd_EQ: { q: 1, cost: 31.2 }, SXLEd_EQ: { q: 1.1, cost: 31.2 }, SXLFd_EQ: { q: 0.67, cost: 32.3 } }, real: 0, hist: [], limite: 100 };
