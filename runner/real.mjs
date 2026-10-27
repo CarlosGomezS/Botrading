@@ -442,7 +442,7 @@ export function nombreDe(S, k) { return NOMBRES[k] || (((S && S.labConf) || []).
 export function objetivoDe(S, ks) {
   const books = (S && S.books) || {};
   for (const k of ks) {
-    if (!books[k]) return { block: `el método «${nombreDe(S, k)}» no tiene cartera en el bot (¿lo han quitado?). Elige otro en los ajustes de la cartera real.` };
+    if (!books[k]) return { block: `el método «${nombreDe(S, k)}» todavía no tiene cartera en el bot: entra en la ficticia en la próxima actualización diaria y desde entonces se sigue solo (mientras tanto no se compra ni se vende nada)` };
     if (!books[k].tgt || !books[k].tgt.w) return { block: `el método «${nombreDe(S, k)}» todavía no ha calculado su cartera objetivo` };
   }
   if (ks.length === 1) { const t = books[ks[0]].tgt; return { key: ks[0], name: nombreDe(S, ks[0]), tgt: { ...t, sig: t.d || null } }; }

@@ -9,6 +9,13 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v68 (web v118): métodos por familias en la cartera real
+
+- En 💶 Real → «Elige el método», los métodos se agrupan por **familias** (los que nacen de la misma idea), cada una plegable: «El mejor de 5 ETF de crecimiento», mezclas del laboratorio, tendencia y tecnología, rotación de sectores, asignación táctica, carteras prudentes…
+- Hasta 40 métodos (máximo 6 por familia, los mejores). Cada uno muestra su **riesgo** (🟢 arriesga poco, 🟡 medio, 🔴 mucho, según su peor caída en 26 años) y si gana al SPY.
+- Se puede elegir cualquiera, aunque no esté en la ficticia: entra en la ficticia en la siguiente actualización diaria y desde entonces la cartera real lo sigue (hasta entonces no compra ni vende).
+- Para repartir el riesgo de verdad, elige métodos de familias distintas.
+
 ## Novedades v67 (web v117): reparto entre 2 o 3 métodos y revisión automática
 
 - **Reparto de la cartera real**: además del método principal puedes elegir un 2.º y un 3.º método (💶 Real → «Elige el método» → «➕ Añadir al reparto», o en «Ajustes de la cartera real»). El dinero se reparte a partes iguales: la cartera objetivo es la media de las carteras de cada método. Si no eliges ninguno más, todo sigue exactamente igual que antes.
