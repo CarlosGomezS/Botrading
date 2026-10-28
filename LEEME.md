@@ -9,6 +9,13 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v72 (web v122): blindaje contra datos que llegan tarde
+
+- **Barrera 1 (simulador)**: en cada actualización se mira qué activos tienen precios de estos días pero no el de la sesión (el proveedor lo da tarde; el 27-oct le pasó a 40, entre ellos GLD y XLK). Un método que use alguno **no decide ese día** y lo hace en la siguiente actualización. Vale para todos los métodos de ETF, no solo para el refugio.
+- **Barrera 2 (cartera real)**: si la cartera objetivo de un método con refugio (oro o bonos) sale vacía, la cartera real **no vende nada** y avisa. También en un reparto entre varios métodos.
+- **Aviso**: la revisión automática del aviso diario dice qué ETF llegaron tarde ese día.
+- Prueba nueva en el motor de la cartera real (41 pruebas).
+
 ## Novedades v71 (web v121): un dato que llega tarde ya no saca a un método del mercado
 
 - Si el precio del refugio (oro o bonos) de ese día aún no ha llegado, el método no decide y lo repite al día siguiente. Antes se quedaba «todo en efectivo» hasta la siguiente revisión (pasó el 27-oct con el oro: la cartera real vendió el oro el 28-oct).

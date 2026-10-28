@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { startMock, PX0 } from "./mock-t212.mjs";
 import { validate, encrypt, decrypt, openAny, DEF } from "../runner/real-cfg.mjs";
-import { makePlan, resolveMap, ensureLedger, syncLots, applyFill, botEquity, twr, xetraHoliday, euOpen, madrid, sugerencia, objetivoDe, metodosDe, aplicaCambio } from "../runner/real.mjs";
+import { makePlan, resolveMap, ensureLedger, syncLots, applyFill, botEquity, twr, xetraHoliday, euOpen, madrid, sugerencia, objetivoDe, metodosDe, aplicaCambio, conRefugio } from "../runner/real.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), RUNNER = path.join(HERE, "..", "runner");
 const near = (a, b, tol = 0.02, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg || ""} esperaba ${b} ± ${tol} y salió ${a}`);
@@ -67,6 +67,18 @@ test("plan: primer día con 100 € → 3 compras de ~32,67 €; tu posición pr
   assert.equal(plan.orders.length, 3); assert.ok(plan.orders.every((o) => o.side === "COMPRA"));
   near(plan.orders.reduce((t, o) => t + o.eur, 0), 98, 0.05, "invierte el 98% (2% de reserva)");
   assert.ok(plan.notas.some((x) => /Posiciones tuyas/.test(x)));
+});
+test("v122: un método con refugio con la cartera objetivo vacía NO vende nada (faltan datos); sin refugio, salir al efectivo sí vale", () => {
+  const S = { main: "sect", lastDate: "2026-10-27", lab: { pop: { gr: { g: { u: "grw", t: 1, r: "GLD" } }, gn: { g: { u: "grw", t: 1, r: "" } } }, keep: { bm: { bl: [{ u: "grw", r: "GLD" }, { u: "sec", r: "IEF" }] } } },
+    books: { gr: { tgt: { d: "2026-10-27", w: {}, why: {}, bull: false }, days: [] }, gn: { tgt: { d: "2026-10-27", w: {}, why: {}, bull: false }, days: [] }, bm: { tgt: { d: "2026-10-27", w: {}, why: {}, bull: false }, days: [] }, ok: { tgt: { d: "2026-10-27", w: { GLD: 1 }, why: {}, bull: false }, days: [] } } };
+  assert.ok(conRefugio(S, "gr") && conRefugio(S, "bm") && !conRefugio(S, "gn") && !conRefugio(S, "sect"));
+  assert.ok(/vacía/.test(objetivoDe(S, ["gr"]).block || ""), "refugio + objetivo vacío → bloqueado");
+  assert.ok(/vacía/.test(objetivoDe(S, ["bm"]).block || ""), "mezcla con refugio en las dos mitades → bloqueado");
+  assert.ok(/vacía/.test(objetivoDe(S, ["ok", "gr"]).block || ""), "en un reparto también");
+  assert.ok(!objetivoDe(S, ["gn"]).block, "sin refugio, quedarse en efectivo es una decisión válida");
+  const A2 = { ...A0, metodo: "gr", extra: [] }, R = freshR(), n = []; ensureLedger(R, A2, [], M0, n);
+  const out = makePlan({ A: A2, R, bot: { S }, account: { cash: { availableToTrade: 0 } }, positions: [], pending: [], map: MAP, now: NOW });
+  assert.ok(out.block && !out.plan, "no hay plan de ventas");
 });
 test("reparto entre 2 o 3 métodos: cartera objetivo = media de las suyas; ajustes y cambios correctos", () => {
   const S = { main: "sect", lastDate: "2026-10-21", books: { sect: { tgt: { d: "2026-10-01", w: { XLK: 0.5, XLE: 0.5 }, why: {}, bull: true }, days: [] }, trq: { tgt: { d: "2026-10-05", w: { XLF: 1 }, why: {}, bull: true }, days: [] }, gx: { tgt: { d: "2026-10-03", w: { XLK: 1 }, why: {}, bull: true }, days: [] } } };

@@ -439,11 +439,20 @@ export function aplicaCambio(A, de, a) { if (de && Array.isArray(A.extra) && A.e
 export function metodosDe(A, S) { return [...new Set([A.metodo || (S && S.main) || "sect", ...(Array.isArray(A.extra) ? A.extra : [])].filter((k) => typeof k === "string" && k))].slice(0, 3); }
 export function nombreDe(S, k) { return NOMBRES[k] || (((S && S.labConf) || []).find((x) => x.k === k) || {}).n || k; }
 // cartera objetivo: la del método o, si hay varios, la media de sus carteras (cada uno pone 1/n del dinero en lo suyo)
+// v122: genes del método en el laboratorio (si es suyo) y si tiene refugio
+export function conRefugio(S, k) {
+  const L = (S && S.lab) || {}, g = (L.pop && L.pop[k] && L.pop[k].g) || (L.keep && L.keep[k]) || (L.pend && L.pend[k] && L.pend[k].g) || null;
+  if (!g) return false;
+  const r = (x) => !!(x && (x.r || (Array.isArray(x.bl) && x.bl.length && x.bl.every(r))));
+  return r(g);
+}
 export function objetivoDe(S, ks) {
   const books = (S && S.books) || {};
   for (const k of ks) {
     if (!books[k]) return { block: `el método «${nombreDe(S, k)}» todavía no tiene cartera en el bot: entra en la ficticia en la próxima actualización diaria y desde entonces se sigue solo (mientras tanto no se compra ni se vende nada)` };
     if (!books[k].tgt || !books[k].tgt.w) return { block: `el método «${nombreDe(S, k)}» todavía no ha calculado su cartera objetivo` };
+    // v122 · segunda barrera: un método con refugio (oro o bonos) nunca se queda sin cartera; si su objetivo sale vacío es que faltaron datos
+    if (conRefugio(S, k) && !Object.values(books[k].tgt.w).some((x) => +x > 0)) return { block: `la cartera objetivo de «${nombreDe(S, k)}» ha salido vacía, y eso no puede pasar en un método con refugio: faltan datos (algún precio llegó tarde). No vendo nada; se arregla solo en la próxima actualización.` };
   }
   if (ks.length === 1) { const t = books[ks[0]].tgt; return { key: ks[0], name: nombreDe(S, ks[0]), tgt: { ...t, sig: t.d || null } }; }
   const w = {}, why = {}, n = ks.length; let d = "", bull = false;

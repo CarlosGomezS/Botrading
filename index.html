@@ -451,7 +451,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v121</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v122</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1198,7 +1198,10 @@ function tgStep(B,key,date,D,fx,cf,rsP,log){
  const per=FREQ[M.per||"m"](date);
  /* v121: un método del laboratorio con refugio nunca debería quedarse con la cartera vacía; si pasó (un dato que faltó ese día), se recalcula ya */
  try{const g=M.lab,hasR=g&&(g.r||(g.bl&&g.bl.every(x=>x&&x.r)));if(hasR&&B.tgt&&B.tgt.w&&!Object.keys(B.tgt.w).length)B.rotM=null}catch(e){}
- if(B.rotM!==per){
+ /* v122: si alguno de sus activos no tiene aún el precio de hoy, no se decide (se repite en la próxima actualización) */
+ let lagMiss=[];try{const LG=globalThis.__LAG;if(LG&&LG.d===date&&LG.set.size){const need=M.syms&&M.syms.length?M.syms:[...LG.set].filter(s=>!MOM_UNI.includes(s)&&!isC(s));lagMiss=need.filter(s=>LG.set.has(s))}}catch(e){}
+ if(B.rotM!==per&&lagMiss.length){B.lagSkip={d:date,s:lagMiss.slice(0,8)}}
+ if(B.rotM!==per&&!lagMiss.length){
   const tg=M.target({D,held:new Set(Object.keys(B.pos)),rsP,date});
   if(tg){B.rotM=tg.partial?null:per;if(!B.t0)B.t0=date;B.tgt={d:date,w:tg.w,why:tg.why,bull:tg.bull!==false};
    const E1=signalEq(),thr=Math.max(cf.minpos,thr0*E1/N);
@@ -1732,7 +1735,7 @@ function detail(){const s=($("#sy").value||"").trim().toUpperCase(),sym=UNI.incl
   return`<div class="ev ${x.sig==="buy"?"buy":x.sig==="sell"?"sell":"hold"}"><b>${m.n} v${m.v}</b> · ${esc(b[i].d)} · <b>${LB[x.sig]}</b><br>✔ ${esc(x.met.join(" · ")||"—")}<br>✘ ${esc(x.unmet.join(" · ")||"—")}<br>Precio ${x.ref.toFixed(2)}${x.stop?" · stop "+x.stop.toFixed(2):""}${x.exit?" · salida "+x.exit.toFixed(2):""}${amt&&x.sig==="buy"?" · tamaño "+E(amt):""}<br><span class="m">${esc(m.d)}</span></div>`}).join("")}
 let LONG={};
 function seg0(B,a,z){const D=B.days.slice(a,z);if(D.length<2)return null;const e=D.map(x=>x.eq);let pk=e[0],dd=0;e.forEach(v=>{pk=Math.max(pk,v);dd=Math.min(dd,v/pk-1)});const d0=D[0].d,d1=D[D.length-1].d,t=B.trades.filter(x=>x.pnl!=null&&x.d>=d0&&x.d<=d1),w=t.filter(x=>x.pnl>0);return{ret:e[e.length-1]/e[0]-1,dd,n:t.length,win:t.length?w.length/t.length:null,exp:t.length?t.reduce((s,x)=>s+x.pnl,0)/t.length:null}}
-async function btRun(){try{if(!window.__VIEWER&&$("#btacc"))BTC=btFormRead()}catch{}const k=readKeys(),id=k.td?"td":k.al?"al":null;
+async function btRun(){globalThis.__LAG=null;try{if(!window.__VIEWER&&$("#btacc"))BTC=btFormRead()}catch{}const k=readKeys(),id=k.td?"td":k.al?"al":null;
  if(!id){$("#btst").textContent="Hace falta una clave de Twelve Data (recomendada) o de Alpaca para bajar años de histórico.";await archiveReport("prueba-historica-no-ejecutada","No se ejecutó la prueba histórica porque falta una clave de Twelve Data o Tiingo.");return}
 const ML0=MOM_UNI.length;if((+($("#btn")&&$("#btn").value)||0)>ML0){const ex0=new Set([...MOM_UNI,...UNI]);MOM_UNI.push(...BT_EXTRA.filter(x=>!ex0.has(x)))}
  let ex=+BTC.excl||0,EXC=new Set(TOPW.slice(0,ex)),nS=Math.max(10,Math.min(MOM_UNI.length,Math.round(+($("#btn")&&$("#btn").value)||MOM_UNI.length))),pool=MOM_UNI.filter(x=>!(ex&&EXC.has(x))).map(x=>[Math.random(),x]).sort((a,b)=>a[0]-b[0]).slice(0,nS).map(x=>x[1]),BT=[...new Set([...CORE_ALL,...EXTRA_ALL,...BTX_SYMS,...btSyms(),...(btStocks()?pool:[])])];$("#btr").disabled=true;const SKIPB=[];keepOn();let btOk=true,btAgain=false;
@@ -2138,6 +2141,10 @@ async function run(){
    if(!S.bench&&D.SPY){const bd=all.SPY[D.SPY.i].d;S.bench={px:all.SPY[D.SPY.i].c,fx:fxReplay[bd]||fxD,d:bd};}
    const sc={};for(const s in D)sc[s]=score(D[s].I,D[s].i);
    if(last){S.radar={};for(const s in sc)if(sc[s])S.radar[s]={...sc[s],px:all[s][D[s].i].c,f:H[s].f}}
+   /* v122 · DATOS INCOMPLETOS: símbolos con precios de estos días pero sin el de esta sesión (el proveedor lo da tarde).
+      Con alguno de los suyos así, un método NO decide ese día: lo repite en la siguiente actualización. */
+   {const LG=new Set();for(const s in all){if(Dm[s])continue;const a=all[s],j=idxAt(a,dayS(dayN(d)+7));if(j>=0&&Math.abs(dayN(a[j].d)-dayN(d))<=7)LG.add(s)}globalThis.__LAG={d,set:LG};
+    if(last&&LG.size){const et=[...LG].filter(s=>!MOM_UNI.includes(s)&&!isC(s));S.lagNow={d,n:LG.size,etf:et.slice(0,30)};dg.push("AVISO: "+LG.size+" activos sin el precio del "+d+" (llega tarde)"+(et.length?": "+et.join(", "):"")+". Los métodos que los usan no deciden hoy; lo harán en la próxima actualización.")}else if(last)S.lagNow=null}
    const rsP=rsRank(Dm);if(last){S.rsP=rsP;S.sigNow=(S.sigNow&&S.sigNow.d===d)?S.sigNow:{d,total:Object.keys(Dm).length,m:{}}}
    for(const m in STR){if(books[m].days.some(z=>z.d===d))continue;const sg=bookStep(books[m],m,d,Dm,fxD,CFG,rsP,(mm,s,k,x,amt)=>S.siglog.unshift({d,m:mm,s,k,ref:x.ref&&+x.ref.toFixed(2),stop:x.stop&&+x.stop.toFixed(2),exit:x.exit&&+x.exit.toFixed(2),amt:amt&&+amt.toFixed(1),met:(x.met||[]).slice(0,4)}));
     if(last)S.sigNow.m[m]={buy:Object.keys(sg).filter(s=>sg[s].sig==="buy"),sell:Object.keys(sg).filter(s=>sg[s].sig==="sell"),n:Object.keys(sg).length}}

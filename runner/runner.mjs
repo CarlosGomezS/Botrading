@@ -503,6 +503,7 @@ export function revisarSalud(st, realSavedAt, now = Date.now()) {
     if (st.nSym > 10 && st.nOld / st.nSym > 0.2) P.push(`🕰️ ${st.nOld} de ${st.nSym} símbolos tienen precios de hace más de 5 días (el proveedor de datos falla).`);
     const l = age(st.labLast);
     if (l > 2.2) P.push(`🤖 El laboratorio no ha terminado ninguna ronda desde el ${st.labLast || "—"}. Debería hacer muchas al día: revisa «Laboratorio» en GitHub → Actions.`);
+    if (st.lag && st.lag.etf && st.lag.etf.length) P.push(`⏳ ${st.lag.etf.length} ETF sin el precio del ${st.lag.d} (llega tarde): ${st.lag.etf.slice(0, 8).join(", ")}. Los métodos que los usan no deciden hoy y lo hacen en la próxima actualización (nada se vende por un dato que falta).`);
     if (st.noBook > 0) P.push(`🧪 ${st.noBook} método${st.noBook > 1 ? "s" : ""} de la ficticia sin cartera calculada (se arregla solo en la próxima actualización; si se repite, avísame).`);
   }
   if (realSavedAt != null) {
@@ -515,10 +516,10 @@ async function saludDe(page, diario = false) {
   let st = null, real = null;
   try {
     st = await page.evaluate(() => { try { const last = S.lastDate || null, n = last ? dayN(last) : 0, L = Object.values(S.last || {}), old = L.filter((x) => x && x.d && n - dayN(x.d) > 5).length;
-      return { lastDate: last, nSym: L.length, nOld: old, labLast: (S.lab && S.lab.last && S.lab.last.d) || null, noBook: (S.promo || []).filter((k) => STR[k] && !(S.books || {})[k]).length, sent: S.health || null }; } catch (e) { return null; } });
+      return { lastDate: last, nSym: L.length, nOld: old, labLast: (S.lab && S.lab.last && S.lab.last.d) || null, noBook: (S.promo || []).filter((k) => STR[k] && !(S.books || {})[k]).length, lag: S.lagNow || null, sent: S.health || null }; } catch (e) { return null; } });
   } catch {}
   try { if (REPO) { const r = await fetch(`https://raw.githubusercontent.com/${REPO}/real/real.json?t=${Date.now()}`, { signal: AbortSignal.timeout(15000) }); if (r.ok) { const j = await r.json(); if (j && j.savedAt) real = +j.savedAt || Date.parse(j.savedAt) || null; } } } catch {}
-  if (st && !diario) st.noBook = 0;   // en las rondas del laboratorio los recién llegados aún no tienen cartera (se calcula en la actualización diaria)
+  if (st && !diario) { st.noBook = 0; st.lag = null; }   // en las rondas del laboratorio los recién llegados aún no tienen cartera (se calcula en la actualización diaria)
   return { st, P: revisarSalud(st, real) };
 }
 async function main() {
