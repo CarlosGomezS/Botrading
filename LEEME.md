@@ -9,6 +9,12 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v71 (web v121): un dato que llega tarde ya no saca a un método del mercado
+
+- Si el precio del refugio (oro o bonos) de ese día aún no ha llegado, el método no decide y lo repite al día siguiente. Antes se quedaba «todo en efectivo» hasta la siguiente revisión (pasó el 27-oct con el oro: la cartera real vendió el oro el 28-oct).
+- Autoarreglo: si un método del laboratorio con refugio aparece con la cartera vacía, se recalcula en la siguiente actualización.
+- Laboratorio: si una ronda falla al empezar, se reintenta una vez; el motivo de cualquier fallo queda en el resumen de GitHub.
+
 ## Novedades v70 (web v120): fuera la pestaña Acciones
 
 - Se quita la pestaña 📈 Acciones (ideas de acciones sueltas sin prueba histórica del conjunto). Todo lo demás sigue igual.
