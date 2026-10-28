@@ -68,7 +68,12 @@ jobs:
           FMP_KEY: ${{ secrets.FMP_KEY }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
-        run: node runner.mjs backtest
+        # v121: si la ronda falla al poco de empezar (un fallo pasajero de GitHub o de la red), se reintenta una vez
+        run: |
+          s=$(date +%s)
+          if node runner.mjs backtest; then exit 0; fi
+          e=$(( $(date +%s) - s ))
+          if [ "$e" -lt 900 ]; then echo "::warning title=Laboratorio::La ronda falló a los ${e} s; se reintenta una vez"; sleep 45; node runner.mjs backtest; else exit 1; fi
       - name: Mantener vivo el bot (procesos activos y actividad en el repositorio)
         if: always()
         continue-on-error: true

@@ -633,6 +633,7 @@ async function main() {
     // cualquier fallo queda registrado en un informe y avisado
     const msg = `Fallo del proceso automático (${MODE}): ${String(e && e.message || e).slice(0, 400)}`;
     log("ERROR:", msg);
+    try { console.log(`::error title=Bot (${MODE})::${msg.replace(/x-access-token:[^@\s]+@/g, "x-access-token:***@").replace(/%/g, "%25").replace(/[\r\n]+/g, " ")}`); } catch {}
     try {
       const it = await page.evaluate(([m, md]) => __API.custom("error-ejecucion", m, md, null), [msg, `# Error de ejecución (${MODE})\n\n- Hora: ${new Date().toISOString()}\n- ${msg}\n`]);
       await avisar(page, { id: it && it.id, status: "error-ejecucion", message: msg, md: msg }, { title: `Bot Trading: ERROR en ${MODE}`, short: msg, subject: `Bot Trading · ERROR en ${MODE}`, force: true });
@@ -648,5 +649,5 @@ async function main() {
 
 export { dumpAll, restoreAll, sanitize, patchedHtml, loadAjustes, btCount };
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((e) => { console.error("ERROR:", e); process.exit(1); });
+  main().catch((e) => { console.error("ERROR:", e); try { console.log(`::error title=Bot (${MODE}) al arrancar o publicar::${String((e && e.stack) || e).replace(/x-access-token:[^@\s]+@/g, "x-access-token:***@").slice(0, 600).replace(/%/g, "%25").replace(/[\r\n]+/g, " | ")}`); } catch {} process.exit(1); });
 }
