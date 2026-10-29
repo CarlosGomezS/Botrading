@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v73 (web v123): segunda vuelta de precios
+
+- Si al descargar algún activo se queda sin el precio de la última sesión (Polygon gratis y Yahoo a veces van un día por detrás), se vuelve a pedir **a otro proveedor** en la misma actualización. Así los métodos no se quedan días sin decidir (el 27 y el 28-oct les pasó a XLK y XLE).
+- El informe diario dice cuántos se completaron en la segunda vuelta y cuáles siguen sin el precio.
+
 ## Novedades v72 (web v122): blindaje contra datos que llegan tarde
 
 - **Barrera 1 (simulador)**: en cada actualización se mira qué activos tienen precios de estos días pero no el de la sesión (el proveedor lo da tarde; el 27-oct le pasó a 40, entre ellos GLD y XLK). Un método que use alguno **no decide ese día** y lo hace en la siguiente actualización. Vale para todos los métodos de ETF, no solo para el refugio.
