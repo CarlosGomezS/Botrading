@@ -9,6 +9,10 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v76 (web v126): arreglo de la prueba histórica y liga recuperada
+
+- La v121 rompía la prueba histórica de los métodos con refugio en oro: antes de 2004 el ETF de oro no existía y, en vez de salir a efectivo, se quedaban invertidos en la caída de 2000-2002. Casi todos suspendieron y salieron de la liga y de la ficticia. Se quita esa regla (la protección contra precios que llegan tarde es la de la v122, que solo actúa en la actualización diaria) y se recupera el estado del laboratorio de antes del fallo.
+
 ## Novedades v75 (web v125): ajustes de la cartera real siempre con sus valores
 
 - Al abrir «Ajustes de la cartera real», cada casilla toma el valor bueno más reciente: si el guardado llega vacío o roto, se usa el que está usando el bot de verdad. Un valor vacío nunca pisa uno bueno.

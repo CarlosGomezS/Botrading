@@ -451,7 +451,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v125</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v126</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1197,7 +1197,7 @@ function tgStep(B,key,date,D,fx,cf,rsP,log){
  const sell=(s,why,frac=1)=>{const p=B.pos[s],q=D[s];if(!p||!q)return;const fill=q.exec??q.b[q.i].c,sp=fill*(1-cf.slip),qq=p.q*frac,pr=Math.max(0,qq*sp/fx-cf.fee),cost=p.cost*frac;B.cash+=pr;B.trades.unshift({d:date,s,side:"VENTA",q:qq,px:sp,eur:pr,fee:cf.fee,pnl:pr-cost,why});if(frac>=0.999)delete B.pos[s];else{p.q-=qq;p.cost-=cost}sold.add(s);log&&log(key,s,"venta",{met:[why],ref:fill})};
  const per=FREQ[M.per||"m"](date);
  /* v121: un método del laboratorio con refugio nunca debería quedarse con la cartera vacía; si pasó (un dato que faltó ese día), se recalcula ya */
- try{const g=M.lab,hasR=g&&(g.r||(g.bl&&g.bl.every(x=>x&&x.r)));if(hasR&&B.tgt&&B.tgt.w&&!Object.keys(B.tgt.w).length)B.rotM=null}catch(e){}
+ try{const LG=globalThis.__LAG,g=M.lab,hasR=g&&(g.r||(g.bl&&g.bl.every(x=>x&&x.r)));if(LG&&LG.d===date&&hasR&&B.tgt&&B.tgt.w&&!Object.keys(B.tgt.w).length&&(!M.syms||M.syms.every(x=>D[x])))B.rotM=null}catch(e){}   /* v126: solo en la actualización diaria, nunca en la prueba histórica */
  /* v122: si alguno de sus activos no tiene aún el precio de hoy, no se decide (se repite en la próxima actualización) */
  let lagMiss=[];try{const LG=globalThis.__LAG;if(LG&&LG.d===date&&LG.set.size){const need=M.syms&&M.syms.length?M.syms:[...LG.set].filter(s=>!MOM_UNI.includes(s)&&!isC(s));lagMiss=need.filter(s=>LG.set.has(s))}}catch(e){}
  if(B.rotM!==per&&lagMiss.length){B.lagSkip={d:date,s:lagMiss.slice(0,8)}}
@@ -1506,11 +1506,7 @@ function labTgt(g){if(g.base){const M=MX(g.base);return M&&M.target?M.target:()=
   /* v114 · estacionalidad (Larry Williams, Yale Hirsch; «efecto Halloween», Bouman y Jacobsen 2002): de mayo a octubre, solo media posición */
   if(g.sz){const q=D.SPY||D[Object.keys(D)[0]],mo=q?+String(q.b[q.i].d).slice(5,7):0;if(mo>=5&&mo<=10)for(const s in t.w){t.w[s]/=2;t.why[s]=(t.why[s]||"")+" · estacionalidad: de mayo a octubre, media posición"}}
   if(g.v){const q=D.QQQ||D.SPY,vv=q?vol63(q.b,q.i):null;if(vv>(g.vt||0.28)){for(const s in t.w){t.w[s]/=2;t.why[s]=(t.why[s]||"")+" · freno: el mercado está muy nervioso, solo media posición"}}}
-  if(g.r==="dyn"&&!["GLD","IEF"].every(s=>D[s])&&Object.values(t.w).reduce((x,y)=>x+y,0)<0.999)return null;
   if(g.r==="dyn"){const tot=Object.values(t.w).reduce((x,y)=>x+y,0);if(tot<0.999){const c=["GLD","IEF","SHY"].filter(s=>D[s]).map(s=>({s,m:rtSk(D[s].b,D[s].i,63,0)})).filter(x=>x.m!=null&&x.m>0).sort((x,y)=>y.m-x.m)[0];if(c){t.w[c.s]=(t.w[c.s]||0)+(1-tot);t.why[c.s]=(t.why[c.s]?t.why[c.s]+"; ":"")+"refugio dinámico: el más fuerte de oro, bonos y liquidez en los últimos 3 meses"}}return t}
-  /* v121: si falta el precio del refugio ese día (el proveedor aún no lo ha dado), NO se decide: se repite al día siguiente.
-     Antes se quedaba «todo en efectivo» un mes entero por un dato que llegaba tarde. */
-  if(g.r&&!D[g.r]&&Object.values(t.w).reduce((x,y)=>x+y,0)<0.999)return null;
   if(g.r&&D[g.r]){const tot=Object.values(t.w).reduce((x,y)=>x+y,0);if(tot<0.999){t.w[g.r]=(t.w[g.r]||0)+(1-tot);t.why[g.r]=(t.why[g.r]?t.why[g.r]+"; ":"")+"refugio: los huecos sin candidato fuerte van a "+(g.r==="GLD"?"oro":"bonos")}}return t}}
 function labSyms(g){return g.base?((MX(g.base)||{}).syms||[]):g.bl?[...new Set(g.bl.flatMap(labSyms))]:[...new Set(LABU[g.u].U.concat(g.r==="dyn"?["GLD","IEF","SHY"]:g.r?[g.r]:[],g.c?["SPY"]:[],g.v?["QQQ"]:[],g.ab?["SHY"]:[],g.sz?["SPY"]:[]))]}
 function labM(g){g=labNorm(g);const per=g.bl||g.base?"m":g.p;return{n:labName(g),v:"1.0",tg:true,bt:true,lab:g,fam:"lab",N:g.bl?6:g.t+(g.r?1:0),per,syms:labSyms(g),cat:"🤖 Creado por el laboratorio",rev:per==="q"?"Revisión trimestral":"Revisión mensual",
