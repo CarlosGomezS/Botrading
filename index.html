@@ -457,7 +457,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v135</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v136</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1892,7 +1892,8 @@ function top5List(all,N){N=N||5;try{const b=S.btm,tx=b&&b.rows&&b.rows.spy&&b.ro
 function top5Html(all,card){try{const {T,as}=top5List(all,20);
  const lvCard=(c,j)=>`<details class="btc"><summary><span class="rk">${j}</span><span class="nm">${esc(STR[c.k].n)}</span><span class="pa ${c.g>=0?"up":"dn"}">${P(c.g*100)}<small style="font-size:11px;font-weight:400;color:var(--muted)"> en vivo</small></span><span class="sb"><span class="bdg ok">✅ Probado en vivo</span><span class="bdg t">🔭 mixto</span></span></summary><div class="bd"><div>En ${Math.round(c.nd/30.4)} meses con precios reales: ${P(c.g*100)} frente al ${P(c.gs*100)} del SPY. Sus resultados son de verdad, no de una prueba histórica.</div><div class="m">${esc(STR[c.k].d||"")}</div></div></details>`;
  let h=`<div class="m" style="margin:10px 0 4px"><b>🏆 Los 20 que más ganan al SPY</b> (los 5 primeros a la vista) (después de impuestos, con caídas no peores del −35 % y ganando en 2000-2015 y en 2016-hoy${as!=null?` · el SPY: ${P(as*100)}/año`:""})</div><div class="btl">`;
- const one=(x,j)=>{if(x.lv)return lvCard(x.lv,j+1);return card(x.h).replace(/<span class="rk">[^<]*<\/span>/,`<span class="rk">${["🥇","🥈","🥉"][j]||j+1}</span>`)};
+ const rb=k=>`<div style="margin-top:8px"><button class="go" data-realpick="${esc(k)}" style="padding:8px 14px">💶 Usar en mi cartera real</button></div>`;   /* v136: del laboratorio a la cartera real, directo */
+ const one=(x,j)=>{if(x.lv)return lvCard(x.lv,j+1).replace(/<\/div><\/details>$/,rb(x.lv.k)+"</div></details>");let h=card(x.h).replace(/<span class="rk">[^<]*<\/span>/,`<span class="rk">${["🥇","🥈","🥉"][j]||j+1}</span>`);const i=h.lastIndexOf("</div></details>");return i>0?h.slice(0,i)+rb(x.h.k)+h.slice(i):h};
  T.slice(0,5).forEach((x,j)=>{h+=one(x,j)});
  if(T.length>5)h+=`</div><details class="rd" data-id="bttop20"${opn("bttop20",false)}><summary><span>📋 Puestos 6 a ${T.length}</span></summary><div class="rb"><div class="btl">${T.slice(5).map((x,j)=>one(x,j+5)).join("")}</div></div></details><div class="btl">`;
  for(let j=T.length;j<5;j++)h+=`<div class="btc" style="padding:10px 12px;opacity:.65"><span class="m">${j+1}. Hueco libre${j===T.length?": el laboratorio sigue buscando. Los mixtos (ETF, acciones y cripto) entran aquí cuando llevan 12 meses ganando al SPY por ≥2 puntos.":""}</span></div>`;
@@ -2829,6 +2830,9 @@ const $r=s=>document.querySelector(s);
 const C=()=>window.__CLOUD||null;
 try{window.addEventListener("cloud-unlocked",()=>{try{draw()}catch(e){}})}catch(e){}
 try{window.__realReload=()=>loadReal(true)}catch(e){}
+/* v136: «💶 Usar en mi cartera real» desde el Laboratorio: abre la cartera real con ese método elegido (falta pulsar Guardar) */
+try{window.__realPick=k=>{if(!k||!MXr(k))return;RL.pick=k===A().metodo?null:k;RL.dirty=true;OPENS.met=true;OPENS.cfg=true;try{window.__userNav=true;go("real")}catch(e){}draw();{const sm=$r("#rl-c-met");if(sm&&RL.pick){if(![...sm.options].some(o=>o.value===RL.pick)){const o=document.createElement("option");o.value=RL.pick;o.textContent=MXr(RL.pick).n;sm.appendChild(o)}sm.value=RL.pick}}setTimeout(()=>{const d=$r('details[data-o="met"]');if(d)d.open=true;const b=$r("#rl-mok")||$r("#rl-c-met");if(b)b.scrollIntoView({block:"center"})},300)};
+ document.addEventListener("click",e=>{const b=e.target&&e.target.closest&&e.target.closest("[data-realpick]");if(!b)return;e.preventDefault();e.stopPropagation();window.__realPick(b.dataset.realpick)},true)}catch(e){}
 const NOMB={sect:"Rotación de sectores (Faber)",sectx:"Rotación ampliada (sectores + QQQ + SMH + IWM)",trq:"Tendencia QQQ de 10 meses (Faber)",dmu:"Dual Momentum EE. UU. (QQQ, SPY, IWM, SMH)",mix:"Mezcla 50/50: sectores + QQQ en tendencia"};
 const SECT=["XLK","XLV","XLE","XLF","XLY","XLP","XLI","XLU","XLB","XLC"];
 const UNI={sect:SECT,sectx:SECT.concat(["QQQ","SMH","IWM"]),trq:["QQQ"],dmu:["QQQ","SPY","IWM","SMH"],mix:SECT.concat(["QQQ"])};
