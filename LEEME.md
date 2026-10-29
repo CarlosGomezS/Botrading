@@ -9,6 +9,10 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v74 (web v124): guardar ajustes sin errores falsos
+
+- Si una casilla de importe llega vacía al guardar (pasa en algunos móviles), se conserva el valor ya guardado en vez de dar «debe estar entre…». Acepta coma decimal y, si hay un error de verdad, dice qué valor se ha puesto.
+
 ## Novedades v73 (web v123): segunda vuelta de precios
 
 - Si al descargar algún activo se queda sin el precio de la última sesión (Polygon gratis y Yahoo a veces van un día por detrás), se vuelve a pedir **a otro proveedor** en la misma actualización. Así los métodos no se quedan días sin decidir (el 27 y el 28-oct les pasó a XLK y XLE).
