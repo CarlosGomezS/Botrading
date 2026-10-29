@@ -68,6 +68,16 @@ test("plan: primer día con 100 € → 3 compras de ~32,67 €; tu posición pr
   near(plan.orders.reduce((t, o) => t + o.eur, 0), 98, 0.05, "invierte el 98% (2% de reserva)");
   assert.ok(plan.notas.some((x) => /Posiciones tuyas/.test(x)));
 });
+test("v131: si la compra se quedó corta (dinero parado ≥ 2 %), la siguiente revisión compra lo que falta aunque ya esté aplicada", () => {
+  const A1 = { ...A0, limite: 500, minOrden: 5 }, R = freshR(), n = []; ensureLedger(R, A1, [], M0, n);
+  applyFill(R, "COMPRA", "QDVEd_EQ", 6.76, 476.72, { px: 70.52, id: "o1", d: "2026-10-22" });
+  const ps = [pos("QDVEd_EQ", 6.76, 70.52)], b = bot({ XLK: 1 });
+  R.applied = { metodo: "sect", tgtD: "2026-10-01" };
+  const { plan } = makePlan({ A: A1, R, bot: b, account: { cash: { availableToTrade: 23.28 } }, positions: ps, pending: [], map: MAP, now: NOW });
+  assert.ok(plan.yaAplicada, "la cartera objetivo ya estaba aplicada");
+  const c = plan.orders.find((o) => o.side === "COMPRA" && o.t === "QDVEd_EQ"); assert.ok(c, "compra el resto"); assert.ok(c.eur > 5 && c.eur < 24, "solo lo que falta, sin pasar del dinero libre");
+  assert.ok(!plan.orders.some((o) => o.side === "VENTA"), "no vende nada");
+});
 test("v122: un método con refugio con la cartera objetivo vacía NO vende nada (faltan datos); sin refugio, salir al efectivo sí vale", () => {
   const S = { main: "sect", lastDate: "2026-10-27", lab: { pop: { gr: { g: { u: "grw", t: 1, r: "GLD" } }, gn: { g: { u: "grw", t: 1, r: "" } } }, keep: { bm: { bl: [{ u: "grw", r: "GLD" }, { u: "sec", r: "IEF" }] } } },
     books: { gr: { tgt: { d: "2026-10-27", w: {}, why: {}, bull: false }, days: [] }, gn: { tgt: { d: "2026-10-27", w: {}, why: {}, bull: false }, days: [] }, bm: { tgt: { d: "2026-10-27", w: {}, why: {}, bull: false }, days: [] }, ok: { tgt: { d: "2026-10-27", w: { GLD: 1 }, why: {}, bull: false }, days: [] } } };

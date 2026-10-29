@@ -524,11 +524,11 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
   }
   const sells = orders.reduce((t, o) => t + o.eur, 0);
   let freeCash = Math.min(cash + sells - presupuesto * (A.reserva / 100), accCash + sells);
-  const buys = [];
+  const buys = [], thrB = Math.max(A.minOrden, 0.02 * invest);   // v131: para COMPRAR basta con que falte un 2 % (el dinero no se queda parado); las ventas siguen con el umbral normal
   for (const [t, goal] of Object.entries(tv)) {
     if (pend.has(t)) continue;
     const x = mine.find((y) => y.t === t), cur = x ? x.bv : 0, diff = goal - cur;
-    if (diff > thr || (!x && diff >= A.minOrden)) buys.push({ side: "COMPRA", t, sym: symOf[t], name: (Object.values(map).find((y) => y.t === t) || {}).name || "", eur: r2(diff), why: (tgt.why && tgt.why[symOf[t]]) || "está en la cartera objetivo del método" });
+    if (diff > thrB || (!x && diff >= A.minOrden)) buys.push({ side: "COMPRA", t, sym: symOf[t], name: (Object.values(map).find((y) => y.t === t) || {}).name || "", eur: r2(diff), why: (tgt.why && tgt.why[symOf[t]]) || "está en la cartera objetivo del método" });
   }
   buys.sort((a, b) => b.eur - a.eur);
   for (const b of buys) {
@@ -652,12 +652,12 @@ async function execute(T, A, R, plan, ctx, rep) {
       const amt = Math.min(o.eur, cashNow - 0.3);
       if (amt < A.minOrden) { skip("omitida", `al bot solo le quedan ${eur(Math.max(0, cashNow))} libres (cuenta ${eur(Math.max(0, acc))})`); continue; }
       if (!fx && inst.cur && inst.cur !== "EUR") fx = await fxRates();
-      const pr = await priceOf(o.t, ctx.map, positions, fx);
+      const pr = o._px ? { px: o._px, cur: o._cur, src: "precio de la compra que se acaba de hacer" } : await priceOf(o.t, ctx.map, positions, fx);
       if (!pr) { skip("omitida", "no encontré un precio fiable para calcular las participaciones"); continue; }
       const rate = pr.cur === "EUR" ? 1 : fx && fx[pr.cur];
       if (!rate) { skip("omitida", "no tengo el cambio € → " + pr.cur); continue; }
-      qty = (amt * rate * 0.99) / pr.px;
-      o.pxEst = pr.px; o.pxSrc = pr.src; o.eur = r2(amt);
+      qty = (amt * rate * (o._px ? 0.995 : 0.99)) / pr.px;
+      o.pxEst = pr.px; o.pxSrc = pr.src; o.eur = r2(amt); o._rate = rate;
     }
     // ---- guardas de seguridad: si algo no cuadra, NO se envía ----
     {
@@ -670,7 +670,7 @@ async function execute(T, A, R, plan, ctx, rep) {
         const bought = spent + o.eur;
         if (!(o.eur > 0) || bought > eq0 * 1.02 + 0.5) why.push(`las compras de esta revisión (${eur(bought)}) superarían el dinero del bot (${eur(eq0)})`);
         const ref = (pos && +pos.currentPrice > 0 && +pos.currentPrice) || ((REAL_ORDERS || []).find((x) => x.t === o.t && x.px > 0 && /ejecutada/.test(x.estado) && Date.now() - Date.parse(x.ts) < 10 * 864e5) || {}).px;
-        if (ref && o.pxEst > 0 && Math.abs(o.pxEst / ref - 1) > 0.15) why.push(`el precio obtenido (${o.pxEst}) se aleja más de un 15% del último conocido (${ref}): precio sospechoso`);
+        if (!o._comp && ref && o.pxEst > 0 && Math.abs(o.pxEst / ref - 1) > 0.15) why.push(`el precio obtenido (${o.pxEst}) se aleja más de un 15% del último conocido (${ref}): precio sospechoso`);
       }
       if (why.length) { res.push({ ...o, estado: "error", err: "bloqueada por seguridad: " + why.join("; ") }); rep.push(`- ✋ ${o.side} ${o.t}: bloqueada por seguridad · ${why.join("; ")}`); continue; }
     }
@@ -687,6 +687,12 @@ async function execute(T, A, R, plan, ctx, rep) {
       const a = applyFill(R, o.side, o.t, q, amt, { px: f.price || o.pxEst, id: p.o.id, d: m.date, why: o.why });
       r.coste = a.coste; r.pnl = a.pnl; if (r.eurReal == null) r.nota = (r.nota ? r.nota + " · " : "") + "importe estimado (Trading 212 aún no da el definitivo)";
       if (o.side === "COMPRA") spent += amt;
+      // v131: complemento. El número de participaciones se calcula con margen (precio estimado +1-3 %), así que la compra puede quedarse corta.
+      // Si faltan al menos la orden mínima, se compra el resto en la misma revisión con el precio real al que se acaba de ejecutar.
+      if (o.side === "COMPRA" && !o._comp && r.eurReal > 0 && q > 0) {
+        const falta = r2(o.eur - amt);
+        if (falta >= Math.max(A.minOrden, 5)) ordered.push({ side: "COMPRA", t: o.t, sym: o.sym, name: o.name, eur: falta, why: "complemento: la compra anterior se quedó corta por el margen de precio", _comp: 1, _px: r.eurReal / q, _cur: "EUR" });
+      }
     } else if (estado === "pendiente") {
       R.pendBot.push({ id: p.o.id, t: o.t, side: o.side, qty: Math.abs(p.qty), eur: o.eur, ts: new Date().toISOString(), plan: plan.id });
       if (o.side === "COMPRA") spent += o.eur;

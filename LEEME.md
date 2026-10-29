@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v80: el dinero de la cartera real no se queda parado
+
+- Las compras se calculan con un margen de precio (1-3 %) para que Trading 212 no las rechace, y a veces se quedaban cortas. Ahora, si faltan al menos 5 €, se compra el resto **en la misma revisión** con el precio real de la compra que se acaba de hacer.
+- Y en las revisiones siguientes, si al bot le sobra efectivo y a una posición le falta al menos un 2 % del presupuesto, se compra lo que falta (antes hacía falta un 5 %). Las ventas siguen con el umbral normal.
+
 ## Novedades v79 (web v130): el autorrelleno del móvil no puede tocar ningún ajuste
 
 - En los ajustes de la cartera real, una casilla de texto o importe solo cambia si la escribes o la pegas tú: lo que meta el gestor de contraseñas del móvil se deshace al momento y, al guardar, vale lo que ya estaba guardado.
