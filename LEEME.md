@@ -9,6 +9,12 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v78 (web v129): nombres en los avisos y ajustes a prueba de autorrelleno
+
+- Los avisos de la cartera real dicen el nombre del método y no su clave interna (p. ej. «g_1f6605j»).
+- Las casillas numéricas de los ajustes de la cartera real tampoco las toca el autorrelleno del móvil.
+- En «Elige el método», el primero de cada familia ya no sale resaltado: solo se resalta el que tienes elegido.
+
 ## Novedades v77 (web v127): el gestor de contraseñas del móvil ya no rellena tus claves
 
 - Las casillas de claves de la cartera real (Trading 212, Telegram y la contraseña de la cartera) ya no las reconoce el gestor de contraseñas del móvil como «contraseñas», así que no las rellena solo.
