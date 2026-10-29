@@ -457,7 +457,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v133</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v134</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2281,7 +2281,7 @@ function winVis(k){if(!STR[k])return false;if(curMets().includes(k))return true;
 const winTrue=k=>{try{if(STR[k]&&STR[k].fwd){const c=(S.labConf||[]).find(x=>x.k===k);return!!(c&&c.ok)}const b=S.btm;if(b&&b.rows&&b.rows[k]){const v=btmVerd(b,k);return!!(v&&v.c==="ok")&&labHoldOk(k)}}catch(e){}return false};
 const mHidden=()=>Object.keys(STR).filter(k=>bkOf(k)&&!winVis(k));
 const mSorted=()=>Object.keys(STR).filter(k=>bkOf(k)&&winVis(k)).sort((a,b)=>mGain(b)-mGain(a));
-const vmGet=v=>{if(v==="cart"||v==="graf"||v==="inf")v="hoy";const k=VM[v];if(k&&STR[k]&&bkOf(k)&&winVis(k))return k;return STR[S.main]&&bkOf(S.main)?S.main:(mSorted()[0]||"sect")};
+const vmGet=v=>{if(v==="cart"||v==="graf"||v==="inf")v="hoy";const k=VM[v];if(k&&STR[k]&&bkOf(k)&&winVis(k))return k;/* v134: por defecto se ve el método de tu cartera real (o el que más gana al año en la prueba), no el primero que entró */const cm=curMets().find(x=>STR[x]&&bkOf(x));if(cm)return cm;const ks=mSorted().slice().sort((a,b)=>(anPrueba(b)??-9)-(anPrueba(a)??-9));return ks[0]||(STR[S.main]&&bkOf(S.main)?S.main:"sect")};
 /* ===== v9 · ranking sencillo en Hoy ===== */
 function hoyRank(){const A=document.getElementById("hoy-rank");if(!A)return;
  /* v102: ordenados por lo que ganan al año en la prueba (después de impuestos); los 5 primeros a la vista y el resto en un recuadro plegable; tu método real, aparte */
@@ -2303,7 +2303,11 @@ const hmNY=t=>new Date(t).toLocaleTimeString("es-ES",{timeZone:"America/New_York
 const dtL=t=>t?new Date(t).toLocaleString("es-ES",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
 const ldate=t=>new Date(t).toLocaleDateString("sv-SE");
 function fdLong(d){try{return new Date(d+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}catch{return d}}
-function mSel(v){const cur=vmGet(v),list=mSorted().map((k,j)=>`<div class="mo${k===cur?" on":""}" data-v="${v}" data-k="${k}"><span>${j+1}. ${esc(STR[k].n)}</span>${gtxt(mGain(k))}</div>`).join("");
+/* v134: el desplegable de métodos se ordena por lo que ganan AL AÑO en la prueba de 26 años (tras impuestos), como el resto de la app;
+   lo ganado en la ficticia (pocos días) se ve debajo, pero no decide el orden */
+function anPrueba(k){if(STR[k]&&STR[k].fwd){const c=(S.labConf||[]).find(x=>x.k===k);return c&&c.nd>=30?Math.pow(1+c.g,365/c.nd)-1:null}const b=S.btm,r=b&&b.rows&&b.rows[k];let a=null;try{a=r?(r.every(x=>x&&x.atax!=null)?annualTaxOf(r,b.cuts):annualOf(r,b.cuts)):null}catch(e){}if(a==null)a=S.labAn&&S.labAn[k];return a==null?null:a}
+function mSel(v){const cur=vmGet(v),ks=mSorted().slice().sort((a,b)=>(anPrueba(b)??-9)-(anPrueba(a)??-9)),an=k=>{const a=anPrueba(k);return a==null?"":`<b class="${a>=0?"up":"dn"}">${P(a*100)}<small>/año</small></b>`},
+ list=ks.map((k,j)=>`<div class="mo${k===cur?" on":""}" data-v="${v}" data-k="${k}"><span>${j+1}. ${esc(STR[k].n)}<small class="m" style="display:block;font-weight:400">en la ficticia: ${E2(mGain(k))} (${P2(mGain(k)/START*100)})</small></span>${an(k)||gtxt(mGain(k))}</div>`).join("");
  return`<details class="msel"><summary><span>Método: <b>${esc(STR[cur].n)}</b></span>${gtxt(mGain(cur))}</summary><div class="mol">${list}</div></details>`}
 document.addEventListener("click",e=>{const t=e.target;if(!t||!t.closest)return;
  const o=t.closest(".mo");if(o&&o.dataset.v==="hist"&&S.btm&&S.btm.rows&&S.btm.rows[o.dataset.k]){VM.hist=o.dataset.k;try{localStorage.setItem("pbvm",JSON.stringify(VM))}catch{}const d=o.closest("details.msel");if(d)d.open=false;try{btmDetail()}catch{}return}
