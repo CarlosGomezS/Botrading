@@ -54,6 +54,12 @@ details.msel{background:var(--panel);color:var(--ink);border:1px solid var(--lin
 details.msel>summary{cursor:pointer;padding:10px 12px;list-style:none;display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:14px;text-transform:none;letter-spacing:0}
 details.msel>summary::-webkit-details-marker{display:none}details.msel>summary::after{content:"▾";color:var(--muted)}
 .mol{max-height:340px;overflow:auto;border-top:1px solid var(--line)}
+/* v132: en el móvil la lista de métodos no tiene scroll propio (la app que envuelve la web se comía el gesto hacia arriba): se desplaza con la página */
+@media (pointer:coarse),(max-width:700px){.mol{max-height:none!important;overflow:visible!important}}
+.mol{overscroll-behavior:contain}
+/* la ganancia de cada método en una sola línea, sin partirse */
+.mo>span{flex:1 1 auto;min-width:0}.mo>b{flex:0 0 auto;white-space:nowrap;text-align:right;font-size:12px}
+details.msel>summary>b{flex:0 0 auto;white-space:nowrap}
 .mo{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--line);color:var(--ink)}.mo.on{background:color-mix(in srgb,var(--acc) 14%,transparent);font-weight:700}
 .hero details.msel .up,.mol .up,details.msel .up{color:var(--go)}.hero details.msel .dn,.mol .dn,details.msel .dn{color:var(--stop)}
 details.rd>summary{display:flex;justify-content:space-between;gap:8px;list-style:none}details.rd>summary::-webkit-details-marker{display:none}details.rd>summary::after{content:"▾";color:var(--muted)}details.rd[open]>summary::after{content:"▴"}
@@ -451,7 +457,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v130</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v132</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
