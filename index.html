@@ -457,7 +457,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v132</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v133</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1669,7 +1669,7 @@ function mixMut(L,g){const pool=["trq","sect","btc",{sc:"m121",n:10},{sc:"h52",n
  else if(r<0.75){const i=Math.floor(Math.random()*n.length);let c=pick(),gd=0;while(n.some(x=>same(x[0],c))&&gd++<10)c=pick();n[i][0]=c}
  else if(n.length<3){let c=pick(),gd=0;while(n.some(x=>same(x[0],c))&&gd++<10)c=pick();n=n.map(([x,w])=>[x,w*0.8]);n.push([c,0.2])}
  else{const i=Math.floor(Math.random()*n.length),w=n[i][1];n.splice(i,1);n=n.map(([x,v])=>[x,v+w/n.length])}
- n=n.filter(x=>x[1]>=0.05);const t=n.reduce((a,x)=>a+x[1],0);return n.map(([c,w])=>[c,Math.round(w/t*20)/20])}
+ n=n.filter(x=>x[1]>=0.05);const t=n.reduce((a,x)=>a+x[1],0),rr=n.map(([c,w])=>[c,Math.round(w/t*20)/20]);if(rr.length){const sm=rr.reduce((a,x)=>a+x[1],0),i=rr.reduce((bi,x,j)=>x[1]>rr[bi][1]?j:bi,0);rr[i][1]=Math.round((rr[i][1]+1-sm)*100)/100}return rr.filter(x=>x[1]>0)}   /* v133: los pesos siempre suman 100 % */
 function mixStep(){try{const L=labS();L.mix=L.mix||{};const today=T0();if(!L.mixT){L.mixT=today;return}if(dayN(today)-dayN(L.mixT)<61)return;L.mixT=today;
  const H=hG(),sr=H.SPY&&H.SPY.r||[],spyAt=d=>{const n=dayN(d);let v=null;for(const x of sr){if(x[0]<=n)v=x[4];else break}return v},sNow=sr.length?sr[sr.length-1][4]:null;
  const F=Object.keys(STR).filter(k=>STR[k].mix).map(k=>{const B=S.books&&S.books[k];if(!B||!B.days||B.days.length<2)return null;const d0=B.days[0].d,e0=START,e1=B.days[B.days.length-1].eq,s0=spyAt(d0);return{k,nd:dayN(today)-dayN(d0),ex:e0>0&&s0&&sNow?(e1/e0-1)-(sNow/s0-1):null}}).filter(x=>x&&x.ex!=null);
@@ -1677,7 +1677,35 @@ function mixStep(){try{const L=labS();L.mix=L.mix||{};const today=T0();if(!L.mix
  const have=new Set(Object.keys(STR).filter(k=>STR[k].mix).map(k=>JSON.stringify(STR[k].mix)));let g=null;for(let i=0;i<30;i++){const c=mixMut(L,STR[best.k].mix);if(c.length&&!have.has(JSON.stringify(c))){g=c;break}}if(!g)return;
  const nk="x_"+labHash(JSON.stringify(g)),wn=STR[worst.k].n;delete STR[worst.k];if(S.books)delete S.books[worst.k];delete L.mix[worst.k];if(MIXBASE[worst.k])L.mixOut=(L.mixOut||[]).concat([worst.k]).slice(-50);
  L.mix[nk]={g,born:today};STR[nk]=mixM(g);L.log.unshift({d:today,k:nk,n:STR[nk].n,ev:"evoluciona",why:`sustituye a «${wn}» (iba ${P(worst.ex*100)} frente al SPY); variación de la mejor mezcla («${STR[best.k].n}», ${P(best.ex*100)})`})}catch(e){}}
-function pruneBooks(){try{livReg();mixReg();mixStep();(L=>{for(const k of (L.livOut||[]))if(LIVBASE[k])delete STR[k]})(labS());livStep();applySimx();labConfUpdate();if(S&&S.books)for(const k of Object.keys(S.books))if(!STR[k])delete S.books[k];if(S&&S.main&&!STR[S.main])S.main="sect";if(S&&S.btm&&S.btm.rows)for(const k of Object.keys(S.btm.rows))if(!MX(k)&&k!=="spy")delete S.btm.rows[k]}catch{}}
+/* ===== v133 · SEMILLERO DIARIO de métodos mixtos y de acciones (prueba en vivo) =====
+   Cada día nacen 2 mezclas nuevas (ETF + acciones + bitcoin + métodos del laboratorio) y 1 método de acciones, como variaciones
+   de los que mejor van frente al SPY (o al azar si aún no hay datos). Como mucho 30 en observación: cuando no caben, sale el que
+   peor va de los que llevan al menos 45 días. Se ordenan por lo que ganan al SPY; con 12 meses ganándole por 2 puntos entran en la ficticia. */
+const NURMAX=30,NURMIN=45;
+function nurStep(){try{const L=labS();L.mix=L.mix||{};L.live=L.live||{};const today=T0();if(L.nurT===today)return;L.nurT=today;
+ const H=hG(),sr=H.SPY&&H.SPY.r||[],spyAt=d=>{const n=dayN(d);let v=null;for(const x of sr){if(x[0]<n)v=x[4];else break}return v},sNow=sr.length?sr[sr.length-1][4]:null;
+ const obs=Object.keys(STR).filter(k=>STR[k].fwd&&(MIXBASE[k]||LIVBASE[k]||L.mix[k]||L.live[k]));
+ const ex=k=>{const B=S.books&&S.books[k];if(!B||!B.days||!B.days.length)return null;const d0=B.days[0].d,s0=spyAt(d0)||spyAt(dayS(dayN(d0)+1));return{k,nd:dayN(today)-dayN(d0),ex:s0&&sNow?(liveEq(k)/START-1)-(sNow/s0-1):null}};
+ const F=obs.map(ex).filter(x=>x&&x.ex!=null),born=[];
+ const drop=k=>{const n=STR[k].n;delete STR[k];if(S.books)delete S.books[k];if(L.mix[k])delete L.mix[k];if(L.live[k])delete L.live[k];if(MIXBASE[k])L.mixOut=(L.mixOut||[]).concat([k]).slice(-50);if(LIVBASE[k])L.livOut=(L.livOut||[]).concat([k]).slice(-50);if(FWDKEEP[k])delete FWDKEEP[k];return n};
+ // 1) hacer sitio: salen los peores con al menos 45 días (nunca uno que esté en la ficticia o en tu cartera real)
+ const keepR=new Set([...(S.promo||[]),...(window.__REALMET||[])]);let n=obs.length;const need=3;
+ const ripe=F.filter(x=>x.nd>=NURMIN&&!keepR.has(x.k)).sort((a,b)=>a.ex-b.ex);
+ while(n+need>NURMAX&&ripe.length){const w=ripe.shift(),nm=drop(w.k);n--;L.log.unshift({d:today,k:w.k,n:nm,ev:"sale",why:`en observación iba ${P(w.ex*100)} frente al SPY tras ${w.nd} días: deja sitio a métodos nuevos`})}
+ let slots=Math.max(0,Math.min(need,NURMAX-n));if(!slots)return;
+ L.nurTried=Array.isArray(L.nurTried)?L.nurTried:[];const tried=new Set(L.nurTried);
+ const best=F.filter(x=>x.nd>=14).sort((a,b)=>b.ex-a.ex);
+ // 2) dos mezclas nuevas
+ const mixes=obs.filter(k=>STR[k].mix).map(k=>STR[k].mix);
+ for(let t=0;t<2&&slots>0;t++){let g=null;for(let z=0;z<40&&!g;z++){const pb=best.find(x=>STR[x.k]&&STR[x.k].mix&&Math.random()<0.6);let c=(pb&&STR[pb.k].mix)||mixes[Math.floor(Math.random()*mixes.length)]||MIXBASE.mxsb;c=mixMut(L,c);if(Math.random()<0.5)c=mixMut(L,c);
+   const k="x_"+labHash(JSON.stringify(c));if(c.length&&!STR[k]&&!tried.has(k))g=[k,c]}
+  if(!g)continue;const [k,c]=g;L.mix[k]={g:c,born:today};STR[k]=mixM(c);L.nurTried.push(k);slots--;born.push(k);L.log.unshift({d:today,k,n:STR[k].n,ev:"nace",why:"semillero de mixtos: se prueba con precios reales desde hoy"})}
+ // 3) un método de acciones nuevo
+ if(slots>0){const pl=best.find(x=>STR[x.k]&&STR[x.k].live&&Math.random()<0.6),bg=(pl&&STR[pl.k].live)||LIVBASE[Object.keys(LIVBASE)[Math.floor(Math.random()*3)]];let g=null;
+  for(let z=0;z<40&&!g;z++){const c={...bg};if(Math.random()<0.5)c.sc=LIVV.sc[Math.floor(Math.random()*LIVV.sc.length)];else c.n=LIVV.n[Math.floor(Math.random()*LIVV.n.length)];const k=livKey(c);if(!STR[k]&&!tried.has(k))g=[k,c]}
+  if(g){const [k,c]=g;L.live[k]={g:c,born:today};STR[k]=livM(c);L.nurTried.push(k);born.push(k);L.log.unshift({d:today,k,n:STR[k].n,ev:"nace",why:"semillero de acciones: se prueba con precios reales desde hoy"})}}
+ L.nurTried=L.nurTried.slice(-2000)}catch(e){}}
+function pruneBooks(){try{livReg();mixReg();mixStep();nurStep();(L=>{for(const k of (L.livOut||[]))if(LIVBASE[k])delete STR[k]})(labS());livStep();applySimx();labConfUpdate();if(S&&S.books)for(const k of Object.keys(S.books))if(!STR[k])delete S.books[k];if(S&&S.main&&!STR[S.main])S.main="sect";if(S&&S.btm&&S.btm.rows)for(const k of Object.keys(S.btm.rows))if(!MX(k)&&k!=="spy")delete S.btm.rows[k]}catch{}}
 
 function bookStep(B,key,date,D,fx,cf,rsP,log){
  const sg=bookStep0(B,key,date,D,fx,cf,rsP,log);
@@ -1876,11 +1904,11 @@ function obsHtml(){try{const C=(S.labConf||[]).filter(c=>c.fwd&&STR[c.k]),ks=Obj
  const tipo=k=>{const M=STR[k];if(M.mix){const t=new Set(M.mix.map(([c])=>c==="btc"?"cripto":typeof c==="object"?"acciones":"ETF"));return["ETF","acciones","cripto"].filter(x=>t.has(x)).join(" + ")}return"acciones"};
  const H=hG(),sr=H.SPY&&H.SPY.r||[],spyAt=d=>{const n=dayN(d);let v=null;for(const x of sr){if(x[0]<=n)v=x[4];else break}return v},spyNow=sr.length?sr[sr.length-1][4]:null;
  const live=k=>{const B=bkOf(k);if(!B||!B.days||!B.days.length)return null;const d0=B.days[0].d,e0=START,sp0=(()=>{const n=dayN(d0);let v=null;for(const x of sr){if(x[0]<n)v=x[4];else break}return v})(),s0=sp0||spyAt(d0);   /* desde el capital inicial y el cierre del SPY del día anterior */return{d0,nd:dayN(T0())-dayN(d0),g:e0>0?liveEq(k)/e0-1:null,gs:s0&&spyNow?spyNow/s0-1:null}};
- const rows=ks.map(k=>{const c=live(k);return{k,c,g:c&&c.g!=null?c.g:null}}).sort((a,b)=>(b.g??-9)-(a.g??-9)).slice(0,10);
+ const rows=ks.map(k=>{const c=live(k);return{k,c,g:c&&c.g!=null?c.g:null,x:c&&c.g!=null&&c.gs!=null?c.g-c.gs:null}}).sort((a,b)=>(b.x??-9)-(a.x??-9));
  return`<details class="rd" data-id="labobs"${opn("labobs",false)}><summary><span>🔭 En observación: acciones, mixtos y cripto (${ks.length})</span></summary><div class="rb">
  <div class="m">Métodos que no se pueden probar con 26 años de historia (con acciones la prueba hace trampa y el bitcoin solo tiene ~10 años), así que se prueban <b>con precios reales</b> desde que empezaron. Aquí solo se miran: no se pueden elegir. Cuando uno lleve <b>12 meses ganando al SPY por 2 puntos o más</b>, entrará solo en la ficticia y en el top.</div>
- <div class="rk">${rows.map((x,i)=>{const c=x.c,nd=c?c.nd:0,left=Math.max(0,Math.ceil((365-nd)/30.4)),d=c&&c.gs!=null&&c.g!=null?c.g-c.gs:null;
-  return`<div class="rk-c" style="cursor:default"><div class="rk-n">${i+1}.</div><div class="rk-t"><b>${esc(STR[x.k].n)}</b><span class="m" style="display:block;font-size:12px;margin-top:2px"><span class="bdg t">${esc(tipo(x.k))}</span> ${c?`desde el ${esc(fd(c.d0))} (${nd} días) · el SPY ${pc(c.gs)} en ese tiempo`:"aún sin datos: empieza con la próxima actualización"}${c?`<br>${left?`⏳ faltan ~${left} ${left===1?"mes":"meses"} para poder entrar`:d!=null&&d>=0.02?"✅ cumple: entra en la ficticia":"⏳ ya lleva 12 meses, pero aún no gana al SPY por 2 puntos"}`:""}</span></div><div class="rk-g ${c?(c.g>=0?"up":"dn"):""}">${c?pc(c.g):"—"}<small>${d!=null?(d>=0?"▲ ":"▼ ")+pc(d).replace(" %","")+" vs SPY":"en vivo"}</small></div></div>`}).join("")}</div></div></details>`}catch(e){return""}}
+ <div class="rk">${(()=>{const R=(x,i)=>{const c=x.c,nd=c?c.nd:0,left=Math.max(0,Math.ceil((365-nd)/30.4)),d=c&&c.gs!=null&&c.g!=null?c.g-c.gs:null;
+  return`<div class="rk-c" style="cursor:default"><div class="rk-n">${i+1}.</div><div class="rk-t"><b>${esc(STR[x.k].n)}</b><span class="m" style="display:block;font-size:12px;margin-top:2px"><span class="bdg t">${esc(tipo(x.k))}</span> ${c?`desde el ${esc(fd(c.d0))} (${nd} días) · el SPY ${pc(c.gs)} en ese tiempo`:"aún sin datos: empieza con la próxima actualización"}${c?`<br>${left?`⏳ faltan ~${left} ${left===1?"mes":"meses"} para poder entrar`:d!=null&&d>=0.02?"✅ cumple: entra en la ficticia":"⏳ ya lleva 12 meses, pero aún no gana al SPY por 2 puntos"}`:""}</span></div><div class="rk-g ${c?(c.g>=0?"up":"dn"):""}">${c?pc(c.g):"—"}<small>${d!=null?(d>=0?"▲ ":"▼ ")+pc(d).replace(" %","")+" vs SPY":"en vivo"}</small></div></div>`};return rows.slice(0,10).map(R).join("")+(rows.length>10?`</div><details class="rd" data-id="labobs2"${opn("labobs2",false)}><summary><span>📋 Los otros ${rows.length-10} en observación</span></summary><div class="rb"><div class="rk">${rows.slice(10).map((x,i)=>R(x,i+10)).join("")}</div></div></details><div class="rk">`:"")})()}</div></div></details>`}catch(e){return""}}
 function btmDraw0(){const b=S.btm,el=$("#bt2");try{btFormInit()}catch{}if(!b){el.innerHTML='<div class="m" style="margin-top:8px">Aún no hay resultados. Pulsa «Ejecutar prueba».</div>';return}
  const nm=k=>k==="spy"?"SPY (comprar y no tocar)":(MX(k)||{n:k}).n,y=d=>String(d||"").slice(0,4),as=b.rows.spy?annualOf(b.rows.spy,b.cuts):null;
  const all=Object.keys(b.rows).filter(k=>k==="spy"||(MX(k)&&t212Of(k)!=="no")).map(k=>{const r=b.rows[k],a=annualOf(r,b.cuts),M=MX(k)||{},dd=r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null,t0=r[0]&&r[0].t0,late=!!(t0&&r[0].from&&dayN(t0)-dayN(r[0].from)>120);

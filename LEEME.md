@@ -9,6 +9,13 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v81 (web v133): semillero diario de mixtos y de acciones
+
+- Cada día nacen **2 mezclas nuevas** (ETF, acciones, bitcoin y métodos del laboratorio) y **1 método de acciones**, como variaciones de los que mejor van frente al SPY (o al azar si aún no hay datos). Se prueban con precios reales desde ese día.
+- Como mucho 30 en observación: cuando no caben, sale el que peor va frente al SPY de los que llevan al menos 45 días (nunca uno que esté en la ficticia o en tu cartera real).
+- La lista «En observación» se ordena por lo que ganan **al SPY** (cada uno desde su día de inicio): 10 a la vista y el resto plegado. Con 12 meses ganándole por 2 puntos, entran solos en la ficticia.
+- Las mezclas siempre suman 100 %.
+
 ## Novedades v80: el dinero de la cartera real no se queda parado
 
 - Las compras se calculan con un margen de precio (1-3 %) para que Trading 212 no las rechace, y a veces se quedaban cortas. Ahora, si faltan al menos 5 €, se compra el resto **en la misma revisión** con el precio real de la compra que se acaba de hacer.
