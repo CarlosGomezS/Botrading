@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v75 (web v125): ajustes de la cartera real siempre con sus valores
+
+- Al abrir «Ajustes de la cartera real», cada casilla toma el valor bueno más reciente: si el guardado llega vacío o roto, se usa el que está usando el bot de verdad. Un valor vacío nunca pisa uno bueno.
+- El importe del bot nunca se rellena con el valor por defecto (100 €), para no reducir la cartera sin querer.
+
 ## Novedades v74 (web v124): guardar ajustes sin errores falsos
 
 - Si una casilla de importe llega vacía al guardar (pasa en algunos móviles), se conserva el valor ya guardado en vez de dar «debe estar entre…». Acepta coma decimal y, si hay un error de verdad, dice qué valor se ha puesto.
