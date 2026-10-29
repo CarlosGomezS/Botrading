@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v79 (web v130): el autorrelleno del móvil no puede tocar ningún ajuste
+
+- En los ajustes de la cartera real, una casilla de texto o importe solo cambia si la escribes o la pegas tú: lo que meta el gestor de contraseñas del móvil se deshace al momento y, al guardar, vale lo que ya estaba guardado.
+- Un campo «usuario» invisible recoge el autorrelleno del nombre de usuario junto a tu clave de ⚙️ Ajustes.
+
 ## Novedades v78 (web v129): nombres en los avisos y ajustes a prueba de autorrelleno
 
 - Los avisos de la cartera real dicen el nombre del método y no su clave interna (p. ej. «g_1f6605j»).
