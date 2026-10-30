@@ -524,7 +524,7 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
   }
   const sells = orders.reduce((t, o) => t + o.eur, 0);
   let freeCash = Math.min(cash + sells - presupuesto * (A.reserva / 100), accCash + sells);
-  const buys = [], thrB = Math.max(A.minOrden, 0.02 * invest);   // v131: para COMPRAR basta con que falte un 2 % (el dinero no se queda parado); las ventas siguen con el umbral normal
+  const buys = [], thrB = A.minOrden;   // v138: para COMPRAR basta con que falte la orden mínima: el efectivo que sobra de la reserva no se queda parado (las ventas siguen con el umbral normal)
   for (const [t, goal] of Object.entries(tv)) {
     if (pend.has(t)) continue;
     const x = mine.find((y) => y.t === t), cur = x ? x.bv : 0, diff = goal - cur;
@@ -536,6 +536,9 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
     if (amt < A.minOrden) { if (!yaAplicada || !mine.some((x) => x.t === b.t)) notas.push(`${b.t}: faltan ${eur(b.eur)} pero al bot solo le quedan ${eur(Math.max(0, freeCash))} libres (mínimo por orden ${eur(A.minOrden)}).`); continue; }
     orders.push({ ...b, eur: r2(amt) }); freeCash -= amt;
   }
+  // v138: explica siempre por qué queda efectivo sin invertir
+  { const res = presupuesto * (A.reserva / 100), libre = Math.max(0, freeCash);
+    if (Object.keys(tv).length) notas.push(`Efectivo del bot que se queda sin invertir tras esta revisión: unos ${eur(res + libre)} = reserva del ${A.reserva} % (${eur(res)}, por si el precio sube entre el cálculo y la orden)${libre >= 0.5 ? ` + ${eur(libre)} que ${libre < A.minOrden ? `no llegan a la orden mínima (${eur(A.minOrden)})` : "no hacen falta para la cartera objetivo"}` : ""}. Además, cada compra se calcula con un margen de precio del 1-3 %, que se completa en la misma revisión si faltan 5 € o más.`); }
   let cut = 0;
   while (orders.length > A.maxOrdenes) { orders.pop(); cut++; }
   if (cut) notas.push(`Se han dejado ${cut} órdenes para la próxima revisión (máximo ${A.maxOrdenes} por vez).`);

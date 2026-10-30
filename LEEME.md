@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v84: menos efectivo parado en la cartera real
+
+- Para comprar basta con que a una posición le falte la orden mínima (5 €): el efectivo que sobra por encima de la reserva se invierte en la siguiente revisión.
+- Cada informe de la cartera real explica el efectivo que queda sin invertir (reserva + lo que no llega a la orden mínima).
+
 ## Novedades v83: guardián de 24 horas
 
 - El 30-oct GitHub no lanzó **ningún** horario por la mañana, y las cadenas (que se paraban por la noche) no arrancaron. Ahora la cadena del valor en directo es un **guardián que no se para nunca**: fuera del horario de bolsa no lee la cuenta, pero sigue vigilando cada ~10-20 minutos.
