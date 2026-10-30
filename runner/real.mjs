@@ -140,7 +140,7 @@ async function publishReal(R) {
   const pw = env("REAL_VIEW_PASS");
   if (!pw) throw new Error("sin REAL_VIEW_PASS no se publica nada (privacidad)");
   // v102: meta.metodos = solo las claves de los métodos que usa (sin importes): así la ficticia nunca quita el método de tu cartera real
-  const out = JSON.stringify({ enc: 1, v: 1, savedAt: R.savedAt, meta: { secrets: secretsMeta(), metodos: [...new Set([R.cfg && R.cfg.metodo, ...((R.cfg && Array.isArray(R.cfg.extra)) ? R.cfg.extra : []), R.metOv && R.metOv.k, R.metSug && R.metSug.estado === "pendiente" && R.metSug.k].filter((x) => typeof x === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(x)))] }, ...(await encrypt(plain, pw)) });
+  const out = JSON.stringify({ enc: 1, v: 1, savedAt: R.savedAt, meta: { secrets: secretsMeta(), revD: typeof R.lastNormal === "string" && /^\d{4}-\d\d-\d\d$/.test(R.lastNormal) ? R.lastNormal : null, metodos: [...new Set([R.cfg && R.cfg.metodo, ...((R.cfg && Array.isArray(R.cfg.extra)) ? R.cfg.extra : []), R.metOv && R.metOv.k, R.metSug && R.metSug.estado === "pendiente" && R.metSug.k].filter((x) => typeof x === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(x)))] }, ...(await encrypt(plain, pw)) });
   const local = path.join(process.cwd(), "real.json");
   writeFileSync(local, out);
   if (!REPO || !TOKEN) { log("Ejecución local: guardado en", local); return; }

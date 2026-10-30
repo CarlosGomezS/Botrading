@@ -99,6 +99,9 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
         run: |
           if [ "${{ steps.hueco.outputs.go }}" != "true" ]; then echo "Fuera de horario: la cadena sigue mañana."; exit 0; fi
           R="repos/${{ github.repository }}/actions/workflows/laboratorio.yml"
@@ -109,4 +112,12 @@ jobs:
           if [ "$H" -lt 3 ] || [ "$H" -gt 18 ]; then echo "Se acaba el horario de hoy: la cadena sigue mañana."; exit 0; fi
           # se lanza YA (queda en cola hasta que esta termine) y luego se espera: aunque esta espera fallara, la siguiente ronda ya está pedida
           timeout 60 gh api -X POST "$R/dispatches" -f ref=main && echo "Siguiente ronda pedida."
-          if [ "${{ steps.libre.outputs.go }}" = "true" ]; then sleep 1500; else sleep 600; fi
+          # v137: mientras espera, hace de VIGILANTE (lanza lo que GitHub se haya saltado) y lee los botones de Telegram cada ~2,5 min
+          if [ "${{ steps.libre.outputs.go }}" = "true" ]; then T=1500; else T=600; fi
+          end=$(( $(date +%s) + T ))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            timeout 90 bash runner/vigia.sh || true
+            tg=$(timeout 30 gh api "repos/${{ github.repository }}/actions/workflows/telegram.yml/runs?status=in_progress&per_page=1" -q .total_count 2>/dev/null || echo 0)
+            if [ "${tg:-0}" -eq 0 ]; then timeout 120 node runner/telegram.mjs || true; fi
+            left=$(( end - $(date +%s) )); [ "$left" -gt 0 ] && sleep $(( left < 150 ? left : 150 ))
+          done

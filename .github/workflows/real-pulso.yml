@@ -45,16 +45,30 @@ jobs:
     needs: pulso
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: runner
       - name: Siguiente lectura (en cadena)
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
         run: |
+          # v137: vigilante (revisión diaria de la cartera real y actualización de la noche, si GitHub se las saltó)
+          timeout 90 bash runner/vigia.sh || true
           D=$(date -u +%u); M=$((10#$(date -u +%H) * 60 + 10#$(date -u +%M)))
           # de lunes a viernes, de 07:00 a 16:40 UTC (bolsas europeas abiertas)
           if [ "$D" -gt 5 ] || [ "$M" -lt 420 ] || [ "$M" -gt 1000 ]; then echo "Bolsa cerrada: la cadena sigue el próximo día de bolsa."; exit 0; fi
           R="repos/${{ github.repository }}/actions/workflows/real-pulso.yml"
           timeout 60 gh api -X POST "$R/dispatches" -f ref=main && echo "Siguiente lectura pedida."
-          sleep 840
+          # mientras espera, lee los botones de Telegram cada ~2,5 min (si el flujo de Telegram no está ya en marcha)
+          end=$(( $(date +%s) + 840 ))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            tg=$(timeout 30 gh api "repos/${{ github.repository }}/actions/workflows/telegram.yml/runs?status=in_progress&per_page=1" -q .total_count 2>/dev/null || echo 0)
+            if [ "${tg:-0}" -eq 0 ]; then timeout 120 node runner/telegram.mjs || true; fi
+            left=$(( end - $(date +%s) )); [ "$left" -gt 0 ] && sleep $(( left < 150 ? left : 150 ))
+          done

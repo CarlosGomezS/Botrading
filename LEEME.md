@@ -9,6 +9,14 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v82: vigilante contra los horarios que se salta GitHub
+
+- GitHub no garantiza los horarios programados. Ahora las dos cadenas que se relanzan solas (laboratorio, 05-20 h, y valor en directo, con la bolsa abierta) hacen de **vigilante** en cada vuelta:
+  - si a partir de las 9:10 la **revisión diaria de la cartera real** aún no está hecha, la lanzan;
+  - si por la mañana no hay ninguna **actualización de precios** completada desde la tarde anterior, la lanzan.
+- Mientras esperan, leen los **botones de Telegram** cada ~2,5 minutos (antes el flujo de Telegram a veces tardaba horas en ejecutarse).
+- `real.json` guarda en claro solo la fecha de la última revisión diaria (`meta.revD`), sin importes.
+
 ## Novedades v81 (web v133): semillero diario de mixtos y de acciones
 
 - Cada día nacen **2 mezclas nuevas** (ETF, acciones, bitcoin y métodos del laboratorio) y **1 método de acciones**, como variaciones de los que mejor van frente al SPY (o al azar si aún no hay datos). Se prueban con precios reales desde ese día.
