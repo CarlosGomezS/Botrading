@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v83: guardián de 24 horas
+
+- El 30-oct GitHub no lanzó **ningún** horario por la mañana, y las cadenas (que se paraban por la noche) no arrancaron. Ahora la cadena del valor en directo es un **guardián que no se para nunca**: fuera del horario de bolsa no lee la cuenta, pero sigue vigilando cada ~10-20 minutos.
+- El vigilante, además de la revisión de la cartera real y la actualización de precios, **relanza la cadena del laboratorio** si lleva más de 70 min parada, y el laboratorio **relanza al guardián** si lleva más de 40 min parado: se vigilan el uno al otro.
+
 ## Novedades v82: vigilante contra los horarios que se salta GitHub
 
 - GitHub no garantiza los horarios programados. Ahora las dos cadenas que se relanzan solas (laboratorio, 05-20 h, y valor en directo, con la bolsa abierta) hacen de **vigilante** en cada vuelta:

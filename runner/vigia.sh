@@ -25,4 +25,16 @@ if [ "$dow" -ge 2 ] && [ "$dow" -le 6 ] && [ "$madrid_min" -ge 360 ] && [ "$madr
     if busy diario.yml; then echo "La actualización ya está en marcha."; else gh api -X POST "$R/actions/workflows/diario.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ GitHub se saltó la actualización de anoche: lanzada ahora."; fi
   fi
 fi
+# 3) cadena del laboratorio (03-19 UTC): si no hay ninguna ronda en marcha ni en los últimos 70 min, se relanza
+H=$((10#$(date -u +%H)))
+if [ "$H" -ge 3 ] && [ "$H" -le 18 ]; then
+  t=$(gh api "$R/actions/workflows/laboratorio.yml/runs?per_page=1" -q '.workflow_runs[0].created_at // "1970-01-01T00:00:00Z"' 2>/dev/null || echo "")
+  if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "Laboratorio · última ronda hace $age min"
+    if [ "$age" -ge 70 ] && ! busy laboratorio.yml; then gh api -X POST "$R/actions/workflows/laboratorio.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ La cadena del laboratorio estaba parada: relanzada."; fi; fi
+fi
+
+# 4) guardián de 24 horas (valor en directo): si no hay ninguna vuelta en marcha ni en los últimos 40 min, se relanza
+t=$(gh api "$R/actions/workflows/real-pulso.yml/runs?per_page=1" -q '.workflow_runs[0].created_at // "1970-01-01T00:00:00Z"' 2>/dev/null || echo "")
+if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "Guardián · última vuelta hace $age min"
+  if [ "$age" -ge 40 ] && ! busy real-pulso.yml; then gh api -X POST "$R/actions/workflows/real-pulso.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ El guardián estaba parado: relanzado."; fi; fi
 exit 0
