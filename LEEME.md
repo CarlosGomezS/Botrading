@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v88 (web v143): ningún método se borra nunca
+
+- **📦 Archivo**: cuando un método sale de la liga (porque hay 20 mejores o porque con los datos nuevos deja de aprobar), se guarda. Cada ronda se vuelven a examinar 15 del archivo (los que hace más tiempo que no se revisan) y, si vuelven a ser de los mejores, **vuelven solos a la liga**.
+- Mixtos en observación: caben 60 (antes 30) y no se sustituye a ninguno hasta que lleva 90 días; los que salen también se guardan.
+
 ## Novedades v87 (web v142): régimen del mercado y experimento de noticias
 
 - **Régimen del mercado** (lo que miran los gestores profesionales antes de arriesgar), como pieza nueva del laboratorio, con datos verificables y 26 años de historia:
