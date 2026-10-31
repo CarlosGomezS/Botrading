@@ -458,7 +458,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v147</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v148</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3471,10 +3471,10 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
  function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
  function clean(t){return String(t||"").replace(/\(.*?\)/g,"").replace(/[0-9.,%€+−-]+/g,"").replace(/\s+/g," ").trim().slice(0,60)}
  function head(p){var c=p.children;for(var i=0;i<c.length;i++){var e=c[i];if(e.classList.contains("czb"))continue;if(e.tagName==="H2"||e.classList.contains("chtop")||e.classList.contains("hero-top"))return e;break}return null}
- function label(p){var h=head(p);if(h){var t=h.querySelector("h2")||h;return clean(t.textContent)}if(p.classList.contains("rl-act"))return"🔄 Revisar y actualizar";if(p.id==="rl-lockp")return"🔐 Bloqueo";var b=p.querySelector("b,h3");return clean(b?b.textContent:p.textContent)||"Recuadro"}
- function keyOf(p){var tab=p.closest(".tab");return(tab?tab.id:"x")+"|"+label(p)}
+ function label(p){var h=head(p);if(h){var t=h.querySelector("h2")||h;return clean(t.textContent)}if(p.classList.contains("rl-act"))return"🔄 Revisar y actualizar";if(p.id==="rl-lockp")return"🔐 Bloqueo";var b=p.querySelector("b,h3");var tx=b?(b.childNodes[0]&&b.childNodes[0].nodeType===3?b.childNodes[0].textContent:b.textContent):p.textContent;return clean(String(tx).split(/Cargando|\n/)[0])||"Recuadro"}
+ function keyOf(p){if(p.dataset.czk)return p.dataset.czk;var tab=p.closest(".tab");return(tab?tab.id:"x")+"|"+label(p)}   /* v148: clave fija */
  function apply(p){var k=keyOf(p);p.classList.toggle("cz",!!st[k]);var b=p.querySelector(":scope>.czb");if(b){b.textContent=st[k]?"+":"–";b.setAttribute("aria-label",st[k]?"Mostrar":"Minimizar");b.setAttribute("aria-expanded",st[k]?"false":"true")}}
- function prep(p){if(p.dataset.cz)return apply(p);p.dataset.cz="1";var h=head(p);if(h)h.classList.add("czh");else{var l=document.createElement("div");l.className="czh czlab";l.textContent=label(p);p.insertBefore(l,p.firstChild)}
+ function prep(p){if(p.dataset.cz)return apply(p);p.dataset.cz="1";p.dataset.czk=keyOf(p);var h=head(p);if(h)h.classList.add("czh");else{var l=document.createElement("div");l.className="czh czlab";l.textContent=label(p);p.insertBefore(l,p.firstChild)}
   var b=document.createElement("button");b.type="button";b.className="czb";b.setAttribute("data-nobusy","");b.onclick=function(e){e.preventDefault();e.stopPropagation();var k=keyOf(p);if(st[k])delete st[k];else st[k]=1;save();apply(p)};p.insertBefore(b,p.firstChild);apply(p)}
  function scan(){document.querySelectorAll(".tab .p").forEach(function(p){if(p.closest("[hidden]"))return;prep(p)})}
  var t=null;new MutationObserver(function(){clearTimeout(t);t=setTimeout(scan,60)}).observe(document.body,{childList:true,subtree:true});
