@@ -9,6 +9,15 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v87 (web v142): régimen del mercado y experimento de noticias
+
+- **Régimen del mercado** (lo que miran los gestores profesionales antes de arriesgar), como pieza nueva del laboratorio, con datos verificables y 26 años de historia:
+  amplitud (menos de la mitad de los sectores en tendencia), tipos de interés subiendo (IEF bajo su media de 200 sesiones), estrés de crédito (LQD peor que IEF)
+  y huida a la seguridad (los bonos ganan a la bolsa en 6 meses). Con régimen malo, el método saca todo o la mitad al refugio. El laboratorio aprende qué indicador sirve.
+  Los métodos que ya existían no cambian.
+- **📰 Experimento de noticias** (en observación, sin poder elegirse): cada día se guarda el sentimiento de las noticias de mercado (Polygon; Alpha Vantage de respaldo)
+  y un método semanal compara el ánimo de 7 días con el de 60: mejora → Nasdaq 100; empeora → oro y bonos; si no → S&P 500. Solo se juzga con precios reales.
+
 ## Novedades v86 (web v141): inventar siempre y buscador por #id
 
 - **El 40 % de cada ronda del laboratorio son métodos inventados de cero** (piezas al azar de cualquier grupo de ETF y cualquier estilo), eligiendo entre muchos candidatos los más distintos a todo lo ya probado. El resto: mejoras de los buenos, otras familias (🌈), lo que elige el modelo (🧠) y azar (🎲). En el Laboratorio se ve cuántos se inventaron de cero en la última ronda.
