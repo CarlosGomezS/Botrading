@@ -437,7 +437,7 @@ export function sugerencia(S, cur, map, excl) {
 // cambia «de» por «a» (si «de» es uno de los métodos extra, se sustituye ese; si no, el principal)
 export function aplicaCambio(A, de, a) { if (de && Array.isArray(A.extra) && A.extra.includes(de)) A.extra = A.extra.map((x) => (x === de ? a : x)).filter((x) => x !== A.metodo); else { A.metodo = a; if (Array.isArray(A.extra)) A.extra = A.extra.filter((x) => x !== a); } }
 export function metodosDe(A, S) { return [...new Set([A.metodo || (S && S.main) || "sect", ...(Array.isArray(A.extra) ? A.extra : [])].filter((k) => typeof k === "string" && k))].slice(0, 3); }
-export function nombreDe(S, k) { return NOMBRES[k] || (S && S.names && S.names[k]) || (((S && S.labConf) || []).find((x) => x.k === k) || {}).n || k; }
+export function nombreDe(S, k) { const n = NOMBRES[k] || (S && S.names && S.names[k]) || (((S && S.labConf) || []).find((x) => x.k === k) || {}).n || ""; return n ? `${n} (#${k})` : "#" + k; }   // v139: siempre con su identificador único
 // cartera objetivo: la del método o, si hay varios, la media de sus carteras (cada uno pone 1/n del dinero en lo suyo)
 // v122: genes del método en el laboratorio (si es suyo) y si tiene refugio
 export function conRefugio(S, k) {

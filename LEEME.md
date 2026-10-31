@@ -9,6 +9,16 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v85 (web v139): estilos nuevos en el laboratorio, identificador de cada método y ajustes blindados
+
+- **Laboratorio con 5 estilos de método** (antes, solo momentum): además del momentum clásico, ahora inventa y prueba
+  🧘 los más tranquilos (baja volatilidad), 🔁 compra en caídas dentro de una tendencia (reversión, Connors), ⚡ aceleración del momentum
+  y ⚖️ paridad de riesgo entre los que están en tendencia. El estilo es una pieza más que aprende (y cuenta como familia distinta para la variedad).
+  Los métodos que ya existían no cambian: comprobado que dan exactamente las mismas carteras.
+- **Identificador único** (#clave) junto al nombre de cada método en la ficticia, el laboratorio, la cartera real y los avisos de Telegram.
+- El botón «💶 Usar en mi cartera real» no aparece en el método que ya usas (sale «Ya está en tu cartera real»).
+- Las sustituciones manuales y las claves de la cartera real están **bloqueadas** hasta que pulses «✏️ Editar»/«✏️ Cambiar»: el gestor de contraseñas del móvil ya no puede rellenarlas.
+
 ## Novedades v84: menos efectivo parado en la cartera real
 
 - Para comprar basta con que a una posición le falte la orden mínima (5 €): el efectivo que sobra por encima de la reserva se invierte en la siguiente revisión.
