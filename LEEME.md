@@ -9,6 +9,10 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v90 (web v147): la ficticia en euros de tu cartera real
+
+- Cada método de la ficticia simula 500 €, pero sus euros se muestran **escalados al dinero de tu bot real** (lo aportado más lo que hayas ingresado y aún no se haya sumado). Los % no cambian. El cálculo se hace solo en tu navegador: ningún importe se publica.
+
 ## Novedades v89 (web v145): copiar y buscar por #id
 
 - Tocar un **#id** lo copia al portapapeles (sin elegir ni abrir nada).
