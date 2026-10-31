@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v86 (web v141): inventar siempre y buscador por #id
+
+- **El 40 % de cada ronda del laboratorio son métodos inventados de cero** (piezas al azar de cualquier grupo de ETF y cualquier estilo), eligiendo entre muchos candidatos los más distintos a todo lo ya probado. El resto: mejoras de los buenos, otras familias (🌈), lo que elige el modelo (🧠) y azar (🎲). En el Laboratorio se ve cuántos se inventaron de cero en la última ronda.
+- **Buscador en 💶 Real → «Elige el método»**: escribe el #id (o parte del nombre) y sale el método con sus botones para elegirlo o añadirlo al reparto.
+
 ## Novedades v85 (web v139): estilos nuevos en el laboratorio, identificador de cada método y ajustes blindados
 
 - **Laboratorio con 5 estilos de método** (antes, solo momentum): además del momentum clásico, ahora inventa y prueba
