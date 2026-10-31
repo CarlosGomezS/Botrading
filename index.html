@@ -266,7 +266,7 @@ details.msel[open]{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 .rk-t b{display:block;font-size:16px}.rk-t small{display:block;font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4}
 .rk-g{font-size:20px;font-weight:800;text-align:right;white-space:nowrap}.rk-g small{display:block;font-size:12px;font-weight:600;margin-top:2px}
 details[data-fam]>.rb{padding:0 6px 8px}details[data-fam] .rk-c:first-child{border-color:var(--line);background:color-mix(in srgb,var(--line) 12%,transparent)}details[data-fam] .rk-c{grid-template-columns:auto minmax(0,1fr);gap:8px;padding:10px}details[data-fam] .rk-g{grid-column:2;text-align:left;font-size:18px;white-space:normal}details[data-fam] .rk-g small{display:inline;margin-left:8px}details[data-fam] .rk-n{min-width:24px;font-size:20px}
-.mid{display:inline-block;font:600 11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);background:color-mix(in srgb,var(--line) 45%,transparent);padding:0 6px;border-radius:6px;margin-left:6px;white-space:nowrap;vertical-align:middle;letter-spacing:0}
+.mid{cursor:pointer;-webkit-user-select:all;user-select:all;display:inline-block;font:600 11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);background:color-mix(in srgb,var(--line) 45%,transparent);padding:0 6px;border-radius:6px;margin-left:6px;white-space:nowrap;vertical-align:middle;letter-spacing:0}
 .rk-g.up{color:var(--go)}.rk-g.dn{color:var(--stop)}
 
 /* ===== v46 · Hoy simplificado: gráfica pequeña con opción de agrandar ===== */
@@ -458,7 +458,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v143</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v144</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1301,7 +1301,7 @@ function rotV(D,o){const U=o.U||SECU,LB=o.lb||[63,126,252],sk=o.skip||0,top=o.to
  return{w,why,bull:ok.length>0,out:`deja de estar entre los ${top} mejores${o.nofilt?"":" o cae bajo su media de 10 meses"}`}}
 const SECU11=SECU.concat(["XLRE"]);
 /* v139 · IDENTIFICADOR ÚNICO de cada método (su clave interna), visible en todas las pantallas: dos nombres pueden parecerse, el # no */
-const midB=k=>k?`<span class="mid" title="Identificador único del método">#${String(k).replace(/[<>&"]/g,"")}</span>`:"";
+const midB=k=>{if(!k)return"";const v=String(k).replace(/[<>&"']/g,"");return`<span class="mid" role="button" tabindex="0" data-copy="${v}" title="Toca para copiar el identificador">#${v} ⧉</span>`};   /* v144: se copia al tocarlo */
 const BX=(n,per,N,target,src,d,th,rev)=>({n,v:"1.0",tg:true,bt:true,N,per,th,target,cat:"Solo prueba histórica",rev:rev||"Revisión mensual (primer día de mercado del mes)",src,d});
 const FAB="Faber (2010), «Relative Strength Strategies for Investing» (SSRN)";
 const BTX={
@@ -3436,7 +3436,11 @@ setInterval(()=>{const t=$r("#t-real");if(t&&t.classList.contains("on")&&!docume
 let rz=null;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{const t=$r("#t-real");if(t&&t.classList.contains("on")&&RL.R){const ch=$r("#rl-ch");if(ch){ch.innerHTML=chartHtml();chartBind()}}},250)});
 })();
 </script>
-<script>document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&e.target.closest(".cpy[data-copy]");if(!b)return;e.preventDefault();e.stopPropagation();const v=b.dataset.copy,old=b.textContent;
+<script>/* v144: tocar un #id lo copia (sin elegir el método ni abrir nada) */
+document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&e.target.closest(".mid[data-copy]");if(!b)return;e.preventDefault();e.stopPropagation();const v=b.dataset.copy;let ok=false;
+ try{await navigator.clipboard.writeText(v);ok=true}catch(_){try{const t=document.createElement("textarea");t.value=v;t.style.position="fixed";t.style.opacity="0";document.body.appendChild(t);t.select();ok=document.execCommand("copy");t.remove()}catch(__){}}
+ const old=b.innerHTML;b.textContent=ok?"✔ copiado":"mantén pulsado para copiar";setTimeout(()=>{b.innerHTML=old},1500)},true);
+document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&e.target.closest(".cpy[data-copy]");if(!b)return;e.preventDefault();e.stopPropagation();const v=b.dataset.copy,old=b.textContent;
  try{await navigator.clipboard.writeText(v)}catch(_){try{const t=document.createElement("textarea");t.value=v;document.body.appendChild(t);t.select();document.execCommand("copy");t.remove()}catch(__){}}
  b.textContent="✔ Copiado: "+v;b.classList.add("ok");setTimeout(()=>{b.textContent=old;b.classList.remove("ok")},1800)},true);</script><script id="simple-mode">
 (function(){var b=document.getElementById("simpleB");function lab(){var on=document.body.classList.contains("simple");b.textContent=on?"👓 Ver todo":"✨ Modo sencillo";b.setAttribute("aria-pressed",on?"true":"false")}
