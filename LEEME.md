@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v89 (web v145): copiar y buscar por #id
+
+- Tocar un **#id** lo copia al portapapeles (sin elegir ni abrir nada).
+- **Buscador** (por #id o por nombre) en todos los desplegables y listas de métodos: ficticia, top 20 del laboratorio, observación y los desplegables de método de la cartera real.
+
 ## Novedades v88 (web v143): ningún método se borra nunca
 
 - **📦 Archivo**: cuando un método sale de la liga (porque hay 20 mejores o porque con los datos nuevos deja de aprobar), se guarda. Cada ronda se vuelven a examinar 15 del archivo (los que hace más tiempo que no se revisan) y, si vuelven a ser de los mejores, **vuelven solos a la liga**.
