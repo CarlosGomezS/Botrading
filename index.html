@@ -458,7 +458,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v149</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v150</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -761,7 +761,7 @@ function isTransient(e){if(!e||e.sym)return false;const c=+e.st;if(c==400||c==40
 async function waitSay(ms,say){const end=Date.now()+ms;let off0=0;while(Date.now()<end){if(navigator.onLine===false){if(!off0)off0=Date.now();if(Date.now()-off0>600000)return;if(say)say("Sin conexión a internet: espero a que vuelva y sigo solo…");await sleep(2000);continue}off0=0;if(say)say(Math.ceil((end-Date.now())/1000));await sleep(Math.max(50,Math.min(1000,end-Date.now())))}}
 async function retrying(fn,opt={}){const n=opt.tries||6,cool=opt.cool||20000;for(let a=0;;a++){try{return await fn(a)}catch(e){if(!e||!isTransient(e)||isDaily(e)||a>=n-1){if(e&&typeof e==="object")e.intentos=a+1;throw e}RETRIES.n++;const ra=(+e.retryAfter||0)*1000,base=e.st==429?cool:Math.min(30000,3000*Math.pow(1.8,a)),w=Math.min(180000,Math.max(ra,base))+Math.random()*1200,why=e.st?"HTTP "+e.st:"fallo de red";await waitSay(w,l=>{if(opt.say)opt.say(typeof l==="number"?"fallo temporal ("+why+"), reintento "+(a+2)+" de "+n+" en "+l+" s. Sigo solo, no hace falta que hagas nada.":l)})}}}
 function autoSchedule(ms,why){clearTimeout(AUTO.t);AUTO.go=false;const at=new Date(Date.now()+ms);AUTO.t=setTimeout(()=>{AUTO.go=true;run()},ms);try{$("#st").textContent+=" · Reintento automático a las "+at.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+" ("+why+"). Continúa por donde se quedó; no hace falta que hagas nada."}catch{}}
-const CFG={slots:3,slip:0.0015,fee:0.15,mrisk:0.005,dloss:0.01,minpos:25,ddstop:0.06,sweep:0.5};
+const CFG={slots:3,slip:0.0015,fee:0.15,mrisk:0.005,dloss:0.01,minpos:25,ddstop:0.06,sweep:0};   /* v150: sin hucha: como la cartera real, se reinvierte todo */
 function parseX(p){try{if(typeof p==="string")p=JSON.parse(p);const k=Object.keys(p).find(k=>/Time Series/i.test(k));if(!k)return[];return Object.entries(p[k]).map(([d,r])=>({d,o:+r["1. open"],h:+r["2. high"],l:+r["3. low"],c:+r["4. close"],v:+r["5. volume"]})).filter(x=>x.c>0).sort((a,b)=>a.d<b.d?-1:1)}catch{return[]}}
 const smaA=(c,n)=>{let s=0;return c.map((x,i)=>{s+=x;if(i>=n)s-=c[i-n];return i<n-1?null:s/n})};
 const sdA=(c,n)=>{let s=0,q=0;return c.map((x,i)=>{s+=x;q+=x*x;if(i>=n){s-=c[i-n];q-=c[i-n]**2}if(i<n-1)return null;const m=s/n;return Math.sqrt(Math.max(0,q/n-m*m))})};
@@ -2717,7 +2717,8 @@ G0.__SEAL={blake2b,seal,from_string:s=>new TextEncoder().encode(s),from_base64:t
  function stSet(t){var e=document.getElementById("cs_st");if(e)e.textContent=t}
  function setBusy(b){BUSY=b;["cs_apply","cs_reset","cs_bk","cs_lock"].forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=b})}
  function fields(){try{return FIELDS}catch(e){return[]}}
- function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{v=CFG[k]}catch(e){}}return v==null?"":+(v*m).toFixed(4)}
+ var OBS=["slots","mrisk","dloss","ddstop","sweep"];
+function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{v=CFG[k]}catch(e){}}return v==null?"":+(v*m).toFixed(4)}
  function esc2(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 
  var SECRETS=[["ALPACA_KEY","Alpaca (formato ID:SECRETO) · recomendada"],["TWELVEDATA_KEY","Twelve Data"],["POLYGON_KEY","Polygon"],["ALPHAVANTAGE_KEY","Alpha Vantage"],["FMP_KEY","Financial Modeling Prep"],["SMTP_USER","Correo: usuario SMTP (tu Gmail)"],["SMTP_PASS","Correo: contraseña de aplicación"],["EMAIL","Correo: dónde recibir los avisos"],["NTFY_TOPIC","Móvil: tema de ntfy"],["WEB3FORMS_KEY","Correo: clave Web3Forms (respaldo)"],["SMTP_HOST","Correo: servidor SMTP (opcional; por defecto smtp.gmail.com)"],["SMTP_PORT","Correo: puerto SMTP (opcional; por defecto 465)"]];
@@ -2733,17 +2734,17 @@ G0.__SEAL={blake2b,seal,from_string:s=>new TextEncoder().encode(s),from_base64:t
   h+='<div class="m">🔓 Estás editando. Cambia lo que quieras y pulsa <b>«Guardar edición»</b> (abajo del todo): se guarda en la nube y el bot lo usa desde su siguiente ejecución. Lo que dejes en blanco en las claves no se toca.</div>';
   h+=h3("Conexión de datos (claves de precios)")+'<div class="kv">'+SECRETS.slice(0,5).map(secField).join("")+'<div>Tiempo máximo por actualización (min, 2 a 60)<input id="cs_mins" type="number" step="1" min="2" max="60" value="'+(CL.mins!=null?CL.mins:8)+'" style="width:100%"></div></div>';
   h+=h3("Avisos")+'<div class="m">📲 <b>Todos los avisos van a tu Telegram</b> (sus claves están en 💶 Real → Ajustes de la cartera real → Claves). El móvil (ntfy) y el correo solo se usan <b>de respaldo</b>, si Telegram falla.</div><details class="rd"><summary><span>Respaldo: móvil (ntfy) y correo</span></summary><div class="rb"><div class="kv">'+SECRETS.slice(5).map(secField).join("")+
-   yn("cs_nt","Notificaciones de la app (casilla «Avisarme…»)",EX.nt,1)+
    yn("cs_avm","Avisos al móvil (ntfy) de la actualización y la prueba histórica",AV.movil,1)+
    yn("cs_avc","Avisos por correo de la actualización y la prueba histórica",AV.correo,1)+
-   yn("cs_mon","Correo automático de la app: activar",EX.mon,0)+yn("cs_mc","Correo automático: incluir métodos de la cartera",EX.mc,1)+'</div></div></details>';
-  h+=h3("Parámetros del bot")+'<div class="kv">';
-  if(ST){var cur=CL.main||"",cats={};if(!cur){try{cur=S.main||"sect"}catch(e){cur="sect"}}Object.keys(ST).forEach(function(k){var c=ST[k].cat||"Otros";(cats[c]=cats[c]||[]).push(k)});
+'</div></div></details>';
+  h+=h3("Costes de la simulación (ficticia y laboratorio)")+'<div class="m">Para que la simulación se parezca a la realidad: lo que cobra Trading 212 (cambio de divisa), cuánto peor sale el precio al comprar o vender y la orden más pequeña. No afectan a tu cartera real (esa tiene sus propios ajustes en 💶 Real).</div><div class="kv">';
+  if(false&&ST){var cur=CL.main||"",cats={};if(!cur){try{cur=S.main||"sect"}catch(e){cur="sect"}}Object.keys(ST).forEach(function(k){var c=ST[k].cat||"Otros";(cats[c]=cats[c]||[]).push(k)});
    h+='<div style="grid-column:1/-1">Método principal (el de «Hoy», «Cartera» y la gráfica; el que invierte el dinero ficticio)<select id="cs_main" style="width:100%">'+Object.keys(cats).map(function(c){return'<optgroup label="'+esc2(c)+'">'+cats[c].map(function(k){return'<option value="'+esc2(k)+'"'+(k===cur?' selected':'')+'>'+esc2(ST[k].n)+'</option>'}).join("")+'</optgroup>'}).join("")+'</select></div>'}
-  h+=F.map(function(f){return'<div>'+f[1]+'<input data-ck="'+f[0]+'" data-cm="'+f[2]+'" type="number" step="any" value="'+curVal(f[0],f[2])+'" style="width:100%"></div>'}).join("")+'</div>';
+  /* v150: fuera los parámetros que ya no usa ningún método (nº de ETF, riesgo por operación, frenos diario y de máximos, hucha) y el «método principal» */
+  h+=F.filter(function(f){return OBS.indexOf(f[0])<0}).map(function(f){return'<div>'+f[1]+'<input data-ck="'+f[0]+'" data-cm="'+f[2]+'" type="number" step="any" value="'+curVal(f[0],f[2])+'" style="width:100%"></div>'}).join("")+'</div>';
   h+='<div class="m" style="margin-top:10px"><label><input type="checkbox" id="cs_rc" style="width:auto"> Recalcular también la cartera ya hecha con la comisión de arriba (corrige las órdenes pasadas: comisión, efectivo, coste y resultados). Se aplica una sola vez en la siguiente ejecución del bot.</label></div>';
-  h+=h3("Prueba histórica")+'<div class="kv"><div>Máximo de acciones por prueba (200-500)<input id="cs_bm" type="number" min="200" max="500" value="'+(CL.bt_max||300)+'" style="width:100%"></div></div>';
-  h+=h3("Cuenta")+'<div class="kv"><div style="grid-column:1/-1"><span style="font-weight:700">Capital inicial (€)</span> · si lo cambias, el bot REINICIA todas las cuentas con ese capital en su próxima ejecución (archiva antes una copia; conserva ajustes, claves, reglas e informes)<input id="cs_cap" data-orig="'+cp0+'" type="number" min="100" max="1000000" step="50" value="'+cp0+'" style="width:100%"></div>'+
+  if(false)h+=h3("Prueba histórica")+'<div class="kv"><div>Máximo de acciones por prueba (200-500)<input id="cs_bm" type="number" min="200" max="500" value="'+(CL.bt_max||300)+'" style="width:100%"></div></div>';
+  if(false)h+=h3("Cuenta")+'<div class="kv"><div style="grid-column:1/-1"><span style="font-weight:700">Capital inicial (€)</span> · si lo cambias, el bot REINICIA todas las cuentas con ese capital en su próxima ejecución (archiva antes una copia; conserva ajustes, claves, reglas e informes)<input id="cs_cap" data-orig="'+cp0+'" type="number" min="100" max="1000000" step="50" value="'+cp0+'" style="width:100%"></div>'+
    '<div>Cambio €/$ (0,3 a 3; vacío = automático)<input id="cs_fx" type="number" step="0.01" min="0.3" max="3" placeholder="'+(EX.fx!=null?EX.fx:"auto")+'" value="'+(EX.fx!=null?EX.fx:"")+'" style="width:100%"></div></div>';
   var ri=repoInfo(),url=ri?("https://github.com/"+ri.o+"/"+ri.r+"/settings/secrets/actions"):"#";
   h+='<div class="m" style="margin-top:8px">Las claves se guardan cifradas en GitHub Secrets; esta web pública nunca las guarda ni las muestra (solo ves ✔/✖). Para guardar o quitar claves el token necesita el permiso <b>Secrets: Read and write</b>. <a href="'+url+'" target="_blank" rel="noopener">Abrir Secrets en GitHub</a></div>';
@@ -2806,13 +2807,14 @@ G0.__SEAL={blake2b,seal,from_string:s=>new TextEncoder().encode(s),from_base64:t
    if(el.value===""||!isFinite(v)){bad=(F.filter(function(f){return f[0]===k})[0]||[k,k])[1];return}var lim=null;try{lim=LIM[k]}catch(e){}
    if(lim&&(v<lim[0]-1e-12||v>lim[1]+1e-12)){bad=(F.filter(function(f){return f[0]===k})[0]||[k,k])[1];return}cfg[k]=+v.toFixed(6)});
   if(bad){stSet("Valor fuera del rango seguro o vacío: "+bad);return}
-  var mainEl=document.getElementById("cs_main"),main=mainEl?mainEl.value:"",mins=Math.round(+document.getElementById("cs_mins").value);
+  OBS.forEach(function(k){var v=k==="sweep"?0:(CL.cfg&&CL.cfg[k]!=null?CL.cfg[k]:(function(){try{return CFG[k]}catch(e){return null}})());if(v!=null&&isFinite(+v))cfg[k]=+v});
+  var mainEl=document.getElementById("cs_main"),main=mainEl?mainEl.value:(CL.main||""),mins=Math.round(+document.getElementById("cs_mins").value);
   if(!(mins>=2&&mins<=60)){stSet("El tiempo máximo por actualización debe estar entre 2 y 60 minutos.");return}
-  var bm=String(Math.max(200,Math.min(500,Math.round(+document.getElementById("cs_bm").value||300))));
-  var capEl=document.getElementById("cs_cap"),capV=Math.round(+capEl.value),capS="";
-  if(!(capV>=100&&capV<=1000000)){stSet("El capital debe estar entre 100 y 1.000.000 €.");return}
-  if(String(capV)!==String(Math.round(+capEl.dataset.orig))){if(!confirm("¿Cambiar el capital a "+capV+" € y reiniciar TODAS las cuentas?\n\nLa cartera y los métodos empezarán de cero en la próxima ejecución del bot. Antes se archiva una copia. Se conservan ajustes, claves, reglas e informes."))return;capS=String(capV)}
-  var fxV=document.getElementById("cs_fx").value.trim(),ex={nt:+document.getElementById("cs_nt").value,mon:+document.getElementById("cs_mon").value,mc:+document.getElementById("cs_mc").value};
+  var bmEl=document.getElementById("cs_bm"),bm=String(Math.max(200,Math.min(500,Math.round(+(bmEl?bmEl.value:CL.bt_max)||300))));
+  var capEl=document.getElementById("cs_cap"),capV=capEl?Math.round(+capEl.value):0,capS="";
+  if(capEl&&!(capV>=100&&capV<=1000000)){stSet("El capital debe estar entre 100 y 1.000.000 €.");return}
+  if(capEl&&String(capV)!==String(Math.round(+capEl.dataset.orig))){if(!confirm("¿Cambiar el capital a "+capV+" € y reiniciar TODAS las cuentas?\n\nLa cartera y los métodos empezarán de cero en la próxima ejecución del bot. Antes se archiva una copia. Se conservan ajustes, claves, reglas e informes."))return;capS=String(capV)}
+  var EX0=CL.extra||{},gv=function(id,d){var e=document.getElementById(id);return e?e.value:d},fxV=String(gv("cs_fx",EX0.fx!=null?EX0.fx:"")).trim(),ex={nt:+gv("cs_nt",EX0.nt!=null?EX0.nt:1),mon:+gv("cs_mon",EX0.mon!=null?EX0.mon:0),mc:+gv("cs_mc",EX0.mc!=null?EX0.mc:1)};
   if(fxV!==""){if(!(+fxV>=0.3&&+fxV<=3)){stSet("El cambio €/$ debe estar entre 0,3 y 3.");return}ex.fx=+fxV}
   var av={movil:+document.getElementById("cs_avm").value,correo:+document.getElementById("cs_avc").value},secs=[],dels=[],badS=null;
   document.querySelectorAll("#cloudset [data-sk]").forEach(function(el){var v=(el.value||"").trim();if(!v)return;var e=secretBad(el.dataset.sk,v);if(e&&!badS)badS=el.dataset.sk+": "+e;secs.push([el.dataset.sk,v,el])});

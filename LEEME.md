@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v92 (web v150): ajustes sin lo que ya no se usa
+
+- Fuera de «⚙️ Ajustes (protegidos con clave)» lo que ya no usa ningún método: nº de ETF en cartera, riesgo por operación, freno de pérdida diaria y de caída desde máximos, hucha de ganancias, «método principal», máximo de acciones por prueba, capital inicial (reiniciaba todo) y cambio €/$ manual, y el correo automático antiguo de la app. Se conservan sus valores guardados por si algún método antiguo los necesita; la hucha queda a 0 (como la cartera real, se reinvierte todo).
+- Quedan: claves de precios, tiempo máximo por actualización, avisos de respaldo (móvil y correo) y los costes de la simulación (comisión, deslizamiento y orden mínima).
+
 ## Novedades v91 (web v149): ninguna casilla de claves se rellena sola
 
 - Todas las casillas de **claves secretas** (proveedores de precios, GitHub, Telegram, correo…) dejan de ser de tipo «contraseña» para el móvil (se siguen viendo con puntos) y están bloqueadas hasta que las tocas: el gestor de contraseñas ya no mete ahí tu contraseña. Solo siguen siendo de contraseña las casillas donde de verdad va tu clave de Ajustes o la de la cartera.
