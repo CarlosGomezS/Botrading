@@ -9,6 +9,11 @@ Qué hace este paquete:
 - **Cada ejecución** (actualización, prueba histórica y ronda del laboratorio) deja **su informe individual** en la web (Laboratorio → Informes y descargas).
 - Todo gratis: el repositorio es público, y en repositorios públicos GitHub Actions y Pages no cobran.
 
+## Novedades v91 (web v149): ninguna casilla de claves se rellena sola
+
+- Todas las casillas de **claves secretas** (proveedores de precios, GitHub, Telegram, correo…) dejan de ser de tipo «contraseña» para el móvil (se siguen viendo con puntos) y están bloqueadas hasta que las tocas: el gestor de contraseñas ya no mete ahí tu contraseña. Solo siguen siendo de contraseña las casillas donde de verdad va tu clave de Ajustes o la de la cartera.
+- «Telegram en este dispositivo»: si el número de chat guardado no son cifras (lo había rellenado el móvil), se borra solo y te lo dice.
+
 ## Novedades v90 (web v147): la ficticia en euros de tu cartera real
 
 - Cada método de la ficticia simula 500 €, pero sus euros se muestran **escalados al dinero de tu bot real** (lo aportado más lo que hayas ingresado y aún no se haya sumado). Los % no cambian. El cálculo se hace solo en tu navegador: ningún importe se publica.

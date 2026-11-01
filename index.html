@@ -458,7 +458,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v148</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v149</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -498,7 +498,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 </section>
 <section class="tab" id="t-ajustes">
 <div class="p" id="tgdev-p"><h2>📤 Telegram en este dispositivo</h2><div class="m">Para mandar a tu bot de Telegram cualquier informe o archivo de la app (cada botón de descarga te deja elegir «📤 Enviar a mi Telegram»). Se guarda solo en este dispositivo.</div>
-<div class="kv"><div>Token de tu bot (de @BotFather)<input id="tgd-tok" type="password" autocomplete="off" style="width:100%"></div><div>Tu número de chat<input id="tgd-chat" type="text" inputmode="numeric" style="width:100%"></div></div>
+<div class="kv"><div>Token de tu bot (de @BotFather)<input id="tgd-tok" type="text" name="tg-x-t" readonly autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" placeholder="toca para escribir" style="width:100%;-webkit-text-security:disc"></div><div>Tu número de chat<input id="tgd-chat" type="text" name="tg-x-c" readonly inputmode="numeric" pattern="-?[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" placeholder="toca para escribir (solo cifras)" style="width:100%"></div></div>
 <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="tgd-sv">Guardar</button><button id="tgd-test" class="ghost">Enviar prueba</button><button id="tgd-del" class="ghost">Olvidar</button></div><div class="m" id="tgd-st"></div></div>
 <div class="p"><h2>Conexión de datos</h2><div class="m">Pega las claves que tengas (todas opcionales). Sin clave ya funcionan Yahoo Finance y Stooq (acciones/ETFs, como respaldo) y Binance/Coinbase (criptos). Financial Modeling Prep tiene clave gratuita en financialmodelingprep.com. Las fuentes con clave tienen prioridad para que los precios no se mezclen entre proveedores.</div>
 <div class="kv"><div>Twelve Data <input id="k_td" type="password" style="width:100%"></div><div>Polygon <input id="k_pg" type="password" style="width:100%"></div><div>Alpaca (ID:SECRETO) <input id="k_al" type="password" style="width:100%"></div><div>Alpha Vantage <input id="key" type="password" style="width:100%"></div><div>Financial Modeling Prep <input id="k_fm" type="password" style="width:100%"></div></div>
@@ -2486,7 +2486,8 @@ function auditMd(){try{return"\n## Auditoría de parámetros y datos ("+dtL(Date
 
 
 $("#aud").onclick=()=>{$("#audo").innerHTML=auditHtml()};
-{const st=t=>{const e=$("#tgd-st");if(e)e.textContent=t},show=()=>{const t=tgDev();st(t?"✔ Configurado (chat "+t.chat+").":"Sin configurar.");const c=$("#tgd-chat");if(c&&t&&!c.value)c.value=t.chat};show();
+{const st=t=>{const e=$("#tgd-st");if(e)e.textContent=t},fixed=(()=>{try{const o=JSON.parse(localStorage.getItem("tgdev")||"{}");if(o&&o.chat&&!/^-?\d{3,}$/.test(String(o.chat))){delete o.chat;localStorage.setItem("tgdev",JSON.stringify(o));return true}}catch(e){}return false})(),
+  show=()=>{const t=tgDev();st(fixed&&!t?"⚠️ He borrado el «número de chat» guardado porque no eran cifras (lo había rellenado el móvil con otra cosa). Escribe tu número de chat de nuevo.":t?"✔ Configurado (chat "+t.chat+").":"Sin configurar.");["#tgd-tok","#tgd-chat"].forEach(id=>{const e=$(id);if(e&&!e.dataset.ul){e.dataset.ul=1;const u=()=>{e.removeAttribute("readonly")};e.addEventListener("pointerdown",u);e.addEventListener("focus",u)}});const c=$("#tgd-chat");if(c&&t&&!c.value)c.value=t.chat};show();
  $("#tgd-sv").onclick=()=>{const tok=$("#tgd-tok").value.trim(),chat=$("#tgd-chat").value.trim();if(tok&&!/^\d+:[\w-]{20,}$/.test(tok)){st("✖ Eso no parece un token de bot (es como 123456:ABC…).");return}if(chat&&!/^-?\d{3,}$/.test(chat)){st("✖ El número de chat son solo cifras.");return}tgDevSet({tok,chat});$("#tgd-tok").value="";show()};
  $("#tgd-test").onclick=async()=>{st("Enviando prueba…");try{await tgSend("prueba-bot-trading.txt","Prueba de envío desde la web del bot: "+new Date().toLocaleString("es-ES"),"✔ La web del bot ya puede mandarte archivos aquí");st("✔ Enviado: mira tu Telegram.")}catch(e){st("✖ "+(e.message||e))}};
  $("#tgd-del").onclick=()=>{try{localStorage.removeItem("tgdev")}catch(e){}$("#tgd-chat").value="";show()}}
@@ -3463,6 +3464,17 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
 (function(){var b=document.getElementById("simpleB");function lab(){var on=document.body.classList.contains("simple");b.textContent=on?"👓 Ver todo":"✨ Modo sencillo";b.setAttribute("aria-pressed",on?"true":"false")}
  lab();b.onclick=function(){var on=!document.body.classList.contains("simple");document.body.classList.toggle("simple",on);try{localStorage.setItem("pbsimple",on?"1":"0")}catch(e){}lab();try{btmDraw0()}catch(e){}
   }})();
+</script>
+<script id="sin-autorrelleno">
+/* v149 · el gestor de contraseñas del móvil rellena las casillas de tipo «contraseña» con TU contraseña (y la de al lado con tu «usuario»).
+   Las casillas de CLAVES SECRETAS (proveedores, GitHub, Telegram, correo…) dejan de ser de tipo contraseña (se ven igual, con puntos) y están
+   bloqueadas hasta que las tocas. Solo las casillas donde de verdad va tu clave de Ajustes o la de la cartera siguen siendo de contraseña. */
+(function(){
+ var keep=function(e){return e.autocomplete==="current-password"||e.autocomplete==="new-password"||/^(rl-vpw|cs_pw|rl-c-pw)$/.test(e.id)||/^(wfpw|dcpw|btpw)/.test(e.id)};
+ function guard(){document.querySelectorAll('input[type="password"]').forEach(function(e){if(keep(e))return;e.type="text";e.style.webkitTextSecurity="disc";e.setAttribute("autocomplete","off");e.setAttribute("autocorrect","off");e.setAttribute("autocapitalize","off");e.setAttribute("spellcheck","false");e.setAttribute("data-lpignore","true");e.setAttribute("data-1p-ignore","true");e.setAttribute("data-form-type","other");
+  if(!e.value){e.readOnly=true;var u=function(){e.readOnly=false};e.addEventListener("pointerdown",u);e.addEventListener("focus",u)}})}
+ guard();var t=null;new MutationObserver(function(){clearTimeout(t);t=setTimeout(guard,30)}).observe(document.body,{childList:true,subtree:true});
+})();
 </script>
 <script id="minimizar">
 /* v82 · TODOS los recuadros se pueden minimizar (botón arriba a la derecha). Se recuerda en este dispositivo. */
