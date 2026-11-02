@@ -458,7 +458,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v151</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v152</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -602,7 +602,8 @@ const SIMPLE=()=>document.body.classList.contains("simple");
 const CONFIG={capital:500,email:"",key_w3:"",mail:null,ntt:"",nt:true,vg:null,keys:{td:"",pg:"",al:"",av:"",fm:""},minutos:8,segundoPlano:false,params:{"slots":3,"slip":0.0015,"fee":0.15,"mrisk":0.005,"dloss":0.01,"minpos":25,"ddstop":0.06,"sweep":0.5},fx:null,rules:{"w":{"c_s50":10,"c_s20":5,"s50_s200":10,"s50_up":5,"mom_max":10,"mom_k":1,"rsi_mid":10,"rsi_hi":3,"rsi_lo":4,"macd_pos":3,"macd_up":2,"pb":8,"atr":7,"vol_up":10,"vol_ok":4},"p":{"rsiLo":50,"rsiHi":68,"rsiLow":40,"pbMax":0.90,"atrMax":3,"volOk":0.8,"momDays":63,"s50up":10},"d":{"reqRegime":1,"s200":1,"reqS50":1,"minAge":3,"regimeExit":56}}};
 /* ============================================================================================================ */
 const $=s=>document.querySelector(s),SRV="Alpha Vantage MCP Server",WL=["SPY","QQQ","QLD","IWM","EFA","EEM","VNQ","GLD","XLK","XLV","XLE","XLF","XLY","XLP","XLI","XLU","XLB","XLC","SMH","AGG","IEF","LQD","SHY","AAPL","MSFT","NVDA","AMZN","GOOGL","META","AVGO","TSLA","JPM","V","MA","UNH","LLY","XOM","CVX","WMT","COST","HD","PG","KO","PEP","JNJ","ABBV","MRK","ORCL","CRM","ADBE","INTC","CSCO","QCOM","BAC","WFC","DIS","NKE","MCD","CAT","BA","GE","UBER","AMD","NFLX","TXN","IBM","AMAT","MU","NOW","INTU","PYPL","BKNG","SBUX","TMO","ABT","DHR","PFE","AMGN","GILD","MDT","UPS","LMT","HON","ACN","T","LOW","MDLZ","ISRG","GS","DE","COP","LIN","NEE","PLD","ADI","VZ","TJX","CL","SYK","MS","RTX","EOG","SHW","DUK","AMT","ADP","CMCSA","ROST","KMB","BSX","C","NOC","SLB","APD","SO","EQIX","ADSK","TMUS","ORLY","GIS","EW","SCHW","GD","OXY","ECL","D","CCI","AKAM","CHTR","AZO","KHC","ZTS","BLK","LHX","PSX","DD","AEP","PSA","APH","OMC","YUM","MO","VRTX","AXP","ETN","VLO","DOW","EXC","O","CDNS","IPG","MAR","PM","REGN","USB","EMR","MPC","NEM","SRE","SPG","CTSH","FOXA","HLT","STZ","BIIB","PNC","ITW","KMI","FCX","XEL","WELL","EA","TTWO","CMG","SYY","BDX","COF","MMM","WMB","NUE","ED","DLR","FFIV","DHI","HSY","CI","MET","PH","OKE","VMC","PEG","AVB","FTNT","LEN","CPB","CVS","PRU","CMI","HAL","MLM","WEC","EQR","GLW","PHM","CAG","HSIC","AFL","PCAR","BKR","PPG","ES","VTR","HPQ","NVR","MKC","HUM","ALL","FDX","DVN","IFF","EIX","ARE","KLAC","F","CLX","MCK","TRV","CSX","FANG","ALB","DTE","MAA","LRCX","GM","EL","CAH","CB","UNP","APA","MOS","ETR","ESS","MCHP","EBAY","KR","HCA","AIG","NSC","CF","FE","EXR","MSI","BBY","ADM","IQV","PGR","WM","LYB","PPL","NTAP","GPC","TSN","A","AON","RSG","IP","AEE","PAYX","KMX","HRL","MTD","SPGI","GWW","PKG","CMS","ROP","TSCO","TAP","WAT","MCO","FAST","BALL","CNP","SNPS","ULTA","MNST","ZBH","ICE","ODFL","AVY","STX","LVS","CHD","BAX","CME","CTAS","TEL","WYNN","SJM","IDXX","NDAQ","TLT","DBC","URTH","SPMO","SPHQ"];let START=500;
-const E=n=>(+n).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+/* v152 · EMUL: mientras se dibuja la ficticia vale FSC() (tu dinero real / 500), así TODOS sus euros salen a tu escala */
+var EMUL=1;const E0=n=>(+n).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €",E=n=>E0(+n*EMUL);
 const P=n=>(n>0?"+":"")+(+n).toLocaleString("es-ES",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fresh=()=>({v:1,start:START,cash:START,fx:1.15,pos:{},trades:[],days:[],events:[],last:{},bench:null,lastDate:null,radar:{},journal:[],priceChecks:[],cfgVer:12,vault:{q:0,cost:0,lastPx:null},bt:null,diag:[],runLog:[],dataAudit:[],created:new Date().toISOString()});
@@ -825,7 +826,7 @@ let CHR="all";let CHMINI=true;try{CHMINI=localStorage.getItem("pbchm")!=="0"}cat
 const MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 const fd=d=>/^\d{4}-\d\d-\d\d$/.test(d)?(+d.slice(8))+" "+MESES[+d.slice(5,7)-1]:d;
 const P2=n=>(n>0.004?"+":n<-0.004?"−":"")+Math.abs(n).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+"%";
-const E2=n=>(n>0.004?"+":n<-0.004?"−":"")+Math.abs(n).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+const E2r=n=>(n>0.004?"+":n<-0.004?"−":"")+Math.abs(n).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €",E2=n=>E2r(n*EMUL);
 function smoothPath(p){if(p.length<3)return p.map((q,i)=>(i?"L":"M")+q[0].toFixed(1)+" "+q[1].toFixed(1)).join(" ");
  let d=`M${p[0][0].toFixed(1)} ${p[0][1].toFixed(1)}`;const t=.17;
  for(let i=0;i<p.length-1;i++){const a=p[i-1]||p[i],b=p[i],c=p[i+1],e=p[i+2]||c;
@@ -874,7 +875,7 @@ ${spy}
 <div class="m"><span style="color:var(--go)">━</span><span style="color:var(--stop)">━</span> Bot (verde = ganas, rojo = pierdes) · <span>╌╌</span> SPY (comprar y no tocar). Pasa el dedo por la gráfica para ver cada día.</div>
 <div class="chips">${chip("Hoy",P2(dayP),cls(dayP))}${chip("5 sesiones",P2(chg(5)),cls(chg(5)))}${chip("21 sesiones",P2(chg(21)),cls(chg(21)))}${chip("Total",P2(tot),cls(tot))}${chip("Mejor día",P2(best),cls(best))}${chip("Peor día",P2(worst),cls(worst))}</div>
 <div class="m">Días en verde: <b>${green} de ${dps.length}</b> · Cobrado en ventas: <b class="${cls(realized)}">${E2(realized)}</b>${dps.length<6?"<br>Con pocos días la gráfica es solo un esbozo: irá cogiendo forma cada día.":""}</div>`;
- const setH=i=>{const x=pts[i],hh=$("#chh");if(!hh)return;hh.innerHTML=`<span class="m">${esc(i===N-1&&CHR==="all"?"Ahora · "+fd(x.d):fd(x.d))}</span><br><b class="${cls(x.pct)}">${P2(x.pct)}</b> <span class="m">acumulado${x.bp!=null?" · SPY "+P2(x.bp):""}</span><br>${i?`<span class="${cls(x.day)}">Ese día: ${E2(x.day)} (${P2(x.dp)})</span>`:'<span class="m">Punto de partida</span>'}`};
+ const setH=i=>{const x=pts[i],hh=$("#chh");if(!hh)return;hh.innerHTML=`<span class="m">${esc(i===N-1&&CHR==="all"?"Ahora · "+fd(x.d):fd(x.d))}</span><br><b class="${cls(x.pct)}">${P2(x.pct)}</b> <span class="m">acumulado${x.bp!=null?" · SPY "+P2(x.bp):""}</span><br>${i?`<span class="${cls(x.day)}">Ese día: ${E2r(x.day*FSC())} (${P2(x.dp)})</span>`:'<span class="m">Punto de partida</span>'}`};
  const show=i=>{i=Math.max(0,Math.min(N-1,i));const x=xs(i),a=$("#chx"),b=$("#chx2"),c=$("#chd");[a,b].forEach(l=>{if(l){l.setAttribute("x1",x);l.setAttribute("x2",x);l.setAttribute("opacity",".55")}});if(c){c.setAttribute("cx",x);c.setAttribute("cy",ys(pts[i].pct));c.setAttribute("opacity","1")}setH(i)};
  const hide=()=>{["#chx","#chx2","#chd"].forEach(s=>{const e=$(s);if(e)e.setAttribute("opacity","0")});setH(N-1)};
  const w=$("#chw"),mv=ev=>{const r=w.getBoundingClientRect(),x=(ev.clientX-r.left)/r.width*W;show(Math.round((x-pl)/pw*(N-1)))};
@@ -2371,7 +2372,7 @@ function hoyRank(){const A=document.getElementById("hoy-rank");if(!A)return;
  if(!ks0.length){A.innerHTML='<div class="m">Aún no hay métodos con datos. Espera a la primera actualización diaria o pulsa «Actualizar precios…».</div>';return}
  const med=["🥇","🥈","🥉"],last=S.lastDate||"";
  const rows0=(k,j)=>{const B=bkOf(k),tr=B.trades||[],g=mGain(k),pc=g/START*100,cl=tr.filter(t=>t.pnl!=null).length,nb=tr.filter(t=>t.d===last&&t.side==="COMPRA").length,ns=tr.filter(t=>t.d===last&&t.side==="VENTA").length,np=Object.keys(B.pos||{}).length;const act=(nb||ns)?`🟢 ${nb} · 🔴 ${ns} en el último día`:"sin cambios en el último día";const an=fA(k);
-  return`<div class="rk-c" data-go="${k}"><div class="rk-n">${j<0?"💶":med[j]||(j+1)+"."}</div><div class="rk-t"><b>${esc(STR[k].n)}${midB(k)}${STR[k].fwd?' <span class="bdg t">🔭 en vivo</span>':""}</b><small>${an>-1?`<b class="up">≈ ${P(an*100)}/año</b> ${STR[k].fwd?"en vivo":"en la prueba, tras impuestos"} · `:""}${np} ${np===1?"activo":"activos"} · ${act}</small></div><div class="rk-g ${g>=0?"up":"dn"}">${P2(pc)}<small>${E2(g*FSC())}${(()=>{const B=bkOf(k);const nd=B&&B.days&&B.days.length?dayN(T0())-dayN(B.days[0].d):0;return nd?" · en "+nd+(nd===1?" día":" días"):""})()}</small></div></div>`};
+  return`<div class="rk-c" data-go="${k}"><div class="rk-n">${j<0?"💶":med[j]||(j+1)+"."}</div><div class="rk-t"><b>${esc(STR[k].n)}${midB(k)}${STR[k].fwd?' <span class="bdg t">🔭 en vivo</span>':""}</b><small>${an>-1?`<b class="up">≈ ${P(an*100)}/año</b> ${STR[k].fwd?"en vivo":"en la prueba, tras impuestos"} · `:""}${np} ${np===1?"activo":"activos"} · ${act}</small></div><div class="rk-g ${g>=0?"up":"dn"}">${P2(pc)}<small>${E2r(g*FSC())}${(()=>{const B=bkOf(k);const nd=B&&B.days&&B.days.length?dayN(T0())-dayN(B.days[0].d):0;return nd?" · en "+nd+(nd===1?" día":" días"):""})()}</small></div></div>`};
  const top=ks.slice(0,5).map((k,j)=>rows0(k,j)).join(""),rest=ks.slice(5).map((k,j)=>rows0(k,j+5)).join("");
  const rows=`${top}`+(rest?`</div><details class="rd" data-id="ficrest"${opn("ficrest",false)}><summary><span>📋 Los otros ${ks.length-5} de la ficticia</span></summary><div class="rb"><div class="rk">${rest}</div></div></details><div class="rk">`:"")+(mine.length?`</div><div class="m" style="margin-top:8px"><b>${mine.length>1?"Tus métodos actuales":"Tu método actual"}</b> (los de tu cartera real):</div><div class="rk">${mine.map(k=>rows0(k,-1)).join("")}`:"");
  const dias=(S.days||[]).length,pocas=ks0.every(k=>((bkOf(k).trades)||[]).filter(t=>t.pnl!=null).length<30);
@@ -2380,7 +2381,7 @@ document.addEventListener("click",e=>{const c=e.target&&e.target.closest&&e.targ
 /* v147 · la ficticia en euros de TU cartera real: cada método simula 500 €, pero sus euros se muestran escalados al dinero que tiene tu bot real
    (lo aportado más lo que hayas ingresado y aún no se haya sumado). Los % no cambian. */
 const FSC=()=>{const b=+window.__ficBase;return b>1&&b<1e7?b/START:1};
-const gtxt=g=>`<b class="${g>=0?"up":"dn"}">${E2(g*FSC())} (${P2(g/START*100)})</b>`;
+const gtxt=g=>`<b class="${g>=0?"up":"dn"}">${E2r(g*FSC())} (${P2(g/START*100)})</b>`;
 const hmL=t=>t?new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"";
 const hmS=t=>new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
 const hmNY=t=>new Date(t).toLocaleTimeString("es-ES",{timeZone:"America/New_York",hour:"2-digit",minute:"2-digit"});
@@ -2456,6 +2457,8 @@ function miDraw(){
  A.innerHTML=act}
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-mi]");if(!b||b.dataset.mi!=="seen")return;const k=vmGet("cart"),B=bkOf(k);MIS.seen=MIS.seen||{};MIS.seen[k]=S.lastDate||(((B&&B.trades)||[])[0]||{}).d||"";miSave();miDraw()});
 function infDraw(){CBK=vmGet("inf");try{$("#sel-inf").innerHTML=mSel("inf");$("#st2").innerHTML=stats().map(([k,v])=>`<div>${k}<b>${v}</b></div>`).join("")}finally{CBK=null}}
+/* v152 · la ficticia entera (cartera, órdenes, feed, gráfico, informes, radar) en euros a la escala de tu dinero real */
+{const W=f=>function(){const p=EMUL;EMUL=FSC();try{return f.apply(this,arguments)}finally{EMUL=p}};cartDraw=W(cartDraw);miDraw=W(miDraw);infDraw=W(infDraw);chartDraw=W(chartDraw);feedHtml=W(feedHtml);radarDraw=W(radarDraw);riskDraw=W(riskDraw)}
 
 /* ---------- Radar por método ---------- */
 function radarM(){const k=vmGet("radar"),el=$("#rd");if(!el)return;if(k==="mom"){el.innerHTML=mSel("radar")+el.innerHTML;return}el.innerHTML=mSel("radar")+rankHtml(k)}
