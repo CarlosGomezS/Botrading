@@ -1,7 +1,7 @@
 // v159 · pruebas del terminal de memes (solo dinero ficticio)
 import test from "node:test";
 import assert from "node:assert/strict";
-import { freshLab, pasoVar, evolucionar, fitness, mutar, aleatorio, gkey, POP } from "../runner/meme-lab.mjs";
+import { freshLab, pasoVar, evolucionar, fitness, mutar, aleatorio, gkey, POP, RANGOS, ensanchar, aplicarRangos } from "../runner/meme-lab.mjs";
 import { gpInfo, CHAINS, ESTILOS, conGenoma, VIDEO, jupInfo } from "../runner/meme.mjs";
 import { freshState, paso, pasoIdeal, rapido, reglas, rcInfo, gtInfo, analista, explorador, bestPairs, R } from "../runner/meme.mjs";
 
@@ -152,4 +152,12 @@ test("Jupiter: actividad real, traders y poseedores", () => {
   const j = jupInfo({ id: "x", organicScore: 72.5, stats1h: { numTraders: 410, numOrganicBuyers: 180, holderChange: 4.2 } });
   assert.deepEqual(j, { org: 72.5, traders: 410, organicBuyers: 180, holderChg: 4.2 });
   const S = freshState(), an = analista(S, "a", par("a"), okInfo, null, T0, j); assert.equal(an.sig.ub, 60, "compradores reales de Jupiter"); assert.equal(an.sig.hg, 42);
+});
+
+test("sin techo: si las mejores se pegan al borde de un rango, el rango se ensancha (con límites de cordura)", () => {
+  const L = { log: [] }, b0 = RANGOS.size[1], best = [{ g: { size: b0 } }, { g: { size: b0 } }, { g: { size: 0.05 } }];
+  const n = ensanchar(L, best, new Date(T0)); assert.ok(n >= 1); assert.ok(RANGOS.size[1] > b0, "prueba compras más grandes"); assert.ok(RANGOS.size[1] <= 0.3, "pero nunca más del 30 %");
+  assert.ok(L.log.some((x) => x.k === "amplia")); const saved = L.rangos.size.slice();
+  RANGOS.size[1] = b0; aplicarRangos(L); assert.deepEqual(RANGOS.size.slice(0, 2), saved, "se recuerda entre vueltas");
+  RANGOS.size[1] = b0;
 });

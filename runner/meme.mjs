@@ -297,6 +297,7 @@ async function main() {
   S.chain = CH.id; S.chainNombre = CH.nombre;
   let LB = null; try { LB = await leerArchivo("meme-lab.json"); } catch (e) { console.log("Memes: " + e.message); return; }
   if (!LB || LB.v !== 3 || (S.genomeId && !LB.pop.some((v) => v.id === S.genomeId) && false)) { LB = LBm.freshLab(now); L(S, now, "INFO", "", `🧬 nace el laboratorio de memes: ${LB.pop.length} variantes de las reglas compiten en ficticio`); }
+  LBm.aplicarRangos(LB);   // v174 · los rangos que la bola ya haya ensanchado
   const varOpen = () => LB.pop.flatMap((v) => Object.keys(v.pos || {}));
   if (RAPIDO) {
     const open = [...new Set([...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()])];

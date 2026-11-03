@@ -13,6 +13,21 @@ export const RANGOS = {
   pump1hMax: [30, 300, 10], lpLockMin: [50, 100, 5], stop: [0.03, 0.25, 0.01], trailOn: [0.05, 0.5, 0.01], trail: [0.05, 0.4, 0.01], tp: [0.1, 1.5, 0.05], tpFrac: [0, 0.7, 0.05], orgMin: [0, 80, 5],
   maxHoldH: [1, 72, 1], size: [0.03, 0.15, 0.01], minScore: [50, 90, 1]
 };
+// v174 · SIN TECHO: si las mejores variantes se pegan al borde de un rango, ese rango se ensancha solo (hasta unos límites de cordura)
+export const DUROS = { ageMin: [1, 10080], ageMax: [30, 5 * 525600], mcapMin: [5e3, 1e9], mcapMax: [1e5, 1e11], liqMin: [1e3, 5e6], vol1hMin: [1e3, 1e7], top10Max: [3, 95], devMax: [0.1, 50],
+  bundleMax: [0.5, 90], pump1hMax: [5, 2000], lpLockMin: [0, 100], stop: [0.01, 0.6], trailOn: [0.02, 3], trail: [0.02, 0.8], maxHoldH: [0.25, 720], size: [0.01, 0.3], minScore: [20, 99], tp: [0.03, 10], tpFrac: [0, 0.95], orgMin: [0, 99] };
+export function aplicarRangos(L) { for (const [k, r] of Object.entries((L && L.rangos) || {})) if (RANGOS[k] && Array.isArray(r)) { RANGOS[k][0] = r[0]; RANGOS[k][1] = r[1]; } }
+export function ensanchar(L, best, now) {
+  const ev = []; L.rangos = L.rangos || {};
+  for (const k of Object.keys(RANGOS)) {
+    const [a, b, st] = RANGOS[k], span = b - a, [da, db] = DUROS[k] || [a, b], vs = best.map((v) => +((v.g || {})[k] ?? VIDEO[k]));
+    if (vs.filter((x) => x <= a + st * 0.5).length >= 2 && a > da) { RANGOS[k][0] = Math.max(da, a - span * 0.25); ev.push(`${NOMBRES[k] || k}: ahora prueba desde ${r2(RANGOS[k][0])}`); }
+    if (vs.filter((x) => x >= b - st * 0.5).length >= 2 && b < db) { RANGOS[k][1] = Math.min(db, b + span * 0.25); ev.push(`${NOMBRES[k] || k}: ahora prueba hasta ${r2(RANGOS[k][1])}`); }
+    L.rangos[k] = [RANGOS[k][0], RANGOS[k][1]];
+  }
+  for (const t of ev) { L.log.unshift({ t: now.toISOString(), k: "amplia", txt: "📐 " + t }); }
+  L.log = L.log.slice(0, 200); return ev.length;
+}
 export const NOMBRES = { ageMin: "edad mínima (min)", ageMax: "edad máxima (min)", mcapMin: "tamaño mínimo ($)", mcapMax: "tamaño máximo ($)", liqMin: "liquidez mínima ($)", vol1hMin: "volumen 1 h mínimo ($)",
   top10Max: "top 10 máx. (%)", devMax: "creador máx. (%)", bundleMax: "bloque máx. (%)", pump1hMax: "subida 1 h máx. (%)", lpLockMin: "LP bloqueada mín. (%)", stop: "stop", trailOn: "activa el móvil en", trail: "móvil bajo el máximo",
   maxHoldH: "tiempo máximo (h)", size: "tamaño de cada compra", minScore: "nota mínima", tp: "venta parcial en", tpFrac: "parte que vende", orgMin: "actividad real mínima (Jupiter)", mint: "exige mint/freeze revocados", w: "pesos de la nota" };
@@ -115,12 +130,13 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random) {
   L.lastGen = now.toISOString(); L.gen++;
   const ev = (txt, k) => { L.log.unshift({ t: now.toISOString(), k, txt }); L.log = L.log.slice(0, 200); };
   for (const v of L.pop) v.fit = fitness(v);
+  try { ensanchar(L, L.pop.filter((v) => v.fit != null && v.fit > 0).sort((a, b) => b.fit - a.fit).slice(0, 5), now); } catch (e) {}
   const ageH = (v) => (now - Date.parse(v.born)) / 3600e3;
   const ranked = L.pop.slice().sort((a, b) => (b.fit ?? -99) - (a.fit ?? -99) || b.lastEq - a.lastEq);
   // fuera: las peores con pruebas suficientes, y las que en 48 h casi no operan (reglas tan duras que no sirven)
   const out = ranked.filter((v) => v.id !== "v0" && ((v.fit != null && v.fit < 0 && ranked.indexOf(v) >= POP * 0.6) || (ageH(v) > 48 && v.n < 3))).slice(-Math.ceil(POP * 0.25));
   for (const v of out) { L.arch.unshift({ id: v.id, g: v.g, gen: v.gen, born: v.born, out: now.toISOString(), n: v.n, fit: v.fit, ret: r2((v.lastEq / R.start - 1) * 100), win: v.n ? Math.round(v.w / v.n * 100) : null, why: v.n < 3 ? "casi no opera" : "de las peores" }); ev(`${v.id} se archiva (${v.n < 3 ? "casi no opera" : "nota " + v.fit}) · ${r2((v.lastEq / R.start - 1) * 100)} %`, "sale"); }
-  L.arch = L.arch.slice(0, 3000); L.pop = L.pop.filter((v) => !out.includes(v));
+  L.arch = L.arch.slice(0, 20000); /* el archivo no se borra: hasta 20.000 variantes */ L.pop = L.pop.filter((v) => !out.includes(v));
   const top = ranked.filter((v) => !out.includes(v) && v.fit != null && v.fit > 0).slice(0, 5), seen = new Set(L.pop.map((v) => gkey(v.g)));
   let guard = 0;
   while (L.pop.length < POP && guard++ < 200) {
