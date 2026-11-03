@@ -500,7 +500,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .mt-cmp>div,.mt-foot{background:color-mix(in srgb,var(--line) 20%,transparent);border:0;border-radius:12px}
 .mt-log,.mt-kv,.mt-rule,.mt-node{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v220</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v221</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1640,9 +1640,31 @@ const LABSEED=[{u:"grw",l:7,s:1,t:1,f:1,i:1,a:0,r:"GLD",p:"q",c:1,m:120,k:240,rg
 const LABGK=["u","l","s","t","f","i","a","r","p","c","v","m","k","vt","sz","ab","z","rg","rgx"],LABNUM={m:200,k:200,vt:0.27};
 const labVec=g=>{const n=labNorm(g);return LABGK.map(k=>n[k]??LABD[k]??0)};
 function labDist(a,b){let d=0;for(let i=0;i<LABGK.length;i++){const dz=LABD[LABGK[i]]??0,x=a[i]??dz,y=b[i]??dz;if(x===y)continue;const R=LABNUM[LABGK[i]];d+=R&&typeof x==="number"&&typeof y==="number"?Math.min(1,Math.abs(x-y)/R):1}return d}
-function labPred(L,g){const H=L.hist||[];if(H.length<30)return null;const v=labVec(g),K=10,best=[];
+function labPredKnn(L,v,H){const K=10,best=[];
  for(const [hv,sc] of H){const d=labDist(v,hv);if(best.length<K){best.push([d,sc]);best.sort((a,b)=>a[0]-b[0])}else if(d<best[K-1][0]){best[K-1]=[d,sc];best.sort((a,b)=>a[0]-b[0])}}
- let sw=0,ss=0,sd=0;for(const [d,sc] of best){const w=1/((1+d)*(1+d));sw+=w;ss+=w*sc;sd+=d}const pred=ss/sw,unc=Math.min(1,sd/best.length/3);return{pred,unc,acq:pred+0.15*unc}}
+ let sw=0,ss=0,sd=0;for(const [d,sc] of best){const w=1/((1+d)*(1+d));sw+=w;ss+=w*sc;sd+=d}return{pred:ss/sw,unc:Math.min(1,sd/best.length/3)}}
+/* v221 · 🧠 BÚSQUEDA AÚN MÁS LISTA: además de «vecinos parecidos», un segundo modelo (boosting de 150 reglas sí/no, como la IA de Bitvavo)
+   aprende de los miles de métodos ya examinados qué piezas suben la nota. En cada ronda los dos modelos se examinan con el 20 % de métodos
+   más recientes (que no han visto) y se usa el que mejor predice, o la mezcla de ambos. */
+function labGbm(H){try{const n=H.length,d=LABGK.length;if(n<200)return null;
+  const cod=[];for(let j=0;j<d;j++){const vals=H.map(h=>h[0][j]),num=vals.every(x=>typeof x==="number");let cuts=null,cats=null;
+   if(num){const v=vals.slice().sort((a,b)=>a-b),u=[];for(let k=1;k<16;k++)u.push(v[Math.floor(k*n/16)]);cuts=[...new Set(u)]}else{cats=[...new Set(vals.map(String))].slice(0,40)}cod.push({num,cuts,cats})}
+  const bin=(j,x)=>{const c=cod[j];if(c.num){let k=0;while(k<c.cuts.length&&x>c.cuts[k])k++;return k}const i=c.cats.indexOf(String(x));return i<0?c.cats.length:i};
+  const B=cod.map((c,j)=>Uint8Array.from(H.map(h=>bin(j,h[0][j])))),y=H.map(h=>h[1]),m0=y.reduce((a,b)=>a+b,0)/n,F=new Float64Array(n).fill(m0),T=[];
+  for(let it=0;it<150;it++){const r=y.map((v,i)=>v-F[i]);let best=null;
+   for(let j=0;j<d;j++){const c=cod[j],nb=(c.num?c.cuts.length:c.cats.length)+1,sr=new Float64Array(nb),cn=new Float64Array(nb),bj=B[j];for(let i=0;i<n;i++){sr[bj[i]]+=r[i];cn[bj[i]]++}
+    const R=sr.reduce((a,b)=>a+b,0);
+    if(c.num){let sl=0,cl=0;for(let k=0;k<nb-1;k++){sl+=sr[k];cl+=cn[k];const cr=n-cl;if(cl<15||cr<15)continue;const g=sl*sl/cl+(R-sl)*(R-sl)/cr;if(!best||g>best.g)best={g,j,k,num:1,l:sl/cl,r:(R-sl)/cr}}}
+    else for(let k=0;k<nb;k++){const ci=cn[k],co=n-ci;if(ci<15||co<15)continue;const g=sr[k]*sr[k]/ci+(R-sr[k])*(R-sr[k])/co;if(!best||g>best.g)best={g,j,k,num:0,l:sr[k]/ci,r:(R-sr[k])/co}}}
+   if(!best)break;const st={j:best.j,k:best.k,num:best.num,l:best.l*0.1,r:best.r*0.1};T.push(st);const bj=B[st.j];for(let i=0;i<n;i++)F[i]+=(st.num?bj[i]<=st.k:bj[i]===st.k)?st.l:st.r}
+  return v=>{let z=m0;for(const st of T){const b=bin(st.j,v[st.j]);z+=(st.num?b<=st.k:b===st.k)?st.l:st.r}return z}}catch(e){return null}}
+function labSurr(L){const H=L.hist||[];if(L._sur&&L._sur.n===H.length&&(L._sur.modo==="knn"||L._sur.gbm))return L._sur;const sur={n:H.length,modo:"knn"};
+ try{if(H.length>=300){const cut=Math.floor(H.length*0.8),tr=H.slice(0,cut),te=H.slice(cut),g=labGbm(tr),corr=(a,b)=>{const n=a.length,ma=a.reduce((x,y)=>x+y,0)/n,mb=b.reduce((x,y)=>x+y,0)/n;let sab=0,sa=0,sb=0;for(let i=0;i<n;i++){sab+=(a[i]-ma)*(b[i]-mb);sa+=(a[i]-ma)**2;sb+=(b[i]-mb)**2}return sab/Math.sqrt(sa*sb||1)};
+  const ys=te.map(h=>h[1]),pk=te.map(h=>labPredKnn(L,h[0],tr).pred),pg=g?te.map(h=>g(h[0])):null;sur.cKnn=+corr(pk,ys).toFixed(3);
+  if(pg){sur.cGbm=+corr(pg,ys).toFixed(3);sur.cMix=+corr(pk.map((x,i)=>(x+pg[i])/2),ys).toFixed(3);const b=Math.max(sur.cKnn,sur.cGbm,sur.cMix);sur.modo=b===sur.cMix?"mezcla":b===sur.cGbm?"boosting":"knn";sur.gbm=labGbm(H)}}}catch(e){}
+ try{Object.defineProperty(L,"_sur",{value:sur,writable:true,configurable:true,enumerable:false})}catch(e){L._sur=sur}L.surr={n:sur.n,modo:sur.modo,cKnn:sur.cKnn,cGbm:sur.cGbm,cMix:sur.cMix};return sur}
+function labPred(L,g){const H=L.hist||[];if(H.length<30)return null;const v=labVec(g),k=labPredKnn(L,v,H),S2=labSurr(L);let pred=k.pred;
+ if(S2.gbm&&S2.modo!=="knn"){const gp=S2.gbm(v);pred=S2.modo==="boosting"?gp:(k.pred+gp)/2}return{pred,unc:k.unc,acq:pred+0.15*k.unc}}
 function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=k=>!(T.has(k)||L.pop[k]||L.pend[k]||BTX[k]||STR[k]||seen.has(k)),
   add=(g,why,pr)=>{g=labNorm(g);const k=labKey(g);if(!ok(k))return false;seen.add(k);BTX[k]=labM(g);out.push({k,g,why,pr:pr==null?null:+pr.toFixed(3)});return true};
  for(const g of LABSEED)add(g,"creado por Claude");
@@ -1660,7 +1682,7 @@ function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=
  // 3) muchos candidatos: variaciones de los mejores, saltos largos y exploración (unos 12 por hueco)
  const pool=[],pk=new Set(),put=(g,why)=>{g=labNorm(g);const k=labKey(g);if(!ok(k)||pk.has(k))return;pk.add(k);pool.push({g,why})};
  const left=n-out.length;let guard=0;
- while(pool.length<left*12&&guard++<left*60){const r=Math.random();
+ while(pool.length<left*40&&guard++<left*200){   /* v221: 40 candidatos por hueco (antes 12): el modelo elige entre muchos más */const r=Math.random();
   if(r<0.4&&par.length)put(labMut(L,par[Math.floor(Math.random()*Math.min(par.length,8))]),"variación");
   else if(r<0.7){const src=par.length&&Math.random()<0.7?par[Math.floor(Math.random()*par.length)]:labRand(L);let g=src;const j=2+Math.floor(Math.random()*3);for(let z=0;z<j;z++)g=labMut(L,g);put(g,"salto")}
   else put(labRand(L),"nuevo")}
@@ -1675,7 +1697,7 @@ function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=
   const par2=Object.values(byF).flatMap(a=>a.sort((x,y)=>y.sc-x.sc).slice(0,3).map(z=>z.g)),pool2=[],pk2=new Set(),uk=Object.keys(LABU);
   const put2=(g,why)=>{try{g=labNorm(g)}catch(e){return}const k=labKey(g);if(labFam(g)===dom||!ok(k)||pk2.has(k))return;pk2.add(k);pool2.push({g,why,p:mdl?labPred(L,g):null})};
   const nDiv=Math.round(left*LABDIV);let gd=0;
-  while(pool2.length<nDiv*10&&gd++<nDiv*80){const r=Math.random();
+  while(pool2.length<nDiv*30&&gd++<nDiv*240){const r=Math.random();
    if(r<0.55&&par2.length){let g=par2[Math.floor(Math.random()*par2.length)];const j=1+Math.floor(Math.random()*2);for(let z=0;z<j;z++){const m=labMut(L,g);if(labFam(m)!==dom)g=m}put2(g,"otra familia")}
    else{const g=labRand(L);if(Math.random()<0.5)g.u=uk[Math.floor(Math.random()*uk.length)];if(Math.random()<0.4)g.t=1+Math.floor(Math.random()*3);put2(g,"otra familia (nueva)")}}
   pool2.sort((a,b)=>(b.p?b.p.acq:0)-(a.p?a.p.acq:0));let nd=0;for(const x of pool2){if(nd>=nDiv)break;if(add(x.g,"🌈 "+x.why,x.p&&x.p.pred))nd++}
@@ -1993,6 +2015,7 @@ const btvSave=()=>{try{localStorage.setItem("pbbtv2",JSON.stringify(BTV))}catch{
 function labHtml(){try{const L=S.lab;if(!L||!L.last&&!Object.keys(L.pop||{}).length)return`<div class="p lab0"><b>🤖 Laboratorio</b><div class="m">Cada noche el bot inventará 48 métodos nuevos y los examinará. Aparecerán aquí los que aprueben.</div></div>`;
  const pop=Object.entries(L.pop||{}).sort((a,b)=>(b[1].an||0)-(a[1].an||0)),ic={aprueba:"📝",nace:"🌱","sale":"🗑️",descartado:"🎲","a la ficticia":"🧪","sale de la ficticia":"↩️",apartado:"⛔",evoluciona:"🔄"};
  return`<div class="lab0"><b>🤖 Laboratorio</b><div class="m">Cada noche y cada 2 horas durante el día (también los fines de semana) inventa ${LABN} métodos: la mitad son variaciones de los mejores y el resto exploración guiada por lo que más acierta. Busca y aprende solo con los datos hasta hace 2 años. Para quedarse tienen que ganar al SPY en 2000-2015 <b>y</b> después, pasar el <b>examen oculto</b> (ganar al SPY en los últimos 2 años, que no pudo ver) y la <b>prueba de estabilidad</b> (sus variantes cercanas también tienen que ganar al SPY; si no, fue suerte). ${L.last?`Última ronda (${esc(fd(L.last.d))}): ${L.last.n} probados${L.last.nuevos!=null?` (<b>${L.last.nuevos} inventados de cero</b>, el resto mejoras y variaciones)`:""}, <b>${L.last.ok} aprobados</b>.`:""} En total ha probado ${(L.tried||[]).length}; en la liga quedan <b>${pop.length}</b> (máx. ${LABMAX})${Object.keys(L.arch||{}).length?` · 📦 <b>${Object.keys(L.arch).length}</b> en el archivo (nunca se borran: cada ronda se revisan 15 y vuelven a la liga si vuelven a ser de los mejores)`:""}${Object.keys(L.pend||{}).length?` y ${Object.keys(L.pend).length} en prueba de estabilidad`:""}.</div>
+ ${L.surr&&L.surr.cKnn!=null?`<div class="m">🧠 <b>Cómo elige qué probar</b>: antes de gastar una prueba, dos modelos predicen la nota de miles de candidatos (40 por hueco) y se examinan con los métodos más recientes que no han visto. Ahora usa <b>${L.surr.modo==="boosting"?"el de boosting":L.surr.modo==="mezcla"?"la mezcla de los dos":"el de vecinos parecidos"}</b> (acierto: vecinos ${Math.round(L.surr.cKnn*100)} · boosting ${L.surr.cGbm!=null?Math.round(L.surr.cGbm*100):"—"} · mezcla ${L.surr.cMix!=null?Math.round(L.surr.cMix*100):"—"}, sobre 100).</div>`:""}
  ${(()=>{const lt=labLearnt();if(!lt.length)return"";const best=lt.slice(0,3),worst=lt.slice(-2).reverse();return`<div class="m">🧠 <b>Lo que va aprendiendo</b> (qué piezas sacan mejor nota en el examen): ${best.map(x=>`${esc(LABPN[x.pc])}: <b>${esc(labValTxt(x.pc,x.v))}</b> (${Math.round(x.r*100)} % de ${x.n})`).join(" · ")}. Lo que peor funciona: ${worst.map(x=>`${esc(LABPN[x.pc])}: ${esc(labValTxt(x.pc,x.v))} (${Math.round(x.r*100)} %)`).join(" · ")}.</div>`})()}
  ${(()=>{const G=(L.prog||[]).filter(x=>x.best!=null);if(G.length<2)return"";const a=G[0],z=G[G.length-1],w=G.length>=8?G[G.length-8]:a,pt=x=>x==null?"—":P(x*100);
   return`<div class="m">📈 <b>Cómo crece</b>: el mejor de la liga gana hoy <b>${pt(z.best)}/año</b> (el ${esc(fd(a.d))}: ${pt(a.best)}${w!==a?` · hace una semana: ${pt(w.best)}`:""})${z.p20!=null?` y hasta el 20.º gana ${pt(z.p20)}`:""}. Métodos probados en total: <b>${(z.tried||0).toLocaleString("es-ES")}</b>.</div>`})()}
