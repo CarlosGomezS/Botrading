@@ -263,3 +263,11 @@ test("Base/BNB: la liquidez guardada en un contrato «locker» cuenta como bloqu
   const i2 = gpInfo({ ...r, owner_address: "0xbbb", lp_holders: [{ address: "0xaaa", is_contract: 0, is_locked: 0, percent: "0.99" }] }); assert.equal(i2.mintOk, false, "con dueño y acuñable: fuera"); assert.ok(i2.lp < 1, "la LP en manos del creador no cuenta");
   assert.equal(gpInfo({ ...r, hidden_owner: "1" }).mintOk, false, "dueño oculto: fuera");
 });
+test("lecciones: cada operación cerrada se guarda con su foto de entrada y lo que pasó, y la moneda con pérdidas queda vetada 24 h", () => {
+  const S = freshState(), a = "le", base = { mc: 120e3, liq: 25e3, v1: 20e3, ch1: 25, ageMin: 15 }, ext = { rc: { [a]: okInfo }, gt: {} };
+  paso(S, { [a]: par(a) }, new Date(T0), () => 1, ext); assert.ok(S.pos[a].e0 && S.pos[a].e0.q.liquidity.usd > 0);
+  rapido(S, { [a]: par(a, { px: 0.9 }) }, new Date(T0 + 120000));
+  assert.equal(S.lecc.length, 1); const l = S.lecc[0]; assert.ok(l.res < 0 && l.p.length >= 2 && l.info);
+  paso(S, { [a]: par(a) }, new Date(T0 + 30 * 3600e3), () => 1, ext); assert.equal(Object.keys(S.pos).length, 0, "vetada tras perder");
+  const M = { hechas: [], hist: [], lecc: S.lecc }; assert.ok(backtest({ ...VIDEO, minScore: 0 }, M).n >= 0);
+});

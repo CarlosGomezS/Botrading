@@ -169,6 +169,7 @@ export function anotarSeries(M, pre, now) {
   const e = Object.entries(M.serie); if (e.length > 600) M.serie = Object.fromEntries(e.sort((x, y) => y[1].t - x[1].t).slice(0, 600));
   const out = {}; for (const [a, z] of Object.entries(M.serie)) { const g = grafico(z.p); if (g) out[a] = g; } return out;
 }
+export function fotoQ(q) { return { priceUsd: q.priceUsd, pairCreatedAt: q.pairCreatedAt, marketCap: q.marketCap, fdv: q.fdv, liquidity: { usd: +(q.liquidity && q.liquidity.usd) || 0 }, volume: { h1: +(q.volume && q.volume.h1) || 0, h24: +(q.volume && q.volume.h24) || 0 }, priceChange: { ...(q.priceChange || {}) }, txns: { h1: { ...((q.txns && q.txns.h1) || {}) } }, baseToken: { symbol: q.baseToken && q.baseToken.symbol } }; }
 let IA = null; export function setIA(m) { IA = m && m.listo && m.w ? m : null; } export const iaEnUso = () => IA;
 export function analista(S, a, p, info, g, nowMs, j) {
   const ch1 = +(p.priceChange && p.priceChange.h1) || 0, ch5 = +(p.priceChange && p.priceChange.m5) || 0, liq = +(p.liquidity && p.liquidity.usd) || 1, mc = +(p.marketCap || p.fdv) || 1;
@@ -200,7 +201,12 @@ function cerrar(S, a, now, px, liq, why, ev, rug) {
   const gotT = got + (p.gotPart || 0), pnl = gotT - p.cost; S.cash += got; S.st.pnl += pnl - (p.pnlPart || 0); S.st.fees += fee; if (pnl >= 0) S.st.wins++; else S.st.losses++; if (rug) S.st.rugs++; if (ev === "STOP") S.st.stops++;
   S.st.worst = Math.min(S.st.worst || 0, pnl); S.st.best = Math.max(S.st.best || 0, pnl);
   S.closed.unshift({ sym: p.sym, a, url: p.url, t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(gotT), pnl: r2(pnl), pc: r2((gotT / p.cost - 1) * 100), why: p.gotPart ? why + " (tras vender parte con ganancia)" : why, sc: p.sc, h: (p.h || []).slice(-120), px0: p.px, peak: p.peak, out: px }); S.closed = S.closed.slice(0, 600);
-  S.cool[a] = now.getTime(); delete S.pos[a];
+  // v187 · 📕 LECCIONES: cada operación cerrada (cómo estaba la moneda al comprar y qué pasó después) se guarda para que la IA y la bola aprendan
+  // de sus propios aciertos y errores; y una moneda con la que se perdió queda vetada 24 h (no se vuelve a tropezar con la misma piedra)
+  if (p.e0) { const t0 = Date.parse(p.t0), path = [[0, 1]]; let last = -1; for (const [t, pr] of p.h || []) { const m = Math.round((Date.parse(t) - t0) / 60000); if (m > last && m > 0) { path.push([m, +(pr / p.px).toFixed(4)]); last = m; } }
+    if (rug) path.push([last + 1, 0]); else path.push([Math.max(last + 1, 1), +(px / p.px).toFixed(4)]);
+    S.lecc = (S.lecc || []).concat([{ a, t0, q: p.e0.q, info: p.e0.info, jup: p.e0.jup, gt: null, p: path.slice(-120), fin: "leccion", res: r2((gotT / p.cost - 1) * 100) }]).slice(-60); }
+  S.cool[a] = now.getTime() + (pnl < 0 ? 24 * 3600e3 : 0); delete S.pos[a];
   S.ag.risk = { sym: p.sym, txt: why, t: now.toISOString() };
   L(S, now, ev, p.sym, why); L(S, now, pnl >= 0 ? "WIN" : "LOSS", p.sym, `${pnl >= 0 ? "+" : ""}${r2(pnl)} · ${r2((gotT / p.cost - 1) * 100)} %`);
 }
@@ -293,7 +299,7 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs
     const sl = slip(amt, liq), fill = pr * (1 + sl), qn = Math.max(0, amt * (1 - C.fee) - (C.fixFee || 0)) / fill;
     if (amt <= (C.fixFee || 0) * 4) break;   // una compra tan pequeña que los costes fijos se la comerían
     S.cash -= amt; S.st.trades++; S.st.fees += amt - qn * pr;
-    S.pos[a] = { sym: q.baseToken.symbol, name: q.baseToken.name, url: q.url, q: qn, qIni: qn, px: pr, cost: amt, t0: now.toISOString(), peak: pr, last: pr, sc, sig, liq, h: [[now.toISOString(), pr]] };
+    S.pos[a] = { e0: { q: fotoQ(q), info: RCI[a] || null, jup: (ext.jup || {})[a] || null }, sym: q.baseToken.symbol, name: q.baseToken.name, url: q.url, q: qn, qIni: qn, px: pr, cost: amt, t0: now.toISOString(), peak: pr, last: pr, sc, sig, liq, h: [[now.toISOString(), pr]] };
     px[a] = pr; S.ag.exec = { sym: q.baseToken.symbol, amt: r2(amt), t: now.toISOString() };
     L(S, now, "ENTER", q.baseToken.symbol, `${r2(amt)} · ${Math.round(G.size * 100)} % · deslizamiento ${r2(sl * 100)} % · stop −${G.stop * 100} % puesto`);
   }
@@ -469,6 +475,7 @@ async function main() {
   await enParalelo(pideGT.filter(([a]) => !ext.gt[a]), 2, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; ngt++; let j = null; try { j = await J(`${GT}/networks/${CH.gt}/pools/${q.pairAddress}/trades`, 3); } catch (e) { S.gtErr = String(e.message || e).slice(0, 60); } if (!j) S.gtErr = S.gtErr || "404 (piscina no encontrada)"; if (j && j.data) { const g = gtInfo(j.data, tnow); ext.gt[a] = g; S.gtc[a] = { t: tnow, g: { ...g, buyers: g.buyers.slice(0, 150) } }; gtOk++; } });
   S.diag = { hist: S.histN || 0, histErr: S.histErr || null, t: now.toISOString(), jupiter: CH.id === "solana" ? S.jupN || 0 : undefined, monedas: Object.keys(by).length, candidatas: pre.length, motivos: mot, laxo: lx, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, gtErr: S.gtErr || null, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
   try { MS.registrar(MUE, pre, by, ext, now); } catch (e) { console.log("Memes: muestras: " + e.message); }
+  try { MUE.lecc = MUE.lecc || []; const vistos = new Set(MUE.lecc.map((x) => x.a + x.t0)); for (const C2 of [S, S.turbo, S.ideal]) { for (const l of (C2 && C2.lecc) || []) if (!vistos.has(l.a + l.t0)) { MUE.lecc.push(l); vistos.add(l.a + l.t0); } if (C2) C2.lecc = []; } MUE.lecc = MUE.lecc.slice(-1500); S.leccN = MUE.lecc.length; } catch (e) { console.log("Memes: lecciones: " + e.message); }
   try { const gf = anotarSeries(MUE, pre, now); setGraf(gf); S.graf = Object.keys(gf).length; S.grafTop = Object.entries(gf).filter(([a]) => by[a]).sort((x, y) => y[1].sc - x[1].sc).slice(0, 5).map(([a, g]) => ({ sym: by[a].baseToken.symbol, ...g })); } catch (e) { console.log("Memes: gráfico: " + e.message); }
   // v178 · 📚 historia: 2 monedas por minuto (ya comprobadas en seguridad) → hasta 40 casos cada una con sus velas de 5 min de ~3 días
   try {

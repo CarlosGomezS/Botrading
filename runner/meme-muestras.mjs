@@ -72,6 +72,7 @@ export function simular(g, s, S0 = { smart: {}, hold: {} }) {
 // prueba una variante sobre todas las muestras completas: nº de operaciones, % de acierto, media, factor de beneficio y su «t»
 export function backtest(g, M) {
   const rs = [], ws = []; for (const s of M.hechas || []) { const r = simular(g, s); if (r != null) { rs.push(r); ws.push(1); } }
+  for (const s of M.lecc || []) { const r = simular(g, s); if (r != null) { rs.push(r); ws.push(1.5); } }   // v187 · las lecciones de sus propias operaciones pesan más
   let nh = 0; for (const s of M.hist || []) { const r = simular(g, s); if (r != null) { rs.push(r); ws.push(0.5); nh++; } }   // los de historia valen la mitad
   const n = rs.length; if (!n) return { n: 0 };
   const W = ws.reduce((a, b) => a + b, 0), m = rs.reduce((a, b, i) => a + b * ws[i], 0) / W, sd = Math.sqrt(Math.max(1e-9, rs.reduce((a, b, i) => a + ws[i] * (b - m) ** 2, 0) / W));

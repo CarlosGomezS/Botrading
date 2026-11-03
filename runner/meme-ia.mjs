@@ -40,7 +40,7 @@ export function auc(ps, ys) {
 }
 // entrena con todos los casos (vividos ×1, historia ×0,5); valida con el 30 % más reciente sin haberlo visto
 export function entrenar(M, now = new Date()) {
-  const casos = [...(M.hechas || []).map((s) => [s, 1]), ...(M.hist || []).map((s) => [s, 0.5])].filter(([s]) => s.q && s.p && s.p.length > 2).sort((a, b) => a[0].t0 - b[0].t0);
+  const casos = [...(M.hechas || []).map((s) => [s, 1]), ...(M.hist || []).map((s) => [s, 0.5]), ...(M.lecc || []).map((s) => [s, 2])].filter(([s]) => s.q && s.p && s.p.length > 2).sort((a, b) => a[0].t0 - b[0].t0);
   if (casos.length < MIN_CASOS) return { n: casos.length, listo: false, t: now.toISOString() };
   const X = casos.map(([s]) => rasgos(s.q, s.info, s.t0, s.jup)), Y = casos.map(([s]) => etiqueta(s.p)), W = casos.map(([, w]) => w);
   const cut = Math.floor(casos.length * 0.7), m0 = ajustar(X.slice(0, cut), Y.slice(0, cut), W.slice(0, cut));

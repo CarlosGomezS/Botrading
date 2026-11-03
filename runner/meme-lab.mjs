@@ -143,7 +143,7 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null)
   { const vt = L.pop.find((v) => v.id === "vt"); if (vt && vt.tv !== TURBO_V) { L.pop = L.pop.filter((v) => v !== vt); ev("vt se renueva con las reglas del Turbo 2", "sale"); } }
   if (!L.pop.some((v) => v.id === "vt")) { { const v = nuevaVar("vt", { ...TURBO }, now, L.gen, "reglas del Turbo (referencia, no se elimina)"); v.tv = TURBO_V; L.pop.push(v); } ev("vt nace (reglas del Turbo: punto de partida de las variantes con mucha actividad)", "nace"); }
   if (M) { try { L.ia = entrenar(M, now); setIA(L.ia); if (L.ia.listo) ev(`🧠 la IA se reentrena con ${L.ia.n} casos: acierta ${Math.round(L.ia.auc * 100)} de 100 al ordenar buenas y malas (50 = azar)`, "ia"); } catch (e) {} }
-  if (M) { for (const v of L.pop) v.bt = backtest({ ...VIDEO, ...v.g }, M); L.muestras = (M.hechas || []).length; L.historia = (M.hist || []).length; L.siguiendo = Object.keys(M.abiertas || {}).length; }
+  if (M) { for (const v of L.pop) v.bt = backtest({ ...VIDEO, ...v.g }, M); L.muestras = (M.hechas || []).length; L.historia = (M.hist || []).length; L.lecciones = (M.lecc || []).length; L.siguiendo = Object.keys(M.abiertas || {}).length; }
   for (const v of L.pop) v.fit = fitness(v);
   try { ensanchar(L, L.pop.filter((v) => v.fit != null && v.fit > 0).sort((a, b) => b.fit - a.fit).slice(0, 5), now); } catch (e) {}
   const ageH = (v) => (now - Date.parse(v.born)) / 3600e3;
