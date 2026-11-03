@@ -289,3 +289,9 @@ test("volátiles: compra criptos grandes y líquidas en tendencia (no las recié
   rapido(S, { [v]: { ...big, priceUsd: "0.94" } }, new Date(T0 + 60000)); assert.equal(Object.keys(S.volat.pos).length, 0, "stop del 5 %"); assert.ok(S.volat.closed[0].pc > -8);
   assert.ok(VOLATILES.length >= 10 && VOLATIL.estilo === "volatil");
 });
+test("freno automático: si las últimas operaciones pierden, compra a la mitad y es más exigente; al volver a ganar, se quita", () => {
+  const S = freshState(), a = "fr"; S.closed = Array.from({ length: 12 }, () => ({ pc: -8 }));
+  paso(S, { [a]: par(a) }, new Date(T0), () => 1, { rc: { [a]: okInfo }, gt: {} }); assert.equal(S.prudente, true);
+  if (S.pos[a]) assert.ok(S.pos[a].cost < 100 * VIDEO.size * 0.6, "compra a la mitad");
+  S.closed = Array.from({ length: 12 }, () => ({ pc: 5 })); paso(S, {}, new Date(T0 + 60000), () => 1, {}); assert.equal(S.prudente, false);
+});

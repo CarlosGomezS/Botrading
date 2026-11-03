@@ -260,6 +260,11 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs
   const prevC = C, prevG = G; C = costs ? { ...R, ...costs } : R; G = { ...VIDEO, ...(genome || S.genome || {}) };
   try {
   const tnow = now.getTime(), RCI = ext.rc || {}, GTI = ext.gt || {};
+  // v195 · 🛡️ FRENO AUTOMÁTICO: si las últimas 15 operaciones de esta cuenta pierden de media, entra en «modo prudente»
+  // (compras a la mitad y nota mínima +10) hasta que vuelva a ganar; mientras, la bola sigue buscando reglas mejores
+  { const rec = (S.closed || []).slice(0, 15), med = rec.length ? rec.reduce((a, c) => a + (+c.pc || 0), 0) / rec.length : 0, pru = rec.length >= 10 && med < 0;
+    if (pru !== !!S.prudente) { S.prudente = pru; L(S, now, "INFO", "", pru ? `🛡️ modo prudente: las últimas ${rec.length} operaciones pierden ${r2(med)} % de media → compras a la mitad y más exigente` : "🛡️ fin del modo prudente: vuelve a ganar"); }
+    if (pru) G = { ...G, size: G.size * 0.5, minScore: Math.min(95, G.minScore + 10) }; }
   S.rk = S.rk || {}; S.ag = S.ag || {}; S.flow = S.flow || [];
   const px = riesgo(S, by, now, costs, G);
   // carteras listas: quien compró pronto en una moneda que luego subió un 50 % entra en la lista (aprende solo)
