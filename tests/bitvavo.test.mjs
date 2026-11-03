@@ -48,3 +48,15 @@ test("métodos de traders cripto: capitulación, fade y máximos; y piramidar su
   const H = { m: { A: { c, f, sp: 0.001 } } }, sin = backtest({ ...BASE, estilo: "maximos", volMin: 0.5, pullMax: 0.01, pir: 0 }, H), con = backtest({ ...BASE, estilo: "maximos", volMin: 0.5, pullMax: 0.01, pir: 1, pirOn: 0.01, stop: 0.05, trailOn: 0.5, maxHoldH: 48 }, H);
   assert.ok(sin.n > 0 && con.n > 0);
 });
+import { entrenarIA, etiquetas, entrenar, predecir, auc } from "../runner/bitvavo-ia.mjs";
+test("IA de Bitvavo: aprende un patrón real, se examina con días que no ha visto y rellena f.ia sin hacer trampa", () => {
+  // patrón escondido: cuando el volumen se dispara con la vela verde, el precio sube después
+  const H = { m: {} };
+  for (let k = 0; k < 8; k++) { let z = 11 + k, p = 100; const r = () => (z = (z * 16807) % 2147483647) / 2147483647, c = []; let ola = 0;
+    for (let i = 0; i < 1600; i++) { const ev = r() < 0.03; if (ev) ola = 30; const tr = ola > 0 ? 0.0012 : -0.0001; ola--; const o = p; p = p * (1 + tr + (r() - 0.5) * 0.003); c.push([T0 + i * 300e3, o, Math.max(o, p) * 1.001, Math.min(o, p) * 0.999, p, ev ? 9000 : 1000 * (0.7 + r() * 0.6)]); }
+    H.m["M" + k] = { c, f: rasgos(c), sp: 0.001 }; }
+  const t = Date.now(), R = entrenarIA(H); assert.ok(R.listo, "aprende: auc " + R.auc); assert.ok(R.auc > 0.6); assert.ok(Date.now() - t < 20000, "rápido");
+  const f = H.m.M0.f.filter(Boolean); assert.ok(f.some((x) => x.ia != null && x.ia >= 0 && x.ia <= 1));
+  assert.ok(R.imp.length > 0 && R.top5.acierta > R.base, "en su 5 % más seguro acierta más que la media");
+  const b = backtest({ ...BASE, estilo: "ia", iaMin: 0.3, stop: 0.015, tp: 0.02, tpFrac: 1, trailOn: 0.5, maxHoldH: 6 }, H); assert.ok(b.n > 0);
+});
