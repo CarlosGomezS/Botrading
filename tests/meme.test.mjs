@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { freshLab, pasoVar, evolucionar, fitness, mutar, aleatorio, gkey, POP } from "../runner/meme-lab.mjs";
+import { gpInfo, CHAINS } from "../runner/meme.mjs";
 import { freshState, paso, pasoIdeal, rapido, reglas, rcInfo, gtInfo, analista, explorador, bestPairs, R } from "../runner/meme.mjs";
 
 const T0 = Date.parse("2026-11-03T10:00:00Z");
@@ -109,4 +110,15 @@ test("laboratorio de memes: población, cada variante opera con sus reglas, sele
   // y el terminal usa ahora esas reglas
   const g = aleatorio(() => 0.99); S.genome = { ...g, minScore: 99 }; paso(S, { a: par("a") }, new Date(T0 + 60e3), () => 1, ext);
   assert.ok(!S.pos.a, "con nota mínima 99 no entra: usa el genoma adoptado");
+});
+
+test("Base y BNB: GoPlus detecta trampas, impuestos, liquidez bloqueada, poseedores y creador", () => {
+  const ok = { is_honeypot: "0", is_mintable: "0", hidden_owner: "0", can_take_back_ownership: "0", owner_change_balance: "0", transfer_pausable: "0", cannot_sell_all: "0", slippage_modifiable: "0", buy_tax: "0", sell_tax: "0", is_open_source: "1",
+    lp_holders: [{ address: "0x000000000000000000000000000000000000dead", percent: "0.95", is_locked: 0 }, { address: "0xabc", percent: "0.05", is_locked: 0 }],
+    holders: [{ address: "0xpool", percent: "0.4", is_contract: "1" }, ...Array.from({ length: 12 }, (_, i) => ({ address: "0xh" + i, percent: "0.015", is_contract: "0" }))], creator_percent: "0.01", holder_count: "2500" };
+  const i = gpInfo(ok); assert.equal(i.mintOk, true); assert.ok(Math.abs(i.lp - 95) < 1e-9); assert.ok(Math.abs(i.top10 - 15) < 1e-9, "sin contar la piscina"); assert.ok(Math.abs(i.dev - 1) < 1e-9); assert.equal(i.holders, 2500);
+  assert.equal(gpInfo({ ...ok, is_honeypot: "1" }).mintOk, false, "trampa que no deja vender"); assert.equal(gpInfo({ ...ok, is_honeypot: "1" }).rugged, true);
+  assert.equal(gpInfo({ ...ok, sell_tax: "0.10" }).mintOk, false, "impuesto al vender"); assert.equal(gpInfo({ ...ok, is_mintable: "1" }).mintOk, false);
+  assert.ok(reglas(par("x"), i).bundle, "sin dato de bloque en estas redes: no elimina");
+  assert.deepEqual(Object.keys(CHAINS), ["solana", "base", "bsc"]);
 });

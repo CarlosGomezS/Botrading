@@ -1,6 +1,6 @@
 name: Memes (solo dinero ficticio)
 
-# v160 · terminal de memecoins de Solana con dinero ficticio (DexScreener, GeckoTerminal y RugCheck). Nunca toca dinero real ni Trading 212.
+# v168 · terminal de memecoins con dinero ficticio en Solana, Base y BNB Chain (DexScreener, GeckoTerminal, RugCheck y GoPlus). Nunca toca dinero real ni Trading 212.
 # CONSTANTE: cada ejecución hace una vuelta completa por minuto (y vigila lo abierto cada ~20 s) durante ~28 min y, al terminar, pide la siguiente (en cadena, las 24 horas).
 # Si GitHub cortara la cadena, el horario de abajo la vuelve a arrancar.
 on:
@@ -46,8 +46,10 @@ jobs:
           end=$(( $(date +%s) + 28*60 ))
           # cada minuto: una vuelta completa y, entre medias, dos vigilancias rápidas de lo abierto (~cada 20 s), para que los stops salten antes
           while [ "$(date +%s)" -lt "$end" ]; do
-            s=$(date +%s); timeout 75 node runner/meme.mjs || true
-            for k in 1 2; do w=$(( s + 20*k - $(date +%s) )); if [ "$w" -gt 0 ]; then sleep "$w"; fi; timeout 18 node runner/meme.mjs rapido || true; done
+            # v168 · las tres redes a la vez (Solana, Base y BNB Chain), cada una en su rama
+            s=$(date +%s)
+            for c in solana base bsc; do timeout 75 node runner/meme.mjs $c > /tmp/m-$c.log 2>&1 & done; wait; cat /tmp/m-*.log
+            for k in 1 2; do w=$(( s + 20*k - $(date +%s) )); if [ "$w" -gt 0 ]; then sleep "$w"; fi; for c in solana base bsc; do timeout 18 node runner/meme.mjs $c rapido > /tmp/r-$c.log 2>&1 & done; wait; cat /tmp/r-*.log; done
             w=$(( 60 - ($(date +%s) - s) )); if [ "$w" -gt 0 ]; then sleep "$w"; fi
           done
       - name: Siguiente tramo (en cadena)

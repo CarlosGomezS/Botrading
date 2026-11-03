@@ -9,7 +9,14 @@ import { execSync } from "node:child_process";
 import path from "node:path";
 
 const REPO = process.env.GITHUB_REPOSITORY || "", TOKEN = process.env.GITHUB_TOKEN || "";
-const DS = "https://api.dexscreener.com", GT = "https://api.geckoterminal.com/api/v2", RC = "https://api.rugcheck.xyz/v1";
+const DS = "https://api.dexscreener.com", GT = "https://api.geckoterminal.com/api/v2", RC = "https://api.rugcheck.xyz/v1", GP = "https://api.gopluslabs.io/api/v1";
+// v168 · REDES: el mismo terminal en Solana, Base y BNB Chain (cada una con su estado, su bola de aprendizaje y su rama: meme, meme-base, meme-bsc)
+export const CHAINS = {
+  solana: { id: "solana", nombre: "Solana", ds: "solana", gt: "solana", seg: "rugcheck", rama: "meme", fixFee: 0.08, gtTurno: 0, busca: ["pump", "sol", "meme", "cat", "dog", "ai"] },
+  base: { id: "base", nombre: "Base", ds: "base", gt: "base", seg: "goplus", gp: 8453, rama: "meme-base", fixFee: 0.05, gtTurno: 1, busca: ["base", "based", "meme", "cat", "dog", "ai"] },
+  bsc: { id: "bsc", nombre: "BNB Chain", ds: "bsc", gt: "bsc", seg: "goplus", gp: 56, rama: "meme-bsc", fixFee: 0.06, gtTurno: 2, busca: ["bnb", "bsc", "meme", "cat", "dog", "ai"] }
+};
+const ARGS = process.argv.slice(2), CH = CHAINS[ARGS.find((x) => CHAINS[x])] || CHAINS.solana, RAPIDO = ARGS.includes("rapido");
 export const R = {
   start: 100, size: 0.08,         // v167: prueba con 100 €, lo que piensas meter de verdad
   fixFee: 0.08,                    // € fijos por transacción en Solana: propina de prioridad/Jito y cuenta de la moneda (no dependen del tamaño)
@@ -43,7 +50,7 @@ export function freshState() {
   return { v: 5, start: R.start, cash: R.start, pos: {}, closed: [], log: [], line: 0, eq: [], seen: {}, cool: {}, young: {}, rc: {}, hold: {}, watch: {}, smart: {}, flow: [], ag: {},
     st: { seen: 0, killed: 0, scored: 0, trades: 0, wins: 0, losses: 0, fees: 0, failed: 0, rugs: 0, pnl: 0, stops: 0, worst: 0, best: 0 }, rk: {}, rate: [], nights: [], since: new Date().toISOString() };
 }
-export function bestPairs(pairs) { const m = {}; for (const p of pairs || []) { if (!p || p.chainId !== "solana" || !p.baseToken) continue; const a = p.baseToken.address, l = +(p.liquidity && p.liquidity.usd) || 0; if (!m[a] || l > (+(m[a].liquidity && m[a].liquidity.usd) || 0)) m[a] = p; } return m; }
+export function bestPairs(pairs, chain = "solana") { const m = {}; for (const p of pairs || []) { if (!p || p.chainId !== chain || !p.baseToken) continue; const a = p.baseToken.address, l = +(p.liquidity && p.liquidity.usd) || 0; if (!m[a] || l > (+(m[a].liquidity && m[a].liquidity.usd) || 0)) m[a] = p; } return m; }
 
 // ---- lo que se saca de RugCheck ----
 export function rcInfo(rc) {
@@ -60,6 +67,19 @@ export function rcInfo(rc) {
   const devRug = risks.some((t) => /rug/i.test(t) && /creator|dev|previous|history/i.test(t)) || (rc.creatorTokens || []).some((x) => x && (x.rugged || x.isRugged));
   const bundle = sup > 0 ? (rc.insiderNetworks || []).reduce((t, n) => t + (+n.currentHolding || 0), 0) / sup * 100 : 0;
   return { mintOk: !rc.mintAuthority && !rc.freezeAuthority && !tok.mintAuthority && !tok.freezeAuthority, lp, top10, dev, devRug, bundle, holders: +rc.totalHolders || 0, rugged: !!rc.rugged, insiders: +rc.graphInsidersDetected || 0 };
+}
+// ---- v168 · Base y BNB Chain: la seguridad sale de GoPlus (gratis): trampa que no deja vender (honeypot), mint, dueño oculto, impuestos,
+// liquidez bloqueada, mayores poseedores y creador. No da «lanzamiento en bloque»: en esas redes esa regla no se puede aplicar (pasa sin dato)
+const DEAD = new Set(["0x000000000000000000000000000000000000dead", "0x0000000000000000000000000000000000000000"]);
+export function gpInfo(r) {
+  if (!r) return null;
+  const f = (x) => +x || 0, b = (x) => x === "1" || x === 1;
+  const mintOk = !b(r.is_honeypot) && !b(r.is_mintable) && !b(r.hidden_owner) && !b(r.can_take_back_ownership) && !b(r.owner_change_balance) && !b(r.transfer_pausable) && !b(r.cannot_sell_all) && !b(r.slippage_modifiable)
+    && f(r.buy_tax) <= 0.01 && f(r.sell_tax) <= 0.01 && r.is_open_source !== "0";
+  const lp = (r.lp_holders || []).reduce((t, h) => t + (b(h.is_locked) || DEAD.has(String(h.address || "").toLowerCase()) ? f(h.percent) : 0), 0) * 100;
+  const top10 = (r.holders || []).filter((h) => !b(h.is_contract) && !b(h.is_locked) && !DEAD.has(String(h.address || "").toLowerCase())).slice(0, 10).reduce((t, h) => t + f(h.percent), 0) * 100;
+  return { mintOk, lp, top10, dev: (f(r.creator_percent) + (r.owner_address && r.owner_address !== r.creator_address ? f(r.owner_percent) : 0)) * 100, devRug: b(r.honeypot_with_same_creator),
+    bundle: 0, sinBloque: true, holders: f(r.holder_count), rugged: b(r.is_honeypot), insiders: 0, tax: Math.max(f(r.buy_tax), f(r.sell_tax)) };
 }
 // ---- lo que se saca de las operaciones de GeckoTerminal (cada una con su cartera) ----
 export function gtInfo(trades, nowMs) {
@@ -225,7 +245,7 @@ export function rapido(S, by, now) {
 async function enParalelo(items, n, fn) { const out = []; let i = 0; await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) { const k = i++; try { out[k] = await fn(items[k], k); } catch (e) { out[k] = null; } } })); return out; }
 async function leerArchivo(f) {
   if (!REPO || !TOKEN) return null;
-  const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${f}?ref=meme`, { headers: { Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github.raw+json" } });
+  const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${f}?ref=${CH.rama}`, { headers: { Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github.raw+json" } });
   if (r.status === 404) return null; if (!r.ok) throw new Error("no pude leer " + f + " (HTTP " + r.status + ")");
   return await r.json();
 }
@@ -233,24 +253,26 @@ async function leerArchivo(f) {
 function publicar(S, LB) {
   const out = JSON.stringify(S); writeFileSync("meme.json", out); if (LB) writeFileSync("meme-lab.json", JSON.stringify(LB));
   if (!REPO || !TOKEN) { console.log("Ejecución local: guardado en meme.json"); return; }
-  const pub = path.join(process.cwd(), ".pubmeme"); rmSync(pub, { recursive: true, force: true }); mkdirSync(pub); writeFileSync(path.join(pub, "meme.json"), out);
+  const pub = path.join(process.cwd(), ".pubmeme-" + CH.id); rmSync(pub, { recursive: true, force: true }); mkdirSync(pub); writeFileSync(path.join(pub, "meme.json"), out);
   if (LB) writeFileSync(path.join(pub, "meme-lab.json"), JSON.stringify(LB));
   const g = (c) => execSync(`git -C "${pub}" ${c}`, { stdio: "pipe" });
   g("init -q -b meme"); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"'); g("add -A"); g(`commit -q -m "memes ${new Date().toISOString()}"`);
-  for (let i = 0; i < 4; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git meme`); return; } catch (e) { if (i === 3) throw new Error("no pude guardar meme.json"); } }
+  for (let i = 0; i < 4; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git HEAD:${CH.rama}`); return; } catch (e) { if (i === 3) throw new Error("no pude guardar meme.json"); } }
 }
 
 async function main() {
   const now = new Date(), tnow = now.getTime(), t0 = Date.now(), LBm = await import("./meme-lab.mjs");
-  let S = await leerArchivo("meme.json"); if (!S || S.v !== 5) { const old = S; S = freshState(); if (old && old.since) L(S, now, "INFO", "", "empieza de cero con 100 € (lo que piensas meter de verdad) y los costes fijos de Solana"); }
+  R.fixFee = CH.fixFee;
+  let S = await leerArchivo("meme.json"); if (!S || S.v !== 5) { const old = S; S = freshState(); L(S, now, "INFO", "", `empieza de cero en ${CH.nombre} con 100 € (lo que piensas meter de verdad) y sus costes fijos`); }
+  S.chain = CH.id; S.chainNombre = CH.nombre;
   let LB = null; try { LB = await leerArchivo("meme-lab.json"); } catch (e) { console.log("Memes: " + e.message); return; }
   if (!LB || LB.v !== 2 || (S.genomeId && !LB.pop.some((v) => v.id === S.genomeId) && false)) { LB = LBm.freshLab(now); L(S, now, "INFO", "", `🧬 nace el laboratorio de memes: ${LB.pop.length} variantes de las reglas compiten en ficticio`); }
   const varOpen = () => LB.pop.flatMap((v) => Object.keys(v.pos || {}));
-  if (process.argv[2] === "rapido") {
+  if (RAPIDO) {
     const open = [...new Set([...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()])];
     if (!open.length) { console.log("Memes (rápido): nada abierto."); return; }
-    const pairs = []; for (let i = 0; i < open.length; i += 30) { const j = await J(`${DS}/tokens/v1/solana/${open.slice(i, i + 30).join(",")}`); if (Array.isArray(j)) pairs.push(...j); }
-    const by = bestPairs(pairs); if (!Object.keys(by).length) { console.log("Memes (rápido): sin precios."); return; }
+    const pairs = []; for (let i = 0; i < open.length; i += 30) { const j = await J(`${DS}/tokens/v1/${CH.ds}/${open.slice(i, i + 30).join(",")}`); if (Array.isArray(j)) pairs.push(...j); }
+    const by = bestPairs(pairs, CH.ds); if (!Object.keys(by).length) { console.log("Memes (rápido): sin precios."); return; }
     for (const a of open) if (!by[a]) { console.log("Memes (rápido): falta el precio de alguna; espero a la vuelta completa."); return; }
     rapido(S, by, now);
     for (const v of LB.pop) LBm.pasoVar(v, by, now, { full: false });
@@ -263,22 +285,22 @@ async function main() {
   const add = (x) => { if (x && typeof x === "string" && x.length > 30) addrs.add(x); };
   // v165 · más fuentes, rotando cada minuto (GeckoTerminal admite ~30 peticiones por minuto): nuevas, tendencia de 1 h/6 h/24 h y las de más volumen
   const GTL = [];
-  for (const d of ["5m", "1h", "6h", "24h"]) for (const pg of [1, 2, 3]) GTL.push(`${GT}/networks/solana/trending_pools?duration=${d}&page=${pg}`);
-  for (const pg of [1, 2, 3, 4, 5]) GTL.push(`${GT}/networks/solana/new_pools?page=${pg}`);
-  for (const pg of [1, 2, 3]) GTL.push(`${GT}/networks/solana/pools?sort=h24_volume_usd_desc&page=${pg}`, `${GT}/networks/solana/pools?sort=h24_tx_count_desc&page=${pg}`);
-  const rot = Math.floor(tnow / 60000), otras = GTL.filter((u) => !/new_pools\?page=[123]$/.test(u)), gtU = rot % 2 ? [`${GT}/networks/solana/new_pools?page=1`, otras[rot % otras.length]] : [];   // v165 · GitHub comparte IP: GeckoTerminal limita mucho; listas solo un minuto de cada dos y el resto para las operaciones   // 5 listas + 10 operaciones < 30 peticiones/min de GeckoTerminal
-  const srcs = [DS + "/token-profiles/latest/v1", DS + "/token-boosts/latest/v1", DS + "/token-boosts/top/v1", ...["pump", "sol", "meme", "cat", "dog", "ai"].map((q) => `${DS}/latest/dex/search?q=${q}`).slice(rot % 6, rot % 6 + 2)];
-  await enParalelo(srcs, 5, async (u) => { const j = await J(u, 2); const arr = Array.isArray(j) ? j : (j && j.pairs) || []; for (const x of arr) if (x && x.chainId === "solana") add(x.tokenAddress || (x.baseToken && x.baseToken.address)); });
-  await enParalelo(gtU, 4, async (u) => { const j = await J(u, 2); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(/^solana_/, "")); } });
+  for (const d of ["5m", "1h", "6h", "24h"]) for (const pg of [1, 2, 3]) GTL.push(`${GT}/networks/${CH.gt}/trending_pools?duration=${d}&page=${pg}`);
+  for (const pg of [1, 2, 3, 4, 5]) GTL.push(`${GT}/networks/${CH.gt}/new_pools?page=${pg}`);
+  for (const pg of [1, 2, 3]) GTL.push(`${GT}/networks/${CH.gt}/pools?sort=h24_volume_usd_desc&page=${pg}`, `${GT}/networks/${CH.gt}/pools?sort=h24_tx_count_desc&page=${pg}`);
+  const rot = Math.floor(tnow / 60000), otras = GTL.filter((u) => !/new_pools\?page=[123]$/.test(u)), gtU = rot % 3 === CH.gtTurno ? [`${GT}/networks/${CH.gt}/new_pools?page=1`, `${GT}/networks/${CH.gt}/new_pools?page=2`, otras[rot % otras.length]] : [];   // las 3 redes se turnan para no pasarse del límite de GeckoTerminal   // v165 · GitHub comparte IP: GeckoTerminal limita mucho; listas solo un minuto de cada dos y el resto para las operaciones   // 5 listas + 10 operaciones < 30 peticiones/min de GeckoTerminal
+  const srcs = [DS + "/token-profiles/latest/v1", DS + "/token-boosts/latest/v1", DS + "/token-boosts/top/v1", ...CH.busca.map((q) => `${DS}/latest/dex/search?q=${q}`).slice(rot % 6, rot % 6 + 2)];
+  await enParalelo(srcs, 5, async (u) => { const j = await J(u, 2); const arr = Array.isArray(j) ? j : (j && j.pairs) || []; for (const x of arr) if (x && x.chainId === CH.ds) add(x.tokenAddress || (x.baseToken && x.baseToken.address)); });
+  await enParalelo(gtU, 4, async (u) => { const j = await J(u, 2); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(new RegExp("^" + CH.gt + "_"), "")); } });
   // primero lo abierto y lo recién encontrado; las «jóvenes» que se vuelven a mirar, como mucho 200
   const must = new Set([...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()]);
   const young = Object.entries(S.young || {}).sort((a, b) => b[1] - a[1]).slice(0, 1200).map((x) => x[0]);
   const list = [...new Set([...must, ...[...addrs].filter((a) => !(S.young || {})[a]), ...young])].slice(0, 1500), pairs = [];
   const batches = []; for (let i = 0; i < list.length; i += 30) batches.push(list.slice(i, i + 30));
   let fallo = false;
-  await enParalelo(batches, 6, async (b) => { try { const j = await J(`${DS}/tokens/v1/solana/${b.join(",")}`); if (Array.isArray(j)) pairs.push(...j); } catch (e) { if (b.some((a) => must.has(a))) fallo = true; } });
+  await enParalelo(batches, 6, async (b) => { try { const j = await J(`${DS}/tokens/v1/${CH.ds}/${b.join(",")}`); if (Array.isArray(j)) pairs.push(...j); } catch (e) { if (b.some((a) => must.has(a))) fallo = true; } });
   if (fallo) { console.log("Memes: faltan precios de algo abierto: no decido esta vuelta."); return; }
-  const by = bestPairs(pairs);
+  const by = bestPairs(pairs, CH.ds);
   if (!Object.keys(by).length) { console.log("Memes: sin datos de DexScreener; se intenta en la siguiente vuelta."); return; }
   // FILTRO (datos de cadena): RugCheck para las que pasan lo barato con las reglas MÁS LAXAS de toda la población (caché de 30 min)
   const lx = LBm.laxo(LB), ext = { rc: {}, gt: {} }, pre = [];
@@ -287,7 +309,9 @@ async function main() {
   let nrc = 0; const pide = [];
   for (const [a] of pre) { const c = S.rc[a]; if (c && tnow - c.t < 30 * 60000) ext.rc[a] = c.i; else if (pide.length < R.rcPerRun) pide.push(a); }
   let rcOk = 0, rcErr = 0, rcLate = 0; const tPre = Date.now() - t0;
-  await enParalelo(pide, 4, async (a) => { if (Date.now() - t0 > 45e3) { rcLate++; return; } nrc++; try { const j = await J(`${RC}/tokens/${a}/report`, 2); if (j) { const i = rcInfo(j); S.rc[a] = { t: tnow, i }; ext.rc[a] = i; rcOk++; } else rcErr++; } catch (e) { rcErr++; S.rcLastErr = String(e.message || e).slice(0, 80); } });
+  if (CH.seg === "rugcheck") await enParalelo(pide, 4, async (a) => { if (Date.now() - t0 > 45e3) { rcLate++; return; } nrc++; try { const j = await J(`${RC}/tokens/${a}/report`, 2); if (j) { const i = rcInfo(j); S.rc[a] = { t: tnow, i }; ext.rc[a] = i; rcOk++; } else rcErr++; } catch (e) { rcErr++; S.rcLastErr = String(e.message || e).slice(0, 80); } });
+  else { const lotes = []; for (let i = 0; i < pide.length; i += 10) lotes.push(pide.slice(i, i + 10));
+    await enParalelo(lotes, 2, async (lo) => { if (Date.now() - t0 > 45e3) { rcLate += lo.length; return; } nrc += lo.length; try { const j = await J(`${GP}/token_security/${CH.gp}?contract_addresses=${lo.join(",")}`, 2); const res = (j && j.result) || {}; for (const a of lo) { const r = res[a.toLowerCase()]; if (r) { const i = gpInfo(r); S.rc[a] = { t: tnow, i }; ext.rc[a] = i; rcOk++; } else rcErr++; } if (j && j.code !== 1 && j.message) S.rcLastErr = String(j.message).slice(0, 80); } catch (e) { rcErr += lo.length; S.rcLastErr = String(e.message || e).slice(0, 80); } }); }
   // ANALISTA: operaciones con cartera de GeckoTerminal para las que tienen datos de RugCheck y no son rug (primero las de más volumen)
   let ngt = 0;
   const pasaTerm = (a, q) => conGenoma(S.genome, () => { const i = ext.rc[a], rr = reglas(q, i); return i && !RULES.some(([k]) => rr[k] !== true); });
@@ -295,7 +319,7 @@ async function main() {
   const pideGT = preGT.filter(([a]) => { const i = ext.rc[a]; return i && !i.rugged; }).slice(0, R.gtPerRun);
   let gtOk = 0; S.gtc = S.gtc || {};
   for (const [a, c] of Object.entries(S.gtc)) { if (tnow - c.t > 15 * 60000) delete S.gtc[a]; else if (tnow - c.t < 4 * 60000) ext.gt[a] = c.g; }   // operaciones de GeckoTerminal: se reutilizan 4 min
-  await enParalelo(pideGT.filter(([a]) => !ext.gt[a]), 2, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; ngt++; let j = null; try { j = await J(`${GT}/networks/solana/pools/${q.pairAddress}/trades`, 3); } catch (e) { S.gtErr = String(e.message || e).slice(0, 60); } if (!j) S.gtErr = S.gtErr || "404 (piscina no encontrada)"; if (j && j.data) { const g = gtInfo(j.data, tnow); ext.gt[a] = g; S.gtc[a] = { t: tnow, g: { ...g, buyers: g.buyers.slice(0, 150) } }; gtOk++; } });
+  await enParalelo(pideGT.filter(([a]) => !ext.gt[a]), 2, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; ngt++; let j = null; try { j = await J(`${GT}/networks/${CH.gt}/pools/${q.pairAddress}/trades`, 3); } catch (e) { S.gtErr = String(e.message || e).slice(0, 60); } if (!j) S.gtErr = S.gtErr || "404 (piscina no encontrada)"; if (j && j.data) { const g = gtInfo(j.data, tnow); ext.gt[a] = g; S.gtc[a] = { t: tnow, g: { ...g, buyers: g.buyers.slice(0, 150) } }; gtOk++; } });
   S.diag = { t: now.toISOString(), monedas: Object.keys(by).length, candidatas: pre.length, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, gtErr: S.gtErr || null, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
   paso(S, by, now, Math.random, ext);
   pasoIdeal(S, by, now, ext);
