@@ -11,22 +11,27 @@ import path from "node:path";
 
 const API = "https://api.bitvavo.com/v2", REPO = process.env.GITHUB_REPOSITORY || "", TOKEN = process.env.GITHUB_TOKEN || "";
 const RAMA = "bitvavo", RAMA_H = "bitvavo-hist";
-export const FEE = 0.0025, START = 100, MIN_VOL = 2e5, MAX_MKT = 50, HIST_MKT = 40, GEN_MIN = 10, POP = 60, ESTS = ["tendencia", "rebote", "ruptura", "media", "tortuga", "williams", "connors", "rotacion"];   // v205 · aprende cada 10 min, con 7 días y 4 estilos
+export const FEE = 0.0025, START = 100, MIN_VOL = 2e5, MAX_MKT = 50, HIST_MKT = 40, GEN_MIN = 10, POP = 60, ESTS = ["tendencia", "rebote", "ruptura", "media", "tortuga", "williams", "connors", "rotacion", "capitulacion", "fade", "maximos"];   // v205 · aprende cada 10 min, con 7 días y 4 estilos
 export const NO = /^(USDC|USDT|EURC|EURT|DAI|PYUSD|TUSD|FDUSD|USDE|EURI|XAUT|PAXG)-/;   // estables y oro: no se mueven
 const r2 = (x) => Math.round(x * 100) / 100, r4 = (x) => Math.round(x * 1e4) / 1e4, sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const cl = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---- reglas (genoma). Estilos: «tendencia» (sube con fuerza y sin pasarse) o «rebote» (cayó mucho y empieza a girarse)
 export const BASE = { estilo: "tendencia", m15Min: 0.002, m60Min: 0.006, m60Max: 0.05, m240Min: -0.01, ema: 1, hlMin: 0.5, volMin: 1.2, pullMax: 0.03,
-  stop: 0.025, tp: 0.03, tpFrac: 0.5, trailOn: 0.015, trail: 0.012, maxHoldH: 6, size: 0.15, maxPos: 6, cooldownH: 1, k: 0.5, rsiMax: 10, rkMax: 0.1 };
+  stop: 0.025, tp: 0.03, tpFrac: 0.5, trailOn: 0.015, trail: 0.012, maxHoldH: 6, size: 0.15, maxPos: 6, cooldownH: 1, k: 0.5, rsiMax: 10, rkMax: 0.1, pir: 0, pirOn: 0.04 };
 // v206 · 🏛️ MÉTODOS DE GRANDES TRADERS (la bola los prueba, los mezcla y se queda con los que ganen aquí y ahora):
 //  · «tortuga»: las Tortugas de Richard Dennis (años 80): comprar cuando el precio rompe el máximo de las últimas 20 velas (aquí, 20 h)
 //  · «williams»: ruptura de volatilidad de Larry Williams (ganó la Robbins World Cup de 1987 pasando de 10.000 $ a más de 1,1 M$):
 //    comprar cuando el precio supera la apertura del día + k × el rango del día anterior
 //  · «connors»: RSI(2) de Larry Connors: comprar un sobreventa muy corto dentro de una tendencia de fondo (por encima de su media larga)
 //  · «rotacion»: momentum entre criptos (estudiado en cripto por Liu y Tsyvinski, entre otros): comprar las más fuertes del momento
+// v207 · versiones al contado (sin apalancamiento ni cortos) de métodos atribuidos a traders cripto conocidos:
+//  · «capitulacion» (estilo Eugene Ng Ah Sio): tras una caída fuerte con volumen de pánico, comprar cuando deja de marcar mínimos nuevos
+//  · «fade» (estilo SalsaTekila): una vela de 5 min que cae de golpe con volumen enorme → comprar el exceso y salir rápido
+//  · «maximos» (estilo Andrew Kang / Unipcs): rompe el máximo de los últimos ~3,5 días con volumen y tendencia
+//  · piramidar («pir»): si la posición ya gana «pirOn», se añade una parte más y el stop sube a «sin pérdidas»
 export const RANG = { m15Min: [-0.01, 0.01], m60Min: [-0.02, 0.03], m60Max: [0.01, 0.12], m240Min: [-0.15, 0.03], hlMin: [0, 1], volMin: [0.5, 4], pullMax: [0.005, 0.1],
-  stop: [0.008, 0.08], tp: [0.006, 0.12], tpFrac: [0, 0.8], trailOn: [0.004, 0.06], trail: [0.003, 0.05], maxHoldH: [0.5, 48], size: [0.05, 0.25], cooldownH: [0.25, 12], k: [0.15, 1.2], rsiMax: [2, 30], rkMax: [0.03, 0.35] };
+  stop: [0.008, 0.08], tp: [0.006, 0.12], tpFrac: [0, 0.8], trailOn: [0.004, 0.06], trail: [0.003, 0.05], maxHoldH: [0.5, 48], size: [0.05, 0.25], cooldownH: [0.25, 12], k: [0.15, 1.2], rsiMax: [2, 30], rkMax: [0.03, 0.35], pir: [0, 1], pirOn: [0.01, 0.1] };
 export function aleatorio(rnd = Math.random) { const g = { ...BASE, estilo: ESTS[Math.floor(rnd() * ESTS.length)], ema: rnd() < 0.7 ? 1 : 0 }; for (const [k, [a, b]] of Object.entries(RANG)) g[k] = r4(a + rnd() * (b - a)); return g; }
 export function mutar(p, rnd = Math.random) {
   const g = { ...p }, ks = Object.keys(RANG), n = 1 + Math.floor(rnd() * 3);
@@ -41,18 +46,23 @@ export function rasgos(c) {
   const n = c.length, cs = c.map((x) => x[4]), out = new Array(n).fill(null); let e = cs[0], e200 = cs[0]; const k = 2 / 21, k2 = 2 / 201;
   // días (UTC): apertura de cada día y rango del día anterior (para Williams); RSI(2) de Wilder (para Connors)
   const dia = c.map((x) => Math.floor(x[0] / 86400e3)), D = {}; for (let i = 0; i < n; i++) { const d = D[dia[i]] || (D[dia[i]] = { o: c[i][1], h: c[i][2], l: c[i][3] }); d.h = Math.max(d.h, c[i][2]); d.l = Math.min(d.l, c[i][3]); }
-  let ag = 0, al = 0;
+  let ag = 0, al = 0; const dq = [];
   for (let i = 0; i < n; i++) {
     e = cs[i] * k + e * (1 - k); e200 = cs[i] * k2 + e200 * (1 - k2);
     if (i > 0) { const d = cs[i] - cs[i - 1]; ag = (ag + Math.max(0, d)) / 2; al = (al + Math.max(0, -d)) / 2; }
-    if (i < 48) continue;
+    if (i < 48) { while (dq.length && c[dq[dq.length - 1]][2] <= c[i][2]) dq.pop(); dq.push(i); continue; }
     const ch = (j) => cs[i] / cs[i - j] - 1, w = cs.slice(i - 11, i + 1), m1 = Math.min(...w.slice(0, 4)), m2 = Math.min(...w.slice(4, 8)), m3 = Math.min(...w.slice(8));
     let va = 0; for (let j = i - 47; j <= i - 4; j++) va += c[j][5]; va /= 44; const vr = (c[i][5] + c[i - 1][5] + c[i - 2][5]) / 3 / Math.max(1e-9, va);
     const mx = Math.max(...cs.slice(i - 23, i + 1)), mxPrev = Math.max(...cs.slice(Math.max(0, i - 287), i - 2));
     let hiD = 0; if (i >= 241) for (let j = i - 240; j < i; j++) hiD = Math.max(hiD, c[j][2]);
     const hoy = D[dia[i]], ayer = D[dia[i] - 1], rng = ayer ? ayer.h - ayer.l : 0;
+    let lr = Infinity, lp = Infinity; for (let j = i - 2; j <= i; j++) lr = Math.min(lr, c[j][3]); for (let j = i - 11; j <= i - 3; j++) lp = Math.min(lp, c[j][3]);
+    while (dq.length && dq[0] < i - 1000) dq.shift();   // máximo de las ~1.000 velas anteriores (ventana móvil)
+    const maxW = dq.length ? c[dq[0]][2] : 0;
     out[i] = { m15: ch(3), m60: ch(12), m240: ch(48), sobre: cs[i] > e ? 1 : 0, hl: (m2 > m1 ? 0.5 : 0) + (m3 > m2 ? 0.5 : 0), vol: vr, pull: 1 - cs[i] / mx, rompe: cs[i] / mxPrev - 1,
-      t: c[i][0], don: hiD > 0 ? cs[i] / hiD - 1 : null, vb: rng > 0 && hoy ? (cs[i] - hoy.o) / rng : null, rsi2: al + ag > 0 ? Math.min(100, Math.max(0, 100 * ag / (ag + al))) : 50, sobre200: i >= 200 && cs[i] > e200 ? 1 : 0, rk: null };
+      t: c[i][0], don: hiD > 0 ? cs[i] / hiD - 1 : null, vb: rng > 0 && hoy ? (cs[i] - hoy.o) / rng : null, rsi2: al + ag > 0 ? Math.min(100, Math.max(0, 100 * ag / (ag + al))) : 50, sobre200: i >= 200 && cs[i] > e200 ? 1 : 0, rk: null,
+      c1: cs[i] / cs[i - 1] - 1, v1: c[i][5] / Math.max(1e-9, va), vmax: Math.max(...c.slice(i - 11, i + 1).map((x) => x[5])) / Math.max(1e-9, va), estab: lr > lp ? 1 : 0, maxW: maxW > 0 && i >= 300 ? cs[i] / maxW - 1 : null };
+    while (dq.length && c[dq[dq.length - 1]][2] <= c[i][2]) dq.pop(); dq.push(i);
   }
   return out;
 }
@@ -65,6 +75,9 @@ export function entra(g, f) {
   if (g.estilo === "williams") return f.vb != null && f.vb >= g.k && f.vb <= g.k + 0.25 && f.m15 > 0;
   if (g.estilo === "connors") return f.sobre200 === 1 && f.rsi2 <= g.rsiMax;
   if (g.estilo === "rotacion") return f.rk != null && f.rk <= g.rkMax && f.m240 > 0 && f.m60 > 0;
+  if (g.estilo === "capitulacion") return f.m60 <= -(0.03 + g.k * 0.05) && f.vmax >= g.volMin * 1.5 && f.estab === 1 && f.m15 >= 0;
+  if (g.estilo === "fade") return f.c1 <= -(0.015 + g.k * 0.03) && f.v1 >= 2.5;
+  if (g.estilo === "maximos") return f.maxW != null && f.maxW > 0 && f.maxW <= Math.max(0.004, g.pullMax) && f.vol >= g.volMin * 1.3 && f.m240 > 0;
   if (g.estilo === "rebote") return f.m240 <= -Math.abs(g.m240Min) - 0.03 && f.m15 >= Math.max(0.001, g.m15Min) && f.vol >= g.volMin && f.pull >= 0.02;
   return f.m15 >= g.m15Min && f.m60 >= g.m60Min && f.m60 <= g.m60Max && f.m240 >= g.m240Min && (!g.ema || f.sobre) && f.hl >= g.hlMin && f.vol >= g.volMin && f.pull <= g.pullMax;
 }
@@ -79,18 +92,19 @@ export function backtest(g, H, desde = 0, hasta = Infinity) {
   for (const m of Object.values(H.m || {})) {
     const c = m.c, F = m.f, sp = m.sp || 0.001; let pos = null, cool = 0;
     for (let i = 48; i < c.length; i++) {
-      const t = c[i][0]; if (t < desde || t >= hasta) { if (pos && t >= hasta) { rs.push(pos.cob + pos.q * c[i][4] * (1 - sp / 2) * (1 - FEE) - 1); pos = null; } continue; }
+      const t = c[i][0]; if (t < desde || t >= hasta) { if (pos && t >= hasta) { rs.push((pos.cob + pos.q * c[i][4] * (1 - sp / 2) * (1 - FEE)) / pos.cost - 1); pos = null; } continue; }
       if (pos) {
         const [, , h, l, cc] = c[i]; pos.peak = Math.max(pos.peak, h); const ven = (px) => pos.q * px * (1 - sp / 2) * (1 - FEE);
+        if (g.pir > 0 && !pos.pir && h >= pos.px * (1 + g.pirOn)) { const ap = pos.px * (1 + g.pirOn) * (1 + sp / 2); pos.q += g.pir * (1 - FEE) / ap; pos.cost += g.pir; pos.pir = 1; pos.be = (pos.cost - pos.cob) / (pos.q * (1 - sp / 2) * (1 - FEE)); }
         if (g.tpFrac > 0 && !pos.tp && h >= pos.px * (1 + g.tp)) { pos.cob += pos.q * g.tpFrac * pos.px * (1 + g.tp) * (1 - sp / 2) * (1 - FEE); pos.q *= 1 - g.tpFrac; pos.tp = 1; }
-        let out = null;
-        if (l <= pos.px * (1 - g.stop)) out = Math.min(c[i][1], pos.px * (1 - g.stop));
+        let out = null; const sl = Math.max(pos.px * (1 - g.stop), pos.be || 0);
+        if (l <= sl) out = Math.min(c[i][1], sl);
         else if (pos.peak >= pos.px * (1 + g.trailOn) && l <= pos.peak * (1 - g.trail)) out = Math.min(c[i][1], pos.peak * (1 - g.trail));
         else if ((t - pos.t) / 3600e3 >= g.maxHoldH) out = cc;
-        if (out != null) { rs.push(pos.cob + ven(out) - 1); pos = null; cool = t + g.cooldownH * 3600e3; }
+        if (out != null) { rs.push((pos.cob + ven(out)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; }
         continue;
       }
-      if (t >= cool && entra(g, F[i]) && i + 1 < c.length) { const px = c[i + 1][1] * (1 + sp / 2); pos = { px, q: (1 - FEE) / px, cob: 0, peak: px, t: c[i + 1][0] }; i++; }
+      if (t >= cool && entra(g, F[i]) && i + 1 < c.length) { const px = c[i + 1][1] * (1 + sp / 2); pos = { px, q: (1 - FEE) / px, cob: 0, cost: 1, peak: px, t: c[i + 1][0] }; i++; }
     }
   }
   const n = rs.length; if (!n) return { n: 0 };
@@ -126,7 +140,8 @@ export function paso(S, tick, F, now = new Date()) {
     const t = tick[m]; if (!t || !(t.bid > 0)) continue; const bid = t.bid;
     p.last = bid; p.peak = Math.max(p.peak, bid); p.h = (p.h || []).concat([[now.toISOString(), bid]]).slice(-200);
     if (g.tpFrac > 0 && !p.tp && bid >= p.px * (1 + g.tp)) { const qv = p.q * g.tpFrac, got = qv * bid * (1 - FEE); S.cash += got; p.cob = (p.cob || 0) + got; p.q -= qv; p.tp = 1; S.st.fees += qv * bid * FEE; L(S, now, "TP", m.replace("-EUR", ""), `+${r2(g.tp * 100)} %: vende el ${Math.round(g.tpFrac * 100)} %`); }
-    if (bid <= p.px * (1 - g.stop)) cerrar(S, m, now, bid, `stop −${r2(g.stop * 100)} %`);
+    if (g.pir > 0 && !p.pir && bid >= p.px * (1 + g.pirOn) && tick[m].ask > 0) { const add = Math.min(S.cash, (p.cost0 || p.cost) * g.pir); if (add >= 2) { const q2 = add * (1 - FEE) / tick[m].ask; S.cash -= add; S.st.fees += add * FEE; p.q += q2; p.cost += add; p.pir = 1; p.be = (p.cost - (p.cob || 0)) / (p.q * (1 - FEE)); L(S, now, "ENTER", m.replace("-EUR", ""), `piramida: +${r2(add)} € (ya gana ${r2(g.pirOn * 100)} %) · stop a «sin pérdidas»`); } }
+    if (bid <= Math.max(p.px * (1 - g.stop), p.be || 0)) cerrar(S, m, now, bid, p.be && bid > p.px * (1 - g.stop) ? "stop sin pérdidas (tras piramidar)" : `stop −${r2(g.stop * 100)} %`);
     else if (p.peak >= p.px * (1 + g.trailOn) && bid <= p.peak * (1 - g.trail)) cerrar(S, m, now, bid, `stop móvil (${r2(g.trail * 100)} % bajo el máximo)`);
     else if ((tnow - Date.parse(p.t0)) / 3600e3 >= g.maxHoldH) cerrar(S, m, now, bid, `tiempo máximo (${g.maxHoldH} h)`);
   }
@@ -137,7 +152,7 @@ export function paso(S, tick, F, now = new Date()) {
     if (Object.keys(S.pos).length >= g.maxPos) break;
     const eq = equity(S, tick), amt = Math.min(S.cash, eq * g.size * (S.prueba ? 0.5 : 1)); if (amt < 2) break;
     const ask = tick[m].ask, q = amt * (1 - FEE) / ask; S.cash -= amt; S.st.trades++; S.st.fees += amt * FEE;
-    S.pos[m] = { sym: m.replace("-EUR", ""), q, px: ask, cost: amt, t0: now.toISOString(), peak: ask, last: ask, h: [[now.toISOString(), ask]], f: { m15: r4(f.m15), m60: r4(f.m60), m240: r4(f.m240), vol: r2(f.vol) } };
+    S.pos[m] = { sym: m.replace("-EUR", ""), q, px: ask, cost: amt, cost0: amt, t0: now.toISOString(), peak: ask, last: ask, h: [[now.toISOString(), ask]], f: { m15: r4(f.m15), m60: r4(f.m60), m240: r4(f.m240), vol: r2(f.vol) } };
     L(S, now, "ENTER", m.replace("-EUR", ""), `${r2(amt)} € · sube ${r2(f.m60 * 100)} % en 1 h · volumen ×${r2(f.vol)}${S.prueba ? " · modo prueba (mitad)" : ""}`);
   }
 }
@@ -205,7 +220,7 @@ async function main() {
   uni.sort((a, b) => tick[b].vq - tick[a].vq); const U = uni.slice(0, MAX_MKT);
   // 2) velas de 5 min de los mercados líquidos (y de lo abierto) → rasgos
   const F = {}, quiero = [...new Set([...U, ...Object.keys(S.pos)])];
-  await enParalelo(quiero, 8, async (m) => { try { const c = velas(await J(`${API}/${m}/candles?interval=5m&limit=400`, 2)); const f = rasgos(c); F[m] = f[f.length - 1]; } catch (e) { S.err = String(e.message).slice(0, 60); } });
+  await enParalelo(quiero, 8, async (m) => { try { const c = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)); const f = rasgos(c); F[m] = f[f.length - 1]; } catch (e) { S.err = String(e.message).slice(0, 60); } });
   { const vs = Object.values(F).filter(Boolean).sort((x, y) => y.m240 - x.m240); vs.forEach((f, i) => { f.rk = vs.length > 4 ? i / (vs.length - 1) : null; }); }
   paso(S, tick, F, now);
   // 3) laboratorio cada 30 min

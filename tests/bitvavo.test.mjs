@@ -38,3 +38,13 @@ test("métodos de grandes traders: tortuga, williams, connors y rotación se cal
   for (const [estilo, extra] of [["tortuga", { pullMax: 0.05, volMin: 0.5 }], ["williams", { k: 0.2 }], ["connors", { rsiMax: 30 }], ["rotacion", { rkMax: 0.35 }]])
     assert.ok(Object.values(H).some((arr) => arr.some((x) => entra({ ...BASE, estilo, ...extra }, x))), estilo + " entra alguna vez");
 });
+test("métodos de traders cripto: capitulación, fade y máximos; y piramidar sube el stop a sin pérdidas", () => {
+  // una caída fuerte con pánico y luego estabilización; una vela que se desploma; y una subida a máximos
+  const c = []; let p = 100; for (let i = 0; i < 1400; i++) { let r = 0.0003, v = 1000; if (i >= 600 && i < 612) { r = -0.008; v = 6000; } if (i === 900) { r = -0.04; v = 9000; } if (i > 1100) { r = 0.002; v = 2500; } const o = p; p = p * (1 + r + (i % 2 ? 0.0004 : -0.0004)); c.push([T0 + i * 300e3, o, Math.max(o, p) * 1.0005, Math.min(o, p) * 0.9995, p, v]); }
+  const f = rasgos(c);
+  assert.ok(f.some((x) => entra({ ...BASE, estilo: "capitulacion", k: 0.15, volMin: 1 }, x)), "capitulación");
+  assert.ok(f.some((x) => entra({ ...BASE, estilo: "fade", k: 0.15 }, x)), "fade");
+  assert.ok(f.some((x) => entra({ ...BASE, estilo: "maximos", volMin: 0.5, pullMax: 0.01 }, x)), "máximos");
+  const H = { m: { A: { c, f, sp: 0.001 } } }, sin = backtest({ ...BASE, estilo: "maximos", volMin: 0.5, pullMax: 0.01, pir: 0 }, H), con = backtest({ ...BASE, estilo: "maximos", volMin: 0.5, pullMax: 0.01, pir: 1, pirOn: 0.01, stop: 0.05, trailOn: 0.5, maxHoldH: 48 }, H);
+  assert.ok(sin.n > 0 && con.n > 0);
+});
