@@ -230,6 +230,12 @@ test("ESCENARIOS: un año de uso con dinero real (simulado) de principio a fin",
       const d = r.R.days.find((x) => x.d === "2026-10-23"); assert.ok(d && d.live && d.be > 0);
       for (const k of Object.keys(K.px)) K.px[k] /= 1.01;
     });
+    await t.test("1b2 · v157 · pulso en fin de semana: lee la cuenta y lo ingresado, sin crear día ni tocar los ingresos de la revisión", async () => {
+      const r0 = await W.step("pulso", "2026-10-24T20:00:00Z"), dep0 = JSON.stringify(r0.R.deposits);
+      assert.equal(r0.code, 0, r0.so); assert.ok(!r0.R.days.some((x) => x.d === "2026-10-24"), "sábado: sin día nuevo");
+      assert.ok(r0.R.depLive && r0.R.depLive.net != null, "lee lo ingresado"); assert.ok(r0.R.live && r0.R.live.startsWith("2026-10-24T20:00"));
+      assert.equal(JSON.stringify(r0.R.deposits), dep0, "no toca R.deposits");
+    });
     await t.test("1c · revisión programada con la de hoy ya hecha: lee el valor (pulso) sin operar", async () => {
       const n0 = W.mk.calls.filter((c) => c.m === "POST").length;
       const r = await W.step("normal", "2026-10-22T13:40:00Z", { GITHUB_EVENT_NAME: "schedule" });

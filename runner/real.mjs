@@ -877,7 +877,7 @@ async function main() {
   if (scheduled && tipo === "foto" && R.days.some((x) => x.d === m.date && x.foto)) { log("La foto de hoy ya está hecha."); return; }
   // v25: «pulso» cada ~15 min con la bolsa abierta: solo LEE tu cuenta y actualiza el valor del bot para la web (sin órdenes, sin avisos, sin informe)
   if (tipo === "pulso") {
-    if (scheduled && (!m.wk || m.min < 9 * 60 || m.min > 18 * 60 + 15)) { log(`Pulso: fuera del horario de bolsa (${m.hm} en Madrid).`); return; }
+    // v157: el guardián lee la cuenta las 24 horas (solo LEE): al abrir la app siempre ves lo que hay en Trading 212
     if (!env("T212_KEY") || !R.ledger || R.ledger.limite == null) { log("Pulso: todavía no hay cartera real que seguir."); return; }
     const T = t212(A.env);
     let account, positions;
@@ -886,8 +886,19 @@ async function main() {
     const { id: _id, ...acc } = account || {};
     R.account = { ...acc, at: now.toISOString() }; R.positions = mapPos(positions, R);
     const cash = +((acc.cash && acc.cash.availableToTrade) || 0), inv = +((acc.investments && acc.investments.currentValue) || 0), resv = +((acc.cash && acc.cash.reservedForOrders) || 0) + +((acc.cash && acc.cash.inPies) || 0);
+    // v157: lo ingresado neto, como mucho una vez por hora y aparte (R.depLive): NO toca R.deposits, que es lo que usa la revisión para sumar tus ingresos al bot
+    try {
+      if (!R.depLive || !R.depLive.at || Date.now() - Date.parse(R.depLive.at) > 55 * 60000) {
+        const tx = await T.pages("/equity/history/transactions?limit=50", 20);
+        let net = 0; for (const x of tx) { const a = Math.abs(+x.amount || 0); if (x.type === "DEPOSIT") net += a; else if (x.type === "WITHDRAW") net -= a; else if (x.type === "TRANSFER") net += +x.amount || 0; }
+        R.depLive = { net: r2(net), at: now.toISOString() };
+      }
+    } catch (e) { log("Pulso: no pude leer tus ingresos ahora (se intenta en la siguiente vuelta)."); }
     const BE = botEquity(R, positions, cash), prev = R.days.find((x) => x.d === m.date);
-    if (!(prev && prev.foto)) {
+    if (!m.wk) {
+      // fin de semana: no se crea un día nuevo en la gráfica (la bolsa no abre); solo se actualiza lo ingresado del último día
+      const ld = R.days[R.days.length - 1]; if (ld && R.depLive) ld.apLive = R.depLive.net;
+    } else if (!(prev && prev.foto)) {
       R.days = R.days.filter((x) => x.d !== m.date);
       R.days.push({ ...(prev || {}), d: m.date, t: now.toISOString(), v: r2(cash + inv + resv), cash: r2(cash), inv: r2(inv), ap: R.deposits ? R.deposits.net : null, be: BE.eq, bc: R.ledger.cap, bf: (R.flows || {})[m.date] || 0, bcash: R.ledger.cash, live: true });
       R.days.sort((a, b) => (a.d < b.d ? -1 : 1));

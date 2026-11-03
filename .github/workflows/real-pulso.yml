@@ -1,6 +1,6 @@
 name: Cartera real · valor en directo (cada 15 min)
 
-# Con la bolsa abierta, cada ~15 minutos LEE tu cuenta de Trading 212 y actualiza el valor del bot para la web
+# Las 24 horas (cada ~15 min con la bolsa abierta, ~20 min el resto) LEE tu cuenta de Trading 212 y actualiza el valor del bot para la web
 # (gráfica y «Dinero del bot hoy»). No envía órdenes, no avisa y no crea informes. Va cifrado igual que todo lo demás.
 # v119 · EN CADENA: cada lectura pide la siguiente y espera ~14 min.
 # v138 · GUARDIÁN 24 HORAS: GitHub a veces no lanza NINGÚN horario durante horas. Por eso esta cadena ya no se para por la
@@ -29,11 +29,12 @@ jobs:
       group: cartera-real
       cancel-in-progress: false
     steps:
-      - name: ¿Bolsa abierta?
+      - name: ¿Leer la cuenta?
         id: hora
         run: |
           D=$(date -u +%u); M=$((10#$(date -u +%H) * 60 + 10#$(date -u +%M)))
-          if [ "$D" -le 5 ] && [ "$M" -ge 420 ] && [ "$M" -le 1000 ]; then echo "go=true" >> "$GITHUB_OUTPUT"; else echo "go=false" >> "$GITHUB_OUTPUT"; echo "Bolsa cerrada: no se lee la cuenta."; fi
+          # v157: se lee la cuenta las 24 horas (solo lectura, sin órdenes): al abrir la app siempre ves lo que hay en Trading 212
+          echo "go=true" >> "$GITHUB_OUTPUT"; echo "Día $D, minuto $M (UTC): se lee la cuenta."
       - uses: actions/checkout@v5
         if: steps.hora.outputs.go == 'true'
       - uses: actions/setup-node@v5
