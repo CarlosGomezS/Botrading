@@ -283,13 +283,15 @@ async function main() {
   pre.sort((x, y) => (+(y[1].volume && y[1].volume.h1) || 0) - (+(x[1].volume && x[1].volume.h1) || 0));
   let nrc = 0; const pide = [];
   for (const [a] of pre) { const c = S.rc[a]; if (c && tnow - c.t < 30 * 60000) ext.rc[a] = c.i; else if (pide.length < R.rcPerRun) pide.push(a); }
-  await enParalelo(pide, 4, async (a) => { if (Date.now() - t0 > 45e3) return; const j = await J(`${RC}/tokens/${a}/report`, 2); nrc++; if (j) { const i = rcInfo(j); S.rc[a] = { t: tnow, i }; ext.rc[a] = i; } });
+  let rcOk = 0, rcErr = 0, rcLate = 0; const tPre = Date.now() - t0;
+  await enParalelo(pide, 4, async (a) => { if (Date.now() - t0 > 45e3) { rcLate++; return; } nrc++; try { const j = await J(`${RC}/tokens/${a}/report`, 2); if (j) { const i = rcInfo(j); S.rc[a] = { t: tnow, i }; ext.rc[a] = i; rcOk++; } else rcErr++; } catch (e) { rcErr++; S.rcLastErr = String(e.message || e).slice(0, 80); } });
   // ANALISTA: operaciones con cartera de GeckoTerminal para las que tienen datos de RugCheck y no son rug (primero las de más volumen)
   let ngt = 0;
   const pasaTerm = (a, q) => conGenoma(S.genome, () => { const i = ext.rc[a], rr = reglas(q, i); return i && !RULES.some(([k]) => rr[k] !== true); });
   const preGT = pre.filter(([a, q]) => pasaTerm(a, q)).concat(pre.filter(([a, q]) => !pasaTerm(a, q)));
   const pideGT = preGT.filter(([a]) => { const i = ext.rc[a]; return i && !i.rugged; }).slice(0, R.gtPerRun);
   await enParalelo(pideGT, 3, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; const j = await J(`${GT}/networks/solana/pools/${q.pairAddress}/trades`, 2); ngt++; if (j && j.data) ext.gt[a] = gtInfo(j.data, tnow); });
+  S.diag = { t: now.toISOString(), monedas: Object.keys(by).length, candidatas: pre.length, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
   paso(S, by, now, Math.random, ext);
   pasoIdeal(S, by, now, ext);
   for (const v of LB.pop) LBm.pasoVar(v, by, now, { ...ext, full: true }, S.smart, S.hold);
