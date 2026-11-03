@@ -1,12 +1,16 @@
 name: Memes (solo dinero ficticio)
 
-# v158 · una vuelta del simulador de memecoins de Solana (DexScreener). Normalmente lo lanza el guardián cada ~2,5 min
-# mientras espera; esto es para lanzarlo a mano. Nunca toca dinero real ni Trading 212.
+# v160 · terminal de memecoins de Solana con dinero ficticio (DexScreener, GeckoTerminal y RugCheck). Nunca toca dinero real ni Trading 212.
+# CONSTANTE: cada ejecución hace una vuelta por minuto durante ~28 min y, al terminar, pide la siguiente (en cadena, las 24 horas).
+# Si GitHub cortara la cadena, el horario de abajo la vuelve a arrancar.
 on:
+  schedule:
+    - cron: "7,37 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: memes
@@ -15,15 +19,37 @@ concurrency:
 jobs:
   memes:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 40
     steps:
+      - name: ¿Ya hay otra cadena esperando?
+        id: dup
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          q=$(gh api "repos/${{ github.repository }}/actions/workflows/meme.yml/runs?status=queued&per_page=1" -q .total_count 2>/dev/null || echo 0)
+          p=$(gh api "repos/${{ github.repository }}/actions/workflows/meme.yml/runs?status=pending&per_page=1" -q .total_count 2>/dev/null || echo 0)
+          echo "En cola: $q · pendientes: $p"
+          if [ "${{ github.event_name }}" = "schedule" ] && [ $(( ${q:-0} + ${p:-0} )) -gt 0 ]; then echo "go=false" >> "$GITHUB_OUTPUT"; else echo "go=true" >> "$GITHUB_OUTPUT"; fi
       - uses: actions/checkout@v5
+        if: steps.dup.outputs.go == 'true'
         with:
           sparse-checkout: runner
       - uses: actions/setup-node@v5
+        if: steps.dup.outputs.go == 'true'
         with:
           node-version: 22
-      - name: Una vuelta
+      - name: Vueltas (una por minuto, ~28 min)
+        if: steps.dup.outputs.go == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node runner/meme.mjs
+        run: |
+          end=$(( $(date +%s) + 28*60 ))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            s=$(date +%s); timeout 75 node runner/meme.mjs || true
+            w=$(( 60 - ($(date +%s) - s) )); [ "$w" -gt 0 ] && sleep "$w"
+          done
+      - name: Siguiente tramo (en cadena)
+        if: always() && steps.dup.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: timeout 60 gh api -X POST "repos/${{ github.repository }}/actions/workflows/meme.yml/dispatches" -f ref=main && echo "Siguiente tramo pedido."

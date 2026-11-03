@@ -197,7 +197,7 @@ function publicar(S) {
 async function main() {
   const now = new Date(), tnow = now.getTime(), t0 = Date.now();
   let S = await leerEstado(); if (!S || S.v !== 3) { const old = S; S = freshState(); if (old && old.since) L(S, now, "INFO", "", "versión nueva del terminal: empieza de cero con las 8 reglas reales"); }
-  if (S.last && tnow - Date.parse(S.last) < 100e3) { console.log("Memes: la última vuelta fue hace menos de 100 s; nada que hacer."); return; }
+  if (S.last && tnow - Date.parse(S.last) < 40e3) { console.log("Memes: la última vuelta fue hace menos de 40 s; nada que hacer."); return; }
   // EXPLORADOR: todas las fuentes de monedas nuevas de Solana
   const addrs = new Set([...Object.keys(S.pos), ...Object.keys(S.young || {}), ...Object.keys(S.watch || {})]);
   const add = (x) => { if (x && typeof x === "string" && x.length > 30) addrs.add(x); };
