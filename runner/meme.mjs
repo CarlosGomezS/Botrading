@@ -90,12 +90,15 @@ export function analista(S, a, p, info, g, nowMs) {
     hg: Math.round(100 * hg), lm: Math.round(100 * cl(liq / mc, 0.03, 0.15)), sw: nSmart < R.smartMinList ? 50 : Math.round(100 * cl(sm, 0, 3)) };
   return { sig, sc: Math.round(Object.values(sig).reduce((x, y) => x + y, 0) / 6), sm, learning: nSmart < R.smartMinList };
 }
-export const slip = (eur, liq) => Math.min(R.slipMax, R.slipMin + eur / Math.max(1, liq));
+// costes en uso: los realistas (R) o los «como el vídeo» (sin comisión, sin deslizamiento y sin órdenes fallidas)
+export const IDEAL = { fee: 0, slipMin: 0, slipMax: 0, failP: 0, failCost: 0 };
+let C = R;
+export const slip = (eur, liq) => C.slipMax <= 0 ? 0 : Math.min(C.slipMax, C.slipMin + eur / Math.max(1, liq));
 export function equity(S, px) { let v = S.cash; for (const [a, p] of Object.entries(S.pos)) v += p.q * (px[a] != null ? px[a] : p.last); return v; }
 
 function L(S, now, ev, sym, txt) { S.line = (S.line || 0) + 1; S.log.unshift({ n: S.line, t: now.toISOString(), ev, sym, txt }); S.log = S.log.slice(0, 500); }
 function cerrar(S, a, now, px, liq, why, ev, rug) {
-  const p = S.pos[a]; const sl = rug ? 0 : slip(p.q * px, liq), gross = p.q * px, got = rug ? 0 : gross * (1 - sl) * (1 - R.fee), fee = rug ? 0 : gross - got;
+  const p = S.pos[a]; const sl = rug ? 0 : slip(p.q * px, liq), gross = p.q * px, got = rug ? 0 : gross * (1 - sl) * (1 - C.fee), fee = rug ? 0 : gross - got;
   const pnl = got - p.cost; S.cash += got; S.st.pnl += pnl; S.st.fees += fee; if (pnl >= 0) S.st.wins++; else S.st.losses++; if (rug) S.st.rugs++; if (ev === "STOP") S.st.stops++;
   S.st.worst = Math.min(S.st.worst || 0, pnl); S.st.best = Math.max(S.st.best || 0, pnl);
   S.closed.unshift({ sym: p.sym, a, url: p.url, t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(got), pnl: r2(pnl), pc: r2((got / p.cost - 1) * 100), why, sc: p.sc, h: (p.h || []).slice(-120), px0: p.px, peak: p.peak, out: px }); S.closed = S.closed.slice(0, 600);
@@ -105,10 +108,11 @@ function cerrar(S, a, now, px, liq, why, ev, rug) {
 }
 
 // una vuelta completa: riesgo vigila lo abierto → explorador → filtro → analista → ejecutor → registro. ext = {rc:{a:info}, gt:{a:info}}
-export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}) {
-  const tnow = now.getTime(), px = {}, RCI = ext.rc || {}, GTI = ext.gt || {};
-  S.rk = S.rk || {}; S.ag = S.ag || {}; S.flow = S.flow || [];
-  // RIESGO: lo abierto
+// RIESGO: vigila lo abierto (stop, stop móvil, tiempo máximo y rug). También se usa sola, cada ~20 s, entre vuelta y vuelta
+export function riesgo(S, by, now = new Date(), costs) {
+  const prevC = C; C = costs ? { ...R, ...costs } : R;
+  try {
+  const tnow = now.getTime(), px = {};
   for (const [a, p] of Object.entries(S.pos)) {
     const q = by[a], liq = q ? +(q.liquidity && q.liquidity.usd) || 0 : 0, pr = q ? +q.priceUsd : 0;
     if (!q || !(pr > 0) || liq < R.rugLiq) { cerrar(S, a, now, 0, 0, "liquidez retirada o moneda desaparecida", "RUG", true); continue; }
@@ -119,6 +123,16 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}) {
     else if (p.trailing && pr <= p.peak * (1 - R.trail)) cerrar(S, a, now, pr, liq, `stop móvil (${R.trail * 100} % bajo el máximo)`, "EXIT");
     else if (ageH >= R.maxHoldH) cerrar(S, a, now, pr, liq, `tiempo máximo (${R.maxHoldH} h)`, "EXIT");
   }
+  return px;
+  } finally { C = prevC; }
+}
+
+export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs) {
+  const prevC = C; C = costs ? { ...R, ...costs } : R;
+  try {
+  const tnow = now.getTime(), RCI = ext.rc || {}, GTI = ext.gt || {};
+  S.rk = S.rk || {}; S.ag = S.ag || {}; S.flow = S.flow || [];
+  const px = riesgo(S, by, now, costs);
   // carteras listas: quien compró pronto en una moneda que luego subió un 50 % entra en la lista (aprende solo)
   for (const [a, w] of Object.entries(S.watch || {})) {
     const q = by[a], pr = q ? +q.priceUsd : 0;
@@ -159,8 +173,8 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}) {
     if (Object.keys(S.pos).length >= R.maxPos) break;
     const eq = equity(S, px), amt = Math.min(S.cash, eq * R.size), liq = +q.liquidity.usd, pr = +q.priceUsd;
     if (amt < 1) break;
-    if (rnd() < R.failP) { S.cash -= R.failCost; S.st.failed++; S.st.fees += R.failCost; L(S, now, "FAIL", q.baseToken.symbol, "la orden no entró (red saturada): se pierde la propina"); continue; }
-    const sl = slip(amt, liq), fill = pr * (1 + sl), qn = amt * (1 - R.fee) / fill;
+    if (C.failP > 0 && rnd() < C.failP) { S.cash -= C.failCost; S.st.failed++; S.st.fees += C.failCost; L(S, now, "FAIL", q.baseToken.symbol, "la orden no entró (red saturada): se pierde la propina"); continue; }
+    const sl = slip(amt, liq), fill = pr * (1 + sl), qn = amt * (1 - C.fee) / fill;
     S.cash -= amt; S.st.trades++; S.st.fees += amt - qn * pr;
     S.pos[a] = { sym: q.baseToken.symbol, name: q.baseToken.name, url: q.url, q: qn, px: pr, cost: amt, t0: now.toISOString(), peak: pr, last: pr, sc, sig, liq, h: [[now.toISOString(), pr]] };
     px[a] = pr; S.ag.exec = { sym: q.baseToken.symbol, amt: r2(amt), t: now.toISOString() };
@@ -177,6 +191,23 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}) {
   if (!S.day || S.day.d !== d) { if (S.day) S.nights.unshift({ ...S.day, eq1: S.lastEq, st1: { ...S.st } }); S.nights = S.nights.slice(0, 120); S.day = { d, eq0: S.lastEq != null ? S.lastEq : eq, st0: { ...S.st } }; }
   S.lastEq = r2(eq); S.last = now.toISOString();
   return S;
+  } finally { C = prevC; }
+}
+
+// «como el vídeo»: las MISMAS decisiones y datos, pero sin comisiones, sin deslizamiento y sin órdenes fallidas (comparte las carteras listas)
+export function pasoIdeal(S, by, now, ext) {
+  let I = S.ideal; if (!I || I.v !== S.v) { I = S.ideal = freshState(); I.since = S.since; }
+  I.smart = S.smart; I.hold = S.hold; I.watch = {}; I.rc = {};
+  try { paso(I, by, now, () => 1, ext, IDEAL); } finally { delete I.smart; delete I.hold; delete I.watch; delete I.rc; }
+  I.log = (I.log || []).slice(0, 60); I.closed = (I.closed || []).slice(0, 300); I.flow = []; I.nights = (I.nights || []).slice(0, 60);
+  for (const p of Object.values(I.pos || {})) p.h = (p.h || []).slice(-60);
+  return I;
+}
+// vuelta rápida: solo precios de lo abierto y el riesgo (para que los stops salten antes)
+export function rapido(S, by, now) {
+  riesgo(S, by, now);
+  if (S.ideal) { const I = S.ideal; riesgo(I, by, now, IDEAL); I.lastEq = r2(equity(I, {})); }
+  S.lastEq = r2(equity(S, {})); S.lastQ = now.toISOString();
 }
 
 async function leerEstado() {
@@ -197,6 +228,16 @@ function publicar(S) {
 async function main() {
   const now = new Date(), tnow = now.getTime(), t0 = Date.now();
   let S = await leerEstado(); if (!S || S.v !== 3) { const old = S; S = freshState(); if (old && old.since) L(S, now, "INFO", "", "versión nueva del terminal: empieza de cero con las 8 reglas reales"); }
+  if (process.argv[2] === "rapido") {
+    const open = [...new Set([...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {})])];
+    if (!open.length) { console.log("Memes (rápido): nada abierto."); return; }
+    const pairs = []; for (let i = 0; i < open.length; i += 30) { const j = await J(`${DS}/tokens/v1/solana/${open.slice(i, i + 30).join(",")}`); if (Array.isArray(j)) pairs.push(...j); }
+    const by = bestPairs(pairs); if (!Object.keys(by).length) { console.log("Memes (rápido): sin precios."); return; }
+    for (const a of open) if (!by[a]) { console.log("Memes (rápido): falta el precio de alguna; espero a la vuelta completa."); return; }
+    rapido(S, by, now);
+    publicar(S);
+    console.log(`Memes (rápido): ${open.length} abiertas vigiladas · saldo ${r2(S.lastEq)}`); return;
+  }
   if (S.last && tnow - Date.parse(S.last) < 40e3) { console.log("Memes: la última vuelta fue hace menos de 40 s; nada que hacer."); return; }
   // EXPLORADOR: todas las fuentes de monedas nuevas de Solana
   const addrs = new Set([...Object.keys(S.pos), ...Object.keys(S.young || {}), ...Object.keys(S.watch || {})]);
@@ -227,6 +268,7 @@ async function main() {
     await sleep(300);
   }
   paso(S, by, now, Math.random, ext);
+  pasoIdeal(S, by, now, ext);
   publicar(S);
   console.log(`Memes: ${Object.keys(by).length} monedas · RugCheck ${nrc} · GeckoTerminal ${ngt} · saldo ${r2(S.lastEq)} · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · ${Math.round((Date.now() - t0) / 1000)} s`);
 }

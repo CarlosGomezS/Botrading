@@ -1,7 +1,7 @@
 // v159 · pruebas del terminal de memes (solo dinero ficticio)
 import test from "node:test";
 import assert from "node:assert/strict";
-import { freshState, paso, reglas, rcInfo, gtInfo, analista, explorador, bestPairs, R } from "../runner/meme.mjs";
+import { freshState, paso, pasoIdeal, rapido, reglas, rcInfo, gtInfo, analista, explorador, bestPairs, R } from "../runner/meme.mjs";
 
 const T0 = Date.parse("2026-11-03T10:00:00Z");
 const par = (a, o = {}) => ({ chainId: "solana", url: "https://dexscreener.com/solana/" + a, pairAddress: "pool_" + a, baseToken: { address: a, symbol: "$" + a.toUpperCase(), name: a },
@@ -69,4 +69,15 @@ test("pipeline completo: filtra, puntúa, entra, stop, móvil, rug, fallidas y a
 test("bestPairs: el par con más liquidez y solo de Solana", () => {
   const m = bestPairs([par("a", { liq: 50e3 }), par("a", { liq: 90e3 }), { ...par("b"), chainId: "eth" }]);
   assert.deepEqual(Object.keys(m), ["a"]); assert.equal(m.a.liquidity.usd, 90e3);
+});
+
+test("como el vídeo: mismas decisiones sin costes; y la vigilancia rápida hace saltar el stop", () => {
+  const S = freshState(), ext = { rc: { a: okInfo }, gt: { a: gtInfo(gtTr(300), T0) } };
+  paso(S, { a: par("a") }, new Date(T0), () => 1, ext); pasoIdeal(S, { a: par("a") }, new Date(T0), ext);
+  assert.ok(S.pos.a && S.ideal.pos.a, "las dos entran"); assert.equal(S.ideal.st.fees, 0); assert.ok(S.st.fees > 0);
+  assert.ok(S.ideal.lastEq > S.lastEq, "sin costes siempre va por delante");
+  rapido(S, { a: par("a", { px: 0.9 }) }, new Date(T0 + 20000));
+  assert.ok(!S.pos.a && !S.ideal.pos.a, "el stop salta en la vuelta rápida en las dos");
+  assert.ok(S.ideal.closed[0].pnl > S.closed[0].pnl, "sin costes pierde menos");
+  assert.equal(S.ideal.smart, undefined, "no duplica las carteras listas al guardar");
 });

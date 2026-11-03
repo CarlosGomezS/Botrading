@@ -1,7 +1,7 @@
 name: Memes (solo dinero ficticio)
 
 # v160 · terminal de memecoins de Solana con dinero ficticio (DexScreener, GeckoTerminal y RugCheck). Nunca toca dinero real ni Trading 212.
-# CONSTANTE: cada ejecución hace una vuelta por minuto durante ~28 min y, al terminar, pide la siguiente (en cadena, las 24 horas).
+# CONSTANTE: cada ejecución hace una vuelta completa por minuto (y vigila lo abierto cada ~20 s) durante ~28 min y, al terminar, pide la siguiente (en cadena, las 24 horas).
 # Si GitHub cortara la cadena, el horario de abajo la vuelve a arrancar.
 on:
   schedule:
@@ -38,14 +38,16 @@ jobs:
         if: steps.dup.outputs.go == 'true'
         with:
           node-version: 22
-      - name: Vueltas (una por minuto, ~28 min)
+      - name: Vueltas (una completa por minuto y vigilancia cada ~20 s, ~28 min)
         if: steps.dup.outputs.go == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           end=$(( $(date +%s) + 28*60 ))
+          # cada minuto: una vuelta completa y, entre medias, dos vigilancias rápidas de lo abierto (~cada 20 s), para que los stops salten antes
           while [ "$(date +%s)" -lt "$end" ]; do
             s=$(date +%s); timeout 75 node runner/meme.mjs || true
+            for k in 1 2; do w=$(( s + 20*k - $(date +%s) )); [ "$w" -gt 0 ] && sleep "$w"; timeout 18 node runner/meme.mjs rapido || true; done
             w=$(( 60 - ($(date +%s) - s) )); [ "$w" -gt 0 ] && sleep "$w"
           done
       - name: Siguiente tramo (en cadena)
