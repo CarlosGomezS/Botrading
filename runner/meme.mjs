@@ -18,7 +18,7 @@ export const R = {
   liqMin: 40e3, vol1hMin: 50e3, top10Max: 25, devMax: 3, bundleMax: 10, pump1hMax: 80, lpLockMin: 90, // filtro
   stop: 0.06, trailOn: 0.12, trail: 0.15, maxHoldH: 24, rugLiq: 5000, cooldownH: 24, // riesgo
   fee: 0.005, slipMin: 0.01, slipMax: 0.12, failP: 0.05, failCost: 0.02,          // costes realistas
-  rcPerRun: 20, gtPerRun: 10, smartUp: 0.5, smartMinList: 20
+  rcPerRun: 30, gtPerRun: 10, smartUp: 0.5, smartMinList: 20
 };
 // las 8 reglas duras, en el orden de la pantalla del vídeo
 export const RULES = [
@@ -218,6 +218,8 @@ export function rapido(S, by, now) {
   S.lastEq = r2(equity(S, {})); S.lastQ = now.toISOString();
 }
 
+// v165 · varias peticiones a la vez (con un tope) para que la vuelta quepa en un minuto
+async function enParalelo(items, n, fn) { const out = []; let i = 0; await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) { const k = i++; try { out[k] = await fn(items[k], k); } catch (e) { out[k] = null; } } })); return out; }
 async function leerArchivo(f) {
   if (!REPO || !TOKEN) return null;
   const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${f}?ref=meme`, { headers: { Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github.raw+json" } });
@@ -256,33 +258,38 @@ async function main() {
   // EXPLORADOR: todas las fuentes de monedas nuevas de Solana (y todo lo que tenga abierto cualquiera: terminal, «como el vídeo» y variantes)
   const addrs = new Set([...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen(), ...Object.keys(S.young || {}), ...Object.keys(S.watch || {})]);
   const add = (x) => { if (x && typeof x === "string" && x.length > 30) addrs.add(x); };
-  for (const u of [DS + "/token-profiles/latest/v1", DS + "/token-boosts/latest/v1", DS + "/token-boosts/top/v1"]) { try { const j = await J(u); for (const x of Array.isArray(j) ? j : []) if (x && x.chainId === "solana") add(x.tokenAddress); } catch (e) { console.log("Memes: " + u + ": " + e.message); } }
-  for (const u of [GT + "/networks/solana/new_pools?page=1", GT + "/networks/solana/new_pools?page=2", GT + "/networks/solana/trending_pools?page=1"]) { try { const j = await J(u); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(/^solana_/, "")); } } catch (e) { console.log("Memes: " + u + ": " + e.message); } }
-  const list = [...addrs].slice(0, 700), pairs = [];
-  for (let i = 0; i < list.length; i += 30) { try { const j = await J(`${DS}/tokens/v1/solana/${list.slice(i, i + 30).join(",")}`); if (Array.isArray(j)) pairs.push(...j); } catch (e) { console.log("Memes: precios: " + e.message); console.log("Memes: sin todos los precios: no decido esta vuelta."); return; } }
+  // v165 · más fuentes, rotando cada minuto (GeckoTerminal admite ~30 peticiones por minuto): nuevas, tendencia de 1 h/6 h/24 h y las de más volumen
+  const GTL = [];
+  for (const d of ["5m", "1h", "6h", "24h"]) for (const pg of [1, 2, 3]) GTL.push(`${GT}/networks/solana/trending_pools?duration=${d}&page=${pg}`);
+  for (const pg of [1, 2, 3, 4, 5]) GTL.push(`${GT}/networks/solana/new_pools?page=${pg}`);
+  for (const pg of [1, 2, 3]) GTL.push(`${GT}/networks/solana/pools?sort=h24_volume_usd_desc&page=${pg}`, `${GT}/networks/solana/pools?sort=h24_tx_count_desc&page=${pg}`);
+  const rot = Math.floor(tnow / 60000), gtU = Array.from({ length: 8 }, (_, i) => GTL[(rot * 8 + i) % GTL.length]);
+  const srcs = [DS + "/token-profiles/latest/v1", DS + "/token-boosts/latest/v1", DS + "/token-boosts/top/v1", ...["pump", "sol", "meme", "cat", "dog", "ai"].map((q) => `${DS}/latest/dex/search?q=${q}`).slice(rot % 6, rot % 6 + 2)];
+  await enParalelo(srcs, 5, async (u) => { const j = await J(u, 2); const arr = Array.isArray(j) ? j : (j && j.pairs) || []; for (const x of arr) if (x && x.chainId === "solana") add(x.tokenAddress || (x.baseToken && x.baseToken.address)); });
+  await enParalelo(gtU, 4, async (u) => { const j = await J(u, 2); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(/^solana_/, "")); } });
+  // primero lo abierto y lo recién encontrado; las «jóvenes» que se vuelven a mirar, como mucho 200
+  const must = new Set([...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()]);
+  const young = Object.entries(S.young || {}).sort((a, b) => b[1] - a[1]).slice(0, 200).map((x) => x[0]);
+  const list = [...new Set([...must, ...[...addrs].filter((a) => !(S.young || {})[a]), ...young])].slice(0, 900), pairs = [];
+  const batches = []; for (let i = 0; i < list.length; i += 30) batches.push(list.slice(i, i + 30));
+  let fallo = false;
+  await enParalelo(batches, 6, async (b) => { try { const j = await J(`${DS}/tokens/v1/solana/${b.join(",")}`); if (Array.isArray(j)) pairs.push(...j); } catch (e) { if (b.some((a) => must.has(a))) fallo = true; } });
+  if (fallo) { console.log("Memes: faltan precios de algo abierto: no decido esta vuelta."); return; }
   const by = bestPairs(pairs);
   if (!Object.keys(by).length) { console.log("Memes: sin datos de DexScreener; se intenta en la siguiente vuelta."); return; }
   // FILTRO (datos de cadena): RugCheck para las que pasan lo barato con las reglas MÁS LAXAS de toda la población (caché de 30 min)
   const lx = LBm.laxo(LB), ext = { rc: {}, gt: {} }, pre = [];
   conGenoma(lx, () => { for (const [a, q] of Object.entries(by)) { if (S.pos[a] || explorador(q, tnow)) continue; const rr = reglas(q, null); if (rr.liq && rr.vol && rr.pump) pre.push([a, q]); } });
   pre.sort((x, y) => (+(y[1].volume && y[1].volume.h1) || 0) - (+(x[1].volume && x[1].volume.h1) || 0));
-  let nrc = 0;
-  for (const [a] of pre) {
-    const c = S.rc[a]; if (c && tnow - c.t < 30 * 60000) { ext.rc[a] = c.i; continue; }
-    if (nrc >= R.rcPerRun || Date.now() - t0 > 50e3) continue;
-    try { const j = await J(`${RC}/tokens/${a}/report`, 2); nrc++; if (j) { const i = rcInfo(j); S.rc[a] = { t: tnow, i }; ext.rc[a] = i; } } catch (e) { nrc++; }
-    await sleep(300);
-  }
+  let nrc = 0; const pide = [];
+  for (const [a] of pre) { const c = S.rc[a]; if (c && tnow - c.t < 30 * 60000) ext.rc[a] = c.i; else if (pide.length < R.rcPerRun) pide.push(a); }
+  await enParalelo(pide, 4, async (a) => { if (Date.now() - t0 > 45e3) return; const j = await J(`${RC}/tokens/${a}/report`, 2); nrc++; if (j) { const i = rcInfo(j); S.rc[a] = { t: tnow, i }; ext.rc[a] = i; } });
   // ANALISTA: operaciones con cartera de GeckoTerminal para las que tienen datos de RugCheck y no son rug (primero las de más volumen)
   let ngt = 0;
   const pasaTerm = (a, q) => conGenoma(S.genome, () => { const i = ext.rc[a], rr = reglas(q, i); return i && !RULES.some(([k]) => rr[k] !== true); });
   const preGT = pre.filter(([a, q]) => pasaTerm(a, q)).concat(pre.filter(([a, q]) => !pasaTerm(a, q)));
-  for (const [a, q] of preGT) {
-    const i = ext.rc[a]; if (!i || i.rugged) continue;
-    if (ngt >= R.gtPerRun || Date.now() - t0 > 65e3) break;
-    try { const j = await J(`${GT}/networks/solana/pools/${q.pairAddress}/trades`, 2); ngt++; if (j && j.data) ext.gt[a] = gtInfo(j.data, tnow); } catch (e) { ngt++; }
-    await sleep(300);
-  }
+  const pideGT = preGT.filter(([a]) => { const i = ext.rc[a]; return i && !i.rugged; }).slice(0, R.gtPerRun);
+  await enParalelo(pideGT, 3, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; const j = await J(`${GT}/networks/solana/pools/${q.pairAddress}/trades`, 2); ngt++; if (j && j.data) ext.gt[a] = gtInfo(j.data, tnow); });
   paso(S, by, now, Math.random, ext);
   pasoIdeal(S, by, now, ext);
   for (const v of LB.pop) LBm.pasoVar(v, by, now, { ...ext, full: true }, S.smart, S.hold);

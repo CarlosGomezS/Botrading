@@ -47,8 +47,8 @@ jobs:
           # cada minuto: una vuelta completa y, entre medias, dos vigilancias rápidas de lo abierto (~cada 20 s), para que los stops salten antes
           while [ "$(date +%s)" -lt "$end" ]; do
             s=$(date +%s); timeout 75 node runner/meme.mjs || true
-            for k in 1 2; do w=$(( s + 20*k - $(date +%s) )); [ "$w" -gt 0 ] && sleep "$w"; timeout 18 node runner/meme.mjs rapido || true; done
-            w=$(( 60 - ($(date +%s) - s) )); [ "$w" -gt 0 ] && sleep "$w"
+            for k in 1 2; do w=$(( s + 20*k - $(date +%s) )); if [ "$w" -gt 0 ]; then sleep "$w"; fi; timeout 18 node runner/meme.mjs rapido || true; done
+            w=$(( 60 - ($(date +%s) - s) )); if [ "$w" -gt 0 ]; then sleep "$w"; fi
           done
       - name: Siguiente tramo (en cadena)
         if: always() && steps.dup.outputs.go == 'true'
