@@ -321,7 +321,7 @@ async function main() {
   if (!Object.keys(by).length) { console.log("Memes: sin datos de DexScreener; se intenta en la siguiente vuelta."); return; }
   // FILTRO (datos de cadena): RugCheck para las que pasan lo barato con las reglas MÁS LAXAS de toda la población (caché de 30 min)
   const lx = LBm.laxo(LB), ext = { rc: {}, gt: {} }, pre = [];
-  conGenoma(lx, () => { for (const [a, q] of Object.entries(by)) { if (S.pos[a] || explorador(q, tnow)) continue; const rr = reglas(q, null); if (rr.liq && rr.vol && rr.pump) pre.push([a, q]); } });
+  const mot = {}; conGenoma(lx, () => { for (const [a, q] of Object.entries(by)) { if (S.pos[a]) continue; const ex = explorador(q, tnow); if (ex) { mot[ex] = (mot[ex] || 0) + 1; continue; } const rr = reglas(q, null); if (rr.liq && rr.vol && rr.pump) pre.push([a, q]); else { const k = !rr.liq ? "liquidez" : !rr.vol ? "volumen" : "subida"; mot[k] = (mot[k] || 0) + 1; } } });
   pre.sort((x, y) => (+(y[1].volume && y[1].volume.h1) || 0) - (+(x[1].volume && x[1].volume.h1) || 0));
   let nrc = 0; const pide = [];
   for (const [a, q] of pre) { const c = S.rc[a], vieja = tnow - (+q.pairCreatedAt || tnow) > 2 * 86400e3; if (c && tnow - c.t < (vieja ? 6 * 3600e3 : 30 * 60000)) ext.rc[a] = c.i; else if (pide.length < R.rcPerRun) pide.push(a); }
@@ -337,7 +337,7 @@ async function main() {
   let gtOk = 0; S.gtc = S.gtc || {};
   for (const [a, c] of Object.entries(S.gtc)) { if (tnow - c.t > 15 * 60000) delete S.gtc[a]; else if (tnow - c.t < 4 * 60000) ext.gt[a] = c.g; }   // operaciones de GeckoTerminal: se reutilizan 4 min
   await enParalelo(pideGT.filter(([a]) => !ext.gt[a]), 2, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; ngt++; let j = null; try { j = await J(`${GT}/networks/${CH.gt}/pools/${q.pairAddress}/trades`, 3); } catch (e) { S.gtErr = String(e.message || e).slice(0, 60); } if (!j) S.gtErr = S.gtErr || "404 (piscina no encontrada)"; if (j && j.data) { const g = gtInfo(j.data, tnow); ext.gt[a] = g; S.gtc[a] = { t: tnow, g: { ...g, buyers: g.buyers.slice(0, 150) } }; gtOk++; } });
-  S.diag = { t: now.toISOString(), monedas: Object.keys(by).length, candidatas: pre.length, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, gtErr: S.gtErr || null, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
+  S.diag = { t: now.toISOString(), monedas: Object.keys(by).length, candidatas: pre.length, motivos: mot, laxo: lx, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, gtErr: S.gtErr || null, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
   paso(S, by, now, Math.random, ext);
   pasoIdeal(S, by, now, ext);
   for (const v of LB.pop) LBm.pasoVar(v, by, now, { ...ext, full: true }, S.smart, S.hold);
