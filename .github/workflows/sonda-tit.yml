@@ -1,0 +1,10 @@
+name: sonda-tit (temporal)
+on: workflow_dispatch
+jobs:
+  s:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -s "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query?type=1&catalogId=48&pageNo=1&pageSize=10" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);for(const a of j.data.catalogs[0].articles)console.log("BIN",new Date(a.releaseDate).toISOString(),a.title)})'
+          curl -s "https://www.okx.com/api/v5/support/announcements?annType=announcements-new-listings" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);for(const a of j.data[0].details.slice(0,10))console.log("OKX",new Date(+a.pTime).toISOString(),a.title)})'
+          curl -s "https://api.kucoin.com/api/v3/announcements?annType=new-listings&pageSize=10" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);for(const a of j.data.items)console.log("KU",new Date(+a.cTime).toISOString(),a.annTitle)})'
