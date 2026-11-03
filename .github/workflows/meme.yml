@@ -55,6 +55,8 @@ jobs:
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
         run: |
           end=$(( $(date +%s) + 28*60 ))
+          # v208 · 📰 noticias en segundos: un proceso aparte que mira los anuncios de nuevas criptos cada 3–30 s durante todo el tramo
+          timeout 28m node runner/noticias.mjs 27 > /tmp/noticias.log 2>&1 &
           # cada minuto: una vuelta completa y, entre medias, dos vigilancias rápidas de lo abierto (~cada 20 s), para que los stops salten antes
           while [ "$(date +%s)" -lt "$end" ]; do
             # v168 · las tres redes a la vez (Solana, Base y BNB Chain), cada una en su rama
