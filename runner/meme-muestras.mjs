@@ -3,7 +3,7 @@
 // cada 10 min (con su máximo y su mínimo de cada tramo) durante 24 h. Con eso, CUALQUIER variante (también las recién nacidas) se puede probar al momento sobre cientos de casos
 // reales ya vividos: entra si sus reglas y su nota la dejan, y sale con su stop, su venta parcial, su stop móvil y su tiempo máximo,
 // pagando los mismos costes. Es una prueba sobre el pasado reciente; la prueba en vivo (ficticia) sigue mandando para el dinero real.
-import { R, VIDEO, conGenoma, explorador, reglas, analista, RULES, NOMEME } from "./meme.mjs";
+import { ESC, R, VIDEO, conGenoma, explorador, reglas, analista, RULES, NOMEME } from "./meme.mjs";
 
 export const MAXSEG = 400, HORAS = 24, PASO_MIN = 10, MAXHECHAS = 700;
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -50,7 +50,7 @@ export function simular(g, s, S0 = { smart: {}, hold: {} }) {
     const amt = R.start * G.size, liq = +s.q.liquidity.usd || 1, sl = Math.min(R.slipMax, R.slipMin + amt / liq);
     const ent = (1 + sl) / (1 - R.fee) + R.fixFee / amt;   // lo que cuesta entrar, por unidad de precio
     const sale = (rel) => rel <= 0 ? 0 : rel * (1 - Math.min(R.slipMax, R.slipMin + amt * rel / liq)) * (1 - R.fee) - R.fixFee / amt;
-    let q = 1, cobrado = 0, peak = 1, tr = false, tp1 = false, prev = 1;
+    let q = 1, cobrado = 0, peak = 1, tr = false, tp1 = false, prev = 1, esc = 0;
     // al saltar un stop dentro de un tramo se vende al nivel del stop; si el tramo ya empezó por debajo (hueco), al precio de ese momento
     const nivel = (lv, rel) => (prev >= lv ? lv : Math.min(rel, prev));
     for (let i = 1; i < s.p.length; i++) {
@@ -59,6 +59,7 @@ export function simular(g, s, S0 = { smart: {}, hold: {} }) {
       peak = Math.max(peak, hi);
       if (!tr && peak >= 1 + G.trailOn) tr = true;
       if (G.tpFrac > 0 && !tp1 && hi >= 1 + G.tp) { cobrado += q * G.tpFrac * sale(1 + G.tp); q *= 1 - G.tpFrac; tp1 = true; }
+      while (G.esc > 0 && esc < ESC.length && hi >= ESC[esc]) { cobrado += q * G.esc * sale(ESC[esc]); q *= 1 - G.esc; esc++; }
       if (lo <= 1 - G.stop) return r2((cobrado + q * sale(nivel(1 - G.stop, rel))) / ent - 1);
       if (tr && lo <= peak * (1 - G.trail)) return r2((cobrado + q * sale(nivel(peak * (1 - G.trail), rel))) / ent - 1);
       if (min / 60 >= G.maxHoldH) return r2((cobrado + q * sale(rel)) / ent - 1);

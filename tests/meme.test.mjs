@@ -229,3 +229,10 @@ test("IA: aprende sola qué rasgos tenían las que subieron y lo valida con caso
   assert.ok(p1 > p0, "da más probabilidad a la que se parece a las buenas");
   assert.equal(entrenar({ hechas: M.hechas.slice(0, 50) }).listo, false, "con pocos casos no opina");
 });
+test("escalera: si se dispara (×2, ×3) va vendiendo partes, y un desplome de golpe ya no se come casi toda la ganancia", () => {
+  const S = freshState(), a = "es", q = par(a, { mc: 120e3, liq: 25e3, v1: 20e3, ch1: 25, ageMin: 15 }), ext = { rc: { [a]: okInfo }, gt: {} };
+  pasoTurbo(S, { [a]: q }, new Date(T0), ext); assert.equal(Object.keys(S.turbo.pos).length, 1);
+  const pxs = [1.3, 2.1, 3.2, 3.4, 0.6]; pxs.forEach((px, i) => rapido(S, { [a]: par(a, { mc: 120e3 * px, liq: 2e5, v1: 20e3, px }) }, new Date(T0 + (i + 1) * 20000)));
+  const c = S.turbo.closed[0]; assert.ok(c, "cerrada tras el desplome"); assert.ok(c.pc > 30, "se queda con buena parte de la subida: " + c.pc);
+  assert.ok(S.turbo.log.filter((x) => /×[23]/.test(x.txt)).length === 2, "vendió en ×2 y en ×3");
+});

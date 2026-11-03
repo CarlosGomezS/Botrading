@@ -126,6 +126,7 @@ export function explorador(p, now) {
 }
 // ---- el analista: 6 señales de 0 a 100 y la nota final (la media) ----
 // v181 · 🧠 modelo de IA en uso (lo entrena la bola en cada generación; solo se usa si acierta más que el azar)
+export const ESC = [2, 3, 5];
 let IA = null; export function setIA(m) { IA = m && m.listo && m.w ? m : null; } export const iaEnUso = () => IA;
 export function analista(S, a, p, info, g, nowMs, j) {
   const ch1 = +(p.priceChange && p.priceChange.h1) || 0, ch5 = +(p.priceChange && p.priceChange.m5) || 0, liq = +(p.liquidity && p.liquidity.usd) || 1, mc = +(p.marketCap || p.fdv) || 1;
@@ -144,7 +145,7 @@ export function analista(S, a, p, info, g, nowMs, j) {
 export const IDEAL = { fee: 0, slipMin: 0, slipMax: 0, failP: 0, failCost: 0, fixFee: 0 };
 let C = R;
 // v164 · reglas en uso (genoma): las del vídeo (R) o las que el laboratorio de memes haya aprendido
-export const VIDEO = { ageMin: R.ageMin, ageMax: R.ageMax, mcapMin: R.mcapMin, mcapMax: R.mcapMax, liqMin: R.liqMin, vol1hMin: R.vol1hMin, top10Max: R.top10Max, devMax: R.devMax, bundleMax: R.bundleMax, pump1hMax: R.pump1hMax, lpLockMin: R.lpLockMin, mint: 1, stop: R.stop, trailOn: R.trailOn, trail: R.trail, maxHoldH: R.maxHoldH, size: R.size, minScore: R.minScore, maxPos: R.maxPos, cooldownH: R.cooldownH, estilo: "video", tp: 0.5, tpFrac: 0, orgMin: 0, w: { mom: 1, ub: 1, bs: 1, hg: 1, lm: 1, sw: 1 } };
+export const VIDEO = { ageMin: R.ageMin, ageMax: R.ageMax, mcapMin: R.mcapMin, mcapMax: R.mcapMax, liqMin: R.liqMin, vol1hMin: R.vol1hMin, top10Max: R.top10Max, devMax: R.devMax, bundleMax: R.bundleMax, pump1hMax: R.pump1hMax, lpLockMin: R.lpLockMin, mint: 1, stop: R.stop, trailOn: R.trailOn, trail: R.trail, maxHoldH: R.maxHoldH, size: R.size, minScore: R.minScore, maxPos: R.maxPos, cooldownH: R.cooldownH, estilo: "video", tp: 0.5, tpFrac: 0, esc: 0, orgMin: 0, w: { mom: 1, ub: 1, bs: 1, hg: 1, lm: 1, sw: 1 } };
 let G = VIDEO;
 export function conGenoma(g, fn) { const p = G; G = { ...VIDEO, ...(g || {}) }; try { return fn(); } finally { G = p; } }
 export const slip = (eur, liq) => C.slipMax <= 0 ? 0 : Math.min(C.slipMax, C.slipMin + eur / Math.max(1, liq));
@@ -177,6 +178,12 @@ export function riesgo(S, by, now = new Date(), costs, genome) {
       const qv = p.q * G.tpFrac, gross = qv * pr, sl = slip(gross, liq), got = Math.max(0, gross * (1 - sl) * (1 - C.fee) - (C.fixFee || 0)), pnlP = got - p.cost * G.tpFrac;
       S.cash += got; S.st.fees += gross - got; S.st.pnl += pnlP; p.q -= qv; p.gotPart = (p.gotPart || 0) + got; p.pnlPart = (p.pnlPart || 0) + pnlP; p.tp1 = 1;
       L(S, now, "TP", p.sym, `+${Math.round(G.tp * 100)} %: vende el ${Math.round(G.tpFrac * 100)} % · asegura ${pnlP >= 0 ? "+" : ""}${r2(pnlP)}`);
+    }
+    // v182 · 🪜 escalera de ganancias: en ×2, ×3 y ×5 vende otra parte de lo que queda (en memecoins un pico se puede hundir en segundos)
+    while (G.esc > 0 && (p.esc || 0) < ESC.length && pr >= p.px * ESC[p.esc || 0]) {
+      const fr = G.esc, qv = p.q * fr, gross = qv * pr, sl = slip(gross, liq), got = Math.max(0, gross * (1 - sl) * (1 - C.fee) - (C.fixFee || 0)), cb = p.cost * qv / (p.qIni || (p.tp1 ? p.q / Math.max(0.05, 1 - G.tpFrac) : p.q)), pnlP = got - cb;
+      S.cash += got; S.st.fees += gross - got; S.st.pnl += pnlP; p.q -= qv; p.gotPart = (p.gotPart || 0) + got; p.pnlPart = (p.pnlPart || 0) + pnlP;
+      L(S, now, "TP", p.sym, `×${ESC[p.esc || 0]}: vende otro ${Math.round(fr * 100)} % de lo que queda · asegura ${pnlP >= 0 ? "+" : ""}${r2(pnlP)}`); p.esc = (p.esc || 0) + 1;
     }
     const ageH = (tnow - Date.parse(p.t0)) / 3600e3;
     if (pr <= p.px * (1 - G.stop)) cerrar(S, a, now, pr, liq, `stop −${G.stop * 100} %`, "STOP");
@@ -241,7 +248,7 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs
     const sl = slip(amt, liq), fill = pr * (1 + sl), qn = Math.max(0, amt * (1 - C.fee) - (C.fixFee || 0)) / fill;
     if (amt <= (C.fixFee || 0) * 4) break;   // una compra tan pequeña que los costes fijos se la comerían
     S.cash -= amt; S.st.trades++; S.st.fees += amt - qn * pr;
-    S.pos[a] = { sym: q.baseToken.symbol, name: q.baseToken.name, url: q.url, q: qn, px: pr, cost: amt, t0: now.toISOString(), peak: pr, last: pr, sc, sig, liq, h: [[now.toISOString(), pr]] };
+    S.pos[a] = { sym: q.baseToken.symbol, name: q.baseToken.name, url: q.url, q: qn, qIni: qn, px: pr, cost: amt, t0: now.toISOString(), peak: pr, last: pr, sc, sig, liq, h: [[now.toISOString(), pr]] };
     px[a] = pr; S.ag.exec = { sym: q.baseToken.symbol, amt: r2(amt), t: now.toISOString() };
     L(S, now, "ENTER", q.baseToken.symbol, `${r2(amt)} · ${Math.round(G.size * 100)} % · deslizamiento ${r2(sl * 100)} % · stop −${G.stop * 100} % puesto`);
   }
@@ -272,7 +279,7 @@ export function pasoIdeal(S, by, now, ext) {
 // v179 · ⚡ TURBO: cuenta ficticia aparte, con costes reales, que opera MUCHO más (reglas más anchas y salidas rápidas).
 // Mismas fuentes y mismas comprobaciones de seguridad; no toca el dinero real (que sigue con las reglas del terminal principal).
 export const TURBO = { ...VIDEO, estilo: "video", ageMin: 5, ageMax: 14 * 1440, mcapMin: 50e3, mcapMax: 100e6, liqMin: 15e3, vol1hMin: 10e3, pump1hMax: 400,
-  top10Max: 40, devMax: 10, bundleMax: 30, lpLockMin: 80, mint: 1, stop: 0.1, trailOn: 0.08, trail: 0.1, maxHoldH: 4, size: 0.05, minScore: 45, maxPos: 15, cooldownH: 3, tp: 0.25, tpFrac: 0.5, orgMin: 0 };
+  top10Max: 40, devMax: 10, bundleMax: 30, lpLockMin: 80, mint: 1, stop: 0.1, trailOn: 0.08, trail: 0.1, maxHoldH: 4, size: 0.05, minScore: 45, maxPos: 15, cooldownH: 3, tp: 0.25, tpFrac: 0.5, esc: 0.35, orgMin: 0 };
 export const turboG = (S) => (S.turboGenome ? { ...VIDEO, ...S.turboGenome } : TURBO);
 export function pasoTurbo(S, by, now, ext) {
   let T = S.turbo; if (!T || T.v !== S.v) { T = S.turbo = freshState(); }
