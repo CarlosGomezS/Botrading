@@ -5,7 +5,7 @@
 // pagando los mismos costes. Es una prueba sobre el pasado reciente; la prueba en vivo (ficticia) sigue mandando para el dinero real.
 import { ESC, R, VIDEO, conGenoma, explorador, reglas, analista, RULES, NOMEME } from "./meme.mjs";
 
-export const MAXSEG = 400, HORAS = 24, PASO_MIN = 10, MAXHECHAS = 700;
+export const MAXSEG = 800, HORAS = 24, PASO_MIN = 10, MAXHECHAS = 700;
 const r2 = (x) => Math.round(x * 100) / 100;
 export function freshM() { return { v: 1, abiertas: {}, hechas: [] }; }
 // foto mínima de la moneda (lo que necesitan explorador, reglas y analista)

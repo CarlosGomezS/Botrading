@@ -5,7 +5,7 @@
 import { setIA, ESC, alarmaSalida, trailEf, R, VIDEO, TURBO, TURBO_V, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS, NOMEME } from "./meme.mjs";
 const ESTS = Object.keys(ESTILOS);
 
-export const POP = 40, GEN_H = 0.5, MIN_N = 8, ADOPT_N = 30, BT_N = 20;
+export const POP = 60, GEN_H = 0.5, MIN_N = 8, ADOPT_N = 30, BT_N = 20;
 import { backtest } from "./meme-muestras.mjs";
 import { entrenar } from "./meme-ia.mjs";
 // rango de cada pieza del genoma [mín, máx, paso]
@@ -154,6 +154,26 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null)
   L.arch = L.arch.slice(0, 20000); /* el archivo no se borra: hasta 20.000 variantes */ L.pop = L.pop.filter((v) => !out.includes(v));
   const top = ranked.filter((v) => !out.includes(v) && v.fit != null && v.fit > 0).slice(0, 5), seen = new Set(L.pop.map((v) => gkey(v.g)));
   let guard = 0;
+  // v188 · 🔬 BÚSQUEDA DIRIGIDA: antes de dejar nacer a nadie, prueba al momento cientos de candidatas (mutaciones de las mejores,
+  // cruces, variantes del vídeo y del Turbo, e inventadas) sobre todos los casos, y solo nacen las mejores. Para no engañarse,
+  // cada candidata se puntúa con su PEOR mitad: la nota en los casos antiguos y en los recientes por separado (tiene que funcionar en las dos).
+  if (M && L.pop.length < POP) {
+    const t0s = [...(M.hechas || []), ...(M.hist || []), ...(M.lecc || [])].map((x) => x.t0).sort((a, b) => a - b), corte = t0s[Math.floor(t0s.length / 2)] || 0;
+    const parte = (f) => ({ hechas: (M.hechas || []).filter(f), hist: (M.hist || []).filter(f), lecc: (M.lecc || []).filter(f) }), Mv = parte((x) => x.t0 < corte), Mn = parte((x) => x.t0 >= corte);
+    const robusta = (g) => { const a = backtest({ ...VIDEO, ...g }, Mv), b = backtest({ ...VIDEO, ...g }, Mn); return a.n >= 8 && b.n >= 8 ? Math.min(a.t, b.t) + Math.min(a.med, b.med) / 10 : -99; };
+    const cand = [], vistos = new Set(seen), t1 = Date.now(), padres = top.length ? top : ranked.slice(0, 5);
+    for (let i = 0; i < 1500 && Date.now() - t1 < 12e3; i++) {
+      const r = rnd(); let g, why;
+      if (r < 0.45 && padres.length) { const p = padres[Math.floor(rnd() * padres.length)]; g = mutar(p.g); why = "búsqueda: mutación de " + p.id; }
+      else if (r < 0.6 && padres.length > 1) { const a = padres[Math.floor(rnd() * padres.length)], b = padres[Math.floor(rnd() * padres.length)]; if (a === b) continue; g = cruzar(a.g, b.g); why = "búsqueda: cruce de " + a.id + " y " + b.id; }
+      else if (r < 0.8) { const tb = rnd() < 0.5; g = mutar(mutar(tb ? TURBO : VIDEO)); why = tb ? "búsqueda: variante del Turbo" : "búsqueda: variante del vídeo"; }
+      else { g = aleatorio(); why = "búsqueda: inventada"; }
+      const k = gkey(g); if (vistos.has(k)) continue; vistos.add(k); cand.push({ g, why, s: robusta(g) });
+    }
+    cand.sort((a, b) => b.s - a.s); L.busqueda = { probadas: cand.length, mejor: cand.length ? r2(cand[0].s) : null, t: now.toISOString() };
+    for (const c of cand.slice(0, Math.max(0, Math.ceil((POP - L.pop.length) * 0.7)))) { if (c.s <= -99) break; seen.add(gkey(c.g)); const v = nuevaVar("v" + L.nextId++, c.g, now, L.gen, c.why); v.bt = backtest({ ...VIDEO, ...c.g }, M); v.fit = fitness(v); v.rob = r2(c.s); L.pop.push(v); ev(`${v.id} nace (${c.why}) · elegida entre ${cand.length} probadas · en los casos: ${v.bt.n} operaciones, ${v.bt.med >= 0 ? "+" : ""}${v.bt.med} % de media`, "nace"); }
+    if (cand.length) ev(`🔬 búsqueda: ${cand.length} reglas probadas al momento; nacen las mejores`, "ia");
+  }
   while (L.pop.length < POP && guard++ < 200) {
     const r = rnd(); let g, why;
     if (top.length && r < 0.5) { const p = top[Math.floor(rnd() * top.length)]; g = mutar(p.g); why = "mutación de " + p.id; }
