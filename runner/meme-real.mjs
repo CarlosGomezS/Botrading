@@ -101,13 +101,13 @@ export async function pasoReal(S, by, now, eurUsd) {
   const plazo = now.getTime() >= Date.parse(PLAZO);
   if (!ctl.aprobado && !P.ok && plazo && tieneClave && (!RS.propuestoPlazo || now.getTime() - Date.parse(RS.propuestoPlazo) > 24 * 3600e3)) {
     RS.propuestoPlazo = now.toISOString(); const id = "p" + Date.now().toString(36), gp = S.genomePrueba || {}, bt = gp.bt;
-    await tg(`🗓️ Ha llegado tu plazo para Memes con dinero real.\n\nDatos honestos de hoy (con costes reales):\n• Terminal en vivo: ${P.n} operaciones · factor de beneficio ${P.pf} · ${P.exp >= 0 ? "+" : ""}${P.exp} € de media por operación\n${S.genomeId ? `• Usa las reglas aprendidas de ${S.genomeId}${bt ? `: en ${bt.n} casos vividos, factor ${bt.pf} y ${bt.med} % por operación` : ""}\n` : "• Aún usa las reglas del vídeo\n"}\nTODAVÍA NO ha superado la prueba (30 operaciones, factor > ${LIM.pf} y ganancia media positiva). ¿Empiezo igualmente con tu cartera del bot? Frenos: cada compra ≤ 8 % y ≤ ${LIM.maxOrdenEur} €, se para sola si cae al ${LIM.suelo * 100} %, pausa si un día pierde un ${LIM.perdidaDia * 100} %. /parar cuando quieras.`,
+    await tg(`🗓️ Ha llegado tu plazo para Cripto con dinero real.\n\nDatos honestos de hoy (con costes reales):\n• Terminal en vivo: ${P.n} operaciones · factor de beneficio ${P.pf} · ${P.exp >= 0 ? "+" : ""}${P.exp} € de media por operación\n${S.genomeId ? `• Usa las reglas aprendidas de ${S.genomeId}${bt ? `: en ${bt.n} casos vividos, factor ${bt.pf} y ${bt.med} % por operación` : ""}\n` : "• Aún usa las reglas del vídeo\n"}\nTODAVÍA NO ha superado la prueba (30 operaciones, factor > ${LIM.pf} y ganancia media positiva). ¿Empiezo igualmente con tu cartera del bot? Frenos: cada compra ≤ 8 % y ≤ ${LIM.maxOrdenEur} €, se para sola si cae al ${LIM.suelo * 100} %, pausa si un día pierde un ${LIM.perdidaDia * 100} %. /parar cuando quieras.`,
       [{ text: "✅ Empezar igualmente", callback_data: "ma:" + id }, { text: "❌ Esperar a que lo demuestre", callback_data: "mx:" + id }]);
     L(RS, now, "plazo cumplido: propuesta para empezar igualmente enviada a Telegram");
   }
   if (!ctl.aprobado && P.ok && tieneClave && RS.propuesto !== P.n - (P.n % 10)) {
     RS.propuesto = P.n - (P.n % 10); const id = "m" + Date.now().toString(36);
-    await tg(`🪙 Memes (Solana) ya ha demostrado que gana con costes reales:\n${P.okVivo ? `• ${P.n} operaciones en vivo\n• factor de beneficio ${P.pf} (más de ${LIM.pf})\n• ganancia media por operación positiva` : `• sus reglas ganan en ${P.bt.n} casos ya vividos (factor ${P.bt.pf}, ${P.bt.med} % de media por operación, con costes)\n• y lo confirman en vivo`}\n\n¿Empiezo a copiarlo con tu cartera del bot (≈100 €)? Frenos: cada compra ≤ 8 % y ≤ ${LIM.maxOrdenEur} €, se para solo si la cuenta cae al ${LIM.suelo * 100} %, pausa si un día pierde un ${LIM.perdidaDia * 100} %. Puedes pararlo cuando quieras con /parar.`,
+    await tg(`🪙 Cripto (Solana) ya ha demostrado que gana con costes reales:\n${P.okVivo ? `• ${P.n} operaciones en vivo\n• factor de beneficio ${P.pf} (más de ${LIM.pf})\n• ganancia media por operación positiva` : `• sus reglas ganan en ${P.bt.n} casos ya vividos (factor ${P.bt.pf}, ${P.bt.med} % de media por operación, con costes)\n• y lo confirman en vivo`}\n\n¿Empiezo a copiarlo con tu cartera del bot (≈100 €)? Frenos: cada compra ≤ 8 % y ≤ ${LIM.maxOrdenEur} €, se para solo si la cuenta cae al ${LIM.suelo * 100} %, pausa si un día pierde un ${LIM.perdidaDia * 100} %. Puedes pararlo cuando quieras con /parar.`,
       [{ text: "✅ Empezar con dinero real", callback_data: "ma:" + id }, { text: "❌ Todavía no", callback_data: "mx:" + id }]);
     L(RS, now, `propuesta enviada a Telegram (${P.n} operaciones, factor ${P.pf})`);
   }
@@ -126,13 +126,13 @@ export async function pasoReal(S, by, now, eurUsd) {
   const solUsd = +((by[SOL] && by[SOL].priceUsd) || S.solUsd || 0) || 0; if (!(solUsd > 0) || !(eurUsd > 0)) { console.log("Memes real: sin precio de SOL o del euro: espero."); return RS; }
   const solEur = solUsd / eurUsd, sol = await W.solBal();
   let eqEur = sol * solEur; for (const [a, rp] of Object.entries(RS.pos)) { const q = by[a]; if (q && +q.priceUsd > 0) eqEur += rp.ui * (+q.priceUsd) / eurUsd; }
-  if (!RS.start) { RS.start = r2(eqEur); L(RS, now, `empieza con ${r2(eqEur)} €`); await tg(`💶 Memes con dinero real ACTIVADO. Empieza con ${r2(eqEur)} €.`); }
+  if (!RS.start) { RS.start = r2(eqEur); L(RS, now, `empieza con ${r2(eqEur)} €`); await tg(`💶 Cripto con dinero real ACTIVADO. Empieza con ${r2(eqEur)} €.`); }
   RS.eq = r2(eqEur); RS.eqHist = (RS.eqHist || []).concat([[now.toISOString(), r2(eqEur)]]).slice(-2000);
   // 3) frenos
   const fr = frenos(RS, eqEur, now), ventaTodo = ctl.parado || fr.parar;
   const ops = ventaTodo ? Object.entries(RS.pos).map(([a, rp]) => ({ tipo: "venta", a, sym: rp.sym, frac: 1 })) : plan(S, RS, now.toISOString()).filter((o) => !(fr.pausaDia && o.tipo === "compra"));
-  if (fr.parar && !ctl.parado) { await guardarCtl({ ...ctl, parado: true, motivo: fr.motivo }).catch(() => {}); await tg("🛑 Memes real PARADO: " + fr.motivo + ". He vendido todo. Para volver a empezar: /seguir"); L(RS, now, "🛑 " + fr.motivo); }
-  if (fr.pausaDia && !RS.pausaAvisada) { RS.pausaAvisada = madridD(now); await tg("⏸️ Memes real: " + fr.motivo); }
+  if (fr.parar && !ctl.parado) { await guardarCtl({ ...ctl, parado: true, motivo: fr.motivo }).catch(() => {}); await tg("🛑 Cripto real PARADO: " + fr.motivo + ". He vendido todo. Para volver a empezar: /seguir"); L(RS, now, "🛑 " + fr.motivo); }
+  if (fr.pausaDia && !RS.pausaAvisada) { RS.pausaAvisada = madridD(now); await tg("⏸️ Cripto real: " + fr.motivo); }
   // 4) ejecutar
   for (const o of ops) {
     try {
@@ -141,7 +141,7 @@ export async function pasoReal(S, by, now, eurUsd) {
         const lam = Math.floor(eur / solEur * W.LAMPORTS_PER_SOL), r = await W.swap(SOL, o.a, lam), b = await W.tokBal(o.a);
         const ui = Number(b.raw) / 10 ** b.dec; RS.pos[o.a] = { sym: o.sym, ui, dec: b.dec, cost: r2(eur), t0: now.toISOString() };
         RS.trades.unshift({ t: now.toISOString(), lado: "compra", sym: o.sym, eur: r2(eur), sig: r.sig }); L(RS, now, `🟢 compra ${o.sym} · ${r2(eur)} €`);
-        await tg(`🟢 Memes real: compro ${o.sym} por ${r2(eur)} €`);
+        await tg(`🟢 Cripto real: compro ${o.sym} por ${r2(eur)} €`);
       } else {
         const b = await W.tokBal(o.a); if (b.raw <= 0n) { delete RS.pos[o.a]; continue; }
         const raw = o.frac >= 1 ? b.raw : BigInt(Math.floor(Number(b.raw) * o.frac)); if (raw <= 0n) continue;
@@ -149,7 +149,7 @@ export async function pasoReal(S, by, now, eurUsd) {
         const pnl = r2(eur - costPart); RS.trades.unshift({ t: now.toISOString(), lado: o.parcial ? "venta parcial" : "venta", sym: o.sym, eur: r2(eur), pnl, sig: r.sig });
         if (o.frac >= 1) delete RS.pos[o.a]; else { rp.cost = r2(rp.cost - costPart); rp.ui = Number(b.raw - raw) / 10 ** b.dec; rp.tp1 = 1; }
         L(RS, now, `${pnl >= 0 ? "✅" : "🔻"} ${o.parcial ? "vende parte de" : "vende"} ${o.sym} · ${pnl >= 0 ? "+" : ""}${pnl} €`);
-        await tg(`${pnl >= 0 ? "✅" : "🔻"} Memes real: ${o.parcial ? "vendo parte de" : "vendo"} ${o.sym} · ${pnl >= 0 ? "+" : ""}${pnl} €`);
+        await tg(`${pnl >= 0 ? "✅" : "🔻"} Cripto real: ${o.parcial ? "vendo parte de" : "vendo"} ${o.sym} · ${pnl >= 0 ? "+" : ""}${pnl} €`);
       }
     } catch (e) { L(RS, now, `✖ ${o.tipo} ${o.sym}: ${String(e.message || e).slice(0, 100)}`); RS.fallos = (RS.fallos || 0) + 1; }
   }

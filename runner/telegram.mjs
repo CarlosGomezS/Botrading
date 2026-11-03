@@ -74,7 +74,7 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop()
     if (memes) {
       if (memes.msg) await api("editMessageReplyMarkup", { chat_id: memes.msg.chat, message_id: memes.msg.id, reply_markup: { inline_keyboard: [] } }).catch(() => {});
       const ok = await memesCtl(memes);
-      await say(CHAT, !ok ? "✖ No pude guardar la orden de Memes en GitHub. Inténtalo de nuevo." : { aprobar: "💶 Hecho: Memes empieza a copiar al terminal con tu cartera del bot en la próxima vuelta (1-2 min).", no: "Vale: Memes sigue en ficticio. Te volveré a preguntar si sigue ganando.", parar: "🛑 Memes real PARADO: en la próxima vuelta vende lo que tenga abierto y no compra más. Para volver: /seguir", seguir: "▶️ Memes real reanudado." }[memes.accion]);
+      await say(CHAT, !ok ? "✖ No pude guardar la orden de Cripto en GitHub. Inténtalo de nuevo." : { aprobar: "💶 Hecho: Cripto empieza a copiar al terminal con tu cartera del bot en la próxima vuelta (1-2 min).", no: "Vale: Cripto sigue en ficticio. Te volveré a preguntar si sigue ganando.", parar: "🛑 Cripto real PARADO: en la próxima vuelta vende lo que tenga abierto y no compra más. Para volver: /seguir", seguir: "▶️ Cripto real reanudado." }[memes.accion]);
       console.log("Orden de Memes procesada");
     }
     if (act) {
