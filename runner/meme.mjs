@@ -34,7 +34,7 @@ const short = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? Math.rou
 
 async function J(u, tries = 3) {
   for (let i = 0; i < tries; i++) {
-    try { const r = await fetch(u, { headers: { Accept: "application/json", "User-Agent": "bot-trading-memes" }, signal: AbortSignal.timeout(15000) }); if (r.status === 429) { await sleep(2500 * (i + 1)); continue; } if (r.status === 404) return null; if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); }
+    try { const r = await fetch(u, { headers: { Accept: "application/json", "User-Agent": "bot-trading-memes" }, signal: AbortSignal.timeout(15000) }); if (r.status === 429) { if (i === tries - 1) throw new Error("HTTP 429 (límite de peticiones)"); await sleep(2500 * (i + 1)); continue; } if (r.status === 404) return null; if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); }
     catch (e) { if (i === tries - 1) throw e; await sleep(1200 * (i + 1)); }
   }
   return null;
@@ -295,8 +295,8 @@ async function main() {
   const pideGT = preGT.filter(([a]) => { const i = ext.rc[a]; return i && !i.rugged; }).slice(0, R.gtPerRun);
   let gtOk = 0; S.gtc = S.gtc || {};
   for (const [a, c] of Object.entries(S.gtc)) { if (tnow - c.t > 15 * 60000) delete S.gtc[a]; else if (tnow - c.t < 4 * 60000) ext.gt[a] = c.g; }   // operaciones de GeckoTerminal: se reutilizan 4 min
-  await enParalelo(pideGT.filter(([a]) => !ext.gt[a]), 2, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; ngt++; const j = await J(`${GT}/networks/solana/pools/${q.pairAddress}/trades`, 2); if (j && j.data) { const g = gtInfo(j.data, tnow); ext.gt[a] = g; S.gtc[a] = { t: tnow, g: { ...g, buyers: g.buyers.slice(0, 150) } }; gtOk++; } });
-  S.diag = { t: now.toISOString(), monedas: Object.keys(by).length, candidatas: pre.length, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
+  await enParalelo(pideGT.filter(([a]) => !ext.gt[a]), 2, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; ngt++; let j = null; try { j = await J(`${GT}/networks/solana/pools/${q.pairAddress}/trades`, 3); } catch (e) { S.gtErr = String(e.message || e).slice(0, 60); } if (!j) S.gtErr = S.gtErr || "404 (piscina no encontrada)"; if (j && j.data) { const g = gtInfo(j.data, tnow); ext.gt[a] = g; S.gtc[a] = { t: tnow, g: { ...g, buyers: g.buyers.slice(0, 150) } }; gtOk++; } });
+  S.diag = { t: now.toISOString(), monedas: Object.keys(by).length, candidatas: pre.length, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, gtErr: S.gtErr || null, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
   paso(S, by, now, Math.random, ext);
   pasoIdeal(S, by, now, ext);
   for (const v of LB.pop) LBm.pasoVar(v, by, now, { ...ext, full: true }, S.smart, S.hold);
