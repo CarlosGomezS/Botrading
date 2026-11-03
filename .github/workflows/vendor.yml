@@ -1,0 +1,25 @@
+name: Copia local de librerías (una vez)
+
+# v161 · guarda en el repositorio la librería de gráficos de TradingView (Lightweight Charts 4.2.0) para no depender de un CDN
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Descargar y guardar
+        run: |
+          mkdir -p vendor
+          curl -fsSL "https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js" -o vendor/lightweight-charts-4.2.0.js
+          head -c 200 vendor/lightweight-charts-4.2.0.js; echo; wc -c vendor/lightweight-charts-4.2.0.js
+          grep -q "createChart" vendor/lightweight-charts-4.2.0.js
+          git config user.name "bot-trading"; git config user.email "bot-trading@users.noreply.github.com"
+          git add vendor/lightweight-charts-4.2.0.js
+          git commit -m "vendor: Lightweight Charts 4.2.0 (TradingView, licencia Apache 2.0)" || exit 0
+          for i in 1 2 3; do git pull -q --rebase origin main && git push -q origin HEAD:main && break; sleep 5; done
