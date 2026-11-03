@@ -118,7 +118,7 @@ test("Base y BNB: GoPlus detecta trampas, impuestos, liquidez bloqueada, poseedo
     holders: [{ address: "0xpool", percent: "0.4", is_contract: "1" }, ...Array.from({ length: 12 }, (_, i) => ({ address: "0xh" + i, percent: "0.015", is_contract: "0" }))], creator_percent: "0.01", holder_count: "2500" };
   const i = gpInfo(ok); assert.equal(i.mintOk, true); assert.ok(Math.abs(i.lp - 95) < 1e-9); assert.ok(Math.abs(i.top10 - 15) < 1e-9, "sin contar la piscina"); assert.ok(Math.abs(i.dev - 1) < 1e-9); assert.equal(i.holders, 2500);
   assert.equal(gpInfo({ ...ok, is_honeypot: "1" }).mintOk, false, "trampa que no deja vender"); assert.equal(gpInfo({ ...ok, is_honeypot: "1" }).rugged, true);
-  assert.equal(gpInfo({ ...ok, sell_tax: "0.10" }).mintOk, false, "impuesto al vender"); assert.equal(gpInfo({ ...ok, is_mintable: "1" }).mintOk, false);
+  assert.equal(gpInfo({ ...ok, sell_tax: "0.10" }).mintOk, false, "impuesto al vender"); assert.equal(gpInfo({ ...ok, is_mintable: "1", owner_address: "0xbbb" }).mintOk, false);
   assert.ok(reglas(par("x"), i).bundle, "sin dato de bloque en estas redes: no elimina");
   assert.deepEqual(Object.keys(CHAINS), ["solana", "base", "bsc"]);
 });
@@ -255,4 +255,11 @@ test("gráfico: prefiere una tendencia sana con un pequeño descanso, y castiga 
   const gs = grafico(sana), gd = grafico(desplome); assert.ok(gs.sc > 60, "sana: " + gs.sc); assert.ok(gd.sc < 30, "desplome: " + gd.sc); assert.equal(grafico([1, 2, 3]), null);
   const M = {}; for (let i = 0; i < 20; i++) anotarSeries(M, [["g", par("g", { px: 1 + i * 0.01 })]], new Date(T0 + i * 60000));
   assert.equal(M.serie.g.p.length, 20);
+});
+test("Base/BNB: la liquidez guardada en un contrato «locker» cuenta como bloqueada y «acuñable» sin dueño no descarta", () => {
+  const r = { is_honeypot: "0", is_mintable: "1", hidden_owner: "0", can_take_back_ownership: "0", owner_change_balance: "0", transfer_pausable: "0", cannot_sell_all: "0", slippage_modifiable: "0", buy_tax: "0", sell_tax: "0", is_open_source: "1",
+    owner_address: "", creator_address: "0xaaa", creator_percent: "0", lp_holders: [{ address: "0xlocker", is_contract: 1, is_locked: 0, percent: "0.99" }], holders: [] };
+  const i = gpInfo(r); assert.equal(i.mintOk, true); assert.ok(i.lp >= 99);
+  const i2 = gpInfo({ ...r, owner_address: "0xbbb", lp_holders: [{ address: "0xaaa", is_contract: 0, is_locked: 0, percent: "0.99" }] }); assert.equal(i2.mintOk, false, "con dueño y acuñable: fuera"); assert.ok(i2.lp < 1, "la LP en manos del creador no cuenta");
+  assert.equal(gpInfo({ ...r, hidden_owner: "1" }).mintOk, false, "dueño oculto: fuera");
 });

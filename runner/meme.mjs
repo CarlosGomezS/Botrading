@@ -79,9 +79,13 @@ const DEAD = new Set(["0x000000000000000000000000000000000000dead", "0x000000000
 export function gpInfo(r) {
   if (!r) return null;
   const f = (x) => +x || 0, b = (x) => x === "1" || x === 1;
-  const mintOk = !b(r.is_honeypot) && !b(r.is_mintable) && !b(r.hidden_owner) && !b(r.can_take_back_ownership) && !b(r.owner_change_balance) && !b(r.transfer_pausable) && !b(r.cannot_sell_all) && !b(r.slippage_modifiable)
+  // v185 · en Base y BNB casi todo cotiza en Uniswap/Pancake V3-V4: la liquidez es una posición NFT guardada en un contrato «locker»
+  // (Clanker, Zora, four.meme…), que GoPlus no marca como bloqueada. Cuenta como bloqueada si la guarda un contrato que no es del creador ni del dueño.
+  // Y «se puede acuñar» solo cuenta si hay dueño de verdad (si renunció, nadie puede acuñar: es típico de las monedas puente de Base).
+  const own = String(r.owner_address || "").toLowerCase(), cre = String(r.creator_address || "").toLowerCase(), conDueno = own && !DEAD.has(own) && !/^0x0+$/.test(own);
+  const mintOk = !b(r.is_honeypot) && !(b(r.is_mintable) && conDueno) && !b(r.hidden_owner) && !b(r.can_take_back_ownership) && !b(r.owner_change_balance) && !b(r.transfer_pausable) && !b(r.cannot_sell_all) && !b(r.slippage_modifiable)
     && f(r.buy_tax) <= 0.01 && f(r.sell_tax) <= 0.01 && r.is_open_source !== "0";
-  const lp = (r.lp_holders || []).reduce((t, h) => t + (b(h.is_locked) || DEAD.has(String(h.address || "").toLowerCase()) ? f(h.percent) : 0), 0) * 100;
+  const lp = Math.min(100, (r.lp_holders || []).reduce((t, h) => { const ad = String(h.address || "").toLowerCase(); return t + (b(h.is_locked) || DEAD.has(ad) || (b(h.is_contract) && ad !== own && ad !== cre) ? f(h.percent) : 0); }, 0) * 100);
   const top10 = (r.holders || []).filter((h) => !b(h.is_contract) && !b(h.is_locked) && !DEAD.has(String(h.address || "").toLowerCase())).slice(0, 10).reduce((t, h) => t + f(h.percent), 0) * 100;
   return { mintOk, lp, top10, dev: (f(r.creator_percent) + (r.owner_address && r.owner_address !== r.creator_address ? f(r.owner_percent) : 0)) * 100, devRug: b(r.honeypot_with_same_creator),
     bundle: 0, sinBloque: true, holders: f(r.holder_count), rugged: b(r.is_honeypot), insiders: 0, tax: Math.max(f(r.buy_tax), f(r.sell_tax)) };
@@ -432,6 +436,7 @@ async function main() {
   const by = bestPairs(pairs, CH.ds);
   if (!Object.keys(by).length) { console.log("Memes: sin datos de DexScreener; se intenta en la siguiente vuelta."); return; }
   // FILTRO (datos de cadena): RugCheck para las que pasan lo barato con las reglas MÁS LAXAS de toda la población (caché de 30 min)
+  if (S.rcV !== 185) { S.rc = {}; S.rcV = 185; }   // v185 · la seguridad de Base/BNB se lee distinto: se vuelve a pedir
   const lx = (() => { const x = LBm.laxo(LB); return { ...x, ageMin: Math.min(x.ageMin, TURBO.ageMin), ageMax: Math.max(x.ageMax, TURBO.ageMax), mcapMin: Math.min(x.mcapMin, TURBO.mcapMin), mcapMax: Math.max(x.mcapMax, TURBO.mcapMax), liqMin: Math.min(x.liqMin, TURBO.liqMin), vol1hMin: Math.min(x.vol1hMin, TURBO.vol1hMin), pump1hMax: Math.max(x.pump1hMax, TURBO.pump1hMax) }; })(), ext = { rc: {}, gt: {} }, pre = [];
   const mot = {}; conGenoma(lx, () => { for (const [a, q] of Object.entries(by)) { if (S.pos[a]) continue; const ex = explorador(q, tnow); if (ex) { mot[ex] = (mot[ex] || 0) + 1; continue; } const rr = reglas(q, null); if (rr.liq && rr.vol && rr.pump) pre.push([a, q]); else { const k = !rr.liq ? "liquidez" : !rr.vol ? "volumen" : "subida"; mot[k] = (mot[k] || 0) + 1; } } });
   pre.sort((x, y) => (+(y[1].volume && y[1].volume.h1) || 0) - (+(x[1].volume && x[1].volume.h1) || 0));

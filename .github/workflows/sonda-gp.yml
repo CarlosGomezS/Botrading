@@ -1,9 +1,0 @@
-name: sonda-gp (temporal)
-on: workflow_dispatch
-jobs:
-  s:
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          for q in "8453 0xE0Cd4cAcDdcBF4f36e845407CE53E87717b6601d,0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf,0x07b3D902783c3C12b077508c3B5c00113d1291D0,0x5bE75e3b0aFf5D1A042A5363Ae36AcB1d6d755ea" "56 0xc07e1300dc138601FA6B0b59f8D0FA477e690589,0x63dea5aCdbE1F27c968907D08610A5f0A0284bA6,0x5dBde81fcE337FF4bcaaEe4Ca3466C00aeCaE274,0xC9882dEF23bc42D53895b8361D0b1EDC7570Bc6A"; do
-            set -- $q; curl -s "https://api.gopluslabs.io/api/v1/token_security/$1?contract_addresses=$2" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);for(const [a,r] of Object.entries(j.result||{})){const k=["is_honeypot","is_mintable","hidden_owner","can_take_back_ownership","owner_change_balance","transfer_pausable","cannot_sell_all","slippage_modifiable","buy_tax","sell_tax","is_open_source","creator_percent","owner_percent","lp_holder_count","lp_total_supply","is_in_dex"];console.log(a.slice(0,8),JSON.stringify(Object.fromEntries(k.map(x=>[x,r[x]]))));console.log("  lp_holders",JSON.stringify((r.lp_holders||[]).slice(0,3)).slice(0,400));console.log("  dex",JSON.stringify((r.dex||[]).slice(0,3)).slice(0,400))}})'; sleep 2; done
