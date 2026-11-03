@@ -188,3 +188,15 @@ test("plazo del 10-nov: si nada ha superado la prueba, el terminal adopta las me
   const S2 = freshState(), L2 = freshLab(new Date("2026-11-03T00:00:00Z")); L2.pop[3].bt = { n: 40, t: 1.4 }; L2.lastGen = new Date("2026-11-03T10:00:00Z").toISOString();
   evolucionar(L2, S2, new Date("2026-11-03T12:00:00Z"), () => 0.3, null); assert.equal(S2.genomeId, undefined, "antes del plazo no fuerza nada");
 });
+import { casosHistoria, anadirHistoria, HIST_POR_MONEDA } from "../runner/meme-muestras.mjs";
+test("historia: con las velas de 5 min de una moneda se crean casos ya vividos que también sirven para el backtest", () => {
+  const t0 = Math.floor(T0 / 1000) - 3 * 86400, velas = [];
+  for (let i = 0; i < 864; i++) { const p = 1 + 0.3 * Math.sin(i / 40) + i / 2000; velas.push([t0 + i * 300, p * 0.99, p * 1.02, p * 0.98, p, 5000 + (i % 50) * 100]); }
+  const casos = casosHistoria("h", par("h"), okInfo, { org: 80 }, velas);
+  assert.ok(casos.length > 10 && casos.length <= HIST_POR_MONEDA, "salen casos: " + casos.length);
+  const c = casos[0]; assert.equal(c.hist, 1); assert.equal(c.p[0][1], 1); assert.ok(c.p.length > 20, "sigue 24 h en tramos de 30 min");
+  assert.ok(c.p.slice(1).every((x) => x[2] >= x[3]), "máximo ≥ mínimo en cada tramo");
+  assert.deepEqual(casosHistoria("h", par("h"), okInfo, null, velas.slice(0, 30)), [], "con pocas velas no inventa nada");
+  const M = freshM(); anadirHistoria(M, casos); anadirHistoria(M, casos); assert.equal(M.hist.length, casos.length, "no duplica la misma moneda");
+  const bt = backtest({ ...VIDEO, minScore: 0 }, M); assert.equal(bt.n, bt.nh || 0, "todo viene de historia"); assert.ok(casos.every((x) => x.q.liquidity.usd > 0 && x.q.volume.h24 > 0), "cada caso trae su foto");
+});

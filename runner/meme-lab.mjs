@@ -5,7 +5,7 @@
 import { R, VIDEO, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS, NOMEME } from "./meme.mjs";
 const ESTS = Object.keys(ESTILOS);
 
-export const POP = 30, GEN_H = 1, MIN_N = 8, ADOPT_N = 30, BT_N = 20;
+export const POP = 40, GEN_H = 0.5, MIN_N = 8, ADOPT_N = 30, BT_N = 20;
 import { backtest } from "./meme-muestras.mjs";
 // rango de cada pieza del genoma [mín, máx, paso]
 export const RANGOS = {
@@ -135,13 +135,13 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null)
   if (now - Date.parse(L.lastGen) < GEN_H * 3600e3) return null;
   L.lastGen = now.toISOString(); L.gen++;
   const ev = (txt, k) => { L.log.unshift({ t: now.toISOString(), k, txt }); L.log = L.log.slice(0, 200); };
-  if (M) { for (const v of L.pop) v.bt = backtest({ ...VIDEO, ...v.g }, M); L.muestras = (M.hechas || []).length; L.siguiendo = Object.keys(M.abiertas || {}).length; }
+  if (M) { for (const v of L.pop) v.bt = backtest({ ...VIDEO, ...v.g }, M); L.muestras = (M.hechas || []).length; L.historia = (M.hist || []).length; L.siguiendo = Object.keys(M.abiertas || {}).length; }
   for (const v of L.pop) v.fit = fitness(v);
   try { ensanchar(L, L.pop.filter((v) => v.fit != null && v.fit > 0).sort((a, b) => b.fit - a.fit).slice(0, 5), now); } catch (e) {}
   const ageH = (v) => (now - Date.parse(v.born)) / 3600e3;
   const ranked = L.pop.slice().sort((a, b) => (b.fit ?? -99) - (a.fit ?? -99) || b.lastEq - a.lastEq);
   // fuera: las peores con pruebas suficientes, y las que en 48 h casi no operan (reglas tan duras que no sirven)
-  const out = ranked.filter((v) => v.id !== "v0" && ((v.fit != null && v.fit < 0 && ranked.indexOf(v) >= POP * 0.6) || (ageH(v) > 48 && v.n < 3))).slice(-Math.ceil(POP * 0.25));
+  const out = ranked.filter((v) => v.id !== "v0" && ((v.fit != null && v.fit < 0 && ranked.indexOf(v) >= POP * 0.6) || (ageH(v) > 48 && v.n < 3))).slice(-Math.ceil(POP * 0.35));
   for (const v of out) { L.arch.unshift({ id: v.id, g: v.g, gen: v.gen, born: v.born, out: now.toISOString(), n: v.n, fit: v.fit, ret: r2((v.lastEq / R.start - 1) * 100), win: v.n ? Math.round(v.w / v.n * 100) : null, why: v.n < 3 ? "casi no opera" : "de las peores" }); ev(`${v.id} se archiva (${v.n < 3 ? "casi no opera" : "nota " + v.fit}) · ${r2((v.lastEq / R.start - 1) * 100)} %`, "sale"); }
   L.arch = L.arch.slice(0, 20000); /* el archivo no se borra: hasta 20.000 variantes */ L.pop = L.pop.filter((v) => !out.includes(v));
   const top = ranked.filter((v) => !out.includes(v) && v.fit != null && v.fit > 0).slice(0, 5), seen = new Set(L.pop.map((v) => gkey(v.g)));

@@ -69,9 +69,43 @@ export function simular(g, s, S0 = { smart: {}, hold: {} }) {
 }
 // prueba una variante sobre todas las muestras completas: nº de operaciones, % de acierto, media, factor de beneficio y su «t»
 export function backtest(g, M) {
-  const rs = []; for (const s of M.hechas || []) { const r = simular(g, s); if (r != null) rs.push(r); }
+  const rs = [], ws = []; for (const s of M.hechas || []) { const r = simular(g, s); if (r != null) { rs.push(r); ws.push(1); } }
+  let nh = 0; for (const s of M.hist || []) { const r = simular(g, s); if (r != null) { rs.push(r); ws.push(0.5); nh++; } }   // los de historia valen la mitad
   const n = rs.length; if (!n) return { n: 0 };
-  const m = rs.reduce((a, b) => a + b, 0) / n, sd = Math.sqrt(Math.max(1e-9, rs.reduce((a, b) => a + (b - m) ** 2, 0) / n)), w = rs.filter((x) => x > 0), l = rs.filter((x) => x <= 0);
-  const gw = w.reduce((a, b) => a + b, 0), gl = -l.reduce((a, b) => a + b, 0);
-  return { n, win: r2(w.length / n * 100), med: r2(m * 100), pf: gl > 0 ? r2(gw / gl) : gw > 0 ? 99 : 0, t: r2(m / (sd / Math.sqrt(n))) };
+  const W = ws.reduce((a, b) => a + b, 0), m = rs.reduce((a, b, i) => a + b * ws[i], 0) / W, sd = Math.sqrt(Math.max(1e-9, rs.reduce((a, b, i) => a + ws[i] * (b - m) ** 2, 0) / W));
+  let gw = 0, gl = 0, nw = 0; rs.forEach((x, i) => { if (x > 0) { gw += x * ws[i]; nw += ws[i]; } else gl -= x * ws[i]; });
+  return { n, nh, win: r2(nw / W * 100), med: r2(m * 100), pf: gl > 0 ? r2(gw / gl) : gw > 0 ? 99 : 0, t: r2(m / (sd / Math.sqrt(W))) };
+}
+
+// ---------- v178 · 📚 CASOS DE HISTORIA: para acelerar muchísimo el aprendizaje ----------
+// De cada moneda ya comprobada (con datos de seguridad) se descargan sus velas de 5 min de los últimos ~3 días (GeckoTerminal)
+// y se crean casos «como si hubiéramos estado ahí» cada hora: con el precio, el impulso y el volumen de ESE momento y lo que pasó
+// las 24 h siguientes (con máximos y mínimos de cada tramo). Límites honestos: la seguridad, la liquidez y la actividad de Jupiter
+// son las de hoy (no las de entonces) y las compras/ventas se estiman con las velas; y solo se ven monedas que siguen vivas
+// (las que murieron del todo ya no dan velas), así que estos casos son algo optimistas: por eso valen la mitad que los vividos en directo.
+export const HIST_MAX = 2000, HIST_POR_MONEDA = 40;
+export function casosHistoria(a, q, info, jup, velas) {
+  const c = (velas || []).map((x) => ({ t: +x[0] * 1000, o: +x[1], h: +x[2], l: +x[3], c: +x[4], v: +x[5] })).filter((x) => x.c > 0).sort((x, y) => x.t - y.t);
+  if (c.length < 60 || !info) return [];
+  const now = c[c.length - 1], liq = +(q.liquidity && q.liquidity.usd) || 0, mcNow = +(q.marketCap || q.fdv) || 0, out = [];
+  const ch = (i, k) => (i - k >= 0 ? (c[i].c / c[i - k].c - 1) * 100 : (c[i].c / c[0].c - 1) * 100);
+  for (let i = 12; i < c.length - 12 && out.length < HIST_POR_MONEDA; i += 12) {
+    let v1 = 0, v24 = 0, b = 0, s = 0; for (let k = Math.max(0, i - 287); k <= i; k++) { v24 += c[k].v; if (k > i - 12) { v1 += c[k].v; if (c[k].c >= c[k].o) b += c[k].v; else s += c[k].v; } }
+    const tx = Math.max(1, Math.round(v1 / 500)), bf = b + s > 0 ? b / (b + s) : 0.5;
+    const foto = { priceUsd: String(c[i].c), pairCreatedAt: +q.pairCreatedAt || 0, marketCap: mcNow * c[i].c / now.c, fdv: null, liquidity: { usd: liq }, volume: { h1: v1, h24: v24 },
+      priceChange: { m5: ch(i, 1), h1: ch(i, 12), h6: ch(i, 72), h24: ch(i, 288) }, txns: { h1: { buys: Math.round(tx * bf), sells: Math.round(tx * (1 - bf)) } }, baseToken: { symbol: q.baseToken && q.baseToken.symbol } };
+    const p = [[0, 1]]; let hi = 0, lo = 1e9;
+    for (let k = i + 1; k < c.length && c[k].t - c[i].t <= HORAS * 3600e3; k++) {
+      hi = Math.max(hi, c[k].h / c[i].c); lo = Math.min(lo, c[k].l / c[i].c);
+      if ((k - i) % 6 === 0 || k === c.length - 1) { p.push([Math.round((c[k].t - c[i].t) / 60000), +(c[k].c / c[i].c).toFixed(4), +hi.toFixed(4), +lo.toFixed(4)]); hi = 0; lo = 1e9; }
+    }
+    if (p.length < 3) continue;
+    out.push({ a, t0: c[i].t, q: foto, info, gt: null, jup: jup ? { org: jup.org, traders: null, organicBuyers: null, holderChg: null } : null, p, fin: "historia", hist: 1 });
+  }
+  return out;
+}
+export function anadirHistoria(M, casos) {
+  M.hist = (M.hist || []).filter((x) => !casos.length || x.a !== casos[0].a).concat(casos);
+  if (M.hist.length > HIST_MAX) M.hist = M.hist.slice(M.hist.length - HIST_MAX);
+  M.histHechas = M.histHechas || {}; if (casos.length) M.histHechas[casos[0].a] = Date.now();
 }

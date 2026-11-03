@@ -388,8 +388,21 @@ async function main() {
   let gtOk = 0; S.gtc = S.gtc || {};
   for (const [a, c] of Object.entries(S.gtc)) { if (tnow - c.t > 15 * 60000) delete S.gtc[a]; else if (tnow - c.t < 4 * 60000) ext.gt[a] = c.g; }   // operaciones de GeckoTerminal: se reutilizan 4 min
   await enParalelo(pideGT.filter(([a]) => !ext.gt[a]), 2, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; ngt++; let j = null; try { j = await J(`${GT}/networks/${CH.gt}/pools/${q.pairAddress}/trades`, 3); } catch (e) { S.gtErr = String(e.message || e).slice(0, 60); } if (!j) S.gtErr = S.gtErr || "404 (piscina no encontrada)"; if (j && j.data) { const g = gtInfo(j.data, tnow); ext.gt[a] = g; S.gtc[a] = { t: tnow, g: { ...g, buyers: g.buyers.slice(0, 150) } }; gtOk++; } });
-  S.diag = { t: now.toISOString(), jupiter: CH.id === "solana" ? S.jupN || 0 : undefined, monedas: Object.keys(by).length, candidatas: pre.length, motivos: mot, laxo: lx, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, gtErr: S.gtErr || null, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
+  S.diag = { hist: S.histN || 0, histErr: S.histErr || null, t: now.toISOString(), jupiter: CH.id === "solana" ? S.jupN || 0 : undefined, monedas: Object.keys(by).length, candidatas: pre.length, motivos: mot, laxo: lx, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, gtErr: S.gtErr || null, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
   try { MS.registrar(MUE, pre, by, ext, now); } catch (e) { console.log("Memes: muestras: " + e.message); }
+  // v178 · 📚 historia: 2 monedas por minuto (ya comprobadas en seguridad) → hasta 40 casos cada una con sus velas de 5 min de ~3 días
+  try {
+    MUE.histHechas = MUE.histHechas || {}; for (const [a, t] of Object.entries(MUE.histHechas)) if (tnow - t > 24 * 3600e3) delete MUE.histHechas[a];
+    const cola = Object.keys(S.rc || {}).filter((a) => by[a] && by[a].pairAddress && !MUE.histHechas[a] && !NOMEME.has(a)).sort((x, y) => (+(by[y].volume && by[y].volume.h24) || 0) - (+(by[x].volume && by[x].volume.h24) || 0)).slice(0, 2);
+    let nh = 0;
+    for (const a of cola) {
+      if (Date.now() - t0 > 62e3) break;
+      const q = by[a]; let j = null; try { j = await J(`${GT}/networks/${CH.gt}/pools/${q.pairAddress}/ohlcv/minute?aggregate=5&limit=1000&currency=usd`, 2); } catch (e) { S.histErr = String(e.message).slice(0, 60); MUE.histHechas[a] = tnow - 23 * 3600e3; break; }
+      const velas = j && j.data && j.data.attributes && j.data.attributes.ohlcv_list, casos = MS.casosHistoria(a, q, S.rc[a].i, (ext.jup || {})[a] || null, velas);
+      MS.anadirHistoria(MUE, casos); MUE.histHechas[a] = tnow; nh += casos.length; await sleep(800);
+    }
+    S.histN = (MUE.hist || []).length; S.histNuevos = nh;
+  } catch (e) { console.log("Memes: historia: " + e.message); }
   paso(S, by, now, Math.random, ext);
   pasoIdeal(S, by, now, ext);
   for (const v of LB.pop) LBm.pasoVar(v, by, now, { ...ext, full: true }, S.smart, S.hold);
