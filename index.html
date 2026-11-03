@@ -500,7 +500,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .mt-cmp>div,.mt-foot{background:color-mix(in srgb,var(--line) 20%,transparent);border:0;border-radius:12px}
 .mt-log,.mt-kv,.mt-rule,.mt-node{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v209</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v212</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2760,7 +2760,7 @@ async function memeLive(){const t=document.getElementById("t-memes");if(!t||!t.c
 setInterval(()=>{const vb=document.getElementById("mt-vivobdg");if(vb&&MLIVE.t){const a=Math.round((Date.now()-MLIVE.t)/1000);vb.innerHTML='<span style="color:'+(a<10?"var(--go)":"var(--wait)")+'">●</span> precios en directo · '+(a<2?"ahora":"hace "+a+" s")}},1000);
 setInterval(memeLive,4000);
 /* v199 · 🔴 Bitvavo en directo: cada 4 s el móvil pide a Bitvavo el mejor precio de compra/venta y actualiza saldo y posiciones */
-async function bvLive(){const t=document.getElementById("t-memes");if(!t||!t.classList.contains("on")||document.hidden||memeCh()[0]!=="bitvavo")return;const cells=[...document.querySelectorAll("[data-bv]")],bd=document.getElementById("bv-bdg");
+async function bvvLive(){const t=document.getElementById("t-memes");if(!t||!t.classList.contains("on")||document.hidden||memeCh()[0]!=="bitvavo")return;const cells=[...document.querySelectorAll("[data-bv]")],bd=document.getElementById("bv-bdg");
  try{const wb=[...document.querySelectorAll("[data-wb]")];await Promise.all(wb.map(async c=>{const r=await fetch(`https://api.bitvavo.com/v2/ticker/price?market=${c.dataset.wb}`,{cache:"no-store"});if(!r.ok)return;const j=await r.json(),v=+j.price;if(v>0){const n=v.toLocaleString("es-ES",{maximumSignificantDigits:5})+" €";if(n!==c.textContent){const up=v>=(+c.dataset.last||v);c.dataset.last=v;c.textContent=n;c.style.transition="background .6s";c.style.background=up?"rgba(61,214,181,.18)":"rgba(255,93,115,.18)";setTimeout(()=>{c.style.background=""},600)}}}))}catch(e){}
  if(!cells.length){if(bd)bd.textContent="";return}
  try{const ms=[...new Set(cells.map(c=>c.dataset.bv))],px={};await Promise.all(ms.map(async m=>{const r=await fetch(`https://api.bitvavo.com/v2/ticker/book?market=${m}`,{cache:"no-store"});if(!r.ok)throw new Error(r.status);const j=await r.json();if(+j.bid>0)px[m]=+j.bid}));
@@ -2768,7 +2768,7 @@ async function bvLive(){const t=document.getElementById("t-memes");if(!t||!t.cla
   for(const c of cells){const m=c.dataset.bv,pr=px[m];if(!(pr>0))continue;const v=+c.dataset.q*pr*(1-0.0025)+(+c.dataset.cob||0),co=+c.dataset.c,g=v-co;if(c.dataset.k==="v"){c.textContent=Eu(v);if(!seen.has(m)){seen.add(m);val+=+c.dataset.q*pr}}else{c.innerHTML=`${W2(g)}<br>${(g>=0?"+":"−")+Math.abs((v/co-1)*100).toFixed(2).replace(".",",")} %`;c.className="n "+(g>=0?"up":"dn")}}
   const eb=document.getElementById("bv-eq");if(eb&&seen.size===ms.length){const eq=+eb.dataset.cash+val;eb.textContent=Eu(eq);eb.className="mt-big "+(eq>=+eb.dataset.start?"up":"dn")}
   if(bd)bd.innerHTML='<span style="color:var(--go)">●</span> precios en directo · cada 4 s'}catch(e){if(bd)bd.textContent=""}}
-setInterval(bvLive,4000);
+setInterval(bvvLive,4000);
 document.addEventListener("visibilitychange",()=>{const t=document.getElementById("t-memes");if(!document.hidden&&t&&t.classList.contains("on"))memeLoad(true)});
 setInterval(()=>{const g=document.getElementById("mt-ago"),S0=MM.S;if(g&&S0){const t=Math.max(Date.parse(S0.last||0)||0,Date.parse(S0.lastQ||0)||0),a=Math.round((Date.now()-t)/1000);g.textContent=a<0?"ahora":a<90?"última vuelta hace "+a+" s":"última vuelta hace "+Math.round(a/60)+" min";g.style.color=a>180?"var(--mt-r)":""}const e=document.getElementById("mt-run"),S=MM.S;if(e&&S&&S.since&&!document.hidden){const s=Math.max(0,Math.floor((Date.now()-Date.parse(S.since))/1000)),d=Math.floor(s/86400),z=n=>String(n).padStart(2,"0");e.textContent=(d?d+" d ":"")+z(Math.floor(s%86400/3600))+":"+z(Math.floor(s%3600/60))+":"+z(s%60)}},1000);
 /* v152 · la ficticia entera (cartera, órdenes, feed, gráfico, informes, radar) en euros a la escala de tu dinero real */
