@@ -11,7 +11,7 @@ import path from "node:path";
 const REPO = process.env.GITHUB_REPOSITORY || "", TOKEN = process.env.GITHUB_TOKEN || "";
 const DS = "https://api.dexscreener.com", GT = "https://api.geckoterminal.com/api/v2", RC = "https://api.rugcheck.xyz/v1";
 export const R = {
-  start: 50, size: 0.08,          // v163: prueba con 50 € (como si los metieras de verdad)
+  start: 100, size: 0.08,         // v167: prueba con 100 €, lo que piensas meter de verdad
   fixFee: 0.08,                    // € fijos por transacción en Solana: propina de prioridad/Jito y cuenta de la moneda (no dependen del tamaño)
   maxPos: 8, minScore: 70,
   ageMin: 30, ageMax: 72 * 60, mcapMin: 300e3, mcapMax: 20e6,                     // explorador
@@ -40,7 +40,7 @@ async function J(u, tries = 3) {
   return null;
 }
 export function freshState() {
-  return { v: 4, start: R.start, cash: R.start, pos: {}, closed: [], log: [], line: 0, eq: [], seen: {}, cool: {}, young: {}, rc: {}, hold: {}, watch: {}, smart: {}, flow: [], ag: {},
+  return { v: 5, start: R.start, cash: R.start, pos: {}, closed: [], log: [], line: 0, eq: [], seen: {}, cool: {}, young: {}, rc: {}, hold: {}, watch: {}, smart: {}, flow: [], ag: {},
     st: { seen: 0, killed: 0, scored: 0, trades: 0, wins: 0, losses: 0, fees: 0, failed: 0, rugs: 0, pnl: 0, stops: 0, worst: 0, best: 0 }, rk: {}, rate: [], nights: [], since: new Date().toISOString() };
 }
 export function bestPairs(pairs) { const m = {}; for (const p of pairs || []) { if (!p || p.chainId !== "solana" || !p.baseToken) continue; const a = p.baseToken.address, l = +(p.liquidity && p.liquidity.usd) || 0; if (!m[a] || l > (+(m[a].liquidity && m[a].liquidity.usd) || 0)) m[a] = p; } return m; }
@@ -242,9 +242,9 @@ function publicar(S, LB) {
 
 async function main() {
   const now = new Date(), tnow = now.getTime(), t0 = Date.now(), LBm = await import("./meme-lab.mjs");
-  let S = await leerArchivo("meme.json"); if (!S || S.v !== 4) { const old = S; S = freshState(); if (old && old.since) L(S, now, "INFO", "", "empieza de cero con 50 € y los costes fijos de Solana"); }
+  let S = await leerArchivo("meme.json"); if (!S || S.v !== 5) { const old = S; S = freshState(); if (old && old.since) L(S, now, "INFO", "", "empieza de cero con 100 € (lo que piensas meter de verdad) y los costes fijos de Solana"); }
   let LB = null; try { LB = await leerArchivo("meme-lab.json"); } catch (e) { console.log("Memes: " + e.message); return; }
-  if (!LB || LB.v !== 1) { LB = LBm.freshLab(now); L(S, now, "INFO", "", `🧬 nace el laboratorio de memes: ${LB.pop.length} variantes de las reglas compiten en ficticio`); }
+  if (!LB || LB.v !== 2 || (S.genomeId && !LB.pop.some((v) => v.id === S.genomeId) && false)) { LB = LBm.freshLab(now); L(S, now, "INFO", "", `🧬 nace el laboratorio de memes: ${LB.pop.length} variantes de las reglas compiten en ficticio`); }
   const varOpen = () => LB.pop.flatMap((v) => Object.keys(v.pos || {}));
   if (process.argv[2] === "rapido") {
     const open = [...new Set([...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()])];

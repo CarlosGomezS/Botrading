@@ -44,7 +44,7 @@ export function cruzar(a, b, rnd = Math.random) {
 }
 export function nuevaVar(id, g, now, gen, why) { return { id, g, gen, born: now.toISOString(), why, cash: R.start, pos: {}, cool: {}, closed: [], n: 0, s1: 0, s2: 0, w: 0, pnl: 0, fees: 0, rugs: 0, peak: R.start, dd: 0, eq: [], lastEq: R.start }; }
 export function freshLab(now = new Date()) {
-  const L = { v: 1, gen: 0, nextId: 1, since: now.toISOString(), lastGen: now.toISOString(), pop: [], arch: [], log: [], adopt: [] };
+  const L = { v: 2, gen: 0, nextId: 1, since: now.toISOString(), lastGen: now.toISOString(), pop: [], arch: [], log: [], adopt: [] };
   L.pop.push(nuevaVar("v0", { ...VIDEO }, now, 0, "las reglas del vídeo (referencia, no se elimina)"));
   const seen = new Set([gkey(VIDEO)]); let i = 1, guard = 0;
   while (L.pop.length < POP && guard++ < 500) { const g = i < 10 ? mutar(VIDEO) : aleatorio(), k = gkey(g); if (seen.has(k)) continue; seen.add(k); L.pop.push(nuevaVar("v" + L.nextId++, g, now, 0, i < 10 ? "variante de las reglas del vídeo" : "inventada de cero")); i++; }

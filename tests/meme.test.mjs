@@ -55,7 +55,7 @@ test("pipeline completo: filtra, puntúa, entra, stop, móvil, rug, fallidas y a
   paso(S, { a: par("a"), b: par("b"), c: par("c"), d: par("d"), e: par("e") }, new Date(T0), never, { rc, ...gt });
   assert.equal(S.st.killed, 1); assert.equal(S.rk.mint, 1, "cuenta qué regla mató");
   assert.ok(!S.seen.e.k && !S.pos.e, "sin RugCheck espera, no se descarta"); assert.equal(S.st.seen, 5, "vistas = las que pasan el explorador");
-  assert.equal(Object.keys(S.pos).length, 3); assert.ok(Math.abs(S.pos.a.cost - 4) < 1e-9, "8 % de 50");
+  assert.equal(Object.keys(S.pos).length, 3); assert.ok(Math.abs(S.pos.a.cost - R.start * 0.08) < 1e-9, "8 % del capital");
   assert.ok(S.log.some((x) => x.ev === "PASS") && S.log.some((x) => x.ev === "SCORE") && S.log.some((x) => x.ev === "ENTER") && S.log.some((x) => x.ev === "KILL"));
   paso(S, { a: par("a", { px: 0.9 }), b: par("b", { px: 1.6 }), e: par("e") }, new Date(T0 + 3e5), never, { rc: { e: okInfo } });
   assert.ok(!S.pos.a && !S.pos.c && S.pos.b && S.pos.b.trailing); assert.equal(S.st.rugs, 1); assert.equal(S.st.stops, 1);
@@ -83,12 +83,12 @@ test("como el vídeo: mismas decisiones sin costes; y la vigilancia rápida hace
   assert.equal(S.ideal.smart, undefined, "no duplica las carteras listas al guardar");
 });
 
-test("con 50 €: los costes fijos de Solana pesan en cada compra de 4 €", () => {
+test("con poco capital: los costes fijos de Solana pesan en cada compra", () => {
   const S = freshState(), ext = { rc: { a: okInfo }, gt: { a: gtInfo(gtTr(300), T0) } };
   paso(S, { a: par("a") }, new Date(T0), () => 1, ext); pasoIdeal(S, { a: par("a") }, new Date(T0), ext);
   const c = S.pos.a.cost - S.pos.a.q * 1;   // lo que se va al entrar
-  assert.ok(c >= R.fixFee, "incluye el coste fijo"); assert.ok(c / S.pos.a.cost > 0.03, "más de un 3 % de una compra de 4 €");
-  assert.equal(S.ideal.pos.a.q, 4, "la cuenta «como el vídeo» no paga nada");
+  assert.ok(c >= R.fixFee, "incluye el coste fijo"); assert.ok(c / S.pos.a.cost > 0.02, "más de un 2 % de una compra pequeña");
+  assert.equal(S.ideal.pos.a.q, R.start * 0.08, "la cuenta «como el vídeo» no paga nada");
 });
 
 test("laboratorio de memes: población, cada variante opera con sus reglas, selección y adopción", () => {
