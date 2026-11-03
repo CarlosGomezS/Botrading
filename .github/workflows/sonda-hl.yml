@@ -1,0 +1,17 @@
+name: sonda-hl (temporal)
+on: workflow_dispatch
+jobs:
+  s:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - run: |
+          cat > p.mjs <<'X'
+          let t=Date.now(); const r=await fetch("https://stats-data.hyperliquid.xyz/Mainnet/leaderboard"); const txt=await r.text(); console.log("LB",r.status,txt.length,"bytes",Date.now()-t,"ms");
+          const j=JSON.parse(txt); const rows=j.leaderboardRows||j; console.log("LB filas",rows.length); console.log("LB ej",JSON.stringify(rows[0]).slice(0,600));
+          const top=rows.filter(x=>+x.accountValue>1e5).map(x=>({a:x.ethAddress,av:+x.accountValue,m:+((x.windowPerformances||[]).find(w=>w[0]==="month")||[0,{pnl:0}])[1].pnl})).sort((a,b)=>b.m-a.m).slice(0,5);
+          console.log("TOP",JSON.stringify(top));
+          t=Date.now(); const q=await fetch("https://api.hyperliquid.xyz/info",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"clearinghouseState",user:top[0].a})}); const s=await q.json(); console.log("POS",q.status,Date.now()-t,"ms",JSON.stringify((s.assetPositions||[]).slice(0,4).map(p=>p.position&&[p.position.coin,p.position.szi,p.position.positionValue,p.position.unrealizedPnl])));
+          X
+          node p.mjs
