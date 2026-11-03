@@ -4,10 +4,6 @@ name: Memes (solo dinero ficticio)
 # mientras espera; esto es para lanzarlo a mano. Nunca toca dinero real ni Trading 212.
 on:
   workflow_dispatch:
-    inputs:
-      sonda:
-        description: "sonda de datos (sí/no)"
-        default: "no"
 
 permissions:
   contents: write
@@ -30,4 +26,4 @@ jobs:
       - name: Una vuelta
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: if [ "${{ inputs.sonda }}" = "si" ]; then node runner/meme-sonda.mjs; else node runner/meme.mjs; fi
+        run: node runner/meme.mjs

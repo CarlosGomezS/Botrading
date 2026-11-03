@@ -38,7 +38,7 @@ async function J(u, tries = 3) {
   return null;
 }
 export function freshState() {
-  return { v: 2, start: R.start, cash: R.start, pos: {}, closed: [], log: [], line: 0, eq: [], seen: {}, cool: {}, young: {}, rc: {}, hold: {}, watch: {}, smart: {}, flow: [], ag: {},
+  return { v: 3, start: R.start, cash: R.start, pos: {}, closed: [], log: [], line: 0, eq: [], seen: {}, cool: {}, young: {}, rc: {}, hold: {}, watch: {}, smart: {}, flow: [], ag: {},
     st: { seen: 0, killed: 0, scored: 0, trades: 0, wins: 0, losses: 0, fees: 0, failed: 0, rugs: 0, pnl: 0, stops: 0, worst: 0, best: 0 }, rk: {}, rate: [], nights: [], since: new Date().toISOString() };
 }
 export function bestPairs(pairs) { const m = {}; for (const p of pairs || []) { if (!p || p.chainId !== "solana" || !p.baseToken) continue; const a = p.baseToken.address, l = +(p.liquidity && p.liquidity.usd) || 0; if (!m[a] || l > (+(m[a].liquidity && m[a].liquidity.usd) || 0)) m[a] = p; } return m; }
@@ -130,11 +130,11 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}) {
   const cands = []; let nNew = 0;
   for (const [a, q] of Object.entries(by)) {
     if (S.pos[a]) continue;
-    let z = S.seen[a]; const first = !z || typeof z !== "object"; if (first) { z = S.seen[a] = { t: tnow, k: 0, s: 0 }; S.st.seen++; nNew++; }
+    let z = S.seen[a]; const first = !z || typeof z !== "object"; if (first) z = S.seen[a] = { t: tnow, k: 0, s: 0 };
     const ex = explorador(q, tnow);
     if (ex) { if (ex === "joven") S.young[a] = S.young[a] || tnow; else delete S.young[a]; continue; }
     delete S.young[a];
-    if (first || !z.f) { z.f = 1; S.flow.unshift({ a, sym: q.baseToken.symbol, age: Math.round((tnow - q.pairCreatedAt) / 60000), mc: +(q.marketCap || q.fdv) || 0, t: now.toISOString() }); S.flow = S.flow.slice(0, 12); }
+    if (!z.f) { z.f = 1; S.st.seen++; nNew++; S.flow.unshift({ a, sym: q.baseToken.symbol, age: Math.round((tnow - q.pairCreatedAt) / 60000), mc: +(q.marketCap || q.fdv) || 0, t: now.toISOString() }); S.flow = S.flow.slice(0, 12); }
     if (S.cool[a] && tnow - S.cool[a] < R.cooldownH * 3600e3) continue;
     const info = RCI[a] || null, rr = reglas(q, info), fails = RULES.filter(([k]) => rr[k] === false).map(([k]) => k), miss = RULES.filter(([k]) => rr[k] == null).map(([k]) => k);
     if (info && info.rugged) fails.unshift("lp");
@@ -196,7 +196,7 @@ function publicar(S) {
 
 async function main() {
   const now = new Date(), tnow = now.getTime(), t0 = Date.now();
-  let S = await leerEstado(); if (!S || S.v !== 2) { const old = S; S = freshState(); if (old && old.since) L(S, now, "INFO", "", "versión nueva del terminal: empieza de cero con las 8 reglas reales"); }
+  let S = await leerEstado(); if (!S || S.v !== 3) { const old = S; S = freshState(); if (old && old.since) L(S, now, "INFO", "", "versión nueva del terminal: empieza de cero con las 8 reglas reales"); }
   if (S.last && tnow - Date.parse(S.last) < 100e3) { console.log("Memes: la última vuelta fue hace menos de 100 s; nada que hacer."); return; }
   // EXPLORADOR: todas las fuentes de monedas nuevas de Solana
   const addrs = new Set([...Object.keys(S.pos), ...Object.keys(S.young || {}), ...Object.keys(S.watch || {})]);

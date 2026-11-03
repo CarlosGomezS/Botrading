@@ -53,7 +53,7 @@ test("pipeline completo: filtra, puntúa, entra, stop, móvil, rug, fallidas y a
   const rc = { a: okInfo, b: okInfo, c: okInfo, d: rcInfo(rcRep({ mint: "X" })) };
   paso(S, { a: par("a"), b: par("b"), c: par("c"), d: par("d"), e: par("e") }, new Date(T0), never, { rc, ...gt });
   assert.equal(S.st.killed, 1); assert.equal(S.rk.mint, 1, "cuenta qué regla mató");
-  assert.ok(!S.seen.e.k && !S.pos.e, "sin RugCheck espera, no se descarta");
+  assert.ok(!S.seen.e.k && !S.pos.e, "sin RugCheck espera, no se descarta"); assert.equal(S.st.seen, 5, "vistas = las que pasan el explorador");
   assert.equal(Object.keys(S.pos).length, 3); assert.ok(Math.abs(S.pos.a.cost - 40) < 1e-9);
   assert.ok(S.log.some((x) => x.ev === "PASS") && S.log.some((x) => x.ev === "SCORE") && S.log.some((x) => x.ev === "ENTER") && S.log.some((x) => x.ev === "KILL"));
   paso(S, { a: par("a", { px: 0.9 }), b: par("b", { px: 1.6 }), e: par("e") }, new Date(T0 + 3e5), never, { rc: { e: okInfo } });
