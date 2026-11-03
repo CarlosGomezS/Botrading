@@ -60,7 +60,7 @@ test("pipeline completo: filtra, puntúa, entra, stop, móvil, rug, fallidas y a
   paso(S, { a: par("a", { px: 0.9 }), b: par("b", { px: 1.6 }), e: par("e") }, new Date(T0 + 3e5), never, { rc: { e: okInfo } });
   assert.ok(!S.pos.a && !S.pos.c && S.pos.b && S.pos.b.trailing); assert.equal(S.st.rugs, 1); assert.equal(S.st.stops, 1);
   assert.ok(Object.keys(S.smart).length > 0, "los compradores de b (subió un 60 %) pasan a carteras listas");
-  paso(S, { b: par("b", { px: 1.3 }) }, new Date(T0 + 6e5), never, {});
+  paso(S, { b: par("b", { px: 1.3 }), e: par("e") }, new Date(T0 + 6e5), never, {});
   assert.ok(!S.pos.b); assert.match(S.closed[0].why, /móvil/); assert.ok(S.closed[0].h.length >= 2, "guarda la gráfica de la operación");
   assert.equal(S.st.wins + S.st.losses, 3); assert.ok(S.st.worst < 0 && S.st.best > 0);
   const F = freshState(); paso(F, { a: par("a") }, new Date(T0), () => 0, { rc: { a: okInfo }, gt: { a: gtInfo(gtTr(300), T0) } });

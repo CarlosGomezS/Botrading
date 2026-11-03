@@ -88,7 +88,7 @@ export function analista(S, a, p, info, g, nowMs) {
   const ageH = Math.max(0.5, (nowMs - (+p.pairCreatedAt || nowMs)) / 3600e3), hp = S.hold[a];
   const hg = info && info.holders ? (hp && nowMs - hp.t > 10 * 60000 ? cl((info.holders / hp.n - 1) * 100 / ((nowMs - hp.t) / 3600e3), 0, 20) : cl(info.holders / ageH, 0, 300)) : 0.5;
   const nSmart = Object.keys(S.smart).length, sm = g ? g.buyers.filter((w) => S.smart[w]).length : 0;
-  const sig = { mom: Math.round(100 * (0.7 * cl(ch1, 0, 40) + 0.3 * cl(ch5, 0, 8))), ub: g ? Math.round(100 * cl(g.ub, 0, 150)) : 50, bs: Math.round(100 * cl(br, 1, 2)),
+  const sig = { mom: Math.round(100 * (0.7 * cl(ch1, 0, 40) + 0.3 * cl(ch5, 0, 8))), ub: g ? Math.round(100 * cl(g.ub, 0, 150)) : Math.round(100 * cl(+t.buys || 0, 0, 250)) /* sin GeckoTerminal: aproximado con el nº de compras de la última hora (DexScreener) */, bs: Math.round(100 * cl(br, 1, 2)),
     hg: Math.round(100 * hg), lm: Math.round(100 * cl(liq / mc, 0.03, 0.15)), sw: nSmart < R.smartMinList ? 50 : Math.round(100 * cl(sm, 0, 3)) };
   const w = G.w || {}, ws = Object.keys(sig).reduce((t, k) => t + (w[k] ?? 1), 0) || 1;
   return { sig, sc: Math.round(Object.keys(sig).reduce((t, k) => t + (w[k] ?? 1) * sig[k], 0) / ws), sm, learning: nSmart < R.smartMinList };
@@ -266,7 +266,7 @@ async function main() {
   for (const d of ["5m", "1h", "6h", "24h"]) for (const pg of [1, 2, 3]) GTL.push(`${GT}/networks/solana/trending_pools?duration=${d}&page=${pg}`);
   for (const pg of [1, 2, 3, 4, 5]) GTL.push(`${GT}/networks/solana/new_pools?page=${pg}`);
   for (const pg of [1, 2, 3]) GTL.push(`${GT}/networks/solana/pools?sort=h24_volume_usd_desc&page=${pg}`, `${GT}/networks/solana/pools?sort=h24_tx_count_desc&page=${pg}`);
-  const rot = Math.floor(tnow / 60000), otras = GTL.filter((u) => !/new_pools\?page=[123]$/.test(u)), gtU = [`${GT}/networks/solana/new_pools?page=1`, `${GT}/networks/solana/new_pools?page=2`, ...Array.from({ length: 3 }, (_, i) => otras[(rot * 3 + i) % otras.length])];   // 5 listas + 10 operaciones < 30 peticiones/min de GeckoTerminal
+  const rot = Math.floor(tnow / 60000), otras = GTL.filter((u) => !/new_pools\?page=[123]$/.test(u)), gtU = rot % 2 ? [`${GT}/networks/solana/new_pools?page=1`, otras[rot % otras.length]] : [];   // v165 · GitHub comparte IP: GeckoTerminal limita mucho; listas solo un minuto de cada dos y el resto para las operaciones   // 5 listas + 10 operaciones < 30 peticiones/min de GeckoTerminal
   const srcs = [DS + "/token-profiles/latest/v1", DS + "/token-boosts/latest/v1", DS + "/token-boosts/top/v1", ...["pump", "sol", "meme", "cat", "dog", "ai"].map((q) => `${DS}/latest/dex/search?q=${q}`).slice(rot % 6, rot % 6 + 2)];
   await enParalelo(srcs, 5, async (u) => { const j = await J(u, 2); const arr = Array.isArray(j) ? j : (j && j.pairs) || []; for (const x of arr) if (x && x.chainId === "solana") add(x.tokenAddress || (x.baseToken && x.baseToken.address)); });
   await enParalelo(gtU, 4, async (u) => { const j = await J(u, 2); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(/^solana_/, "")); } });
