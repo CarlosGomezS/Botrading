@@ -269,10 +269,11 @@ export function pasoIdeal(S, by, now, ext) {
 // Mismas fuentes y mismas comprobaciones de seguridad; no toca el dinero real (que sigue con las reglas del terminal principal).
 export const TURBO = { ...VIDEO, estilo: "video", ageMin: 5, ageMax: 14 * 1440, mcapMin: 50e3, mcapMax: 100e6, liqMin: 15e3, vol1hMin: 10e3, pump1hMax: 400,
   top10Max: 40, devMax: 10, bundleMax: 30, lpLockMin: 80, mint: 1, stop: 0.1, trailOn: 0.08, trail: 0.1, maxHoldH: 4, size: 0.05, minScore: 45, maxPos: 15, cooldownH: 3, tp: 0.25, tpFrac: 0.5, orgMin: 0 };
+export const turboG = (S) => (S.turboGenome ? { ...VIDEO, ...S.turboGenome } : TURBO);
 export function pasoTurbo(S, by, now, ext) {
   let T = S.turbo; if (!T || T.v !== S.v) { T = S.turbo = freshState(); }
   T.smart = S.smart; T.hold = S.hold; T.watch = {}; T.rc = {};
-  try { paso(T, by, now, Math.random, ext, null, TURBO); } finally { delete T.smart; delete T.hold; delete T.watch; delete T.rc; }
+  try { paso(T, by, now, Math.random, ext, null, turboG(S)); T.genomeId = S.turboGenomeId || "vt"; } finally { delete T.smart; delete T.hold; delete T.watch; delete T.rc; }
   T.log = (T.log || []).slice(0, 120); T.closed = (T.closed || []).slice(0, 400); T.flow = []; T.nights = (T.nights || []).slice(0, 60); T.seen = Object.fromEntries(Object.entries(T.seen || {}).slice(-3000));
   for (const p of Object.values(T.pos || {})) p.h = (p.h || []).slice(-60);
   T.lastEq = r2(equity(T, {})); return T;
@@ -281,7 +282,7 @@ export function pasoTurbo(S, by, now, ext) {
 export function rapido(S, by, now) {
   riesgo(S, by, now);
   if (S.ideal) { const I = S.ideal; riesgo(I, by, now, IDEAL, VIDEO); I.lastEq = r2(equity(I, {})); }
-  if (S.turbo) { const T = S.turbo; riesgo(T, by, now, null, TURBO); T.lastEq = r2(equity(T, {})); }
+  if (S.turbo) { const T = S.turbo; riesgo(T, by, now, null, turboG(S)); T.lastEq = r2(equity(T, {})); }
   S.lastEq = r2(equity(S, {})); S.lastQ = now.toISOString();
 }
 

@@ -209,3 +209,12 @@ test("turbo: opera monedas que el vídeo descarta (más pequeñas y con menos vo
   rapido(S, { [a]: par(a, { mc: 120e3, liq: 25e3, v1: 20e3, px: 0.85 }) }, new Date(T0 + 60000));
   assert.equal(Object.keys(S.turbo.pos).length, 0, "con −15 % salta su stop del 10 %"); assert.ok(TURBO.maxHoldH < VIDEO.maxHoldH);
 });
+test("turbo aprende: «vt» vive en la bola y el Turbo adopta una variante muy activa que gane", () => {
+  const T = new Date("2026-11-04T12:00:00Z"), Lb = freshLab(new Date("2026-11-03T12:00:00Z")), S = freshState();
+  Lb.lastGen = new Date(T - 3600e3).toISOString(); evolucionar(Lb, S, T, () => 0.3, null);
+  assert.ok(Lb.pop.some((v) => v.id === "vt"), "vt entra en la bola");
+  const v = Lb.pop.find((x) => x.id !== "v0" && x.id !== "vt"); Object.assign(v, { n: 40, s1: 4, s2: 1, w: 26, born: new Date(T - 24 * 3600e3).toISOString(), lastEq: 115, peak: 115, dd: 0.03 });
+  Lb.lastGen = new Date(T - 3600e3).toISOString(); evolucionar(Lb, S, new Date(T.getTime() + 60000), () => 0.3, null);
+  if (v.fit >= 1) assert.equal(S.turboGenomeId, v.id); else assert.equal(S.turboGenomeId, undefined);
+  assert.ok(Lb.pop.some((x) => x.id === "vt"), "vt no se archiva");
+});

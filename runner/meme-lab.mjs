@@ -2,7 +2,7 @@
 // ficticio (50 € cada una), los MISMOS datos en vivo y costes reales. Cada ~3 h se juzgan: las peores se archivan (nunca se borran) y nacen
 // otras (mutaciones y cruces de las mejores, y alguna inventada de cero). Si una variante demuestra con muchas operaciones que es mejor que las
 // reglas que usa el terminal, el terminal la adopta solo. La variante «vídeo» (las reglas originales) no se elimina nunca: es la referencia.
-import { R, VIDEO, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS, NOMEME } from "./meme.mjs";
+import { R, VIDEO, TURBO, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS, NOMEME } from "./meme.mjs";
 const ESTS = Object.keys(ESTILOS);
 
 export const POP = 40, GEN_H = 0.5, MIN_N = 8, ADOPT_N = 30, BT_N = 20;
@@ -135,13 +135,15 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null)
   if (now - Date.parse(L.lastGen) < GEN_H * 3600e3) return null;
   L.lastGen = now.toISOString(); L.gen++;
   const ev = (txt, k) => { L.log.unshift({ t: now.toISOString(), k, txt }); L.log = L.log.slice(0, 200); };
+  // v180 · ⚡ el Turbo también aprende: su punto de partida vive en la bola («vt», no se elimina) y de él nacen variantes activas
+  if (!L.pop.some((v) => v.id === "vt")) { L.pop.push(nuevaVar("vt", { ...TURBO }, now, L.gen, "reglas del Turbo (referencia, no se elimina)")); ev("vt nace (reglas del Turbo: punto de partida de las variantes con mucha actividad)", "nace"); }
   if (M) { for (const v of L.pop) v.bt = backtest({ ...VIDEO, ...v.g }, M); L.muestras = (M.hechas || []).length; L.historia = (M.hist || []).length; L.siguiendo = Object.keys(M.abiertas || {}).length; }
   for (const v of L.pop) v.fit = fitness(v);
   try { ensanchar(L, L.pop.filter((v) => v.fit != null && v.fit > 0).sort((a, b) => b.fit - a.fit).slice(0, 5), now); } catch (e) {}
   const ageH = (v) => (now - Date.parse(v.born)) / 3600e3;
   const ranked = L.pop.slice().sort((a, b) => (b.fit ?? -99) - (a.fit ?? -99) || b.lastEq - a.lastEq);
   // fuera: las peores con pruebas suficientes, y las que en 48 h casi no operan (reglas tan duras que no sirven)
-  const out = ranked.filter((v) => v.id !== "v0" && ((v.fit != null && v.fit < 0 && ranked.indexOf(v) >= POP * 0.6) || (ageH(v) > 48 && v.n < 3))).slice(-Math.ceil(POP * 0.35));
+  const out = ranked.filter((v) => v.id !== "v0" && v.id !== "vt" && ((v.fit != null && v.fit < 0 && ranked.indexOf(v) >= POP * 0.6) || (ageH(v) > 48 && v.n < 3))).slice(-Math.ceil(POP * 0.35));
   for (const v of out) { L.arch.unshift({ id: v.id, g: v.g, gen: v.gen, born: v.born, out: now.toISOString(), n: v.n, fit: v.fit, ret: r2((v.lastEq / R.start - 1) * 100), win: v.n ? Math.round(v.w / v.n * 100) : null, why: v.n < 3 ? "casi no opera" : "de las peores" }); ev(`${v.id} se archiva (${v.n < 3 ? "casi no opera" : "nota " + v.fit}) · ${r2((v.lastEq / R.start - 1) * 100)} %`, "sale"); }
   L.arch = L.arch.slice(0, 20000); /* el archivo no se borra: hasta 20.000 variantes */ L.pop = L.pop.filter((v) => !out.includes(v));
   const top = ranked.filter((v) => !out.includes(v) && v.fit != null && v.fit > 0).slice(0, 5), seen = new Set(L.pop.map((v) => gkey(v.g)));
@@ -150,7 +152,7 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null)
     const r = rnd(); let g, why;
     if (top.length && r < 0.5) { const p = top[Math.floor(rnd() * top.length)]; g = mutar(p.g); why = "mutación de " + p.id; }
     else if (top.length > 1 && r < 0.8) { const a = top[Math.floor(rnd() * top.length)], b = top[Math.floor(rnd() * top.length)]; if (a === b) continue; g = cruzar(a.g, b.g); why = "cruce de " + a.id + " y " + b.id; }
-    else { const inv = rnd() < 0.5; g = inv ? aleatorio() : mutar(VIDEO); why = inv ? "inventada de cero" : "variante de las reglas del vídeo"; }
+    else { const inv = rnd() < 0.5; const tb = !inv && rnd() < 0.5; g = inv ? aleatorio() : mutar(tb ? TURBO : VIDEO); why = inv ? "inventada de cero" : tb ? "variante del Turbo" : "variante de las reglas del vídeo"; }
     const k = gkey(g); if (seen.has(k)) continue; seen.add(k);
     const v = nuevaVar("v" + L.nextId++, g, now, L.gen, why); if (M) { v.bt = backtest({ ...VIDEO, ...g }, M); v.fit = fitness(v); } L.pop.push(v); ev(`${v.id} nace (${why})${v.bt && v.bt.n ? ` · en las muestras: ${v.bt.n} operaciones, ${v.bt.med >= 0 ? "+" : ""}${v.bt.med} % de media` : ""}`, "nace");
   }
@@ -164,6 +166,13 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null)
   if (champ && gkey({ ...VIDEO, ...champ.g }) !== curKey && (!cur || cur.fit == null || champ.fit > cur.fit + 0.5)) {
     S.genome = { ...champ.g }; S.genomeId = champ.id; S.genomePrueba = { bt: champ.bt || null, n: champ.n, med: champ.n ? r2(champ.s1 / champ.n * 100) : null, t: now.toISOString() }; L.adopt.unshift({ t: now.toISOString(), id: champ.id, fit: champ.fit, n: champ.n }); L.adopt = L.adopt.slice(0, 50);
     ev(`🏆 el terminal adopta las reglas de ${champ.id} (nota ${champ.fit} con ${champ.n} operaciones)`, "adopta");
+  }
+  // ⚡ el Turbo adopta la mejor variante MUY activa (≥ 8 operaciones al día y ≥ 20 en total) que gane de verdad y supere a la que usa
+  const diaria = (v) => v.n / Math.max(0.5, ageH(v) / 24), tCur = L.pop.find((v) => v.id === (S.turboGenomeId || "vt"));
+  const tChamp = ranked.find((v) => v.n >= 20 && diaria(v) >= 8 && v.fit != null && v.fit >= 1 && v.s1 > 0);
+  if (tChamp && tChamp.id !== (S.turboGenomeId || "vt") && (!tCur || tCur.fit == null || tChamp.fit > tCur.fit + 0.3)) {
+    S.turboGenome = { ...tChamp.g }; S.turboGenomeId = tChamp.id; S.turboAdopt = (S.turboAdopt || []).concat([{ t: now.toISOString(), id: tChamp.id, fit: tChamp.fit, n: tChamp.n }]).slice(-20);
+    ev(`⚡ el Turbo adopta las reglas de ${tChamp.id} (nota ${tChamp.fit}, ${tChamp.n} operaciones, ${Math.round(diaria(tChamp))} al día)`, "adopta");
   }
   return { gen: L.gen, out: out.length };
 }
