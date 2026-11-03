@@ -379,7 +379,12 @@ export function pasoTurbo(S, by, now, ext) {
   if (T && T.tv !== TURBO_V && T.st) { S.turboAntes = (S.turboAntes || []).concat([{ v: T.tv || 1, eq: r2(equity(T, {})), trades: T.st.trades, wins: T.st.wins, hasta: now.toISOString() }]).slice(-10); T = null; delete S.turboGenome; delete S.turboGenomeId; }
   if (!T || T.v !== S.v) { T = S.turbo = freshState(); T.tv = TURBO_V; const a = (S.turboAntes || []).slice(-1)[0]; if (a) L(T, now, "INFO", "", `⚡ empieza el Turbo ${TURBO_V} con 100 € (el Turbo ${a.v} acabó en ${a.eq} € tras ${a.trades} compras)`); }
   T.smart = S.smart; T.hold = S.hold; T.watch = {}; T.rc = {};
-  try { paso(T, by, now, Math.random, ext, null, turboG(S)); T.genomeId = S.turboGenomeId || "vt"; T.genome = turboG(S); } finally { delete T.smart; delete T.hold; delete T.watch; delete T.rc; }
+  // v216 · 🛑 PAUSA POR PÉRDIDAS: si las últimas 20 operaciones pierden de media más de un 3 % (y la bola no ha encontrado reglas mejores),
+  // el Turbo deja de comprar (sigue vigilando y vendiendo lo abierto). Vuelve solo cuando la bola adopte para él unas reglas que ganen.
+  { const rec = (T.closed || []).slice(0, 20), med = rec.length ? rec.reduce((a, c) => a + (+c.pc || 0), 0) / rec.length : 0, pausa = rec.length >= 20 && med < -3 && (!S.turboGenomeId || S.turboGenomeId === T.pausaCon);
+    if (pausa && !T.pausado) { T.pausado = true; T.pausaCon = S.turboGenomeId || "vt"; L(T, now, "INFO", "", `🛑 Turbo en pausa: sus últimas 20 operaciones pierden ${r2(med)} % de media. No compra más hasta que la bola encuentre reglas que ganen.`); }
+    if (T.pausado && S.turboGenomeId && S.turboGenomeId !== T.pausaCon) { T.pausado = false; L(T, now, "INFO", "", `▶️ Turbo vuelve: la bola ha encontrado reglas nuevas (${S.turboGenomeId})`); } }
+  try { paso(T, by, now, Math.random, ext, null, T.pausado ? { ...turboG(S), maxPos: 0 } : turboG(S)); T.genomeId = S.turboGenomeId || "vt"; T.genome = turboG(S); } finally { delete T.smart; delete T.hold; delete T.watch; delete T.rc; }
   T.log = (T.log || []).slice(0, 120); T.closed = (T.closed || []).slice(0, 400); T.flow = []; T.nights = (T.nights || []).slice(0, 60); T.seen = Object.fromEntries(Object.entries(T.seen || {}).slice(-3000));
   for (const p of Object.values(T.pos || {})) p.h = (p.h || []).slice(-60);
   T.lastEq = r2(equity(T, {})); return T;

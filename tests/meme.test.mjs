@@ -295,3 +295,9 @@ test("freno automático: si las últimas operaciones pierden, compra a la mitad 
   if (S.pos[a]) assert.ok(S.pos[a].cost < 100 * VIDEO.size * 0.6, "compra a la mitad");
   S.closed = Array.from({ length: 12 }, () => ({ pc: 5 })); paso(S, {}, new Date(T0 + 60000), () => 1, {}); assert.equal(S.prudente, false);
 });
+test("Turbo se pausa si pierde claramente y no compra más (sigue vendiendo lo abierto)", () => {
+  const S = freshState(), a = "tp", q = par(a, { mc: 120e3, liq: 25e3, v1: 20e3, ch1: 25, ageMin: 15 }), ext = { rc: { [a]: okInfo }, gt: {} };
+  pasoTurbo(S, {}, new Date(T0), ext); S.turbo.closed = Array.from({ length: 20 }, () => ({ pc: -15 }));
+  pasoTurbo(S, { [a]: q }, new Date(T0 + 60000), ext); assert.equal(S.turbo.pausado, true); assert.equal(Object.keys(S.turbo.pos).length, 0, "no compra");
+  S.turboGenomeId = "v99"; S.turboGenome = { ...TURBO }; pasoTurbo(S, { [a]: q }, new Date(T0 + 120000), ext); assert.equal(S.turbo.pausado, false, "vuelve con reglas nuevas");
+});
