@@ -159,6 +159,8 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null)
   const btOk = (v) => v.bt && v.bt.n >= 60 && v.bt.pf > 1.3 && v.bt.med > 0 && v.bt.t >= 2 && v.n >= 10 && v.s1 > 0;
   const champ = ranked.find((v) => (v.n >= ADOPT_N && v.fit != null && v.fit >= 2 && v.s1 / v.n > 0) || btOk(v));
   const curKey = gkey({ ...VIDEO, ...(S.genome || {}) }), cur = L.pop.find((v) => gkey({ ...VIDEO, ...v.g }) === curKey);
+  const PLAZO = Date.parse("2026-11-10T08:00:00Z"), mejor = ranked.find((v) => v.fit != null && v.fit > 0 && ((v.bt && v.bt.n >= 20) || v.n >= MIN_N));
+  if (!champ && !S.genomeId && now.getTime() >= PLAZO - 6 * 3600e3 && mejor && mejor.id !== "v0") { S.genome = { ...mejor.g }; S.genomeId = mejor.id; S.genomePrueba = { bt: mejor.bt || null, n: mejor.n, med: mejor.n ? r2(mejor.s1 / mejor.n * 100) : null, t: now.toISOString() }; L.adopt.unshift({ t: now.toISOString(), id: mejor.id, fit: mejor.fit, n: mejor.n, plazo: true }); ev(`🗓️ se acerca tu plazo: el terminal adopta las mejores reglas que hay (${mejor.id}, nota ${mejor.fit})`, "adopta"); }
   if (champ && gkey({ ...VIDEO, ...champ.g }) !== curKey && (!cur || cur.fit == null || champ.fit > cur.fit + 0.5)) {
     S.genome = { ...champ.g }; S.genomeId = champ.id; S.genomePrueba = { bt: champ.bt || null, n: champ.n, med: champ.n ? r2(champ.s1 / champ.n * 100) : null, t: now.toISOString() }; L.adopt.unshift({ t: now.toISOString(), id: champ.id, fit: champ.fit, n: champ.n }); L.adopt = L.adopt.slice(0, 50);
     ev(`🏆 el terminal adopta las reglas de ${champ.id} (nota ${champ.fit} con ${champ.n} operaciones)`, "adopta");

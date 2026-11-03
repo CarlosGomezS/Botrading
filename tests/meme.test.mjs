@@ -180,3 +180,11 @@ test("muestras: se guardan las candidatas, se sigue su precio y cualquier varian
   const sb = M.hechas.find((x) => x.a === "b"); assert.ok(simular({ ...VIDEO, stop: 0.2 }, sb) < 0, "en el rug pierde");
   const bt = backtest({ ...VIDEO }, M); assert.equal(bt.n, 2); assert.ok(bt.win === 50);
 });
+test("plazo del 10-nov: si nada ha superado la prueba, el terminal adopta las mejores reglas que haya", () => {
+  const T = new Date("2026-11-10T06:00:00Z"), Lb = freshLab(new Date("2026-11-09T00:00:00Z")), S = freshState();
+  Lb.pop[3].bt = { n: 40, t: 1.4, pf: 1.2, med: 0.8, win: 50 }; Lb.lastGen = new Date(T - 2 * 3600e3).toISOString();
+  evolucionar(Lb, S, T, () => 0.3, null);
+  assert.equal(S.genomeId, Lb.pop.find((v) => v.bt && v.bt.n === 40).id); assert.ok(Lb.log.some((x) => /plazo/.test(x.txt)));
+  const S2 = freshState(), L2 = freshLab(new Date("2026-11-03T00:00:00Z")); L2.pop[3].bt = { n: 40, t: 1.4 }; L2.lastGen = new Date("2026-11-03T10:00:00Z").toISOString();
+  evolucionar(L2, S2, new Date("2026-11-03T12:00:00Z"), () => 0.3, null); assert.equal(S2.genomeId, undefined, "antes del plazo no fuerza nada");
+});

@@ -13,6 +13,8 @@ import { encrypt, openAny } from "./real-cfg.mjs";
 
 const env = (k) => (process.env[k] || "").trim();
 const REPO = env("GITHUB_REPOSITORY"), TOKEN = env("GITHUB_TOKEN"), JUP = "https://lite-api.jup.ag", SOL = "So11111111111111111111111111111111111111112";
+// v177 · PLAZO que ha pedido el usuario: el martes 10-nov-2026 (9:00 en España) se le propone empezar con dinero real con las mejores reglas que haya, hayan superado o no la prueba (él decide en Telegram)
+export const PLAZO = "2026-11-10T08:00:00Z";
 export const LIM = { size: 0.08, maxOrdenEur: 15, minOrdenEur: 2, suelo: 0.6, perdidaDia: 0.2, slippageBps: 300, maxPrioLamports: 300000, n: 30, pf: 1.3 };
 const r2 = (x) => Math.round(x * 100) / 100;
 const madridD = (t) => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(t);
@@ -96,6 +98,13 @@ export async function pasoReal(S, by, now, eurUsd) {
   const antes = JSON.stringify([RS.estado, RS.pos, RS.trades.length]);
   RS.prueba = P; RS.clave = tieneClave;
   // 1) ¿proponer arrancar?
+  const plazo = now.getTime() >= Date.parse(PLAZO);
+  if (!ctl.aprobado && !P.ok && plazo && tieneClave && (!RS.propuestoPlazo || now.getTime() - Date.parse(RS.propuestoPlazo) > 24 * 3600e3)) {
+    RS.propuestoPlazo = now.toISOString(); const id = "p" + Date.now().toString(36), gp = S.genomePrueba || {}, bt = gp.bt;
+    await tg(`🗓️ Ha llegado tu plazo para Memes con dinero real.\n\nDatos honestos de hoy (con costes reales):\n• Terminal en vivo: ${P.n} operaciones · factor de beneficio ${P.pf} · ${P.exp >= 0 ? "+" : ""}${P.exp} € de media por operación\n${S.genomeId ? `• Usa las reglas aprendidas de ${S.genomeId}${bt ? `: en ${bt.n} casos vividos, factor ${bt.pf} y ${bt.med} % por operación` : ""}\n` : "• Aún usa las reglas del vídeo\n"}\nTODAVÍA NO ha superado la prueba (30 operaciones, factor > ${LIM.pf} y ganancia media positiva). ¿Empiezo igualmente con tu cartera del bot? Frenos: cada compra ≤ 8 % y ≤ ${LIM.maxOrdenEur} €, se para sola si cae al ${LIM.suelo * 100} %, pausa si un día pierde un ${LIM.perdidaDia * 100} %. /parar cuando quieras.`,
+      [{ text: "✅ Empezar igualmente", callback_data: "ma:" + id }, { text: "❌ Esperar a que lo demuestre", callback_data: "mx:" + id }]);
+    L(RS, now, "plazo cumplido: propuesta para empezar igualmente enviada a Telegram");
+  }
   if (!ctl.aprobado && P.ok && tieneClave && RS.propuesto !== P.n - (P.n % 10)) {
     RS.propuesto = P.n - (P.n % 10); const id = "m" + Date.now().toString(36);
     await tg(`🪙 Memes (Solana) ya ha demostrado que gana con costes reales:\n${P.okVivo ? `• ${P.n} operaciones en vivo\n• factor de beneficio ${P.pf} (más de ${LIM.pf})\n• ganancia media por operación positiva` : `• sus reglas ganan en ${P.bt.n} casos ya vividos (factor ${P.bt.pf}, ${P.bt.med} % de media por operación, con costes)\n• y lo confirman en vivo`}\n\n¿Empiezo a copiarlo con tu cartera del bot (≈100 €)? Frenos: cada compra ≤ 8 % y ≤ ${LIM.maxOrdenEur} €, se para solo si la cuenta cae al ${LIM.suelo * 100} %, pausa si un día pierde un ${LIM.perdidaDia * 100} %. Puedes pararlo cuando quieras con /parar.`,
@@ -110,7 +119,7 @@ export async function pasoReal(S, by, now, eurUsd) {
     if (tieneClave) { try { const W = await cartera(); L2.cartera = true; L2.sol = r2(await W.solBal()); } catch (e) { L2.cartera = false; L2.carteraErr = String(e.message).slice(0, 80); } }
     RS.listo = L2;
   }
-  RS.estado = !tieneClave ? "sin clave" : ctl.parado ? "parado" : !ctl.aprobado ? (P.ok ? "esperando tu aprobación" : "aprendiendo (aún no ha demostrado que gana)") : "activo";
+  RS.estado = !tieneClave ? "sin clave" : ctl.parado ? "parado" : !ctl.aprobado ? (P.ok || plazo ? "esperando tu aprobación" : "aprendiendo (aún no ha demostrado que gana)") : "activo"; RS.plazo = PLAZO;
   if (RS.estado !== "activo" && !Object.keys(RS.pos).length) { if (JSON.stringify([RS.estado, RS.pos, RS.trades.length]) !== antes || !RS.savedAt || Date.now() - RS.savedAt > 10 * 60000) await guardarRS(RS).catch(() => {}); return RS; }
   // 2) activo (o parado con algo abierto): valorar la cuenta
   let W; try { W = await cartera(); } catch (e) { L(RS, now, "✖ " + e.message); await guardarRS(RS).catch(() => {}); return RS; }
