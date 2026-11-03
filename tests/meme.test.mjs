@@ -1,51 +1,72 @@
-// v158 · pruebas del simulador de memes (solo dinero ficticio)
+// v159 · pruebas del terminal de memes (solo dinero ficticio)
 import test from "node:test";
 import assert from "node:assert/strict";
-import { freshState, paso, filtro, nota, bestPairs, R } from "../runner/meme.mjs";
+import { freshState, paso, reglas, rcInfo, gtInfo, analista, explorador, bestPairs, R } from "../runner/meme.mjs";
 
 const T0 = Date.parse("2026-11-03T10:00:00Z");
-const par = (a, o = {}) => ({ chainId: "solana", url: "https://dexscreener.com/solana/" + a, baseToken: { address: a, symbol: "$" + a.toUpperCase(), name: a },
+const par = (a, o = {}) => ({ chainId: "solana", url: "https://dexscreener.com/solana/" + a, pairAddress: "pool_" + a, baseToken: { address: a, symbol: "$" + a.toUpperCase(), name: a },
   priceUsd: String(o.px ?? 1), pairCreatedAt: T0 - (o.ageMin ?? 600) * 60000, marketCap: o.mc ?? 2e6, liquidity: { usd: o.liq ?? 200e3 },
   volume: { h1: o.v1 ?? 400e3 }, priceChange: { h1: o.ch1 ?? 30, m5: o.ch5 ?? 6 }, txns: { h1: { buys: o.b ?? 600, sells: o.s ?? 300 } } });
+// informe de RugCheck con la forma real (camelCase)
+const rcRep = (o = {}) => ({ mintAuthority: o.mint ?? null, freezeAuthority: null, token: { supply: 1e9, mintAuthority: o.mint ?? null, freezeAuthority: null }, creatorBalance: (o.dev ?? 1) * 1e7,
+  topHolders: [{ address: "pool", owner: "ammOwner", pct: 40 }, ...Array.from({ length: 12 }, (_, i) => ({ address: "h" + i, owner: "o" + i, pct: o.hp ?? 1.5 }))],
+  markets: [{ pubkey: "pool", liquidityAAccount: { owner: "ammOwner" }, lp: { lpLockedPct: o.lp ?? 100, quoteUSD: 1e5, baseUSD: 1e5 } }], knownAccounts: { ammOwner: { type: "AMM" } },
+  risks: o.risks || [], insiderNetworks: [{ currentHolding: (o.bundle ?? 2) * 1e7 }], totalHolders: o.holders ?? 3000, rugged: !!o.rugged, graphInsidersDetected: 3 });
+const okInfo = rcInfo(rcRep());
+const gtTr = (n, from = "w") => Array.from({ length: n }, (_, i) => ({ attributes: { kind: i % 3 ? "buy" : "sell", tx_from_address: from + i, block_timestamp: new Date(T0 - 60000).toISOString() } }));
 
-test("filtro: descarta lo que no cumple y deja pasar lo bueno", () => {
-  assert.equal(filtro(par("ok"), T0), null);
-  assert.match(filtro(par("x", { ageMin: 5 }), T0), /edad/);
-  assert.match(filtro(par("x", { liq: 10e3 }), T0), /liquidez/);
-  assert.match(filtro(par("x", { ch1: 150 }), T0), /80 %/);
-  assert.match(filtro(par("x", { b: 100, s: 300 }), T0), /ventas/);
-  assert.ok(nota(par("ok")) >= R.minScore, "la buena tiene nota alta");
+test("RugCheck: autoridades, LP, top 10 sin la piscina, creador, bloque y rug", () => {
+  assert.equal(okInfo.mintOk, true); assert.equal(okInfo.lp, 100); assert.ok(Math.abs(okInfo.top10 - 15) < 1e-9, "excluye la piscina (40 %)");
+  assert.ok(Math.abs(okInfo.dev - 1) < 1e-9); assert.ok(Math.abs(okInfo.bundle - 2) < 1e-9);
+  assert.equal(rcInfo(rcRep({ mint: "X" })).mintOk, false);
+  assert.equal(rcInfo(rcRep({ risks: [{ name: "Creator history of rugged tokens" }] })).devRug, true);
 });
 
-test("bestPairs: se queda con el par de más liquidez y solo de Solana", () => {
+test("las 8 reglas, cada una por separado", () => {
+  const all = (p, i) => Object.values(reglas(p, i)).every(Boolean);
+  assert.ok(all(par("ok"), okInfo));
+  const f = (p, i) => Object.entries(reglas(p, i)).filter(([, v]) => v === false).map(([k]) => k);
+  assert.deepEqual(f(par("x"), rcInfo(rcRep({ mint: "X" }))), ["mint"]);
+  assert.deepEqual(f(par("x"), rcInfo(rcRep({ lp: 20 }))), ["lp"]);
+  assert.deepEqual(f(par("x", { liq: 10e3 }), okInfo), ["liq"]);
+  assert.deepEqual(f(par("x", { v1: 10e3 }), okInfo), ["vol"]);
+  assert.deepEqual(f(par("x"), rcInfo(rcRep({ hp: 4 }))), ["top10"]);
+  assert.deepEqual(f(par("x"), rcInfo(rcRep({ dev: 8 }))), ["dev"]);
+  assert.deepEqual(f(par("x"), rcInfo(rcRep({ bundle: 15 }))), ["bundle"]);
+  assert.deepEqual(f(par("x", { ch1: 120 }), okInfo), ["pump"]);
+  assert.equal(reglas(par("x"), null).mint, null, "sin RugCheck: falta el dato");
+  assert.equal(explorador(par("x", { ageMin: 10 }), T0), "joven");
+});
+
+test("GeckoTerminal: compradores únicos de la última hora", () => {
+  const g = gtInfo(gtTr(30), T0); assert.equal(g.ub, 20); assert.equal(g.b, 20); assert.equal(g.s, 10);
+});
+
+test("analista: 6 señales y nota media; carteras listas neutras mientras aprende", () => {
+  const S = freshState(), an = analista(S, "a", par("a"), okInfo, gtInfo(gtTr(300), T0), T0);
+  assert.deepEqual(Object.keys(an.sig).sort(), ["bs", "hg", "lm", "mom", "sw", "ub"]); assert.equal(an.sig.sw, 50); assert.ok(an.learning);
+  assert.equal(an.sc, Math.round(Object.values(an.sig).reduce((x, y) => x + y) / 6));
+});
+
+test("pipeline completo: filtra, puntúa, entra, stop, móvil, rug, fallidas y aprende carteras listas", () => {
+  const S = freshState(), never = () => 1, gt = { gt: { a: gtInfo(gtTr(300), T0), b: gtInfo(gtTr(300, "z"), T0), c: gtInfo(gtTr(300, "y"), T0) } };
+  const rc = { a: okInfo, b: okInfo, c: okInfo, d: rcInfo(rcRep({ mint: "X" })) };
+  paso(S, { a: par("a"), b: par("b"), c: par("c"), d: par("d"), e: par("e") }, new Date(T0), never, { rc, ...gt });
+  assert.equal(S.st.killed, 1); assert.equal(S.rk.mint, 1, "cuenta qué regla mató");
+  assert.ok(!S.seen.e.k && !S.pos.e, "sin RugCheck espera, no se descarta");
+  assert.equal(Object.keys(S.pos).length, 3); assert.ok(Math.abs(S.pos.a.cost - 40) < 1e-9);
+  assert.ok(S.log.some((x) => x.ev === "PASS") && S.log.some((x) => x.ev === "SCORE") && S.log.some((x) => x.ev === "ENTER") && S.log.some((x) => x.ev === "KILL"));
+  paso(S, { a: par("a", { px: 0.9 }), b: par("b", { px: 1.6 }), e: par("e") }, new Date(T0 + 3e5), never, { rc: { e: okInfo } });
+  assert.ok(!S.pos.a && !S.pos.c && S.pos.b && S.pos.b.trailing); assert.equal(S.st.rugs, 1); assert.equal(S.st.stops, 1);
+  assert.ok(Object.keys(S.smart).length > 0, "los compradores de b (subió un 60 %) pasan a carteras listas");
+  paso(S, { b: par("b", { px: 1.3 }) }, new Date(T0 + 6e5), never, {});
+  assert.ok(!S.pos.b); assert.match(S.closed[0].why, /móvil/); assert.ok(S.closed[0].h.length >= 2, "guarda la gráfica de la operación");
+  assert.equal(S.st.wins + S.st.losses, 3); assert.ok(S.st.worst < 0 && S.st.best > 0);
+  const F = freshState(); paso(F, { a: par("a") }, new Date(T0), () => 0, { rc: { a: okInfo }, gt: { a: gtInfo(gtTr(300), T0) } });
+  assert.equal(F.st.failed, 1); assert.equal(F.st.trades, 0); assert.ok(F.cash < 500);
+});
+
+test("bestPairs: el par con más liquidez y solo de Solana", () => {
   const m = bestPairs([par("a", { liq: 50e3 }), par("a", { liq: 90e3 }), { ...par("b"), chainId: "eth" }]);
   assert.deepEqual(Object.keys(m), ["a"]); assert.equal(m.a.liquidity.usd, 90e3);
-});
-
-test("entra con el 8 %, paga costes, y sale por stop, por stop móvil y por rug", () => {
-  const S = freshState(), never = () => 1;
-  paso(S, { a: par("a"), b: par("b"), c: par("c") }, new Date(T0), never);
-  assert.equal(Object.keys(S.pos).length, 3); assert.equal(S.st.trades, 3);
-  assert.ok(Math.abs(S.pos.a.cost - 40) < 1e-9, "8 % de 500"); assert.ok(S.st.fees > 0);
-  const eq0 = S.lastEq; assert.ok(eq0 < 500, "los costes se notan nada más entrar");
-  // a cae un 10 % → stop; b sube un 30 % (activa el móvil); c desaparece (rug)
-  paso(S, { a: par("a", { px: 0.9 }), b: par("b", { px: 1.3 }) }, new Date(T0 + 3e5), never);
-  assert.ok(!S.pos.a && !S.pos.c && S.pos.b && S.pos.b.trailing);
-  assert.equal(S.st.rugs, 1); assert.equal(S.closed.find((x) => x.a === "c").got, 0, "rug: se pierde todo");
-  paso(S, { b: par("b", { px: 1.05 }) }, new Date(T0 + 6e5), never);   // cae >15 % desde 1,3
-  assert.ok(!S.pos.b); assert.match(S.closed[0].why, /móvil/); assert.ok(S.closed[0].pnl < 0.3 * 40, "gana menos que el 30 % por los costes");
-  assert.equal(S.st.wins + S.st.losses, 3);
-  const sum = S.cash; assert.ok(Math.abs(sum - S.lastEq) < 0.01, "sin nada abierto, saldo = efectivo");
-});
-
-test("órdenes fallidas: cuentan aparte y cuestan la propina", () => {
-  const S = freshState(); paso(S, { a: par("a") }, new Date(T0), () => 0);
-  assert.equal(S.st.failed, 1); assert.equal(S.st.trades, 0); assert.ok(S.cash < 500);
-});
-
-test("una moneda que aún no cumple se vuelve a mirar más tarde (y cuenta una vez)", () => {
-  const S = freshState(); paso(S, { a: par("a", { ageMin: 10 }) }, new Date(T0), () => 1);
-  assert.equal(S.st.killed, 1); assert.equal(Object.keys(S.pos).length, 0);
-  paso(S, { a: { ...par("a"), pairCreatedAt: T0 - 600 * 60000 } }, new Date(T0 + 3e5), () => 1);
-  assert.equal(S.st.seen, 1); assert.equal(Object.keys(S.pos).length, 1);
 });
