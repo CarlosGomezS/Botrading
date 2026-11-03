@@ -200,3 +200,12 @@ test("historia: con las velas de 5 min de una moneda se crean casos ya vividos q
   const M = freshM(); anadirHistoria(M, casos); anadirHistoria(M, casos); assert.equal(M.hist.length, casos.length, "no duplica la misma moneda");
   const bt = backtest({ ...VIDEO, minScore: 0 }, M); assert.equal(bt.n, bt.nh || 0, "todo viene de historia"); assert.ok(casos.every((x) => x.q.liquidity.usd > 0 && x.q.volume.h24 > 0), "cada caso trae su foto");
 });
+import { pasoTurbo, TURBO } from "../runner/meme.mjs";
+test("turbo: opera monedas que el vídeo descarta (más pequeñas y con menos volumen) y sale antes", () => {
+  const S = freshState(), now = new Date(T0), a = "tb", q = par(a, { mc: 120e3, liq: 25e3, v1: 20e3, ch1: 25, ageMin: 15 });
+  const ext = { rc: { [a]: okInfo }, gt: {} };
+  paso(S, { [a]: q }, now, () => 1, ext); assert.equal(Object.keys(S.pos).length, 0, "el vídeo no la compra");
+  pasoTurbo(S, { [a]: q }, now, ext); assert.equal(Object.keys(S.turbo.pos).length, 1, "turbo sí"); assert.equal(S.turbo.st.trades, 1);
+  rapido(S, { [a]: par(a, { mc: 120e3, liq: 25e3, v1: 20e3, px: 0.85 }) }, new Date(T0 + 60000));
+  assert.equal(Object.keys(S.turbo.pos).length, 0, "con −15 % salta su stop del 10 %"); assert.ok(TURBO.maxHoldH < VIDEO.maxHoldH);
+});

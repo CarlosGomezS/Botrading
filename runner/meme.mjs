@@ -29,7 +29,7 @@ export const R = {
   liqMin: 40e3, vol1hMin: 50e3, top10Max: 25, devMax: 3, bundleMax: 10, pump1hMax: 80, lpLockMin: 90, // filtro
   stop: 0.06, trailOn: 0.12, trail: 0.15, maxHoldH: 24, rugLiq: 5000, cooldownH: 24, // riesgo
   fee: 0.005, slipMin: 0.01, slipMax: 0.12, failP: 0.05, failCost: 0.02,          // costes realistas
-  rcPerRun: 30, gtPerRun: 10, smartUp: 0.5, smartMinList: 20
+  rcPerRun: 45, gtPerRun: 10, smartUp: 0.5, smartMinList: 20
 };
 // las 8 reglas duras, en el orden de la pantalla del vídeo
 export const RULES = [
@@ -265,10 +265,23 @@ export function pasoIdeal(S, by, now, ext) {
   for (const p of Object.values(I.pos || {})) p.h = (p.h || []).slice(-60);
   return I;
 }
+// v179 · ⚡ TURBO: cuenta ficticia aparte, con costes reales, que opera MUCHO más (reglas más anchas y salidas rápidas).
+// Mismas fuentes y mismas comprobaciones de seguridad; no toca el dinero real (que sigue con las reglas del terminal principal).
+export const TURBO = { ...VIDEO, estilo: "video", ageMin: 5, ageMax: 14 * 1440, mcapMin: 50e3, mcapMax: 100e6, liqMin: 15e3, vol1hMin: 10e3, pump1hMax: 400,
+  top10Max: 40, devMax: 10, bundleMax: 30, lpLockMin: 80, mint: 1, stop: 0.1, trailOn: 0.08, trail: 0.1, maxHoldH: 4, size: 0.05, minScore: 45, maxPos: 15, cooldownH: 3, tp: 0.25, tpFrac: 0.5, orgMin: 0 };
+export function pasoTurbo(S, by, now, ext) {
+  let T = S.turbo; if (!T || T.v !== S.v) { T = S.turbo = freshState(); }
+  T.smart = S.smart; T.hold = S.hold; T.watch = {}; T.rc = {};
+  try { paso(T, by, now, Math.random, ext, null, TURBO); } finally { delete T.smart; delete T.hold; delete T.watch; delete T.rc; }
+  T.log = (T.log || []).slice(0, 120); T.closed = (T.closed || []).slice(0, 400); T.flow = []; T.nights = (T.nights || []).slice(0, 60); T.seen = Object.fromEntries(Object.entries(T.seen || {}).slice(-3000));
+  for (const p of Object.values(T.pos || {})) p.h = (p.h || []).slice(-60);
+  T.lastEq = r2(equity(T, {})); return T;
+}
 // vuelta rápida: solo precios de lo abierto y el riesgo (para que los stops salten antes)
 export function rapido(S, by, now) {
   riesgo(S, by, now);
   if (S.ideal) { const I = S.ideal; riesgo(I, by, now, IDEAL, VIDEO); I.lastEq = r2(equity(I, {})); }
+  if (S.turbo) { const T = S.turbo; riesgo(T, by, now, null, TURBO); T.lastEq = r2(equity(T, {})); }
   S.lastEq = r2(equity(S, {})); S.lastQ = now.toISOString();
 }
 
@@ -322,7 +335,7 @@ async function main() {
   const MS = await import("./meme-muestras.mjs"); try { MUE = RAPIDO ? null : await leerArchivo("meme-muestras.json", CH.rama + "-mue"); } catch (e) { console.log("Memes: " + e.message); return; } if (!RAPIDO && (!MUE || MUE.v !== 1)) MUE = MS.freshM();   // v174 · los rangos que la bola ya haya ensanchado
   const varOpen = () => LB.pop.flatMap((v) => Object.keys(v.pos || {}));
   if (RAPIDO) {
-    const open = [...new Set([...(CH.id === "solana" && S.realAbierto ? ["So11111111111111111111111111111111111111112"] : []), ...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()])];
+    const open = [...new Set([...(CH.id === "solana" && S.realAbierto ? ["So11111111111111111111111111111111111111112"] : []), ...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...Object.keys((S.turbo && S.turbo.pos) || {}), ...varOpen()])];
     if (!open.length) { console.log("Memes (rápido): nada abierto."); return; }
     const pairs = []; for (let i = 0; i < open.length; i += 30) { const j = await J(`${DS}/tokens/v1/${CH.ds}/${open.slice(i, i + 30).join(",")}`); if (Array.isArray(j)) pairs.push(...j); }
     const by = bestPairs(pairs, CH.ds); if (!Object.keys(by).length) { console.log("Memes (rápido): sin precios."); return; }
@@ -335,7 +348,7 @@ async function main() {
   }
   if (S.last && tnow - Date.parse(S.last) < 40e3) { console.log("Memes: la última vuelta fue hace menos de 40 s; nada que hacer."); return; }
   // EXPLORADOR: todas las fuentes de monedas nuevas de Solana (y todo lo que tenga abierto cualquiera: terminal, «como el vídeo» y variantes)
-  const addrs = new Set([...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen(), ...Object.keys(S.young || {}), ...Object.keys(S.watch || {})]);
+  const addrs = new Set([...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...Object.keys((S.turbo && S.turbo.pos) || {}), ...varOpen(), ...Object.keys(S.young || {}), ...Object.keys(S.watch || {})]);
   const add = (x) => { if (x && typeof x === "string" && x.length > 30) addrs.add(x); };
   // v165 · más fuentes, rotando cada minuto (GeckoTerminal admite ~30 peticiones por minuto): nuevas, tendencia de 1 h/6 h/24 h y las de más volumen
   const GTL = [];
@@ -355,7 +368,7 @@ async function main() {
   }
   await enParalelo(gtU, 4, async (u) => { const j = await J(u, 2); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(new RegExp("^" + CH.gt + "_"), "")); } });
   // primero lo abierto y lo recién encontrado; las «jóvenes» que se vuelven a mirar, como mucho 200
-  const must = new Set([...(CH.id === "solana" ? ["So11111111111111111111111111111111111111112"] : []), ...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()]);
+  const must = new Set([...(CH.id === "solana" ? ["So11111111111111111111111111111111111111112"] : []), ...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...Object.keys((S.turbo && S.turbo.pos) || {}), ...varOpen()]);
   const young = Object.entries(S.young || {}).sort((a, b) => b[1] - a[1]).slice(0, 1200).map((x) => x[0]).concat(Object.keys((MUE && MUE.abiertas) || {}));
   const list = [...new Set([...must, ...[...addrs].filter((a) => !(S.young || {})[a]), ...young])].slice(0, 2400), pairs = [];
   const batches = []; for (let i = 0; i < list.length; i += 30) batches.push(list.slice(i, i + 30));
@@ -365,7 +378,7 @@ async function main() {
   const by = bestPairs(pairs, CH.ds);
   if (!Object.keys(by).length) { console.log("Memes: sin datos de DexScreener; se intenta en la siguiente vuelta."); return; }
   // FILTRO (datos de cadena): RugCheck para las que pasan lo barato con las reglas MÁS LAXAS de toda la población (caché de 30 min)
-  const lx = LBm.laxo(LB), ext = { rc: {}, gt: {} }, pre = [];
+  const lx = (() => { const x = LBm.laxo(LB); return { ...x, ageMin: Math.min(x.ageMin, TURBO.ageMin), ageMax: Math.max(x.ageMax, TURBO.ageMax), mcapMin: Math.min(x.mcapMin, TURBO.mcapMin), mcapMax: Math.max(x.mcapMax, TURBO.mcapMax), liqMin: Math.min(x.liqMin, TURBO.liqMin), vol1hMin: Math.min(x.vol1hMin, TURBO.vol1hMin), pump1hMax: Math.max(x.pump1hMax, TURBO.pump1hMax) }; })(), ext = { rc: {}, gt: {} }, pre = [];
   const mot = {}; conGenoma(lx, () => { for (const [a, q] of Object.entries(by)) { if (S.pos[a]) continue; const ex = explorador(q, tnow); if (ex) { mot[ex] = (mot[ex] || 0) + 1; continue; } const rr = reglas(q, null); if (rr.liq && rr.vol && rr.pump) pre.push([a, q]); else { const k = !rr.liq ? "liquidez" : !rr.vol ? "volumen" : "subida"; mot[k] = (mot[k] || 0) + 1; } } });
   pre.sort((x, y) => (+(y[1].volume && y[1].volume.h1) || 0) - (+(x[1].volume && x[1].volume.h1) || 0));
   let nrc = 0; const pide = [];
@@ -405,6 +418,7 @@ async function main() {
   } catch (e) { console.log("Memes: historia: " + e.message); }
   paso(S, by, now, Math.random, ext);
   pasoIdeal(S, by, now, ext);
+  try { pasoTurbo(S, by, now, ext); } catch (e) { console.log("Memes: turbo: " + e.message); }
   for (const v of LB.pop) LBm.pasoVar(v, by, now, { ...ext, full: true }, S.smart, S.hold);
   const evo = LBm.evolucionar(LB, S, now, Math.random, MUE); if (evo) L(S, now, "INFO", "", `🧬 generación ${evo.gen}: se archivan ${evo.out} variantes y nacen otras`);
   if (S.genomeId && S.genomeAt !== S.genomeId) { S.genomeAt = S.genomeId; L(S, now, "INFO", "", `🏆 el terminal pasa a usar las reglas aprendidas de ${S.genomeId}`); }
