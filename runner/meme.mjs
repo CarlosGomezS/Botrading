@@ -16,6 +16,9 @@ export const CHAINS = {
   base: { id: "base", nombre: "Base", ds: "base", gt: "base", seg: "goplus", gp: 8453, rama: "meme-base", fixFee: 0.05, gtTurno: 1, busca: ["base", "based", "meme", "cat", "dog", "ai"] },
   bsc: { id: "bsc", nombre: "BNB Chain", ds: "bsc", gt: "bsc", seg: "goplus", gp: 56, rama: "meme-bsc", fixFee: 0.06, gtTurno: 2, busca: ["bnb", "bsc", "meme", "cat", "dog", "ai"] }
 };
+// palabras con las que se buscan monedas en DexScreener (rotan cada minuto: así van apareciendo cientos distintas)
+const PALABRAS = ["pepe", "doge", "shib", "inu", "cat", "dog", "frog", "trump", "elon", "ai", "agent", "gpt", "moon", "pump", "meme", "baby", "king", "chad", "wojak", "bonk",
+  "wif", "popcat", "giga", "sigma", "based", "cult", "degen", "ape", "monkey", "bear", "bull", "panda", "fish", "duck", "goat", "rocket", "gem", "coin", "token", "mog", "brett", "toshi", "floki", "kitty", "hamster", "penguin", "dragon", "tiger"];
 const ARGS = process.argv.slice(2), CH = CHAINS[ARGS.find((x) => CHAINS[x])] || CHAINS.solana, RAPIDO = ARGS.includes("rapido");
 export const R = {
   start: 100, size: 0.08,         // v167: prueba con 100 €, lo que piensas meter de verdad
@@ -289,7 +292,7 @@ async function main() {
   for (const pg of [1, 2, 3, 4, 5]) GTL.push(`${GT}/networks/${CH.gt}/new_pools?page=${pg}`);
   for (const pg of [1, 2, 3]) GTL.push(`${GT}/networks/${CH.gt}/pools?sort=h24_volume_usd_desc&page=${pg}`, `${GT}/networks/${CH.gt}/pools?sort=h24_tx_count_desc&page=${pg}`);
   const rot = Math.floor(tnow / 60000), otras = GTL.filter((u) => !/new_pools\?page=[123]$/.test(u)), gtU = rot % 3 === CH.gtTurno ? [`${GT}/networks/${CH.gt}/new_pools?page=1`, `${GT}/networks/${CH.gt}/new_pools?page=2`, otras[rot % otras.length]] : [];   // las 3 redes se turnan para no pasarse del límite de GeckoTerminal   // v165 · GitHub comparte IP: GeckoTerminal limita mucho; listas solo un minuto de cada dos y el resto para las operaciones   // 5 listas + 10 operaciones < 30 peticiones/min de GeckoTerminal
-  const srcs = [DS + "/token-profiles/latest/v1", DS + "/token-boosts/latest/v1", DS + "/token-boosts/top/v1", ...CH.busca.map((q) => `${DS}/latest/dex/search?q=${q}`).slice(rot % 6, rot % 6 + 2)];
+  const srcs = [DS + "/token-profiles/latest/v1", DS + "/token-boosts/latest/v1", DS + "/token-boosts/top/v1", ...PALABRAS.concat(CH.busca).filter((_, i, A) => (i + rot * 8) % A.length < 8).map((q) => `${DS}/latest/dex/search?q=${encodeURIComponent(q)}`)];   // v170 · 8 búsquedas distintas por minuto (DexScreener admite 300/min)
   await enParalelo(srcs, 5, async (u) => { const j = await J(u, 2); const arr = Array.isArray(j) ? j : (j && j.pairs) || []; for (const x of arr) if (x && x.chainId === CH.ds) add(x.tokenAddress || (x.baseToken && x.baseToken.address)); });
   await enParalelo(gtU, 4, async (u) => { const j = await J(u, 2); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(new RegExp("^" + CH.gt + "_"), "")); } });
   // primero lo abierto y lo recién encontrado; las «jóvenes» que se vuelven a mirar, como mucho 200
