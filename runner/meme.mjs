@@ -140,6 +140,31 @@ export function alarmaSalida(G, p, q, liq, pr) {
   if (pr >= p.px * 1.15 && b5 + s5 >= 20 && s5 >= 2 * b5 && c5 <= -6) return `alarma: presión vendedora (${s5} ventas y ${b5} compras en 5 min)`;
   return null;
 }
+// v184 · 📈 GRÁFICO: el bot guarda él mismo el precio de cada candidata minuto a minuto (sin límites de ninguna fuente)
+// y, antes de comprar, mira la forma del gráfico como lo haría un trader: tendencia sobre su media, mínimos cada vez más altos,
+// cuánto ha corregido desde el máximo y si se está desplomando ahora mismo. Es la 8.ª señal («gr»); la bola aprende cuánto pesarla.
+let GRAF = {}; export function setGraf(m) { GRAF = m || {}; }
+export function grafico(ps) {
+  if (!ps || ps.length < 15) return null;
+  const ema = (n) => { const k = 2 / (n + 1); let e = ps[0], out = []; for (const x of ps) { e = x * k + e * (1 - k); out.push(e); } return out; };
+  const e20 = ema(20), last = ps[ps.length - 1], eNow = e20[e20.length - 1], ePrev = e20[Math.max(0, e20.length - 11)];
+  const sobreMedia = last > eNow ? 1 : 0, mediaSube = eNow > ePrev * 1.002 ? 1 : eNow >= ePrev * 0.998 ? 0.5 : 0;
+  const w = ps.slice(-30), n3 = Math.floor(w.length / 3), m1 = Math.min(...w.slice(0, n3)), m2 = Math.min(...w.slice(n3, 2 * n3)), m3 = Math.min(...w.slice(2 * n3));
+  const minimos = (m2 > m1 ? 0.5 : 0) + (m3 > m2 ? 0.5 : 0);
+  const max = Math.max(...ps), corr = 1 - last / max;                       // corrección desde el máximo
+  const correccion = corr <= 0.03 ? 0.6 : corr <= 0.25 ? 1 : corr <= 0.45 ? 0.4 : 0;   // mejor un pequeño descanso que comprar en el pico o tras un hundimiento
+  const l5 = ps.slice(-5), cae = 1 - last / Math.max(...l5), cuchillo = cae > 0.08 ? 1 : cae > 0.04 ? 0.5 : 0;   // ¿se está desplomando ahora?
+  const sc = Math.round(100 * Math.max(0, 0.25 * sobreMedia + 0.2 * mediaSube + 0.25 * minimos + 0.3 * correccion - 0.4 * cuchillo));
+  return { sc, sobreMedia, mediaSube, minimos, corr: Math.round(corr * 100), cuchillo, n: ps.length };
+}
+// guarda el precio de cada minuto de las candidatas (hasta 2 h; se olvidan las que llevan 30 min sin verse)
+export function anotarSeries(M, pre, now) {
+  const t = now.getTime(); M.serie = M.serie || {};
+  for (const [a, q] of pre) { const pr = +q.priceUsd; if (!(pr > 0)) continue; const z = M.serie[a] = M.serie[a] || { t: 0, p: [] }; if (t - z.t >= 50e3) { z.p.push(+pr.toPrecision(6)); z.p = z.p.slice(-120); z.t = t; } }
+  for (const [a, z] of Object.entries(M.serie)) if (t - z.t > 30 * 60000) delete M.serie[a];
+  const e = Object.entries(M.serie); if (e.length > 600) M.serie = Object.fromEntries(e.sort((x, y) => y[1].t - x[1].t).slice(0, 600));
+  const out = {}; for (const [a, z] of Object.entries(M.serie)) { const g = grafico(z.p); if (g) out[a] = g; } return out;
+}
 let IA = null; export function setIA(m) { IA = m && m.listo && m.w ? m : null; } export const iaEnUso = () => IA;
 export function analista(S, a, p, info, g, nowMs, j) {
   const ch1 = +(p.priceChange && p.priceChange.h1) || 0, ch5 = +(p.priceChange && p.priceChange.m5) || 0, liq = +(p.liquidity && p.liquidity.usd) || 1, mc = +(p.marketCap || p.fdv) || 1;
@@ -150,6 +175,7 @@ export function analista(S, a, p, info, g, nowMs, j) {
   const ch6 = +(p.priceChange && p.priceChange.h6) || 0, ch24 = +(p.priceChange && p.priceChange.h24) || 0, v1 = +(p.volume && p.volume.h1) || 0, v24 = +(p.volume && p.volume.h24) || 0, surge = v24 > 0 ? v1 / (v24 / 24) : 1, e = est();
   const sig = { mom: Math.round(100 * (e === "grandes" ? 0.4 * cl(ch1, 0, 10) + 0.3 * cl(ch6, 0, 25) + 0.3 * cl(ch24, 0, 50) : e === "rebote" ? 0.5 * cl(-ch6, 15, 50) + 0.25 * cl(ch5, 0, 5) + 0.25 * cl(ch1, 0, 10) : e === "volumen" ? cl(ch1, 0, 30) : 0.7 * cl(ch1, 0, 40) + 0.3 * cl(ch5, 0, 8))), ub: j && j.traders != null ? Math.round(100 * cl(j.organicBuyers ?? j.traders, 0, 300)) : g ? Math.round(100 * cl(g.ub, 0, 150)) : Math.round(100 * cl(+t.buys || 0, 0, 250)) /* sin GeckoTerminal: aproximado con el nº de compras de la última hora (DexScreener) */, bs: Math.round(100 * cl(br, 1, 2)),
     hg: Math.round(100 * (j && j.holderChg != null ? cl(j.holderChg, 0, 10) : e === "video" ? hg : e === "volumen" ? cl(surge, 2, 6) : cl(surge, 1, 3))), lm: Math.round(100 * (e === "grandes" ? cl(liq / mc, 0.01, 0.08) : cl(liq / mc, 0.03, 0.15))), sw: nSmart < R.smartMinList ? 50 : Math.round(100 * cl(sm, 0, 3)) };
+  if (GRAF[a]) sig.gr = GRAF[a].sc;
   if (IA) { const pr = predecir(IA, rasgos(p, info, nowMs, j)); if (pr != null) sig.ia = Math.round(100 * cl(pr, IA.base * 0.5, Math.min(0.95, Math.max(IA.base * 3, IA.base + 0.2)))); }
   const w = G.w || {}, ws = Object.keys(sig).reduce((t, k) => t + (w[k] ?? 1), 0) || 1;
   return { sig, sc: Math.round(Object.keys(sig).reduce((t, k) => t + (w[k] ?? 1) * sig[k], 0) / ws), sm, learning: nSmart < R.smartMinList };
@@ -431,6 +457,7 @@ async function main() {
   await enParalelo(pideGT.filter(([a]) => !ext.gt[a]), 2, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; ngt++; let j = null; try { j = await J(`${GT}/networks/${CH.gt}/pools/${q.pairAddress}/trades`, 3); } catch (e) { S.gtErr = String(e.message || e).slice(0, 60); } if (!j) S.gtErr = S.gtErr || "404 (piscina no encontrada)"; if (j && j.data) { const g = gtInfo(j.data, tnow); ext.gt[a] = g; S.gtc[a] = { t: tnow, g: { ...g, buyers: g.buyers.slice(0, 150) } }; gtOk++; } });
   S.diag = { hist: S.histN || 0, histErr: S.histErr || null, t: now.toISOString(), jupiter: CH.id === "solana" ? S.jupN || 0 : undefined, monedas: Object.keys(by).length, candidatas: pre.length, motivos: mot, laxo: lx, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, gtErr: S.gtErr || null, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
   try { MS.registrar(MUE, pre, by, ext, now); } catch (e) { console.log("Memes: muestras: " + e.message); }
+  try { const gf = anotarSeries(MUE, pre, now); setGraf(gf); S.graf = Object.keys(gf).length; S.grafTop = Object.entries(gf).filter(([a]) => by[a]).sort((x, y) => y[1].sc - x[1].sc).slice(0, 5).map(([a, g]) => ({ sym: by[a].baseToken.symbol, ...g })); } catch (e) { console.log("Memes: gráfico: " + e.message); }
   // v178 · 📚 historia: 2 monedas por minuto (ya comprobadas en seguridad) → hasta 40 casos cada una con sus velas de 5 min de ~3 días
   try {
     MUE.histHechas = MUE.histHechas || {}; for (const [a, t] of Object.entries(MUE.histHechas)) if (tnow - t > 24 * 3600e3) delete MUE.histHechas[a];

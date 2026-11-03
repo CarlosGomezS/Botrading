@@ -248,3 +248,11 @@ test("salida inteligente: vende al ver que la liquidez se va o que hay presión 
   const S3 = freshState(); paso(S3, { [b]: par(b) }, new Date(T0), () => 1, { rc: { [b]: okInfo }, gt: {} }); const q3 = par(b, { px: 1.2 }); q3.txns.m5 = { buys: 10, sells: 30 }; q3.priceChange.m5 = -9;
   rapido(S3, { [b]: q3 }, new Date(T0 + 20000)); assert.equal(Object.keys(S3.pos).length, 1, "las reglas del vídeo no cambian");
 });
+import { grafico, anotarSeries } from "../runner/meme.mjs";
+test("gráfico: prefiere una tendencia sana con un pequeño descanso, y castiga comprar en pleno desplome", () => {
+  const sana = Array.from({ length: 40 }, (_, i) => 1 + i * 0.01 + (i % 5 === 4 ? -0.02 : 0)); sana.push(sana[sana.length - 1] * 0.95);
+  const desplome = Array.from({ length: 40 }, (_, i) => (i < 30 ? 1 + i * 0.02 : 1.6 - (i - 29) * 0.06));
+  const gs = grafico(sana), gd = grafico(desplome); assert.ok(gs.sc > 60, "sana: " + gs.sc); assert.ok(gd.sc < 30, "desplome: " + gd.sc); assert.equal(grafico([1, 2, 3]), null);
+  const M = {}; for (let i = 0; i < 20; i++) anotarSeries(M, [["g", par("g", { px: 1 + i * 0.01 })]], new Date(T0 + i * 60000));
+  assert.equal(M.serie.g.p.length, 20);
+});

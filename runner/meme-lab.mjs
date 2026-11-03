@@ -35,7 +35,7 @@ export const NOMBRES = { ageMin: "edad mínima (min)", ageMax: "edad máxima (mi
   maxHoldH: "tiempo máximo (h)", size: "tamaño de cada compra", minScore: "nota mínima", tp: "venta parcial en", tpFrac: "parte que vende", esc: "escalera (parte que vende en ×2, ×3 y ×5)", alerta: "salida inteligente (alarmas de desplome)", orgMin: "actividad real mínima (Jupiter)", mint: "exige mint/freeze revocados", w: "pesos de la nota" };
 const r2 = (x) => Math.round(x * 100) / 100;
 const snap = (k, v) => { const [a, b, st] = RANGOS[k]; return Math.max(a, Math.min(b, Math.round(v / st) * st)); };
-const SIG = ["mom", "ub", "bs", "hg", "lm", "sw", "ia"];
+const SIG = ["mom", "ub", "bs", "hg", "lm", "sw", "ia", "gr"];
 export const gkey = (g) => JSON.stringify(Object.keys(RANGOS).map((k) => g[k]).concat([g.mint, g.estilo || "video", SIG.map((k) => r2((g.w || {})[k] ?? 1))]));
 
 export function aleatorio(rnd = Math.random) {
