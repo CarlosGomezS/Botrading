@@ -124,7 +124,7 @@ test("Base y BNB: GoPlus detecta trampas, impuestos, liquidez bloqueada, poseedo
 });
 
 test("estilos nuevos: grandes en tendencia, rebote tras caída y explosión de volumen", () => {
-  assert.deepEqual(Object.keys(ESTILOS), ["video", "grandes", "rebote", "volumen"]);
+  assert.deepEqual(Object.keys(ESTILOS), ["video", "grandes", "rebote", "volumen", "volatil"]);
   const big = { ...par("big", { mc: 3e8, liq: 2e6, v1: 5e5, ch1: 4 }), pairCreatedAt: T0 - 30 * 86400e3, priceChange: { m5: 1, h1: 4, h6: 12, h24: 30 }, volume: { h1: 5e5, h24: 4e6 } };
   assert.equal(explorador(big, T0), "vieja", "el método del vídeo no mira monedas de un mes");
   assert.equal(conGenoma({ ...VIDEO, estilo: "grandes" }, () => explorador(big, T0)), null, "el estilo «grandes» sí");
@@ -277,4 +277,13 @@ test("Base/BNB: liquidez repartida entre muchos proveedores cuenta según lo que
   assert.ok(rep.lp >= 80, "repartida: " + rep.lp);
   const una = gpInfo({ ...base, lp_holders: [{ address: "0xe1", is_contract: 0, percent: "0.9" }, { address: "0xe2", is_contract: 0, percent: "0.05" }, { address: "0xe3", is_contract: 0, percent: "0.05" }] }); assert.ok(una.lp <= 10, "una sola cartera manda");
   const { NOMEME } = await import("../runner/meme.mjs"); assert.ok(NOMEME.has("0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c") && NOMEME.has("0x4200000000000000000000000000000000000006"));
+});
+import { pasoVolatil, VOLATIL, VOLATILES } from "../runner/meme.mjs";
+test("volátiles: compra criptos grandes y líquidas en tendencia (no las recién nacidas) con costes bajos", () => {
+  const S = freshState(), now = new Date(T0), v = "vo", m = "me", ext = { rc: { [v]: okInfo, [m]: okInfo }, gt: {} };
+  const big = par(v, { mc: 2e9, liq: 8e6, v1: 3e6, ch1: 3, ch5: 1, ageMin: 400 * 1440 }); big.priceChange.h6 = 9; big.priceChange.h24 = 12; big.volume.h24 = 5e7;
+  pasoVolatil(S, { [v]: big, [m]: par(m) }, now, ext);
+  assert.deepEqual(Object.keys(S.volat.pos), [v], "solo la grande"); const p = S.volat.pos[v]; assert.ok(p.cost / p.q / +big.priceUsd < 1.01, "entra con menos de un 1 % de coste");
+  rapido(S, { [v]: { ...big, priceUsd: "0.94" } }, new Date(T0 + 60000)); assert.equal(Object.keys(S.volat.pos).length, 0, "stop del 5 %"); assert.ok(S.volat.closed[0].pc > -8);
+  assert.ok(VOLATILES.length >= 10 && VOLATIL.estilo === "volatil");
 });

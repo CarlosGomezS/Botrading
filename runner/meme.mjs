@@ -115,6 +115,8 @@ export function reglas(p, info) {
   const liq = +(p.liquidity && p.liquidity.usd) || 0, v1 = +(p.volume && p.volume.h1) || 0, ch1 = +(p.priceChange && p.priceChange.h1) || 0, ch6 = +(p.priceChange && p.priceChange.h6) || 0, e = est();
   if (e === "grandes") return { liq: liq >= Math.max(G.liqMin, 3e5), vol: v1 >= Math.max(G.vol1hMin, 1e5), pump: ch1 <= G.pump1hMax, mint: info ? (G.mint === 0 ? true : info.mintOk) : null,
     lp: info ? true : null, top10: info ? info.top10 <= Math.max(G.top10Max, 60) : null, dev: info ? info.dev <= Math.max(G.devMax, 10) : null, bundle: info ? true : null };
+  if (e === "volatil") return { liq: liq >= Math.max(G.liqMin, 5e5), vol: v1 >= Math.max(G.vol1hMin, 5e4), pump: ch1 <= G.pump1hMax && ch1 >= -G.pump1hMax, mint: info ? (G.mint === 0 ? true : info.mintOk) : null,
+    lp: info ? true : null, top10: info ? true : null, dev: info ? true : null, bundle: info ? true : null };
   if (e === "rebote") return { liq: liq >= G.liqMin, vol: v1 >= G.vol1hMin, pump: ch6 <= -15, mint: info ? (G.mint === 0 ? true : info.mintOk) : null, lp: info ? info.lp >= G.lpLockMin : null,
     top10: info ? info.top10 <= Math.max(G.top10Max, 40) : null, dev: info ? info.dev <= Math.max(G.devMax, 5) && !info.devRug : null, bundle: info ? info.bundle <= Math.max(G.bundleMax, 20) : null };
   return { liq: liq >= G.liqMin, vol: v1 >= G.vol1hMin, pump: ch1 <= G.pump1hMax,
@@ -126,7 +128,8 @@ export const ESTILOS = {
   video: { n: "como el vídeo: monedas recién nacidas" },
   grandes: { n: "memecoins grandes en tendencia", age: [7 * 1440, 5 * 525600], mc: [20e6, 5e9] },
   rebote: { n: "rebote tras una caída fuerte", age: [1440, 5 * 525600], mc: [1e6, 1e9] },
-  volumen: { n: "explosión de volumen", age: [60, 30 * 1440], mc: [5e5, 5e8] }
+  volumen: { n: "explosión de volumen", age: [60, 30 * 1440], mc: [5e5, 5e8] },
+  volatil: { n: "criptos volátiles con mucha liquidez", age: [30 * 1440, 20 * 525600], mc: [10e6, 30e9] }
 };
 const est = () => ESTILOS[G.estilo] ? G.estilo : "video";
 export function explorador(p, now) {
@@ -184,7 +187,7 @@ export function analista(S, a, p, info, g, nowMs, j) {
   const hg = info && info.holders ? (hp && nowMs - hp.t > 10 * 60000 ? cl((info.holders / hp.n - 1) * 100 / ((nowMs - hp.t) / 3600e3), 0, 20) : cl(info.holders / ageH, 0, 300)) : 0.5;
   const nSmart = Object.keys(S.smart).length, sm = g ? g.buyers.filter((w) => S.smart[w]).length : 0;
   const ch6 = +(p.priceChange && p.priceChange.h6) || 0, ch24 = +(p.priceChange && p.priceChange.h24) || 0, v1 = +(p.volume && p.volume.h1) || 0, v24 = +(p.volume && p.volume.h24) || 0, surge = v24 > 0 ? v1 / (v24 / 24) : 1, e = est();
-  const sig = { mom: Math.round(100 * (e === "grandes" ? 0.4 * cl(ch1, 0, 10) + 0.3 * cl(ch6, 0, 25) + 0.3 * cl(ch24, 0, 50) : e === "rebote" ? 0.5 * cl(-ch6, 15, 50) + 0.25 * cl(ch5, 0, 5) + 0.25 * cl(ch1, 0, 10) : e === "volumen" ? cl(ch1, 0, 30) : 0.7 * cl(ch1, 0, 40) + 0.3 * cl(ch5, 0, 8))), ub: j && j.traders != null ? Math.round(100 * cl(j.organicBuyers ?? j.traders, 0, 300)) : g ? Math.round(100 * cl(g.ub, 0, 150)) : Math.round(100 * cl(+t.buys || 0, 0, 250)) /* sin GeckoTerminal: aproximado con el nº de compras de la última hora (DexScreener) */, bs: Math.round(100 * cl(br, 1, 2)),
+  const sig = { mom: Math.round(100 * (e === "volatil" ? 0.35 * cl(ch1, 0, 4) + 0.35 * cl(ch6, 0, 12) + 0.15 * cl(ch24, -5, 20) + 0.15 * cl(ch5, 0, 1.5) : e === "grandes" ? 0.4 * cl(ch1, 0, 10) + 0.3 * cl(ch6, 0, 25) + 0.3 * cl(ch24, 0, 50) : e === "rebote" ? 0.5 * cl(-ch6, 15, 50) + 0.25 * cl(ch5, 0, 5) + 0.25 * cl(ch1, 0, 10) : e === "volumen" ? cl(ch1, 0, 30) : 0.7 * cl(ch1, 0, 40) + 0.3 * cl(ch5, 0, 8))), ub: j && j.traders != null ? Math.round(100 * cl(j.organicBuyers ?? j.traders, 0, 300)) : g ? Math.round(100 * cl(g.ub, 0, 150)) : Math.round(100 * cl(+t.buys || 0, 0, 250)) /* sin GeckoTerminal: aproximado con el nº de compras de la última hora (DexScreener) */, bs: Math.round(100 * cl(br, 1, 2)),
     hg: Math.round(100 * (j && j.holderChg != null ? cl(j.holderChg, 0, 10) : e === "video" ? hg : e === "volumen" ? cl(surge, 2, 6) : cl(surge, 1, 3))), lm: Math.round(100 * (e === "grandes" ? cl(liq / mc, 0.01, 0.08) : cl(liq / mc, 0.03, 0.15))), sw: nSmart < R.smartMinList ? 50 : Math.round(100 * cl(sm, 0, 3)) };
   if (GRAF[a]) sig.gr = GRAF[a].sc;
   if (IA) { const pr = predecir(IA, rasgos(p, info, nowMs, j)); if (pr != null) sig.ia = Math.round(100 * cl(pr, IA.base * 0.5, Math.min(0.95, Math.max(IA.base * 3, IA.base + 0.2)))); }
@@ -339,6 +342,24 @@ export function pasoIdeal(S, by, now, ext) {
 // y pagaba muchos costes con compras de 5 €). Se probaron 2.400 combinaciones sobre más de 1.000 casos reales y esta es la que menos pierde:
 // no persigue subidas de más del 30 % en 1 h, nota mínima 60 con la IA pesando ×5, stop del 8 %, vende la mitad a +50 % y compras del 10 %.
 export const TURBO_V = 2;
+// v190 · 🌪️ VOLÁTILES: criptos de Solana con mucha liquidez y mucho movimiento (WIF, BONK, JUP, POPCAT, TRUMP, FARTCOIN…). Comprar y vender
+// cuesta muy poco y no hay rugs de segundos, así que el gráfico, la tendencia y la IA pesan más. Pocas compras, más grandes, stops cortos.
+export const VOLATILES = ["EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
+  "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL", "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3", "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN", "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump",
+  "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof", "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE", "85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ", "MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5",
+  "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82"];
+export const VOLC = { fee: 0.0025, slipMin: 0.002, slipMax: 0.05, failP: 0.02, failCost: 0.01, fixFee: 0.02 };   // costes reales de Jupiter en monedas con mucha liquidez
+export const VOLATIL = { ...VIDEO, estilo: "volatil", ageMin: 30 * 1440, ageMax: 20 * 525600, mcapMin: 10e6, mcapMax: 30e9, liqMin: 5e5, vol1hMin: 5e4, pump1hMax: 12, mint: 1,
+  stop: 0.05, trailOn: 0.04, trail: 0.03, maxHoldH: 24, size: 0.2, minScore: 60, maxPos: 4, cooldownH: 4, tp: 0.08, tpFrac: 0.5, esc: 0, alerta: 1, orgMin: 0,
+  w: { mom: 2, ub: 0.5, bs: 1, hg: 0.5, lm: 0.5, sw: 0, ia: 1, gr: 2 } };
+export function pasoVolatil(S, by, now, ext) {
+  let V = S.volat; if (!V || V.v !== S.v) { V = S.volat = freshState(); }
+  V.smart = S.smart; V.hold = S.hold; V.watch = {}; V.rc = {};
+  try { paso(V, by, now, Math.random, ext, VOLC, VOLATIL); } finally { delete V.smart; delete V.hold; delete V.watch; delete V.rc; }
+  V.log = (V.log || []).slice(0, 120); V.closed = (V.closed || []).slice(0, 400); V.flow = []; V.nights = (V.nights || []).slice(0, 60); V.seen = Object.fromEntries(Object.entries(V.seen || {}).slice(-3000));
+  for (const p of Object.values(V.pos || {})) p.h = (p.h || []).slice(-60);
+  V.lastEq = r2(equity(V, {})); return V;
+}
 export const TURBO = { ...VIDEO, estilo: "video", ageMin: 5, ageMax: 14 * 1440, mcapMin: 50e3, mcapMax: 100e6, liqMin: 15e3, vol1hMin: 10e3, pump1hMax: 30,
   top10Max: 40, devMax: 10, bundleMax: 30, lpLockMin: 80, mint: 1, stop: 0.08, trailOn: 0.1, trail: 0.1, maxHoldH: 4, size: 0.1, minScore: 60, maxPos: 8, cooldownH: 6, tp: 0.5, tpFrac: 0.5, esc: 0.35, alerta: 1, orgMin: 0,
   w: { mom: 1, ub: 1, bs: 1, hg: 1, lm: 1, sw: 1, ia: 5, gr: 1 } };
@@ -358,6 +379,7 @@ export function rapido(S, by, now) {
   riesgo(S, by, now);
   if (S.ideal) { const I = S.ideal; riesgo(I, by, now, IDEAL, VIDEO); I.lastEq = r2(equity(I, {})); }
   if (S.turbo) { const T = S.turbo; riesgo(T, by, now, null, turboG(S)); T.lastEq = r2(equity(T, {})); }
+  if (S.volat) { const V = S.volat; riesgo(V, by, now, VOLC, VOLATIL); V.lastEq = r2(equity(V, {})); }
   S.lastEq = r2(equity(S, {})); S.lastQ = now.toISOString();
 }
 
@@ -412,7 +434,7 @@ async function main() {
   const MS = await import("./meme-muestras.mjs"); try { MUE = RAPIDO ? null : await leerArchivo("meme-muestras.json", CH.rama + "-mue"); } catch (e) { console.log("Memes: " + e.message); return; } if (!RAPIDO && (!MUE || MUE.v !== 1)) MUE = MS.freshM();   // v174 · los rangos que la bola ya haya ensanchado
   const varOpen = () => LB.pop.flatMap((v) => Object.keys(v.pos || {}));
   if (RAPIDO) {
-    const open = [...new Set([...(CH.id === "solana" && S.realAbierto ? ["So11111111111111111111111111111111111111112"] : []), ...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...Object.keys((S.turbo && S.turbo.pos) || {}), ...varOpen()])];
+    const open = [...new Set([...(CH.id === "solana" && S.realAbierto ? ["So11111111111111111111111111111111111111112"] : []), ...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...Object.keys((S.turbo && S.turbo.pos) || {}), ...Object.keys((S.volat && S.volat.pos) || {}), ...varOpen()])];
     if (!open.length) { console.log("Memes (rápido): nada abierto."); return; }
     const pairs = []; for (let i = 0; i < open.length; i += 30) { const j = await J(`${DS}/tokens/v1/${CH.ds}/${open.slice(i, i + 30).join(",")}`); if (Array.isArray(j)) pairs.push(...j); }
     const by = bestPairs(pairs, CH.ds); if (!Object.keys(by).length) { console.log("Memes (rápido): sin precios."); return; }
@@ -425,7 +447,7 @@ async function main() {
   }
   if (S.last && tnow - Date.parse(S.last) < 40e3) { console.log("Memes: la última vuelta fue hace menos de 40 s; nada que hacer."); return; }
   // EXPLORADOR: todas las fuentes de monedas nuevas de Solana (y todo lo que tenga abierto cualquiera: terminal, «como el vídeo» y variantes)
-  const addrs = new Set([...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...Object.keys((S.turbo && S.turbo.pos) || {}), ...varOpen(), ...Object.keys(S.young || {}), ...Object.keys(S.watch || {})]);
+  const addrs = new Set([...(CH.id === "solana" ? VOLATILES : []), ...Object.keys((S.volat && S.volat.pos) || {}), ...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...Object.keys((S.turbo && S.turbo.pos) || {}), ...Object.keys((S.volat && S.volat.pos) || {}), ...varOpen(), ...Object.keys(S.young || {}), ...Object.keys(S.watch || {})]);
   const add = (x) => { if (x && typeof x === "string" && x.length > 30) addrs.add(x); };
   // v165 · más fuentes, rotando cada minuto (GeckoTerminal admite ~30 peticiones por minuto): nuevas, tendencia de 1 h/6 h/24 h y las de más volumen
   const GTL = [];
@@ -445,7 +467,7 @@ async function main() {
   }
   await enParalelo(gtU, 4, async (u) => { const j = await J(u, 2); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(new RegExp("^" + CH.gt + "_"), "")); } });
   // primero lo abierto y lo recién encontrado; las «jóvenes» que se vuelven a mirar, como mucho 200
-  const must = new Set([...(CH.id === "solana" ? ["So11111111111111111111111111111111111111112"] : []), ...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...Object.keys((S.turbo && S.turbo.pos) || {}), ...varOpen()]);
+  const must = new Set([...(CH.id === "solana" ? ["So11111111111111111111111111111111111111112"] : []), ...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...Object.keys((S.turbo && S.turbo.pos) || {}), ...Object.keys((S.volat && S.volat.pos) || {}), ...varOpen()]);
   const young = Object.entries(S.young || {}).sort((a, b) => b[1] - a[1]).slice(0, 1200).map((x) => x[0]).concat(Object.keys((MUE && MUE.abiertas) || {}));
   const list = [...new Set([...must, ...[...addrs].filter((a) => !(S.young || {})[a]), ...young])].slice(0, 2400), pairs = [];
   const batches = []; for (let i = 0; i < list.length; i += 30) batches.push(list.slice(i, i + 30));
@@ -456,7 +478,7 @@ async function main() {
   if (!Object.keys(by).length) { console.log("Memes: sin datos de DexScreener; se intenta en la siguiente vuelta."); return; }
   // FILTRO (datos de cadena): RugCheck para las que pasan lo barato con las reglas MÁS LAXAS de toda la población (caché de 30 min)
   if (S.rcV !== 189) { S.rc = {}; S.rcV = 189; }   // v185 · la seguridad de Base/BNB se lee distinto: se vuelve a pedir
-  const lx = (() => { const x = LBm.laxo(LB); return { ...x, ageMin: Math.min(x.ageMin, TURBO.ageMin), ageMax: Math.max(x.ageMax, TURBO.ageMax), mcapMin: Math.min(x.mcapMin, TURBO.mcapMin), mcapMax: Math.max(x.mcapMax, TURBO.mcapMax), liqMin: Math.min(x.liqMin, TURBO.liqMin), vol1hMin: Math.min(x.vol1hMin, TURBO.vol1hMin), pump1hMax: Math.max(x.pump1hMax, TURBO.pump1hMax) }; })(), ext = { rc: {}, gt: {} }, pre = [];
+  const lx = (() => { const x = LBm.laxo(LB); return { ...x, ageMin: Math.min(x.ageMin, TURBO.ageMin), ageMax: Math.max(x.ageMax, TURBO.ageMax), mcapMin: Math.min(x.mcapMin, TURBO.mcapMin), mcapMax: Math.max(x.mcapMax, TURBO.mcapMax, CH.id === "solana" ? VOLATIL.mcapMax : 0), liqMin: Math.min(x.liqMin, TURBO.liqMin), vol1hMin: Math.min(x.vol1hMin, TURBO.vol1hMin), pump1hMax: Math.max(x.pump1hMax, TURBO.pump1hMax) }; })(), ext = { rc: {}, gt: {} }, pre = [];
   const mot = {}; conGenoma(lx, () => { for (const [a, q] of Object.entries(by)) { if (S.pos[a]) continue; const ex = explorador(q, tnow); if (ex) { mot[ex] = (mot[ex] || 0) + 1; continue; } const rr = reglas(q, null); if (rr.liq && rr.vol && rr.pump) pre.push([a, q]); else { const k = !rr.liq ? "liquidez" : !rr.vol ? "volumen" : "subida"; mot[k] = (mot[k] || 0) + 1; } } });
   pre.sort((x, y) => (+(y[1].volume && y[1].volume.h1) || 0) - (+(x[1].volume && x[1].volume.h1) || 0));
   let nrc = 0; const pide = [];
@@ -481,7 +503,7 @@ async function main() {
   await enParalelo(pideGT.filter(([a]) => !ext.gt[a]), 2, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; ngt++; let j = null; try { j = await J(`${GT}/networks/${CH.gt}/pools/${q.pairAddress}/trades`, 3); } catch (e) { S.gtErr = String(e.message || e).slice(0, 60); } if (!j) S.gtErr = S.gtErr || "404 (piscina no encontrada)"; if (j && j.data) { const g = gtInfo(j.data, tnow); ext.gt[a] = g; S.gtc[a] = { t: tnow, g: { ...g, buyers: g.buyers.slice(0, 150) } }; gtOk++; } });
   S.diag = { hist: S.histN || 0, histErr: S.histErr || null, t: now.toISOString(), jupiter: CH.id === "solana" ? S.jupN || 0 : undefined, monedas: Object.keys(by).length, candidatas: pre.length, motivos: mot, laxo: lx, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, gtErr: S.gtErr || null, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
   try { MS.registrar(MUE, pre, by, ext, now); } catch (e) { console.log("Memes: muestras: " + e.message); }
-  try { MUE.lecc = MUE.lecc || []; const vistos = new Set(MUE.lecc.map((x) => x.a + x.t0)); for (const C2 of [S, S.turbo, S.ideal]) { for (const l of (C2 && C2.lecc) || []) if (!vistos.has(l.a + l.t0)) { MUE.lecc.push(l); vistos.add(l.a + l.t0); } if (C2) C2.lecc = []; } MUE.lecc = MUE.lecc.slice(-1500); S.leccN = MUE.lecc.length; } catch (e) { console.log("Memes: lecciones: " + e.message); }
+  try { MUE.lecc = MUE.lecc || []; const vistos = new Set(MUE.lecc.map((x) => x.a + x.t0)); for (const C2 of [S, S.turbo, S.ideal, S.volat]) { for (const l of (C2 && C2.lecc) || []) if (!vistos.has(l.a + l.t0)) { MUE.lecc.push(l); vistos.add(l.a + l.t0); } if (C2) C2.lecc = []; } MUE.lecc = MUE.lecc.slice(-1500); S.leccN = MUE.lecc.length; } catch (e) { console.log("Memes: lecciones: " + e.message); }
   try { const gf = anotarSeries(MUE, pre, now); setGraf(gf); S.graf = Object.keys(gf).length; S.grafTop = Object.entries(gf).filter(([a]) => by[a]).sort((x, y) => y[1].sc - x[1].sc).slice(0, 5).map(([a, g]) => ({ sym: by[a].baseToken.symbol, ...g })); } catch (e) { console.log("Memes: gráfico: " + e.message); }
   // v178 · 📚 historia: 2 monedas por minuto (ya comprobadas en seguridad) → hasta 40 casos cada una con sus velas de 5 min de ~3 días
   try {
@@ -499,6 +521,7 @@ async function main() {
   paso(S, by, now, Math.random, ext);
   pasoIdeal(S, by, now, ext);
   try { pasoTurbo(S, by, now, ext); } catch (e) { console.log("Memes: turbo: " + e.message); }
+  if (CH.id === "solana") try { pasoVolatil(S, by, now, ext); } catch (e) { console.log("Memes: volátiles: " + e.message); }
   for (const v of LB.pop) LBm.pasoVar(v, by, now, { ...ext, full: true }, S.smart, S.hold);
   const evo = LBm.evolucionar(LB, S, now, Math.random, MUE); if (evo) L(S, now, "INFO", "", `🧬 generación ${evo.gen}: se archivan ${evo.out} variantes y nacen otras`);
   if (S.genomeId && S.genomeAt !== S.genomeId) { S.genomeAt = S.genomeId; L(S, now, "INFO", "", `🏆 el terminal pasa a usar las reglas aprendidas de ${S.genomeId}`); }
