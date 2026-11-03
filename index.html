@@ -458,7 +458,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v157</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v158</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -495,6 +495,10 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <div class="p adv"><h2>Neto frente a bruto (efecto de las comisiones)</h2><div class="tw" id="gn"></div></div>
 <div class="p adv"><h2>Alertas automáticas</h2><div id="al"></div></div>
 <div class="p xadv"><h2>Informes y descargas</h2><div class="m"><b>Cada informe con fecha y hora</b> tiene su .md y su .json con todos sus datos: en la prueba histórica, todas las operaciones y la curva diaria de cada método y tramo; en una actualización, las cotizaciones, las señales, las carteras objetivo, las operaciones y el diagnóstico de ese día. <b>«Informe GENERAL de todo»</b> descarga todo junto: todos los informes, las cuentas con todas sus operaciones y curvas y, si quieres, las velas de precios. «Informe completo» junta en un solo archivo todos los informes archivados de todas las fechas y horas. Cada informe individual (más abajo) descarga solo el de esa fecha y hora. «Estado actual del bot» lleva todo lo que hace el bot ahora mismo, sus resultados y la prueba histórica: súbelo a la conversación para mejorar el bot.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="ej">Descargar informes (.json)</button><button id="im">Importar informes (.json)</button><button id="vaciarInf">Vaciar todos los informes</button><button id="fr">Descargar informe completo (todos los informes, .md)</button><button id="fs">Estado actual del bot (.md)</button><button id="fgm">Informe GENERAL de todo (.md)</button><button id="fgj">Informe GENERAL de todo (.json)</button><textarea id="ta" readonly style="display:none;width:100%;height:160px;font-size:12px"></textarea><input id="imf" type="file" accept=".json" hidden></div><div class="m">Historial automático: cada intento de actualización se guarda con fecha y hora, estado, fecha de mercado y una copia del informe. Se conserva separado de la cartera activa.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rref">Actualizar lista</button></div><div id="rlist"><div class="m">Cargando historial…</div></div></div>
+</section>
+<section class="tab" id="t-memes">
+<div class="p hero"><h2>🪙 Memes de Solana · prueba con dinero ficticio</h2><div class="big" id="mm-eq">—</div><div id="mm-pl"></div><div class="m" id="mm-st"></div></div>
+<div id="mm-body"><div class="p"><div class="m">Cargando…</div></div></div>
 </section>
 <section class="tab" id="t-ajustes">
 <div class="p" id="tgdev-p"><h2>📤 Telegram en este dispositivo</h2><div class="m">Para mandar a tu bot de Telegram cualquier informe o archivo de la app (cada botón de descarga te deja elegir «📤 Enviar a mi Telegram»). Se guarda solo en este dispositivo.</div>
@@ -555,13 +559,14 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 • Lo que compres tú en la app es <b>tuyo</b>: el bot no lo toca.<br>
 • Todo va <b>cifrado</b> con tu contraseña: la web es pública, pero nadie más ve tu dinero. Las casillas de claves están bloqueadas hasta que las tocas, para que el móvil no las rellene solo.<br>
 • Las ganancias de cada venta se declaran en la renta (descarga «Órdenes .csv»).</div></div>
+<div class="p hlp"><h2>🪙 Memes (solo prueba)</h2><div class="m" style="line-height:1.6">Imita los bots «nocturnos» de memecoins de Solana que se ven en redes, <b>con dinero ficticio</b> y costes realistas, para comprobar con números si ganan de verdad. Corre solo en la nube las 24 horas: busca monedas nuevas en DexScreener cada ~2,5 minutos, aplica 8 reglas duras y una nota de 0 a 100, entra con el 8 % y sale por stop, stop móvil, tiempo o rug. Se muestra a la escala de lo que has ingresado en Trading 212, pero <b>nunca toca tu dinero</b>: Trading 212 no tiene memecoins. Las reglas completas están al final de la pestaña.</div></div>
 <div class="p hlp"><h2>Palabras que verás</h2>
 <div class="m"><b>Método</b>: una regla fija para decidir qué comprar y cuándo. · <b>#id</b>: el código único de cada método (tócalo para copiarlo; sirve para buscarlo). · <b>Familia</b>: métodos que nacen de la misma idea. · <b>ETF</b>: un fondo que compra muchas empresas a la vez. · <b>Refugio</b>: donde va el dinero cuando no hay nada bueno (oro o bonos). · <b>Tendencia</b>: si el precio está por encima de su media, el mercado va hacia arriba. · <b>Caída máxima</b>: lo máximo que llegó a bajar desde un máximo. · <b>%/año</b>: rentabilidad media anual compuesta, después de impuestos. · <b>ISIN</b>: el «DNI» del fondo, para buscarlo en la app.</div></div>
 <div class="p hlp"><div class="m">Rentabilidades pasadas no garantizan las futuras. No es asesoramiento financiero: tú decides qué método usar y con cuánto dinero.</div></div>
 </section>
 
 </div>
-<nav id="nav"><button data-t="hoy"><span>🧪</span>Ficticia</button><button data-t="informe"><span>🤖</span>Laboratorio</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
+<nav id="nav"><button data-t="hoy"><span>🧪</span>Ficticia</button><button data-t="informe"><span>🤖</span>Laboratorio</button><button data-t="memes"><span>🪙</span>Memes</button><button data-t="ajustes"><span>⚙️</span>Ajustes</button><button data-t="ayuda"><span>❓</span>Ayuda</button></nav>
 <script id="viewer-shim">
 /* Modo VISOR (solo en la web publicada). En el ordenador (file://) y en el proceso automático NO hace nada.
    Carga la última copia de datos que dejó el proceso automático en GitHub y la muestra tal cual. */
@@ -2463,6 +2468,44 @@ function miDraw(){
  A.innerHTML=act}
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-mi]");if(!b||b.dataset.mi!=="seen")return;const k=vmGet("cart"),B=bkOf(k);MIS.seen=MIS.seen||{};MIS.seen[k]=S.lastDate||(((B&&B.trades)||[])[0]||{}).d||"";miSave();miDraw()});
 function infDraw(){CBK=vmGet("inf");try{$("#sel-inf").innerHTML=mSel("inf");$("#st2").innerHTML=stats().map(([k,v])=>`<div>${k}<b>${v}</b></div>`).join("")}finally{CBK=null}}
+
+/* ===== v158 · 🪙 MEMES: simulador de memecoins de Solana con dinero ficticio (motor en la nube: runner/meme.mjs, rama «meme») ===== */
+const MM={S:null,at:0,err:null,busy:false};
+async function memeLoad(force){if(MM.busy)return;if(!force&&MM.S&&Date.now()-MM.at<60000){memeDraw();return}MM.busy=true;
+ try{const c=window.__CLOUD,r=c&&c.ri?c.ri():null,o=r?r.o:"CarlosGomezS",rr=r?r.r:"Botrading",t=Math.floor(Date.now()/60000);
+  let j=null;for(const u of [`https://raw.githubusercontent.com/${o}/${rr}/meme/meme.json?t=${t}`,`https://api.github.com/repos/${o}/${rr}/contents/meme.json?ref=meme`]){try{const x=await fetch(u,{headers:u.includes("api.github")?{Accept:"application/vnd.github.raw+json"}:{},cache:"no-store"});if(x.status===404){MM.err="nada";continue}if(!x.ok)continue;j=await x.json();break}catch(e){}}
+  if(j){MM.S=j;MM.err=null}MM.at=Date.now()}finally{MM.busy=false}memeDraw()}
+function memeDraw(){const el=$("#mm-body");if(!el)return;const S=MM.S,f=FSC();
+ if(!S){$("#mm-eq").textContent="—";$("#mm-pl").innerHTML="";el.innerHTML=`<div class="p"><div class="m">${MM.err==="nada"?"Todavía no ha hecho su primera vuelta. El guardián lo lanza cada ~2,5 minutos: vuelve en un rato.":"Cargando…"}</div></div>`;return}
+ const st=S.st||{},eq=+S.lastEq||S.start,pl=eq-S.start,pc=pl/S.start*100,pos=Object.entries(S.pos||{}),cl=S.closed||[],ago=S.last?Math.round((Date.now()-Date.parse(S.last))/60000):null;
+ const openV=pos.reduce((t,[a,p])=>t+p.q*(p.last||p.px),0),openC=pos.reduce((t,[a,p])=>t+p.cost,0),closedP=cl.reduce((t,x)=>t+x.pnl,0);
+ $("#mm-eq").textContent=E0(eq*f);
+ $("#mm-pl").innerHTML=`<b class="${pl>=0?"up":"dn"}">${pl>=0?"▲ Ganaría":"▼ Perdería"} ${E0(Math.abs(pl*f))} (${P(pc)})</b> <span class="m">desde los ${E0(S.start*f)} iniciales${f!==1?" (lo ingresado en Trading 212; simula "+S.start+" € y se escala)":""}</span>`;
+ $("#mm-st").innerHTML=`Empezó el ${esc(fd((S.since||"").slice(0,10)))} · última vuelta ${ago==null?"—":ago<1?"ahora mismo":"hace "+ago+" min"} · <b>solo simulación</b>: no toca tu dinero ni Trading 212 (Trading 212 no tiene memecoins).`;
+ const chip=(t,v,c)=>`<div>${t}<b class="${c||""}">${v}</b></div>`;
+ const W2=x=>E2r(x*f),Eu=x=>E0(x*f);
+ let h=`<div class="p"><h2>Parte</h2><div class="kv">${chip("Ganancia cerrada",W2(closedP),closedP>=0?"up":"dn")}${chip("Abierto ahora",Eu(openV)+" · "+W2(openV-openC),openV-openC>=0?"up":"dn")}${chip("Comisiones y deslizamiento",Eu(st.fees||0),"dn")}${chip("Órdenes fallidas",(st.failed||0))}${chip("Operaciones",`${st.trades||0} · ${st.wins||0} ganadas / ${st.losses||0} perdidas`)}${chip("Hundidas (rug)",st.rugs||0,st.rugs?"dn":"")}${chip("Monedas vistas",st.seen||0)}${chip("Descartadas por las reglas",st.killed||0)}${chip("Puntuadas",st.scored||0)}</div>
+ <div class="m">La cifra de arriba sale de aquí: ganancia cerrada + lo abierto valorado al último precio − lo que se ha ido en costes y órdenes fallidas.</div></div>`;
+ // curva
+ const E=(S.eq||[]).slice(-600);if(E.length>1){const W=320,H=90,v=E.map(x=>x[1]),lo=Math.min(...v,S.start),hi=Math.max(...v,S.start),y=x=>H-4-(x-lo)/((hi-lo)||1)*(H-8),xs=i=>i/(E.length-1)*W;
+  h+=`<div class="p"><h2>Saldo</h2><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:110px"><line x1="0" x2="${W}" y1="${y(S.start)}" y2="${y(S.start)}" stroke="var(--muted)" stroke-dasharray="4 4"/><polyline fill="none" stroke="${eq>=S.start?"var(--go)":"var(--stop)"}" stroke-width="2" points="${E.map((x,i)=>xs(i).toFixed(1)+","+y(x[1]).toFixed(1)).join(" ")}"/></svg><div class="m">Línea discontinua: el dinero inicial.</div></div>`}
+ h+=`<div class="p"><h2>Abiertas (${pos.length})</h2>${pos.length?`<div class="tw"><table><tr><th>Moneda</th><th>Nota</th><th>Puesto</th><th>Vale</th><th>Resultado</th><th>Desde</th></tr>${pos.map(([a,p])=>{const v=p.q*(p.last||p.px),g=v-p.cost;return`<tr><td><b>${p.url?`<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.sym)}</a>`:esc(p.sym)}</b>${p.trailing?' <span class="m">🎯 móvil</span>':""}</td><td class="n">${p.sc}</td><td class="n">${Eu(p.cost)}</td><td class="n">${Eu(v)}</td><td class="n ${g>=0?"up":"dn"}">${W2(g)}<br>${P2((v/p.cost-1)*100)}</td><td>${esc(hmL(p.t0))}</td></tr>`}).join("")}</table></div>`:'<div class="m">Nada abierto ahora.</div>'}</div>`;
+ h+=`<div class="p"><details class="rd" data-id="mmcl"${opn("mmcl",true)}><summary><span>Cerradas (${cl.length})</span></summary><div class="tw"><table><tr><th>Moneda</th><th>Resultado</th><th>Por qué salió</th><th>Cuándo</th></tr>${cl.slice(0,60).map(x=>`<tr><td><b>${esc(x.sym)}</b></td><td class="n ${x.pnl>=0?"up":"dn"}">${W2(x.pnl)}<br>${P2(x.pc)}</td><td style="white-space:normal">${esc(x.why)}</td><td>${esc(fd(x.t1.slice(0,10)))} ${esc(hmL(x.t1))}</td></tr>`).join("")||'<tr><td colspan="4">Todavía ninguna.</td></tr>'}</table></div></details></div>`;
+ const N=S.nights||[];if(N.length)h+=`<div class="p"><details class="rd" data-id="mmn"${opn("mmn",false)}><summary><span>Parte de cada día (${N.length})</span></summary><div class="tw"><table><tr><th>Día</th><th>Empezó</th><th>Terminó</th><th>Resultado</th></tr>${N.map(n=>`<tr><td>${esc(fd(n.d))}</td><td class="n">${Eu(n.eq0)}</td><td class="n">${Eu(n.eq1)}</td><td class="n ${n.eq1>=n.eq0?"up":"dn"}">${W2(n.eq1-n.eq0)}<br>${P2((n.eq1/n.eq0-1)*100)}</td></tr>`).join("")}</table></div></details></div>`;
+ const ic={entra:"🟢",gana:"✅",pierde:"🔻",hundida:"💀",falla:"⚠️"};
+ h+=`<div class="p"><details class="rd" data-id="mmlog"${opn("mmlog",false)}><summary><span>Registro de la noche</span></summary><div class="m" style="font-family:ui-monospace,monospace;font-size:12px;line-height:1.5">${(S.log||[]).slice(0,80).map(x=>`${esc(hmL(x.t))} ${ic[x.ev]||"·"} <b>${esc(x.sym)}</b> ${esc(x.txt).replace(/(-?\d+(?:\.\d+)?) \(/,(m,n)=>E2r(+n*f)+" (")}`).join("<br>")||"—"}</div></details></div>`;
+ h+=`<div class="p"><details class="rd" data-id="mmrg"${opn("mmrg",false)}><summary><span>Cómo funciona (las reglas)</span></summary><div class="m" style="line-height:1.6">
+ Imita los bots «nocturnos» de memecoins que se ven en redes, pero con <b>costes realistas</b>, para saber si de verdad ganan.<br>
+ <b>1. Busca</b> monedas nuevas de Solana en DexScreener (datos públicos), cada ~2,5 minutos, las 24 horas.<br>
+ <b>2. Filtro, 8 reglas duras</b> (una que falle = descartada): edad de 30 min a 72 h · tamaño de 0,3 a 20 M$ · liquidez ≥ 40 k$ · volumen de la última hora ≥ 50 k$ · no ha subido más de un 80 % en 1 h · al menos 100 operaciones en 1 h · más compras que ventas (×1,1) · liquidez ≥ 3 % de su tamaño.<br>
+ <b>3. Nota de 0 a 100</b> (impulso, presión compradora, volumen frente a liquidez y liquidez frente a tamaño). Solo entra con <b>70 o más</b>.<br>
+ <b>4. Entra</b> con el 8 % del saldo, como mucho 8 a la vez.<br>
+ <b>5. Sale</b> con stop del −6 %; si llega a +12 % activa un stop móvil al 15 % bajo el máximo; como mucho 24 h; si retiran la liquidez (rug), se pierde todo lo puesto.<br>
+ <b>Costes</b>: 0,5 % por lado (comisión del DEX y propinas de Solana) + deslizamiento del 1 % al 12 % según lo grande que sea la orden frente a la liquidez. El 5 % de las órdenes fallan por red saturada y cuestan la propina.<br>
+ <b>Límites honestos</b>: mira los precios cada ~2,5 min (un bot real los ve al instante, y un stop puede saltar más abajo del −6 %); DexScreener no da el reparto entre poseedores ni si el creador puede congelar la moneda, así que esas dos reglas del vídeo no se pueden aplicar. Es una prueba, no una recomendación: en las memecoins se puede perder todo.</div></details></div>`;
+ el.innerHTML=h}
+{const g0=go;go=function(t){g0(t);if(t==="memes")memeLoad(false)}}
+setInterval(()=>{const t=document.getElementById("t-memes");if(t&&t.classList.contains("on")&&!document.hidden)memeLoad(true)},120000);
 /* v152 · la ficticia entera (cartera, órdenes, feed, gráfico, informes, radar) en euros a la escala de tu dinero real */
 {const W=f=>function(){const p=EMUL;EMUL=FSC();try{return f.apply(this,arguments)}finally{EMUL=p}};cartDraw=W(cartDraw);miDraw=W(miDraw);infDraw=W(infDraw);chartDraw=W(chartDraw);feedHtml=W(feedHtml);radarDraw=W(radarDraw);riskDraw=W(riskDraw)}
 
