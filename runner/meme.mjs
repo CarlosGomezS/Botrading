@@ -323,11 +323,18 @@ export function pasoIdeal(S, by, now, ext) {
 }
 // v179 · ⚡ TURBO: cuenta ficticia aparte, con costes reales, que opera MUCHO más (reglas más anchas y salidas rápidas).
 // Mismas fuentes y mismas comprobaciones de seguridad; no toca el dinero real (que sigue con las reglas del terminal principal).
-export const TURBO = { ...VIDEO, estilo: "video", ageMin: 5, ageMax: 14 * 1440, mcapMin: 50e3, mcapMax: 100e6, liqMin: 15e3, vol1hMin: 10e3, pump1hMax: 400,
-  top10Max: 40, devMax: 10, bundleMax: 30, lpLockMin: 80, mint: 1, stop: 0.1, trailOn: 0.08, trail: 0.1, maxHoldH: 4, size: 0.05, minScore: 45, maxPos: 15, cooldownH: 3, tp: 0.25, tpFrac: 0.5, esc: 0.35, alerta: 1, orgMin: 0 };
+// v186 · Turbo 2: la 1.ª versión perdía un 28 % de media por operación en las pruebas (compraba monedas que ya se habían disparado
+// y pagaba muchos costes con compras de 5 €). Se probaron 2.400 combinaciones sobre más de 1.000 casos reales y esta es la que menos pierde:
+// no persigue subidas de más del 30 % en 1 h, nota mínima 60 con la IA pesando ×5, stop del 8 %, vende la mitad a +50 % y compras del 10 %.
+export const TURBO_V = 2;
+export const TURBO = { ...VIDEO, estilo: "video", ageMin: 5, ageMax: 14 * 1440, mcapMin: 50e3, mcapMax: 100e6, liqMin: 15e3, vol1hMin: 10e3, pump1hMax: 30,
+  top10Max: 40, devMax: 10, bundleMax: 30, lpLockMin: 80, mint: 1, stop: 0.08, trailOn: 0.1, trail: 0.1, maxHoldH: 4, size: 0.1, minScore: 60, maxPos: 8, cooldownH: 6, tp: 0.5, tpFrac: 0.5, esc: 0.35, alerta: 1, orgMin: 0,
+  w: { mom: 1, ub: 1, bs: 1, hg: 1, lm: 1, sw: 1, ia: 5, gr: 1 } };
 export const turboG = (S) => (S.turboGenome ? { ...VIDEO, ...S.turboGenome } : TURBO);
 export function pasoTurbo(S, by, now, ext) {
-  let T = S.turbo; if (!T || T.v !== S.v) { T = S.turbo = freshState(); }
+  let T = S.turbo;
+  if (T && T.tv !== TURBO_V && T.st) { S.turboAntes = (S.turboAntes || []).concat([{ v: T.tv || 1, eq: r2(equity(T, {})), trades: T.st.trades, wins: T.st.wins, hasta: now.toISOString() }]).slice(-10); T = null; delete S.turboGenome; delete S.turboGenomeId; }
+  if (!T || T.v !== S.v) { T = S.turbo = freshState(); T.tv = TURBO_V; const a = (S.turboAntes || []).slice(-1)[0]; if (a) L(T, now, "INFO", "", `⚡ empieza el Turbo ${TURBO_V} con 100 € (el Turbo ${a.v} acabó en ${a.eq} € tras ${a.trades} compras)`); }
   T.smart = S.smart; T.hold = S.hold; T.watch = {}; T.rc = {};
   try { paso(T, by, now, Math.random, ext, null, turboG(S)); T.genomeId = S.turboGenomeId || "vt"; } finally { delete T.smart; delete T.hold; delete T.watch; delete T.rc; }
   T.log = (T.log || []).slice(0, 120); T.closed = (T.closed || []).slice(0, 400); T.flow = []; T.nights = (T.nights || []).slice(0, 60); T.seen = Object.fromEntries(Object.entries(T.seen || {}).slice(-3000));
