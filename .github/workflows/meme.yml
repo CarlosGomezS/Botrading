@@ -1,0 +1,29 @@
+name: Memes (solo dinero ficticio)
+
+# v158 · una vuelta del simulador de memecoins de Solana (DexScreener). Normalmente lo lanza el guardián cada ~2,5 min
+# mientras espera; esto es para lanzarlo a mano. Nunca toca dinero real ni Trading 212.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: memes
+  cancel-in-progress: false
+
+jobs:
+  memes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: runner
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Una vuelta
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node runner/meme.mjs
