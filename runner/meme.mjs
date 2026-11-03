@@ -18,7 +18,7 @@ export const R = {
   liqMin: 40e3, vol1hMin: 50e3, top10Max: 25, devMax: 3, bundleMax: 10, pump1hMax: 80, lpLockMin: 90, // filtro
   stop: 0.06, trailOn: 0.12, trail: 0.15, maxHoldH: 24, rugLiq: 5000, cooldownH: 24, // riesgo
   fee: 0.005, slipMin: 0.01, slipMax: 0.12, failP: 0.05, failCost: 0.02,          // costes realistas
-  rcPerRun: 14, gtPerRun: 10, smartUp: 0.5, smartMinList: 20
+  rcPerRun: 20, gtPerRun: 10, smartUp: 0.5, smartMinList: 20
 };
 // las 8 reglas duras, en el orden de la pantalla del vídeo
 export const RULES = [
@@ -73,13 +73,13 @@ export function gtInfo(trades, nowMs) {
 // ---- las 8 reglas: cada una dice si pasa (true), falla (false) o falta el dato (null) ----
 export function reglas(p, info) {
   const liq = +(p.liquidity && p.liquidity.usd) || 0, v1 = +(p.volume && p.volume.h1) || 0, ch1 = +(p.priceChange && p.priceChange.h1) || 0;
-  return { liq: liq >= R.liqMin, vol: v1 >= R.vol1hMin, pump: ch1 <= R.pump1hMax,
-    mint: info ? info.mintOk : null, lp: info ? info.lp >= R.lpLockMin : null, top10: info ? info.top10 <= R.top10Max : null,
-    dev: info ? info.dev <= R.devMax && !info.devRug : null, bundle: info ? info.bundle <= R.bundleMax : null };
+  return { liq: liq >= G.liqMin, vol: v1 >= G.vol1hMin, pump: ch1 <= G.pump1hMax,
+    mint: info ? (G.mint === 0 ? true : info.mintOk) : null, lp: info ? info.lp >= G.lpLockMin : null, top10: info ? info.top10 <= G.top10Max : null,
+    dev: info ? info.dev <= G.devMax && !info.devRug : null, bundle: info ? info.bundle <= G.bundleMax : null };
 }
 export function explorador(p, now) {
   const age = (now - (+p.pairCreatedAt || 0)) / 60000, mc = +(p.marketCap || p.fdv) || 0;
-  if (!(+p.priceUsd > 0)) return "sin precio"; if (age < R.ageMin) return "joven"; if (age > R.ageMax) return "vieja"; if (mc < R.mcapMin || mc > R.mcapMax) return "tamaño"; return null;
+  if (!(+p.priceUsd > 0)) return "sin precio"; if (age < G.ageMin) return "joven"; if (age > G.ageMax) return "vieja"; if (mc < G.mcapMin || mc > G.mcapMax) return "tamaño"; return null;
 }
 // ---- el analista: 6 señales de 0 a 100 y la nota final (la media) ----
 export function analista(S, a, p, info, g, nowMs) {
@@ -90,11 +90,16 @@ export function analista(S, a, p, info, g, nowMs) {
   const nSmart = Object.keys(S.smart).length, sm = g ? g.buyers.filter((w) => S.smart[w]).length : 0;
   const sig = { mom: Math.round(100 * (0.7 * cl(ch1, 0, 40) + 0.3 * cl(ch5, 0, 8))), ub: g ? Math.round(100 * cl(g.ub, 0, 150)) : 50, bs: Math.round(100 * cl(br, 1, 2)),
     hg: Math.round(100 * hg), lm: Math.round(100 * cl(liq / mc, 0.03, 0.15)), sw: nSmart < R.smartMinList ? 50 : Math.round(100 * cl(sm, 0, 3)) };
-  return { sig, sc: Math.round(Object.values(sig).reduce((x, y) => x + y, 0) / 6), sm, learning: nSmart < R.smartMinList };
+  const w = G.w || {}, ws = Object.keys(sig).reduce((t, k) => t + (w[k] ?? 1), 0) || 1;
+  return { sig, sc: Math.round(Object.keys(sig).reduce((t, k) => t + (w[k] ?? 1) * sig[k], 0) / ws), sm, learning: nSmart < R.smartMinList };
 }
 // costes en uso: los realistas (R) o los «como el vídeo» (sin comisión, sin deslizamiento y sin órdenes fallidas)
 export const IDEAL = { fee: 0, slipMin: 0, slipMax: 0, failP: 0, failCost: 0, fixFee: 0 };
 let C = R;
+// v164 · reglas en uso (genoma): las del vídeo (R) o las que el laboratorio de memes haya aprendido
+export const VIDEO = { ageMin: R.ageMin, ageMax: R.ageMax, mcapMin: R.mcapMin, mcapMax: R.mcapMax, liqMin: R.liqMin, vol1hMin: R.vol1hMin, top10Max: R.top10Max, devMax: R.devMax, bundleMax: R.bundleMax, pump1hMax: R.pump1hMax, lpLockMin: R.lpLockMin, mint: 1, stop: R.stop, trailOn: R.trailOn, trail: R.trail, maxHoldH: R.maxHoldH, size: R.size, minScore: R.minScore, maxPos: R.maxPos, cooldownH: R.cooldownH, w: { mom: 1, ub: 1, bs: 1, hg: 1, lm: 1, sw: 1 } };
+let G = VIDEO;
+export function conGenoma(g, fn) { const p = G; G = { ...VIDEO, ...(g || {}) }; try { return fn(); } finally { G = p; } }
 export const slip = (eur, liq) => C.slipMax <= 0 ? 0 : Math.min(C.slipMax, C.slipMin + eur / Math.max(1, liq));
 export function equity(S, px) { let v = S.cash; for (const [a, p] of Object.entries(S.pos)) v += p.q * (px[a] != null ? px[a] : p.last); return v; }
 
@@ -111,30 +116,30 @@ function cerrar(S, a, now, px, liq, why, ev, rug) {
 
 // una vuelta completa: riesgo vigila lo abierto → explorador → filtro → analista → ejecutor → registro. ext = {rc:{a:info}, gt:{a:info}}
 // RIESGO: vigila lo abierto (stop, stop móvil, tiempo máximo y rug). También se usa sola, cada ~20 s, entre vuelta y vuelta
-export function riesgo(S, by, now = new Date(), costs) {
-  const prevC = C; C = costs ? { ...R, ...costs } : R;
+export function riesgo(S, by, now = new Date(), costs, genome) {
+  const prevC = C, prevG = G; C = costs ? { ...R, ...costs } : R; G = { ...VIDEO, ...(genome || S.genome || {}) };
   try {
   const tnow = now.getTime(), px = {};
   for (const [a, p] of Object.entries(S.pos)) {
     const q = by[a], liq = q ? +(q.liquidity && q.liquidity.usd) || 0 : 0, pr = q ? +q.priceUsd : 0;
     if (!q || !(pr > 0) || liq < R.rugLiq) { cerrar(S, a, now, 0, 0, "liquidez retirada o moneda desaparecida", "RUG", true); continue; }
     px[a] = pr; p.last = pr; p.peak = Math.max(p.peak || p.px, pr); p.liq = liq; p.h = (p.h || []); p.h.push([now.toISOString(), pr]); p.h = p.h.slice(-200);
-    if (!p.trailing && p.peak >= p.px * (1 + R.trailOn)) { p.trailing = true; L(S, now, "TRAIL", p.sym, `+${R.trailOn * 100} % alcanzado · stop móvil activado`); }
+    if (!p.trailing && p.peak >= p.px * (1 + G.trailOn)) { p.trailing = true; L(S, now, "TRAIL", p.sym, `+${G.trailOn * 100} % alcanzado · stop móvil activado`); }
     const ageH = (tnow - Date.parse(p.t0)) / 3600e3;
-    if (pr <= p.px * (1 - R.stop)) cerrar(S, a, now, pr, liq, `stop −${R.stop * 100} %`, "STOP");
-    else if (p.trailing && pr <= p.peak * (1 - R.trail)) cerrar(S, a, now, pr, liq, `stop móvil (${R.trail * 100} % bajo el máximo)`, "EXIT");
-    else if (ageH >= R.maxHoldH) cerrar(S, a, now, pr, liq, `tiempo máximo (${R.maxHoldH} h)`, "EXIT");
+    if (pr <= p.px * (1 - G.stop)) cerrar(S, a, now, pr, liq, `stop −${G.stop * 100} %`, "STOP");
+    else if (p.trailing && pr <= p.peak * (1 - G.trail)) cerrar(S, a, now, pr, liq, `stop móvil (${G.trail * 100} % bajo el máximo)`, "EXIT");
+    else if (ageH >= G.maxHoldH) cerrar(S, a, now, pr, liq, `tiempo máximo (${G.maxHoldH} h)`, "EXIT");
   }
   return px;
-  } finally { C = prevC; }
+  } finally { C = prevC; G = prevG; }
 }
 
-export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs) {
-  const prevC = C; C = costs ? { ...R, ...costs } : R;
+export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs, genome) {
+  const prevC = C, prevG = G; C = costs ? { ...R, ...costs } : R; G = { ...VIDEO, ...(genome || S.genome || {}) };
   try {
   const tnow = now.getTime(), RCI = ext.rc || {}, GTI = ext.gt || {};
   S.rk = S.rk || {}; S.ag = S.ag || {}; S.flow = S.flow || [];
-  const px = riesgo(S, by, now, costs);
+  const px = riesgo(S, by, now, costs, G);
   // carteras listas: quien compró pronto en una moneda que luego subió un 50 % entra en la lista (aprende solo)
   for (const [a, w] of Object.entries(S.watch || {})) {
     const q = by[a], pr = q ? +q.priceUsd : 0;
@@ -151,7 +156,7 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs
     if (ex) { if (ex === "joven") S.young[a] = S.young[a] || tnow; else delete S.young[a]; continue; }
     delete S.young[a];
     if (!z.f) { z.f = 1; S.st.seen++; nNew++; S.flow.unshift({ a, sym: q.baseToken.symbol, age: Math.round((tnow - q.pairCreatedAt) / 60000), mc: +(q.marketCap || q.fdv) || 0, t: now.toISOString() }); S.flow = S.flow.slice(0, 12); }
-    if (S.cool[a] && tnow - S.cool[a] < R.cooldownH * 3600e3) continue;
+    if (S.cool[a] && tnow - S.cool[a] < G.cooldownH * 3600e3) continue;
     const info = RCI[a] || null, rr = reglas(q, info), fails = RULES.filter(([k]) => rr[k] === false).map(([k]) => k), miss = RULES.filter(([k]) => rr[k] == null).map(([k]) => k);
     if (info && info.rugged) fails.unshift("lp");
     if (fails.length) {
@@ -164,16 +169,16 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs
     S.ag.filter = { sym: q.baseToken.symbol, rule: 8, ok: true, t: now.toISOString() };
     const g = GTI[a] || null, an = analista(S, a, q, info, g, tnow);
     if (info && info.holders) S.hold[a] = S.hold[a] && tnow - S.hold[a].t < 10 * 60000 ? S.hold[a] : { n: info.holders, t: tnow };
-    if (!z.s) { z.s = 1; S.st.scored++; L(S, now, "SCORE", q.baseToken.symbol, `${an.sc}${an.sc >= R.minScore ? " → ejecutor" : " · por debajo de 70: descartada"}`); }
+    if (!z.s) { z.s = 1; S.st.scored++; L(S, now, "SCORE", q.baseToken.symbol, `${an.sc}${an.sc >= G.minScore ? " → ejecutor" : " · por debajo de 70: descartada"}`); }
     S.ag.analyst = { sym: q.baseToken.symbol, sc: an.sc, sig: an.sig, learning: an.learning, t: now.toISOString() };
     if (g && g.buyers.length && !S.watch[a]) S.watch[a] = { sym: q.baseToken.symbol, px: +q.priceUsd, t: tnow, b: g.buyers.slice(0, 40) };
-    if (an.sc >= R.minScore) cands.push({ a, q, sc: an.sc, sig: an.sig });
+    if (an.sc >= G.minScore) cands.push({ a, q, sc: an.sc, sig: an.sig });
   }
   // EJECUTOR
   cands.sort((x, y) => y.sc - x.sc);
   for (const { a, q, sc, sig } of cands) {
-    if (Object.keys(S.pos).length >= R.maxPos) break;
-    const eq = equity(S, px), amt = Math.min(S.cash, eq * R.size), liq = +q.liquidity.usd, pr = +q.priceUsd;
+    if (Object.keys(S.pos).length >= G.maxPos) break;
+    const eq = equity(S, px), amt = Math.min(S.cash, eq * G.size), liq = +q.liquidity.usd, pr = +q.priceUsd;
     if (amt < 1) break;
     if (C.failP > 0 && rnd() < C.failP) { S.cash -= C.failCost; S.st.failed++; S.st.fees += C.failCost; L(S, now, "FAIL", q.baseToken.symbol, "la orden no entró (red saturada): se pierde la propina"); continue; }
     const sl = slip(amt, liq), fill = pr * (1 + sl), qn = Math.max(0, amt * (1 - C.fee) - (C.fixFee || 0)) / fill;
@@ -181,11 +186,11 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs
     S.cash -= amt; S.st.trades++; S.st.fees += amt - qn * pr;
     S.pos[a] = { sym: q.baseToken.symbol, name: q.baseToken.name, url: q.url, q: qn, px: pr, cost: amt, t0: now.toISOString(), peak: pr, last: pr, sc, sig, liq, h: [[now.toISOString(), pr]] };
     px[a] = pr; S.ag.exec = { sym: q.baseToken.symbol, amt: r2(amt), t: now.toISOString() };
-    L(S, now, "ENTER", q.baseToken.symbol, `${r2(amt)} · ${Math.round(R.size * 100)} % · deslizamiento ${r2(sl * 100)} % · stop −${R.stop * 100} % puesto`);
+    L(S, now, "ENTER", q.baseToken.symbol, `${r2(amt)} · ${Math.round(G.size * 100)} % · deslizamiento ${r2(sl * 100)} % · stop −${G.stop * 100} % puesto`);
   }
   // limpieza, curva, ritmo y parte del día
   for (const [a, z] of Object.entries(S.seen)) if (tnow - (z && z.t || 0) > 4 * 86400e3) { delete S.seen[a]; delete S.hold[a]; delete S.rc[a]; }
-  for (const [a, t] of Object.entries(S.cool)) if (tnow - t > R.cooldownH * 3600e3) delete S.cool[a];
+  for (const [a, t] of Object.entries(S.cool)) if (tnow - t > G.cooldownH * 3600e3) delete S.cool[a];
   for (const [a, t] of Object.entries(S.young)) if (tnow - t > 3 * 3600e3) delete S.young[a];
   const eq = equity(S, px);
   S.eq.push([now.toISOString(), r2(eq)]); if (S.eq.length > 3000) S.eq = S.eq.filter((_, i) => i % 2 === 0 || i > S.eq.length - 500);
@@ -194,14 +199,14 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs
   if (!S.day || S.day.d !== d) { if (S.day) S.nights.unshift({ ...S.day, eq1: S.lastEq, st1: { ...S.st } }); S.nights = S.nights.slice(0, 120); S.day = { d, eq0: S.lastEq != null ? S.lastEq : eq, st0: { ...S.st } }; }
   S.lastEq = r2(eq); S.last = now.toISOString();
   return S;
-  } finally { C = prevC; }
+  } finally { C = prevC; G = prevG; }
 }
 
 // «como el vídeo»: las MISMAS decisiones y datos, pero sin comisiones, sin deslizamiento y sin órdenes fallidas (comparte las carteras listas)
 export function pasoIdeal(S, by, now, ext) {
   let I = S.ideal; if (!I || I.v !== S.v) { I = S.ideal = freshState(); I.since = S.since; }
   I.smart = S.smart; I.hold = S.hold; I.watch = {}; I.rc = {};
-  try { paso(I, by, now, () => 1, ext, IDEAL); } finally { delete I.smart; delete I.hold; delete I.watch; delete I.rc; }
+  try { paso(I, by, now, () => 1, ext, IDEAL, VIDEO); } finally { delete I.smart; delete I.hold; delete I.watch; delete I.rc; }
   I.log = (I.log || []).slice(0, 60); I.closed = (I.closed || []).slice(0, 300); I.flow = []; I.nights = (I.nights || []).slice(0, 60);
   for (const p of Object.values(I.pos || {})) p.h = (p.h || []).slice(-60);
   return I;
@@ -209,70 +214,81 @@ export function pasoIdeal(S, by, now, ext) {
 // vuelta rápida: solo precios de lo abierto y el riesgo (para que los stops salten antes)
 export function rapido(S, by, now) {
   riesgo(S, by, now);
-  if (S.ideal) { const I = S.ideal; riesgo(I, by, now, IDEAL); I.lastEq = r2(equity(I, {})); }
+  if (S.ideal) { const I = S.ideal; riesgo(I, by, now, IDEAL, VIDEO); I.lastEq = r2(equity(I, {})); }
   S.lastEq = r2(equity(S, {})); S.lastQ = now.toISOString();
 }
 
-async function leerEstado() {
+async function leerArchivo(f) {
   if (!REPO || !TOKEN) return null;
-  const r = await fetch(`https://api.github.com/repos/${REPO}/contents/meme.json?ref=meme`, { headers: { Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github.raw+json" } });
-  if (r.status === 404) return null; if (!r.ok) throw new Error("no pude leer meme.json (HTTP " + r.status + ")");
+  const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${f}?ref=meme`, { headers: { Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github.raw+json" } });
+  if (r.status === 404) return null; if (!r.ok) throw new Error("no pude leer " + f + " (HTTP " + r.status + ")");
   return await r.json();
 }
-function publicar(S) {
-  const out = JSON.stringify(S); writeFileSync("meme.json", out);
+// se publican juntos (un solo commit en la rama «meme»): el terminal y su laboratorio
+function publicar(S, LB) {
+  const out = JSON.stringify(S); writeFileSync("meme.json", out); if (LB) writeFileSync("meme-lab.json", JSON.stringify(LB));
   if (!REPO || !TOKEN) { console.log("Ejecución local: guardado en meme.json"); return; }
   const pub = path.join(process.cwd(), ".pubmeme"); rmSync(pub, { recursive: true, force: true }); mkdirSync(pub); writeFileSync(path.join(pub, "meme.json"), out);
+  if (LB) writeFileSync(path.join(pub, "meme-lab.json"), JSON.stringify(LB));
   const g = (c) => execSync(`git -C "${pub}" ${c}`, { stdio: "pipe" });
-  g("init -q -b meme"); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"'); g("add meme.json"); g(`commit -q -m "memes ${new Date().toISOString()}"`);
+  g("init -q -b meme"); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"'); g("add -A"); g(`commit -q -m "memes ${new Date().toISOString()}"`);
   for (let i = 0; i < 4; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git meme`); return; } catch (e) { if (i === 3) throw new Error("no pude guardar meme.json"); } }
 }
 
 async function main() {
-  const now = new Date(), tnow = now.getTime(), t0 = Date.now();
-  let S = await leerEstado(); if (!S || S.v !== 4) { const old = S; S = freshState(); if (old && old.since) L(S, now, "INFO", "", "empieza de cero con 50 € y los costes fijos de Solana"); }
+  const now = new Date(), tnow = now.getTime(), t0 = Date.now(), LBm = await import("./meme-lab.mjs");
+  let S = await leerArchivo("meme.json"); if (!S || S.v !== 4) { const old = S; S = freshState(); if (old && old.since) L(S, now, "INFO", "", "empieza de cero con 50 € y los costes fijos de Solana"); }
+  let LB = null; try { LB = await leerArchivo("meme-lab.json"); } catch (e) { console.log("Memes: " + e.message); return; }
+  if (!LB || LB.v !== 1) { LB = LBm.freshLab(now); L(S, now, "INFO", "", `🧬 nace el laboratorio de memes: ${LB.pop.length} variantes de las reglas compiten en ficticio`); }
+  const varOpen = () => LB.pop.flatMap((v) => Object.keys(v.pos || {}));
   if (process.argv[2] === "rapido") {
-    const open = [...new Set([...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {})])];
+    const open = [...new Set([...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()])];
     if (!open.length) { console.log("Memes (rápido): nada abierto."); return; }
     const pairs = []; for (let i = 0; i < open.length; i += 30) { const j = await J(`${DS}/tokens/v1/solana/${open.slice(i, i + 30).join(",")}`); if (Array.isArray(j)) pairs.push(...j); }
     const by = bestPairs(pairs); if (!Object.keys(by).length) { console.log("Memes (rápido): sin precios."); return; }
     for (const a of open) if (!by[a]) { console.log("Memes (rápido): falta el precio de alguna; espero a la vuelta completa."); return; }
     rapido(S, by, now);
-    publicar(S);
+    for (const v of LB.pop) LBm.pasoVar(v, by, now, { full: false });
+    publicar(S, LB);
     console.log(`Memes (rápido): ${open.length} abiertas vigiladas · saldo ${r2(S.lastEq)}`); return;
   }
   if (S.last && tnow - Date.parse(S.last) < 40e3) { console.log("Memes: la última vuelta fue hace menos de 40 s; nada que hacer."); return; }
-  // EXPLORADOR: todas las fuentes de monedas nuevas de Solana
-  const addrs = new Set([...Object.keys(S.pos), ...Object.keys(S.young || {}), ...Object.keys(S.watch || {})]);
+  // EXPLORADOR: todas las fuentes de monedas nuevas de Solana (y todo lo que tenga abierto cualquiera: terminal, «como el vídeo» y variantes)
+  const addrs = new Set([...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen(), ...Object.keys(S.young || {}), ...Object.keys(S.watch || {})]);
   const add = (x) => { if (x && typeof x === "string" && x.length > 30) addrs.add(x); };
   for (const u of [DS + "/token-profiles/latest/v1", DS + "/token-boosts/latest/v1", DS + "/token-boosts/top/v1"]) { try { const j = await J(u); for (const x of Array.isArray(j) ? j : []) if (x && x.chainId === "solana") add(x.tokenAddress); } catch (e) { console.log("Memes: " + u + ": " + e.message); } }
   for (const u of [GT + "/networks/solana/new_pools?page=1", GT + "/networks/solana/new_pools?page=2", GT + "/networks/solana/trending_pools?page=1"]) { try { const j = await J(u); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(/^solana_/, "")); } } catch (e) { console.log("Memes: " + u + ": " + e.message); } }
-  const list = [...addrs].slice(0, 600), pairs = [];
-  for (let i = 0; i < list.length; i += 30) { try { const j = await J(`${DS}/tokens/v1/solana/${list.slice(i, i + 30).join(",")}`); if (Array.isArray(j)) pairs.push(...j); } catch (e) { console.log("Memes: precios: " + e.message); if (Object.keys(S.pos).length) { console.log("Memes: sin precios de lo abierto: no decido esta vuelta."); return; } } }
+  const list = [...addrs].slice(0, 700), pairs = [];
+  for (let i = 0; i < list.length; i += 30) { try { const j = await J(`${DS}/tokens/v1/solana/${list.slice(i, i + 30).join(",")}`); if (Array.isArray(j)) pairs.push(...j); } catch (e) { console.log("Memes: precios: " + e.message); console.log("Memes: sin todos los precios: no decido esta vuelta."); return; } }
   const by = bestPairs(pairs);
   if (!Object.keys(by).length) { console.log("Memes: sin datos de DexScreener; se intenta en la siguiente vuelta."); return; }
-  // FILTRO (datos de cadena): RugCheck solo para las que pasan lo barato, con caché de 30 min
-  const ext = { rc: {}, gt: {} }, pre = [];
-  for (const [a, q] of Object.entries(by)) { if (S.pos[a] || explorador(q, tnow)) continue; if (S.cool[a] && tnow - S.cool[a] < R.cooldownH * 3600e3) continue; const rr = reglas(q, null); if (rr.liq && rr.vol && rr.pump) pre.push([a, q]); }
+  // FILTRO (datos de cadena): RugCheck para las que pasan lo barato con las reglas MÁS LAXAS de toda la población (caché de 30 min)
+  const lx = LBm.laxo(LB), ext = { rc: {}, gt: {} }, pre = [];
+  conGenoma(lx, () => { for (const [a, q] of Object.entries(by)) { if (S.pos[a] || explorador(q, tnow)) continue; const rr = reglas(q, null); if (rr.liq && rr.vol && rr.pump) pre.push([a, q]); } });
   pre.sort((x, y) => (+(y[1].volume && y[1].volume.h1) || 0) - (+(x[1].volume && x[1].volume.h1) || 0));
   let nrc = 0;
   for (const [a] of pre) {
     const c = S.rc[a]; if (c && tnow - c.t < 30 * 60000) { ext.rc[a] = c.i; continue; }
-    if (nrc >= R.rcPerRun || Date.now() - t0 > 55e3) continue;
+    if (nrc >= R.rcPerRun || Date.now() - t0 > 50e3) continue;
     try { const j = await J(`${RC}/tokens/${a}/report`, 2); nrc++; if (j) { const i = rcInfo(j); S.rc[a] = { t: tnow, i }; ext.rc[a] = i; } } catch (e) { nrc++; }
-    await sleep(350);
+    await sleep(300);
   }
-  // ANALISTA: operaciones con cartera (compradores únicos y carteras listas) de GeckoTerminal para las que pasan las 8 reglas
+  // ANALISTA: operaciones con cartera de GeckoTerminal para las que tienen datos de RugCheck y no son rug (primero las de más volumen)
   let ngt = 0;
-  for (const [a, q] of pre) {
-    const i = ext.rc[a]; if (!i) continue; const rr = reglas(q, i); if (RULES.some(([k]) => rr[k] === false) || i.rugged) continue;
-    if (ngt >= R.gtPerRun || Date.now() - t0 > 70e3) break;
+  const pasaTerm = (a, q) => conGenoma(S.genome, () => { const i = ext.rc[a], rr = reglas(q, i); return i && !RULES.some(([k]) => rr[k] !== true); });
+  const preGT = pre.filter(([a, q]) => pasaTerm(a, q)).concat(pre.filter(([a, q]) => !pasaTerm(a, q)));
+  for (const [a, q] of preGT) {
+    const i = ext.rc[a]; if (!i || i.rugged) continue;
+    if (ngt >= R.gtPerRun || Date.now() - t0 > 65e3) break;
     try { const j = await J(`${GT}/networks/solana/pools/${q.pairAddress}/trades`, 2); ngt++; if (j && j.data) ext.gt[a] = gtInfo(j.data, tnow); } catch (e) { ngt++; }
     await sleep(300);
   }
   paso(S, by, now, Math.random, ext);
   pasoIdeal(S, by, now, ext);
-  publicar(S);
-  console.log(`Memes: ${Object.keys(by).length} monedas · RugCheck ${nrc} · GeckoTerminal ${ngt} · saldo ${r2(S.lastEq)} · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · ${Math.round((Date.now() - t0) / 1000)} s`);
+  for (const v of LB.pop) LBm.pasoVar(v, by, now, { ...ext, full: true }, S.smart, S.hold);
+  const evo = LBm.evolucionar(LB, S, now); if (evo) L(S, now, "INFO", "", `🧬 generación ${evo.gen}: se archivan ${evo.out} variantes y nacen otras`);
+  if (S.genomeId && S.genomeAt !== S.genomeId) { S.genomeAt = S.genomeId; L(S, now, "INFO", "", `🏆 el terminal pasa a usar las reglas aprendidas de ${S.genomeId}`); }
+  publicar(S, LB);
+  console.log(`Memes: ${Object.keys(by).length} monedas · RugCheck ${nrc} · GeckoTerminal ${ngt} · saldo ${r2(S.lastEq)} · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · variantes ${LB.pop.length} (gen ${LB.gen}) · ${Math.round((Date.now() - t0) / 1000)} s`);
 }
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.log("Memes: " + (e.message || e)); process.exit(0); });

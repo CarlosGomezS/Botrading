@@ -1,6 +1,7 @@
 // v159 · pruebas del terminal de memes (solo dinero ficticio)
 import test from "node:test";
 import assert from "node:assert/strict";
+import { freshLab, pasoVar, evolucionar, fitness, mutar, aleatorio, gkey, POP } from "../runner/meme-lab.mjs";
 import { freshState, paso, pasoIdeal, rapido, reglas, rcInfo, gtInfo, analista, explorador, bestPairs, R } from "../runner/meme.mjs";
 
 const T0 = Date.parse("2026-11-03T10:00:00Z");
@@ -88,4 +89,24 @@ test("con 50 €: los costes fijos de Solana pesan en cada compra de 4 €", () 
   const c = S.pos.a.cost - S.pos.a.q * 1;   // lo que se va al entrar
   assert.ok(c >= R.fixFee, "incluye el coste fijo"); assert.ok(c / S.pos.a.cost > 0.03, "más de un 3 % de una compra de 4 €");
   assert.equal(S.ideal.pos.a.q, 4, "la cuenta «como el vídeo» no paga nada");
+});
+
+test("laboratorio de memes: población, cada variante opera con sus reglas, selección y adopción", () => {
+  const T = new Date(T0), Lb = freshLab(T); assert.equal(Lb.pop.length, POP); assert.equal(Lb.pop[0].id, "v0");
+  assert.equal(new Set(Lb.pop.map((v) => gkey(v.g))).size, POP, "todas distintas");
+  const ext = { rc: { a: okInfo }, gt: { a: gtInfo(gtTr(300), T0) }, full: true };
+  pasoVar(Lb.pop[0], { a: par("a") }, T, ext, {}, {}, () => 1); assert.ok(Lb.pop[0].pos.a, "la del vídeo entra como el terminal");
+  const S = freshState();
+  // simular: v1 gana mucho con 40 operaciones; v2..v5 pierden; el resto no opera en 49 h
+  const fake = (v, n, pc) => { v.n = n; v.s1 = n * pc; v.s2 = n * (pc * pc + 0.0001); v.w = pc > 0 ? n : 0; v.lastEq = R.start * (1 + pc * n / 10); };
+  fake(Lb.pop[1], 40, 0.05); for (let i = 2; i < 6; i++) fake(Lb.pop[i], 12, -0.04); for (let i = 6; i < POP; i++) Lb.pop[i].born = new Date(T0 - 50 * 3600e3).toISOString();
+  Lb.lastGen = new Date(T0 - 4 * 3600e3).toISOString();
+  const r = evolucionar(Lb, S, T, () => 0.3);
+  assert.ok(r && r.out > 0, "archiva algunas"); assert.equal(Lb.pop.length, POP, "repone hasta la población completa"); assert.ok(Lb.arch.length === r.out);
+  assert.ok(Lb.pop.some((v) => v.id === "v0"), "la del vídeo nunca sale"); assert.ok(Lb.pop.some((v) => v.id === "v1"), "la mejor sigue");
+  assert.equal(S.genomeId, "v1", "el terminal adopta la que demuestra ser mejor"); assert.ok(fitness(Lb.pop.find((v) => v.id === "v1")) > 2);
+  assert.ok(Lb.log.some((x) => x.k === "adopta") && Lb.log.some((x) => x.k === "nace"));
+  // y el terminal usa ahora esas reglas
+  const g = aleatorio(() => 0.99); S.genome = { ...g, minScore: 99 }; paso(S, { a: par("a") }, new Date(T0 + 60e3), () => 1, ext);
+  assert.ok(!S.pos.a, "con nota mínima 99 no entra: usa el genoma adoptado");
 });
