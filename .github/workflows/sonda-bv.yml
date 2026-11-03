@@ -1,0 +1,11 @@
+name: sonda-bv (temporal)
+on: workflow_dispatch
+jobs:
+  s:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -s -o /tmp/t.json -w "ticker24h %{http_code} %{size_download}\n" https://api.bitvavo.com/v2/ticker/24h
+          node -e 'const t=require("/tmp/t.json");const e=t.filter(x=>/-EUR$/.test(x.market)&&+x.volumeQuote>5e5);console.log("EUR >500k",e.length);console.log(JSON.stringify(t[0]));console.log(e.sort((a,b)=>b.volumeQuote-a.volumeQuote).slice(0,15).map(x=>x.market+":"+Math.round(x.volumeQuote/1e3)+"k").join(" "))'
+          curl -s -w "\ncandles %{http_code}\n" "https://api.bitvavo.com/v2/SOL-EUR/candles?interval=5m&limit=3" | head -c 400
+          curl -s -D - -o /dev/null "https://api.bitvavo.com/v2/time" | grep -i "ratelimit\|HTTP"
