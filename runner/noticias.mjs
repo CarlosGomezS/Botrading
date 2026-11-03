@@ -4,7 +4,7 @@
 // 🧠 APRENDE: de CADA anuncio (se compre o no) apunta cómo se movió el precio a 1, 5, 15, 30 y 60 min; con eso decide para cada fuente
 // cuánto tiempo conviene mantener y si merece la pena operarla (solo opera fuentes cuya media, ya con costes, sea positiva).
 // Llega SEGUNDOS tarde (no milisegundos): se pierde el primer salto; la prueba en ficticio dirá si aun así da dinero.
-import { execSync } from "node:child_process";
+import { exec } from "node:child_process";
 import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 
@@ -18,12 +18,13 @@ export const simbolos = (t) => [...String(t || "").matchAll(/\(([A-Z0-9]{2,12})\
 const esListado = (t) => /list|listing|신규|거래지원/i.test(t) && !/delist|종료|remove|removal|suspen|migration|swap|airdrop|futures|perpetual|margin/i.test(t);
 // cada fuente devuelve [{ id, sym, titulo }]
 export const FUENTES = {
-  upbit: { cada: 3, n: "Upbit (Corea)", leer: async () => { const j = await J("https://api-manager.upbit.com/api/v1/announcements?os=web&page=1&per_page=10&category=trade"); return ((j.data && j.data.notices) || []).filter((x) => esListado(x.title)).flatMap((x) => simbolos(x.title).map((s) => ({ id: "u" + x.id + s, sym: s, titulo: x.title }))); } },
-  binance: { cada: 3, n: "Binance", leer: async () => { const j = await J("https://www.binance.com/bapi/composite/v1/public/cms/article/list/query?type=1&catalogId=48&pageNo=1&pageSize=10"); const a = ((j.data && j.data.catalogs && j.data.catalogs[0] && j.data.catalogs[0].articles) || []); return a.filter((x) => esListado(x.title)).flatMap((x) => simbolos(x.title).map((s) => ({ id: "b" + x.id + s, sym: s, titulo: x.title }))); } },
-  okx: { cada: 10, n: "OKX", leer: async () => { const j = await J("https://www.okx.com/api/v5/support/announcements?annType=announcements-new-listings"); const d = ((j.data && j.data[0] && j.data[0].details) || []); return d.filter((x) => esListado(x.title)).flatMap((x) => simbolos(x.title).map((s) => ({ id: "o" + x.pTime + s, sym: s, titulo: x.title }))); } },
-  kucoin: { cada: 10, n: "KuCoin", leer: async () => { const j = await J("https://api.kucoin.com/api/v3/announcements?annType=new-listings&pageSize=10"); return ((j.data && j.data.items) || []).filter((x) => esListado(x.annTitle)).flatMap((x) => simbolos(x.annTitle).map((s) => ({ id: "k" + x.annId + s, sym: s, titulo: x.annTitle }))); } },
-  coinbase: { cada: 30, n: "Coinbase", leer: async () => { const j = await J("https://api.exchange.coinbase.com/products"); return (j || []).map((x) => ({ id: "c" + x.base_currency, sym: x.base_currency, titulo: "Coinbase abre " + x.id })); } },
-  bithumb: { cada: 30, n: "Bithumb (Corea)", leer: async () => { const j = await J("https://api.bithumb.com/public/ticker/ALL_KRW"); return Object.keys((j && j.data) || {}).filter((k) => k !== "date").map((k) => ({ id: "h" + k, sym: k, titulo: "Bithumb abre " + k + "/KRW" })); } }
+  // v209 · Upbit y Binance cada medio segundo (cada fuente en su propio bucle, en paralelo; si una fuente se queja, espera más y vuelve a bajar)
+  upbit: { cada: 0.5, n: "Upbit (Corea)", leer: async () => { const j = await J("https://api-manager.upbit.com/api/v1/announcements?os=web&page=1&per_page=10&category=trade"); return ((j.data && j.data.notices) || []).filter((x) => esListado(x.title)).flatMap((x) => simbolos(x.title).map((s) => ({ id: "u" + x.id + s, sym: s, titulo: x.title, pub: Date.parse(x.listed_at || x.first_listed_at) || null }))); } },
+  binance: { cada: 0.5, n: "Binance", leer: async () => { const j = await J("https://www.binance.com/bapi/composite/v1/public/cms/article/list/query?type=1&catalogId=48&pageNo=1&pageSize=10"); const a = ((j.data && j.data.catalogs && j.data.catalogs[0] && j.data.catalogs[0].articles) || []); return a.filter((x) => esListado(x.title)).flatMap((x) => simbolos(x.title).map((s) => ({ id: "b" + x.id + s, sym: s, titulo: x.title, pub: +x.releaseDate || null }))); } },
+  okx: { cada: 2, n: "OKX", leer: async () => { const j = await J("https://www.okx.com/api/v5/support/announcements?annType=announcements-new-listings"); const d = ((j.data && j.data[0] && j.data[0].details) || []); return d.filter((x) => esListado(x.title)).flatMap((x) => simbolos(x.title).map((s) => ({ id: "o" + x.pTime + s, sym: s, titulo: x.title, pub: +x.pTime || null }))); } },
+  kucoin: { cada: 2, n: "KuCoin", leer: async () => { const j = await J("https://api.kucoin.com/api/v3/announcements?annType=new-listings&pageSize=10"); return ((j.data && j.data.items) || []).filter((x) => esListado(x.annTitle)).flatMap((x) => simbolos(x.annTitle).map((s) => ({ id: "k" + x.annId + s, sym: s, titulo: x.annTitle, pub: +x.cTime || null }))); } },
+  coinbase: { cada: 10, n: "Coinbase", leer: async () => { const j = await J("https://api.exchange.coinbase.com/products"); return (j || []).map((x) => ({ id: "c" + x.base_currency, sym: x.base_currency, titulo: "Coinbase abre " + x.id })); } },
+  bithumb: { cada: 10, n: "Bithumb (Corea)", leer: async () => { const j = await J("https://api.bithumb.com/public/ticker/ALL_KRW"); return Object.keys((j && j.data) || {}).filter((k) => k !== "date").map((k) => ({ id: "h" + k, sym: k, titulo: "Bithumb abre " + k + "/KRW" })); } }
 };
 export function fresh(now = new Date()) { return { v: 1, start: START, cash: START, pos: {}, closed: [], log: [], eq: [], st: { trades: 0, wins: 0, losses: 0, fees: 0, pnl: 0 }, seen: {}, ev: [], fuentes: {}, since: now.toISOString() }; }
 const L = (S, now, ev, sym, txt) => { S.log.unshift({ t: now.toISOString(), ev, sym, txt }); S.log = S.log.slice(0, 200); };
@@ -58,45 +59,62 @@ async function leer(f, rama) {
   const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${f}?ref=${rama}`, { headers: { Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github.raw+json" } });
   if (r.status === 404) return null; if (!r.ok) throw new Error("HTTP " + r.status); return await r.json();
 }
-function publicar(S) {
+async function publicar(S) {   // sin bloquear: mientras se guarda, las fuentes se siguen leyendo cada medio segundo
   const out = JSON.stringify(S); if (!REPO || !TOKEN) { writeFileSync("noticias.json", out); return; }
   const pub = path.join(process.cwd(), ".pub-noticias"); rmSync(pub, { recursive: true, force: true }); mkdirSync(pub); writeFileSync(path.join(pub, "noticias.json"), out);
-  const g = (c) => execSync(`git -C "${pub}" ${c}`, { stdio: "pipe" });
-  g("init -q -b x"); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"'); g("add -A"); g(`commit -q -m "noticias ${new Date().toISOString()}"`);
-  for (let i = 0; i < 3; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git HEAD:${RAMA}`); return; } catch (e) { if (i === 2) console.log("Noticias: no pude guardar"); } }
+  const g = (c) => new Promise((ok, ko) => exec(`git -C "${pub}" ${c}`, (e) => (e ? ko(e) : ok())));
+  try { await g("init -q -b x"); await g('config user.name "bot-trading"'); await g('config user.email "bot-trading@users.noreply.github.com"'); await g("add -A"); await g(`commit -q -m "noticias ${new Date().toISOString()}"`); } catch (e) { return; }
+  for (let i = 0; i < 3; i++) { try { await g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git HEAD:${RAMA}`); return; } catch (e) { if (i === 2) console.log("Noticias: no pude guardar"); } }
 }
 
 async function main() {
   const fin = Date.now() + (+process.argv[2] || 27) * 60000;
   let S = null; try { S = await leer("noticias.json", RAMA); } catch (e) { console.log("Noticias: " + e.message); }
   if (!S || S.v !== 1) { S = fresh(); L(S, new Date(), "INFO", "", "📰 empieza «noticias en segundos» con 100 € ficticios"); }
-  let mercados = new Set(), mAt = 0, ult = {}, pubAt = 0, cambio = true;
-  const bvMercados = async () => { const j = await J(`${BV}/markets`); const s = new Set(); for (const x of j) if (x.quote === "EUR" && x.status === "trading") s.add(x.base); return s; };
-  while (Date.now() < fin) {
-    const now = new Date(), t = now.getTime();
-    try { if (t - mAt > 10 * 60000) { mercados = await bvMercados(); mAt = t; } } catch (e) {}
-    const A = aprendido(S); S.aprendido = A;
-    for (const [f, F] of Object.entries(FUENTES)) {
-      if (ult[f] && t - ult[f] < F.cada * 1000) continue; ult[f] = t;
-      let items = []; try { items = await F.leer(); S.fuentes[f] = { ok: true, t: now.toISOString(), n: items.length }; } catch (e) { S.fuentes[f] = { ok: false, t: now.toISOString(), err: String(e.message).slice(0, 40) }; continue; }
-      const vistos = S.seen[f] || (S.seen[f] = {}), primera = !Object.keys(vistos).length;
-      for (const it of items) {
-        if (vistos[it.id]) continue; vistos[it.id] = t; if (primera) continue;   // la primera vez solo se apunta lo que ya había (no son noticias)
-        const m = it.sym + "-EUR", hay = mercados.has(it.sym);
-        const e = { t, f, sym: it.sym, titulo: String(it.titulo).slice(0, 120), bitvavo: hay, p0: null, r: {} };
-        if (hay) { try { const b = await libro(m); e.p0 = b.ask; if (A[f].opera && b.ask > 0) comprar(S, m, it.sym, f, b.ask, now, A[f].mejorMin); } catch (er) {} }
-        S.ev.unshift(e); S.ev = S.ev.slice(0, 400); cambio = true;
-        L(S, now, "NEWS", it.sym, `${FUENTES[f].n}: ${e.titulo}${hay ? "" : " · no está en Bitvavo"}`);
+  let mercados = new Set(), cambio = true; S.aprendido = aprendido(S);
+  const bvMercados = async () => { try { const j = await J(`${BV}/markets`); const s = new Set(); for (const x of j) if (x.quote === "EUR" && x.status === "trading") s.add(x.base); if (s.size) mercados = s; } catch (e) {} };
+  await bvMercados();
+  // 1) un bucle por fuente, todos a la vez
+  const bucle = async (f, F) => {
+    let espera = F.cada * 1000, n = 0, ms = 0;
+    while (Date.now() < fin) {
+      const t0 = Date.now(); let items = null;
+      try { items = await F.leer(); espera = Math.max(F.cada * 1000, espera * 0.8); n++; ms += Date.now() - t0; S.fuentes[f] = { ok: true, t: new Date().toISOString(), n: items.length, cadaMs: Math.round(espera), respMs: Math.round(ms / n), lecturas: n }; }
+      catch (e) { espera = Math.min(30000, espera * 2); S.fuentes[f] = { ok: false, t: new Date().toISOString(), err: String(e.message).slice(0, 40), cadaMs: Math.round(espera) }; }
+      if (items) {
+        const vistos = S.seen[f] || (S.seen[f] = {}), primera = !Object.keys(vistos).length, now = new Date(), t = now.getTime();
+        for (const it of items) {
+          if (vistos[it.id]) continue; vistos[it.id] = t; if (primera) continue;   // la primera vez solo se apunta lo que ya había
+          const m = it.sym + "-EUR", hay = mercados.has(it.sym), A = S.aprendido[f] || { opera: true, mejorMin: 15 };
+          const e = { t, f, sym: it.sym, titulo: String(it.titulo).slice(0, 120), bitvavo: hay, p0: null, r: {}, retraso: it.pub ? Math.max(0, Math.round((t - it.pub) / 100) / 10) : null };
+          if (hay) { try { const b = await libro(m); e.p0 = b.ask; e.compraMs = Date.now() - t; if (A.opera && b.ask > 0) comprar(S, m, it.sym, f, b.ask, new Date(), A.mejorMin); } catch (er) {} }
+          S.ev.unshift(e); S.ev = S.ev.slice(0, 400); cambio = true;
+          L(S, now, "NEWS", it.sym, `${F.n}: ${e.titulo}${e.retraso != null ? ` · visto ${e.retraso} s después de publicarse` : ""}${hay ? "" : " · no está en Bitvavo"}`);
+        }
+        const ks = Object.entries(vistos); if (ks.length > 3000) S.seen[f] = Object.fromEntries(ks.sort((a, b) => b[1] - a[1]).slice(0, 2500));
       }
-      const ks = Object.entries(vistos); if (ks.length > 3000) S.seen[f] = Object.fromEntries(ks.sort((a, b) => b[1] - a[1]).slice(0, 2500));
+      await sleep(Math.max(0, espera - (Date.now() - t0)));
     }
-    // seguir el precio de los anuncios recientes (para aprender) y vigilar lo abierto
-    const sig = S.ev.filter((e) => e.p0 && t - e.t <= 61 * 60000 && HZ.some((h) => e.r[h] == null && t - e.t >= h * 60000));
-    for (const e of sig) { try { const b = await libro(e.sym + "-EUR"); for (const h of HZ) if (e.r[h] == null && t - e.t >= h * 60000) { e.r[h] = r4(b.bid / e.p0 - 1); cambio = true; } } catch (er) {} }
-    for (const m of Object.keys(S.pos)) { try { const b = await libro(m); vigilar(S, m, b.bid, now); cambio = true; } catch (er) {} }
-    if (cambio && t - pubAt > 60000) { const eq = S.cash + Object.values(S.pos).reduce((a, p) => a + p.q * (p.last || p.px), 0); S.lastEq = r2(eq); S.last = now.toISOString(); S.eq.push([S.last, S.lastEq]); S.eq = S.eq.slice(-2000); publicar(S); pubAt = t; cambio = false; }
-    await sleep(1000);
-  }
-  S.last = new Date().toISOString(); publicar(S); console.log(`Noticias: ${S.ev.length} anuncios vistos · ${S.st.trades} operaciones · saldo ${S.lastEq ?? S.cash} €`);
+  };
+  // 2) precios: lo abierto cada 2 s y lo que se sigue para aprender
+  const precios = async () => {
+    while (Date.now() < fin) {
+      const now = new Date(), t = now.getTime();
+      for (const m of Object.keys(S.pos)) { try { const b = await libro(m); vigilar(S, m, b.bid, now); cambio = true; } catch (er) {} }
+      for (const e of S.ev.filter((e) => e.p0 && t - e.t <= 61 * 60000 && HZ.some((h) => e.r[h] == null && t - e.t >= h * 60000))) { try { const b = await libro(e.sym + "-EUR"); for (const h of HZ) if (e.r[h] == null && t - e.t >= h * 60000) { e.r[h] = r4(b.bid / e.p0 - 1); cambio = true; } } catch (er) {} }
+      S.aprendido = aprendido(S); await sleep(2000);
+    }
+  };
+  // 3) guardar cada minuto y repasar los mercados de Bitvavo cada 10 min
+  const guardar = async () => {
+    let k = 0;
+    while (Date.now() < fin) {
+      await sleep(60000); if (++k % 10 === 0) await bvMercados();
+      const eq = S.cash + Object.values(S.pos).reduce((a, p) => a + p.q * (p.last || p.px), 0); S.lastEq = r2(eq); S.last = new Date().toISOString(); S.eq.push([S.last, S.lastEq]); S.eq = S.eq.slice(-2000);
+      await publicar(S); cambio = false;
+    }
+  };
+  await Promise.all([...Object.entries(FUENTES).map(([f, F]) => bucle(f, F)), precios(), guardar()]);
+  S.last = new Date().toISOString(); await publicar(S); console.log(`Noticias: ${S.ev.length} anuncios vistos · ${S.st.trades} operaciones · saldo ${S.lastEq ?? S.cash} €`);
 }
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.log("Noticias: " + (e.message || e)); process.exit(0); });
