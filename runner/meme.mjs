@@ -153,7 +153,9 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs
     if (S.pos[a]) continue;
     let z = S.seen[a]; const first = !z || typeof z !== "object"; if (first) z = S.seen[a] = { t: tnow, k: 0, s: 0 };
     const ex = explorador(q, tnow);
-    if (ex) { if (ex === "joven") S.young[a] = S.young[a] || tnow; else delete S.young[a]; continue; }
+    // v165 · se siguen vigilando (hasta 72 h) las que aún son muy jóvenes o pequeñas pero están vivas: pueden crecer y cumplir más tarde
+    if (ex) { const mc = +(q.marketCap || q.fdv) || 0, lq = +(q.liquidity && q.liquidity.usd) || 0, ageM = (tnow - (+q.pairCreatedAt || tnow)) / 60000;
+      if ((ex === "joven" || (ex === "tamaño" && mc < G.mcapMin)) && ageM < 72 * 60 && (ageM < 60 || (mc >= 30e3 && lq >= 5e3))) S.young[a] = S.young[a] || tnow; else delete S.young[a]; continue; }
     delete S.young[a];
     if (!z.f) { z.f = 1; S.st.seen++; nNew++; S.flow.unshift({ a, sym: q.baseToken.symbol, age: Math.round((tnow - q.pairCreatedAt) / 60000), mc: +(q.marketCap || q.fdv) || 0, t: now.toISOString() }); S.flow = S.flow.slice(0, 12); }
     if (S.cool[a] && tnow - S.cool[a] < G.cooldownH * 3600e3) continue;
@@ -191,7 +193,8 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs
   // limpieza, curva, ritmo y parte del día
   for (const [a, z] of Object.entries(S.seen)) if (tnow - (z && z.t || 0) > 4 * 86400e3) { delete S.seen[a]; delete S.hold[a]; delete S.rc[a]; }
   for (const [a, t] of Object.entries(S.cool)) if (tnow - t > G.cooldownH * 3600e3) delete S.cool[a];
-  for (const [a, t] of Object.entries(S.young)) if (tnow - t > 3 * 3600e3) delete S.young[a];
+  for (const [a, t] of Object.entries(S.young)) if (tnow - t > 72 * 3600e3) delete S.young[a];
+  { const e = Object.entries(S.young); if (e.length > 3000) S.young = Object.fromEntries(e.sort((x, y) => y[1] - x[1]).slice(0, 3000)); }
   const eq = equity(S, px);
   S.eq.push([now.toISOString(), r2(eq)]); if (S.eq.length > 3000) S.eq = S.eq.filter((_, i) => i % 2 === 0 || i > S.eq.length - 500);
   S.rate = (S.rate || []).concat([[tnow, nNew]]).filter((x) => tnow - x[0] <= 3600e3);
@@ -263,14 +266,14 @@ async function main() {
   for (const d of ["5m", "1h", "6h", "24h"]) for (const pg of [1, 2, 3]) GTL.push(`${GT}/networks/solana/trending_pools?duration=${d}&page=${pg}`);
   for (const pg of [1, 2, 3, 4, 5]) GTL.push(`${GT}/networks/solana/new_pools?page=${pg}`);
   for (const pg of [1, 2, 3]) GTL.push(`${GT}/networks/solana/pools?sort=h24_volume_usd_desc&page=${pg}`, `${GT}/networks/solana/pools?sort=h24_tx_count_desc&page=${pg}`);
-  const rot = Math.floor(tnow / 60000), gtU = Array.from({ length: 8 }, (_, i) => GTL[(rot * 8 + i) % GTL.length]);
+  const rot = Math.floor(tnow / 60000), otras = GTL.filter((u) => !/new_pools\?page=[123]$/.test(u)), gtU = [`${GT}/networks/solana/new_pools?page=1`, `${GT}/networks/solana/new_pools?page=2`, `${GT}/networks/solana/new_pools?page=3`, ...Array.from({ length: 5 }, (_, i) => otras[(rot * 5 + i) % otras.length])];
   const srcs = [DS + "/token-profiles/latest/v1", DS + "/token-boosts/latest/v1", DS + "/token-boosts/top/v1", ...["pump", "sol", "meme", "cat", "dog", "ai"].map((q) => `${DS}/latest/dex/search?q=${q}`).slice(rot % 6, rot % 6 + 2)];
   await enParalelo(srcs, 5, async (u) => { const j = await J(u, 2); const arr = Array.isArray(j) ? j : (j && j.pairs) || []; for (const x of arr) if (x && x.chainId === "solana") add(x.tokenAddress || (x.baseToken && x.baseToken.address)); });
   await enParalelo(gtU, 4, async (u) => { const j = await J(u, 2); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(/^solana_/, "")); } });
   // primero lo abierto y lo recién encontrado; las «jóvenes» que se vuelven a mirar, como mucho 200
   const must = new Set([...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()]);
-  const young = Object.entries(S.young || {}).sort((a, b) => b[1] - a[1]).slice(0, 200).map((x) => x[0]);
-  const list = [...new Set([...must, ...[...addrs].filter((a) => !(S.young || {})[a]), ...young])].slice(0, 900), pairs = [];
+  const young = Object.entries(S.young || {}).sort((a, b) => b[1] - a[1]).slice(0, 1200).map((x) => x[0]);
+  const list = [...new Set([...must, ...[...addrs].filter((a) => !(S.young || {})[a]), ...young])].slice(0, 1500), pairs = [];
   const batches = []; for (let i = 0; i < list.length; i += 30) batches.push(list.slice(i, i + 30));
   let fallo = false;
   await enParalelo(batches, 6, async (b) => { try { const j = await J(`${DS}/tokens/v1/solana/${b.join(",")}`); if (Array.isArray(j)) pairs.push(...j); } catch (e) { if (b.some((a) => must.has(a))) fallo = true; } });

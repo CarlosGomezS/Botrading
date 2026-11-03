@@ -487,7 +487,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .mt-log{font-size:11px;line-height:1.65;max-height:320px;overflow:auto}
 @media(min-width:760px){.mt-head{grid-template-columns:auto 1fr auto}.mt-bal{grid-column:auto}.mt-agents{grid-template-columns:repeat(3,1fr)}}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v164</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v165</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2520,9 +2520,9 @@ function memeLabHtml(S,f){const L=MM.L;if(!L||!L.pop)return"";const Eu=x=>E0((+x
 async function memeLoad(force){if(MM.busy)return;if(!force&&MM.S&&Date.now()-MM.at<60000){memeDraw();return}MM.busy=true;
  try{const c=window.__CLOUD,r=c&&c.ri?c.ri():null,o=r?r.o:"CarlosGomezS",rr=r?r.r:"Botrading",t=Math.floor(Date.now()/60000);
   let j=null;for(const u of [`https://raw.githubusercontent.com/${o}/${rr}/meme/meme.json?t=${t}`,`https://api.github.com/repos/${o}/${rr}/contents/meme.json?ref=meme`]){try{const x=await fetch(u,{headers:u.includes("api.github")?{Accept:"application/vnd.github.raw+json"}:{},cache:"no-store"});if(x.status===404){MM.err="nada";continue}if(!x.ok)continue;j=await x.json();break}catch(e){}}
-  if(j){MM.S=j;MM.err=null}
+  if(j){MM.chg=!MM.S||MM.S.last!==j.last||MM.S.lastQ!==j.lastQ;MM.S=j;MM.err=null}
   for(const u of [`https://raw.githubusercontent.com/${o}/${rr}/meme/meme-lab.json?t=${t}`,`https://api.github.com/repos/${o}/${rr}/contents/meme-lab.json?ref=meme`]){try{const x=await fetch(u,{headers:u.includes("api.github")?{Accept:"application/vnd.github.raw+json"}:{},cache:"no-store"});if(!x.ok)continue;MM.L=await x.json();break}catch(e){}}
-  MM.at=Date.now()}finally{MM.busy=false}memeDraw()}
+  MM.at=Date.now()}finally{MM.busy=false}if(MM.chg!==false||!document.querySelector("#mm-body .mt")){MM.chg=false;memeDraw()}}
 /* v161 · gráficos de TradingView (Lightweight Charts, se carga solo al abrir Memes) e informe de rendimiento tipo QuantStats */
 const LWURLS=["vendor/lightweight-charts-4.2.0.js","https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"];
 function lwLoad(){if(window.LightweightCharts)return Promise.resolve(true);if(window.__lwP)return window.__lwP;
@@ -2612,7 +2612,7 @@ function memeDraw(){const el=$("#mm-body");if(!el)return;const S=MM.S,f=MEMF(S),
   <div class="mt-bal"><div class="mt-big ${pl>=0?"up":"dn"}">${Eu(eq)}</div><div class="mt-dim">saldo · empezó con ${Eu(S.start)} · dinero ficticio</div><div class="mt-w">${st.trades||0} operaciones · ${st.wins||0} G · ${st.losses||0} P · ${pl>=0?"+":"−"}${Math.abs(pl/S.start*100).toFixed(1).replace(".",",")} %</div>${spark(160,26)}</div></div>
  ${(()=>{const I=S.ideal;if(!I||I.lastEq==null)return"";const ie=+I.lastEq,ip=ie-I.start,ist=I.st||{};return`<div class="mt-p"><div class="mt-ph"><span>COMO EL VÍDEO · SIN COSTES</span><span class="mt-dim">mismas decisiones</span></div><div class="mt-cmp"><div><small>Con costes reales</small><b class="${pl>=0?"up":"dn"}">${Eu(eq)}</b><span class="${pl>=0?"up":"dn"}">${pl>=0?"+":"−"}${Math.abs(pl/S.start*100).toFixed(1).replace(".",",")} %</span></div><div><small>Como el vídeo (sin comisión, deslizamiento ni fallos)</small><b class="${ip>=0?"up":"dn"}">${Eu(ie)}</b><span class="${ip>=0?"up":"dn"}">${ip>=0?"+":"−"}${Math.abs(ip/I.start*100).toFixed(1).replace(".",",")} %</span></div></div><div class="mt-dim" style="margin-top:6px">La diferencia (${Eu(ie-eq)}) es lo que se comen los costes que el vídeo no enseña. ${ist.trades||0} operaciones · ${ist.wins||0} G / ${ist.losses||0} P.</div></div>`})()}
  ${memeLabHtml(S,f)}
- <div class="mt-p"><div class="mt-ph"><span>FLUJO EN VIVO · RELEVOS ESTRICTOS · UN TRABAJO CADA UNO</span><span>${rate} pares/min · ${ago==null?"—":ago<1?"ahora":"hace "+ago+" min"}</span></div><div class="mt-flow">${flowChips}</div>
+ <div class="mt-p"><div class="mt-ph"><span>FLUJO EN VIVO · RELEVOS ESTRICTOS · UN TRABAJO CADA UNO</span><span>${rate} pares/min · <span id="mt-ago">—</span></span></div>${S.diag?`<div class="mt-dim" style="margin:-2px 0 8px">última vuelta: ${S.diag.monedas} monedas leídas · ${S.diag.candidatas} candidatas · RugCheck ${S.diag.rcOk||0} nuevas · GeckoTerminal ${S.diag.gt||0} · ${S.diag.s} s</div>`:""}<div class="mt-flow">${flowChips}</div>
   <div class="mt-pipe">${node("sc","#3dd6b5","EXPLORADOR",st.seen||0,"vistas",fresh((S.flow||[])[0]&&S.flow[0].t))}${node("fi","#ff5d73","FILTRO",st.killed||0,"eliminadas",fresh(fx.t))}${node("an","#a78bfa","ANALISTA",st.scored||0,"puntuadas",fresh(an.t))}${node("ex","#3dd6b5","EJECUTOR",st.trades||0,"compras",fresh(xe.t))}${node("ri","#f5c451","RIESGO",st.stops||0,"stops",fresh(rs.t))}${node("lo","#5eb3ff","REGISTRO","#"+(S.line||0),"",true)}</div></div>
  <div class="mt-agents">
   ${agent("sc","#3dd6b5","EXPLORADOR","busca pares nuevos de Solana","ESCANEA",`<span class="mt-g">pares de ${mlFmt("ageMin",GG.ageMin)}-${mlFmt("ageMax",GG.ageMax)} · tamaño ${mlFmt("mcapMin",GG.mcapMin)}-${mlFmt("mcapMax",GG.mcapMax)} · DexScreener + GeckoTerminal</span>`,`vistas ${st.seen||0} · nueva ${(S.flow||[])[0]?"$"+esc(S.flow[0].sym):"—"}`)}
@@ -2647,8 +2647,9 @@ function memeDraw(){const el=$("#mm-body");if(!el)return;const S=MM.S,f=MEMF(S),
  <b>Límites honestos:</b> vigila lo abierto cada ~20 s y busca monedas cada minuto (un bot real, al instante); las «carteras listas» las aprende él (los servicios de pago traen listas hechas). Es una prueba, no una recomendación.</div></details></div>`;
  el.innerHTML=h;memeCharts(S,P0,!!op,f)}
 {const g0=go;go=function(t){g0(t);if(t==="memes")memeLoad(false)}}
-setInterval(()=>{const t=document.getElementById("t-memes");if(t&&t.classList.contains("on")&&!document.hidden)memeLoad(true)},60000);
-setInterval(()=>{const e=document.getElementById("mt-run"),S=MM.S;if(e&&S&&S.since&&!document.hidden){const s=Math.max(0,Math.floor((Date.now()-Date.parse(S.since))/1000)),d=Math.floor(s/86400),z=n=>String(n).padStart(2,"0");e.textContent=(d?d+" d ":"")+z(Math.floor(s%86400/3600))+":"+z(Math.floor(s%3600/60))+":"+z(s%60)}},1000);
+setInterval(()=>{const t=document.getElementById("t-memes");if(t&&t.classList.contains("on")&&!document.hidden)memeLoad(true)},20000);
+document.addEventListener("visibilitychange",()=>{const t=document.getElementById("t-memes");if(!document.hidden&&t&&t.classList.contains("on"))memeLoad(true)});
+setInterval(()=>{const g=document.getElementById("mt-ago"),S0=MM.S;if(g&&S0){const t=Math.max(Date.parse(S0.last||0)||0,Date.parse(S0.lastQ||0)||0),a=Math.round((Date.now()-t)/1000);g.textContent=a<0?"ahora":a<90?"última vuelta hace "+a+" s":"última vuelta hace "+Math.round(a/60)+" min";g.style.color=a>180?"var(--mt-r)":""}const e=document.getElementById("mt-run"),S=MM.S;if(e&&S&&S.since&&!document.hidden){const s=Math.max(0,Math.floor((Date.now()-Date.parse(S.since))/1000)),d=Math.floor(s/86400),z=n=>String(n).padStart(2,"0");e.textContent=(d?d+" d ":"")+z(Math.floor(s%86400/3600))+":"+z(Math.floor(s%3600/60))+":"+z(s%60)}},1000);
 /* v152 · la ficticia entera (cartera, órdenes, feed, gráfico, informes, radar) en euros a la escala de tu dinero real */
 {const W=f=>function(){const p=EMUL;EMUL=FSC();try{return f.apply(this,arguments)}finally{EMUL=p}};cartDraw=W(cartDraw);miDraw=W(miDraw);infDraw=W(infDraw);chartDraw=W(chartDraw);feedHtml=W(feedHtml);radarDraw=W(radarDraw);riskDraw=W(riskDraw)}
 
@@ -2893,7 +2894,7 @@ G0.__SEAL={blake2b,seal,from_string:s=>new TextEncoder().encode(s),from_base64:t
  function lock(){try{var r=document.querySelector("#run");if(r){r.onclick=function(){try{dailyCloud()}catch(e){}}}
   var g=document.querySelector("#bg");if(g)g.checked=false;
   }catch(e){}}
- setTimeout(function(){try{var h=document.querySelector('#nav button[data-t="hoy"]');if(h&&!window.__userNav)h.click()}catch(e){}},2200);
+ setTimeout(function(){try{if(window.__userNav)return;var l="";try{l=localStorage.getItem("pbtab")||""}catch(e){}var b=l&&document.getElementById("t-"+l)?document.querySelector('#nav button[data-t="'+l+'"]'):null;if(b&&b.style.display==="none")b=null;b=b||document.querySelector('#nav button[data-t="hoy"]');if(b)b.click()}catch(e){}},2200);   /* v165: vuelve a la última pestaña que tenías abierta (p. ej. Memes) */
  document.addEventListener("click",function(e){if(e.isTrusted)window.__userNav=true},true);
  /* ---- Ajustes de la nube (v7): TODA la pantalla de Ajustes se edita desde aquí, protegida con clave ----
     Arriba del todo está el campo de la clave. Al pulsar «Editar» aparecen debajo todos los ajustes; «Guardar edición» los envía a la nube
@@ -3653,9 +3654,11 @@ const FORCE=location.hash==="#real",T_FORCE=Date.now()+12000;
 /* el botón 💶 Real solo aparece en TUS dispositivos (los que tienen tu token cifrado o la contraseña de la cartera); en otro, entra con …/#real */
 function navShow(){const b=$r("#rl-nav");if(!b)return;const c=C(),mine=FORCE||!c||!!pwGet()||remHas()||(c.hasEnc&&c.hasEnc());b.style.display=mine?"":"none"}
 mount();navShow();
+/* v165 · la pestaña se recuerda solo cuando TÚ la eliges (no con los saltos automáticos del arranque) */
+document.addEventListener("click",e=>{try{const b=e.target.closest&&e.target.closest("#nav button[data-t]");if(b&&e.isTrusted)localStorage.setItem("pbtab",b.dataset.t)}catch(_){}},true);
 addEventListener("hashchange",()=>{if(location.hash==="#real"){const x=$r("#rl-nav");if(x)x.style.display="";window.__userNav=true;go("real")}});
 const go0=go;let goFirst=true;
-go=function(t){if(goFirst&&!window.__userNav){goFirst=false;if(t==="hoy"){const nb=$r("#rl-nav"),realOk=nb&&nb.style.display!=="none";let last="";try{last=localStorage.getItem("pbtab")||""}catch(e){}if(last&&document.getElementById("t-"+last)&&(last!=="real"||realOk))t=last;else if(realOk)t="real"}}else goFirst=false;try{localStorage.setItem("pbtab",t)}catch(e){}if(FORCE&&t!=="real"&&!window.__userNav&&Date.now()<T_FORCE)t="real";go0(t);if(t==="real"){if(!RL.R&&!RL.enc&&!RL.loading)loadReal(false);else draw()}};
+go=function(t){if(goFirst&&!window.__userNav){goFirst=false;if(t==="hoy"){const nb=$r("#rl-nav"),realOk=nb&&nb.style.display!=="none";let last="";try{last=localStorage.getItem("pbtab")||""}catch(e){}if(last&&document.getElementById("t-"+last)&&(last!=="real"||realOk))t=last;else if(realOk)t="real"}}else goFirst=false;if(FORCE&&t!=="real"&&!window.__userNav&&Date.now()<T_FORCE)t="real";go0(t);if(t==="real"){if(!RL.R&&!RL.enc&&!RL.loading)loadReal(false);else draw()}};
 window.__realLock=function(){navShow();const b=$r("#rl-lockb");if(b){b.innerHTML=lockHtml();bind()}};
 window.__realReload=()=>loadReal(true);
 loadReal(false);
