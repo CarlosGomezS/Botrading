@@ -157,6 +157,14 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null)
   const out = ranked.filter((v) => v.id !== "v0" && v.id !== "vt" && v.id !== "vv" && ((v.fit != null && v.fit < 0 && ranked.indexOf(v) >= POP * 0.6) || (ageH(v) > 48 && v.n < 3))).slice(-Math.ceil(POP * 0.35));
   for (const v of out) { L.arch.unshift({ id: v.id, g: v.g, gen: v.gen, born: v.born, out: now.toISOString(), n: v.n, fit: v.fit, ret: r2((v.lastEq / R.start - 1) * 100), win: v.n ? Math.round(v.w / v.n * 100) : null, why: v.n < 3 ? "casi no opera" : "de las peores" }); ev(`${v.id} se archiva (${v.n < 3 ? "casi no opera" : "nota " + v.fit}) · ${r2((v.lastEq / R.start - 1) * 100)} %`, "sale"); }
   L.arch = L.arch.slice(0, 20000); /* el archivo no se borra: hasta 20.000 variantes */ L.pop = L.pop.filter((v) => !out.includes(v));
+  // v214 · la búsqueda dirigida necesita sitio: si casi nadie se ha archivado (variantes con pocas operaciones), cada generación deja
+  // al menos un 25 % de huecos quitando las peores en los casos (sin tocar las de referencia, las que usan los terminales ni las de < 2 h)
+  if (M && L.pop.length > POP * 0.75) {
+    const prot = new Set(["v0", "vt", "vv", S.genomeId, S.turboGenomeId, S.volatGenomeId].filter(Boolean)), nota = (v) => v.fit ?? (v.bt && v.bt.n ? v.bt.t : -9);
+    const quitar = L.pop.filter((v) => !prot.has(v.id) && ageH(v) >= 2).sort((a, b) => nota(a) - nota(b)).slice(0, Math.max(0, L.pop.length - Math.floor(POP * 0.75)));
+    for (const v of quitar) L.arch.unshift({ id: v.id, g: v.g, gen: v.gen, born: v.born, out: now.toISOString(), n: v.n, fit: v.fit, ret: r2((v.lastEq / R.start - 1) * 100), why: "deja sitio a una regla mejor" });
+    L.pop = L.pop.filter((v) => !quitar.includes(v)); if (quitar.length) ev(`${quitar.length} variantes flojas dejan sitio a reglas nuevas de la búsqueda`, "sale");
+  }
   const top = ranked.filter((v) => !out.includes(v) && v.fit != null && v.fit > 0).slice(0, 5), seen = new Set(L.pop.map((v) => gkey(v.g)));
   let guard = 0;
   // v188 · 🔬 BÚSQUEDA DIRIGIDA: antes de dejar nacer a nadie, prueba al momento cientos de candidatas (mutaciones de las mejores,
