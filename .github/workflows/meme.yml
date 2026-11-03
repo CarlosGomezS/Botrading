@@ -1,6 +1,7 @@
-name: Memes (solo dinero ficticio)
+name: Cripto · Bitvavo (solo dinero ficticio)
 
-# v168 · terminal de memecoins con dinero ficticio en Solana, Base y BNB Chain (DexScreener, GeckoTerminal, RugCheck y GoPlus). Nunca toca dinero real ni Trading 212.
+# v218 · solo queda lo que puede dar dinero: Bitvavo (criptos grandes y volátiles en euros, dinero ficticio). Las memecoins, el Turbo,
+# Volátiles y Noticias se han parado (el código sigue en el repositorio por si algún día se quieren recuperar). Nunca toca Trading 212.
 # CONSTANTE: cada ejecución hace una vuelta completa por minuto (y vigila lo abierto cada ~20 s) durante ~28 min y, al terminar, pide la siguiente (en cadena, las 24 horas).
 # Si GitHub cortara la cadena, el horario de abajo la vuelve a arrancar.
 on:
@@ -38,32 +39,20 @@ jobs:
         if: steps.dup.outputs.go == 'true'
         with:
           node-version: 22
-      - name: Librerías para operar en Solana (solo se usan con dinero real aprobado)
-        if: steps.dup.outputs.go == 'true'
-        working-directory: runner
-        continue-on-error: true
-        run: npm install --no-save --no-audit --no-fund @solana/web3.js@1.98.0 bs58@6.0.0 > /tmp/npm.log 2>&1 || tail -5 /tmp/npm.log
-      - name: Vueltas (una completa por minuto y vigilancia cada ~20 s, ~28 min)
+      - name: Vueltas (una por minuto, ~28 min)
         if: steps.dup.outputs.go == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
           REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
-          MEME_SOL_KEY: ${{ secrets.MEME_SOL_KEY }}
-          MEME_RPC: ${{ secrets.MEME_RPC }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
         run: |
           end=$(( $(date +%s) + 28*60 ))
-          # v208 · 📰 noticias en segundos: un proceso aparte que mira los anuncios de nuevas criptos cada 3–30 s durante todo el tramo
-          timeout 28m node runner/noticias.mjs 27 > /tmp/noticias.log 2>&1 &
-          # cada minuto: una vuelta completa y, entre medias, dos vigilancias rápidas de lo abierto (~cada 20 s), para que los stops salten antes
+          # una vuelta de Bitvavo por minuto (cada 10 min, además, su generación de aprendizaje)
           while [ "$(date +%s)" -lt "$end" ]; do
-            # v168 · las tres redes a la vez (Solana, Base y BNB Chain), cada una en su rama
             s=$(date +%s)
-            # v215 · se espera SOLO a estas vueltas (antes «wait» esperaba también al vigilante de noticias y la cadena hacía una sola vuelta por tramo)
-            pids=""; for c in solana base bsc; do timeout 75 node runner/meme.mjs $c > /tmp/m-$c.log 2>&1 & pids="$pids $!"; done; timeout 75 node runner/bitvavo.mjs > /tmp/m-bv.log 2>&1 & pids="$pids $!"; wait $pids || true; cat /tmp/m-*.log
-            for k in 1 2; do w=$(( s + 20*k - $(date +%s) )); if [ "$w" -gt 0 ]; then sleep "$w"; fi; pr=""; for c in solana base bsc; do timeout 18 node runner/meme.mjs $c rapido > /tmp/r-$c.log 2>&1 & pr="$pr $!"; done; wait $pr || true; cat /tmp/r-*.log; done
+            timeout 100 node runner/bitvavo.mjs > /tmp/m-bv.log 2>&1 || true; cat /tmp/m-bv.log
             w=$(( 60 - ($(date +%s) - s) )); if [ "$w" -gt 0 ]; then sleep "$w"; fi
           done
       - name: Siguiente tramo (en cadena)
