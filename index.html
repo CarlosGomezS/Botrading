@@ -458,7 +458,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 /* v77 · laboratorio */
 .lab0{margin:10px 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--acc,#d4a64a) 60%,var(--line));background:color-mix(in srgb,var(--acc,#d4a64a) 8%,transparent)}.lab0>b{font-size:15px}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v153</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v154</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2314,7 +2314,7 @@ function stats(){const cl=CB().trades.filter(t=>t.pnl!=null),w=cl.filter(t=>t.pn
 return[["Días registrados",S.days.length],["Operaciones cerradas",cl.length],["Acierto",cl.length?Math.round(w.length/cl.length*100)+"%":"—"],["Mejor operación",ps.length?E(Math.max(...ps)):"—"],["Peor operación",ps.length?E(Math.min(...ps)):"—"],["Caída máxima",P(dd)],["Bot vs SPY",l&&l.b!=null?P((e-l.b)/START*100)+" pts":"—"]]}
 function draw(){try{capApply();mailUI()}catch{}try{nxDraw()}catch{}
   const kH=vmGet("hoy"),f=FSC(),e=liveEq(kH)*f,pl=e-START*f,pc=pl/(START*f)*100;$("#sel-hoy").innerHTML=mSel("hoy");try{hoyRank()}catch(e){try{console.error(e)}catch{}}
-  $("#eq").textContent=E(e);$("#pl").innerHTML=`<b class="${pl>=0?"up":"dn"}">${pl>=0?"▲ Ganas":"▼ Pierdes"} ${E(Math.abs(pl))} (${P(pc)})</b> <span class="m">desde los ${E(START*f)} iniciales${f!==1?" (tu dinero real; cada método simula 500 € y se escala)":""}</span>`;
+  $("#eq").textContent=E(e);$("#pl").innerHTML=`<b class="${pl>=0?"up":"dn"}">${pl>=0?"▲ Ganas":"▼ Pierdes"} ${E(Math.abs(pl))} (${P(pc)})</b> <span class="m">desde los ${E(START*f)} iniciales${f!==1?" (lo ingresado en Trading 212; cada método simula 500 € y se escala)":""}</span>`;
   const last=S.days.at(-1);$("#bench").textContent=last&&last.b!=null?`Para comparar: si solo hubieras comprado SPY el primer día, tendrías ${E(last.b*f)}.`:"La comparación con 'comprar y no tocar' aparece tras la primera actualización.";
   $("#run").disabled=busy;$("#run").textContent=busy?"Consultando precios reales…":"Actualizar precios y que el bot decida";
   if(!busy&&$("#st").textContent==="Cargando…")$("#st").textContent=S.lastDate?"Último día de mercado registrado: "+S.lastDate:"Aún no hay datos. Pulsa el botón para el primer día.";
@@ -2550,7 +2550,7 @@ $("#bcfg").onclick=async()=>{const P0={};for(const k in CFG)P0[k]=+(+CFG[k]).toF
  L.forEach(([p,first])=>{const h=p.querySelector(":scope>h2");if(!h)return;const d=document.createElement("details");d.className="fold";if(first)d.open=true;const sm=document.createElement("summary");sm.textContent=h.textContent;h.remove();const b=document.createElement("div");b.className="fb";while(p.firstChild)b.append(p.firstChild);d.append(sm,b);p.parentNode.insertBefore(d,p);p.remove()})})();
 
 /* ===== v44: capital configurable + correo automático ===== */
-function capApply(){try{const t=E(START);{const f=typeof FSC==="function"?FSC():1,tt=f!==1?E0(START*f)+" (tu dinero real)":t;document.querySelectorAll(".capT").forEach(e=>e.textContent=tt)}const r=$("#rs");if(r)r.textContent="Reiniciar con "+t;const c=$("#cap0");if(c&&document.activeElement!==c)c.value=START}catch{}}
+function capApply(){try{const t=E(START);{const f=typeof FSC==="function"?FSC():1,tt=f!==1?E0(START*f)+" (lo ingresado en Trading 212)":t;document.querySelectorAll(".capT").forEach(e=>e.textContent=tt)}const r=$("#rs");if(r)r.textContent="Reiniciar con "+t;const c=$("#cap0");if(c&&document.activeElement!==c)c.value=START}catch{}}
 /* ===== v9 · recalcular las comisiones ya pagadas (solo toca lo que depende de la comisión) ===== */
 function recalcFees(fee){
  fee=+fee;if(!Number.isFinite(fee)||fee<0)return"";
@@ -2980,7 +2980,7 @@ async function loadReal(fresh){if(RL.loading)return;RL.loading=true;await remLoa
   if(!j){}else{RL.meta=j.meta||null;RL.err=null;try{const ms=((j.meta&&j.meta.metodos)||[]).filter(x=>typeof x==="string");if(ms.length&&JSON.stringify(ms)!==JSON.stringify(window.__REALMET||[])){window.__REALMET=ms;setTimeout(()=>{try{if(typeof window.draw==="function")window.draw()}catch(e){}},0)}}catch(e){}
   if(j.enc){RL.enc=j;const pw=pwGet();if(pw){try{RL.R=JSON.parse(await decrypt(j,pw))}catch(e){RL.R=null;RL.err="clave";remForget()}}else RL.R=null}
   else{RL.enc=null;RL.R=j}}
-  RL.at=Date.now();try{const x=RL.R?summary():null;if(x&&x.cap>0){let base=x.cap;if(A().sumarIngresos!==0&&x.acc>x.be+1)base+=x.acc-x.be;const nb=Math.round(base*100)/100;try{localStorage.setItem("pbficb",String(nb))}catch(e){}if(nb!==window.__ficBase){window.__ficBase=nb;setTimeout(()=>{try{window.draw()}catch(e){}},0)}}}catch(e){}try{window.__T212STK=RL.R?(RL.R.stk||false):undefined;const ta=document.getElementById("t-acciones");if(window.__accDraw&&ta&&ta.classList.contains("on"))window.__accDraw()}catch(e){}
+  RL.at=Date.now();try{const x=RL.R?summary():null;if(x&&x.cap>0){/* v154 · base = lo INGRESADO NETO en Trading 212 (ingresos − retiradas), sin ganancias ni pérdidas; si aún no se conoce, el capital del bot */let base=x.ap>1?+x.ap:x.cap;if(!(x.ap>1)&&A().sumarIngresos!==0&&x.acc>x.be+1)base+=x.acc-x.be;const nb=Math.round(base*100)/100;try{localStorage.setItem("pbficb",String(nb))}catch(e){}if(nb!==window.__ficBase){window.__ficBase=nb;setTimeout(()=>{try{window.draw()}catch(e){}},0)}}}catch(e){}try{window.__T212STK=RL.R?(RL.R.stk||false):undefined;const ta=document.getElementById("t-acciones");if(window.__accDraw&&ta&&ta.classList.contains("on"))window.__accDraw()}catch(e){}
  }finally{RL.loading=false}
  await loadCfg(fresh);draw()}
 async function loadCfg(fresh){const r=ri();const urls=(fresh&&r?["https://api.github.com/repos/"+r.o+"/"+r.r+"/contents/real-ajustes.json?ref=main"]:[]).concat(["real-ajustes.json?t="+Date.now()]);
