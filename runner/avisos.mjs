@@ -5,8 +5,14 @@
 // Sin repetirse: cada aviso, como mucho una vez cada 12 h (y como mucho 8 operaciones destacadas al día por cuenta).
 const env = (k) => (process.env[k] || "").trim();
 export async function tg(text) {
-  const tok = env("TELEGRAM_TOKEN"), chat = env("TELEGRAM_CHAT"); if (!tok || !chat) return false;
-  try { const r = await fetch(`https://api.telegram.org/bot${tok}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: chat, text, disable_web_page_preview: true }), signal: AbortSignal.timeout(10000) }); return r.ok; } catch (e) { return false; }
+  const tok = env("TELEGRAM_TOKEN"), chat = env("TELEGRAM_CHAT"); let ok = false;
+  if (tok && chat) try { const r = await fetch(`https://api.telegram.org/bot${tok}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: chat, text, disable_web_page_preview: true }), signal: AbortSignal.timeout(10000) }); ok = r.ok; } catch (e) {}
+  await wa(text); return ok;
+}
+// v203 · 📱 los mismos avisos por WhatsApp (CallMeBot, gratis): solo si has guardado tu número y tu clave en Ajustes
+export async function wa(text) {
+  const ph = env("WHATSAPP_PHONE").replace(/[^\d+]/g, ""), key = env("WHATSAPP_KEY"); if (!ph || !key) return false;
+  try { const r = await fetch(`https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(ph)}&text=${encodeURIComponent(text)}&apikey=${encodeURIComponent(key)}`, { signal: AbortSignal.timeout(15000) }); return r.ok; } catch (e) { return false; }
 }
 const r2 = (x) => Math.round(x * 100) / 100;
 export function rendimiento(closed, n = 20) {
