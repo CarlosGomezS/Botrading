@@ -236,3 +236,15 @@ test("escalera: si se dispara (×2, ×3) va vendiendo partes, y un desplome de g
   const c = S.turbo.closed[0]; assert.ok(c, "cerrada tras el desplome"); assert.ok(c.pc > 30, "se queda con buena parte de la subida: " + c.pc);
   assert.ok(S.turbo.log.filter((x) => /×[23]/.test(x.txt)).length === 2, "vendió en ×2 y en ×3");
 });
+test("salida inteligente: vende al ver que la liquidez se va o que hay presión vendedora, antes del golpe", () => {
+  const S = freshState(), a = "al", base = { mc: 120e3, liq: 25e3, v1: 20e3, ch1: 25, ageMin: 15 }, ext = { rc: { [a]: okInfo }, gt: {} };
+  pasoTurbo(S, { [a]: par(a, base) }, new Date(T0), ext);
+  rapido(S, { [a]: par(a, { ...base, px: 1.05, liq: 40e3 }) }, new Date(T0 + 20000));
+  rapido(S, { [a]: par(a, { ...base, px: 1.04, liq: 26e3 }) }, new Date(T0 + 40000));
+  assert.match(S.turbo.closed[0].why, /liquidez se va/);
+  const S2 = freshState(), b = "pv"; pasoTurbo(S2, { [b]: par(b, base) }, new Date(T0), { rc: { [b]: okInfo }, gt: {} });
+  const q = par(b, { ...base, px: 1.2 }); q.txns.m5 = { buys: 10, sells: 30 }; q.priceChange.m5 = -9;
+  rapido(S2, { [b]: q }, new Date(T0 + 20000)); assert.match(S2.turbo.closed[0].why, /presión vendedora/);
+  const S3 = freshState(); paso(S3, { [b]: par(b) }, new Date(T0), () => 1, { rc: { [b]: okInfo }, gt: {} }); const q3 = par(b, { px: 1.2 }); q3.txns.m5 = { buys: 10, sells: 30 }; q3.priceChange.m5 = -9;
+  rapido(S3, { [b]: q3 }, new Date(T0 + 20000)); assert.equal(Object.keys(S3.pos).length, 1, "las reglas del vídeo no cambian");
+});

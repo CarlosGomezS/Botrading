@@ -61,7 +61,8 @@ export function simular(g, s, S0 = { smart: {}, hold: {} }) {
       if (G.tpFrac > 0 && !tp1 && hi >= 1 + G.tp) { cobrado += q * G.tpFrac * sale(1 + G.tp); q *= 1 - G.tpFrac; tp1 = true; }
       while (G.esc > 0 && esc < ESC.length && hi >= ESC[esc]) { cobrado += q * G.esc * sale(ESC[esc]); q *= 1 - G.esc; esc++; }
       if (lo <= 1 - G.stop) return r2((cobrado + q * sale(nivel(1 - G.stop, rel))) / ent - 1);
-      if (tr && lo <= peak * (1 - G.trail)) return r2((cobrado + q * sale(nivel(peak * (1 - G.trail), rel))) / ent - 1);
+      const trl = G.alerta > 0 && peak >= 2 ? G.trail * 0.6 : G.trail;
+      if (tr && lo <= peak * (1 - trl)) return r2((cobrado + q * sale(nivel(peak * (1 - trl), rel))) / ent - 1);
       if (min / 60 >= G.maxHoldH) return r2((cobrado + q * sale(rel)) / ent - 1);
       prev = rel;
     }

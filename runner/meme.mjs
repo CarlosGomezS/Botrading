@@ -127,6 +127,19 @@ export function explorador(p, now) {
 // ---- el analista: 6 señales de 0 a 100 y la nota final (la media) ----
 // v181 · 🧠 modelo de IA en uso (lo entrena la bola en cada generación; solo se usa si acierta más que el azar)
 export const ESC = [2, 3, 5];
+// v183 · 🚨 SALIDA INTELIGENTE: además de los stops, vende antes de que llegue el golpe si ve las señales típicas de un desplome
+//  · la liquidez se va (−25 % desde su máximo mientras la tenemos): suele ser el paso previo a un rug
+//  · presión vendedora con ganancias: en los últimos 5 min hay el doble de ventas que de compras y el precio ya cae un 6 %
+// y el stop móvil se aprieta cuando la ganancia es grande (desde ×2, un 40 % más ajustado): lo ganado se protege más
+export function trailEf(G, p, pr) { return G.alerta > 0 && p.peak >= p.px * 2 ? G.trail * 0.6 : G.trail; }
+export function alarmaSalida(G, p, q, liq, pr) {
+  if (!(G.alerta > 0) || !q) return null;
+  p.liqMax = Math.max(p.liqMax || liq, liq);
+  if (p.liqMax > 0 && liq < p.liqMax * 0.75) return `alarma: la liquidez se va (−${Math.round((1 - liq / p.liqMax) * 100)} %)`;
+  const t5 = (q.txns && q.txns.m5) || {}, b5 = +t5.buys || 0, s5 = +t5.sells || 0, c5 = +(q.priceChange && q.priceChange.m5) || 0;
+  if (pr >= p.px * 1.15 && b5 + s5 >= 20 && s5 >= 2 * b5 && c5 <= -6) return `alarma: presión vendedora (${s5} ventas y ${b5} compras en 5 min)`;
+  return null;
+}
 let IA = null; export function setIA(m) { IA = m && m.listo && m.w ? m : null; } export const iaEnUso = () => IA;
 export function analista(S, a, p, info, g, nowMs, j) {
   const ch1 = +(p.priceChange && p.priceChange.h1) || 0, ch5 = +(p.priceChange && p.priceChange.m5) || 0, liq = +(p.liquidity && p.liquidity.usd) || 1, mc = +(p.marketCap || p.fdv) || 1;
@@ -145,7 +158,7 @@ export function analista(S, a, p, info, g, nowMs, j) {
 export const IDEAL = { fee: 0, slipMin: 0, slipMax: 0, failP: 0, failCost: 0, fixFee: 0 };
 let C = R;
 // v164 · reglas en uso (genoma): las del vídeo (R) o las que el laboratorio de memes haya aprendido
-export const VIDEO = { ageMin: R.ageMin, ageMax: R.ageMax, mcapMin: R.mcapMin, mcapMax: R.mcapMax, liqMin: R.liqMin, vol1hMin: R.vol1hMin, top10Max: R.top10Max, devMax: R.devMax, bundleMax: R.bundleMax, pump1hMax: R.pump1hMax, lpLockMin: R.lpLockMin, mint: 1, stop: R.stop, trailOn: R.trailOn, trail: R.trail, maxHoldH: R.maxHoldH, size: R.size, minScore: R.minScore, maxPos: R.maxPos, cooldownH: R.cooldownH, estilo: "video", tp: 0.5, tpFrac: 0, esc: 0, orgMin: 0, w: { mom: 1, ub: 1, bs: 1, hg: 1, lm: 1, sw: 1 } };
+export const VIDEO = { ageMin: R.ageMin, ageMax: R.ageMax, mcapMin: R.mcapMin, mcapMax: R.mcapMax, liqMin: R.liqMin, vol1hMin: R.vol1hMin, top10Max: R.top10Max, devMax: R.devMax, bundleMax: R.bundleMax, pump1hMax: R.pump1hMax, lpLockMin: R.lpLockMin, mint: 1, stop: R.stop, trailOn: R.trailOn, trail: R.trail, maxHoldH: R.maxHoldH, size: R.size, minScore: R.minScore, maxPos: R.maxPos, cooldownH: R.cooldownH, estilo: "video", tp: 0.5, tpFrac: 0, esc: 0, alerta: 0, orgMin: 0, w: { mom: 1, ub: 1, bs: 1, hg: 1, lm: 1, sw: 1 } };
 let G = VIDEO;
 export function conGenoma(g, fn) { const p = G; G = { ...VIDEO, ...(g || {}) }; try { return fn(); } finally { G = p; } }
 export const slip = (eur, liq) => C.slipMax <= 0 ? 0 : Math.min(C.slipMax, C.slipMin + eur / Math.max(1, liq));
@@ -186,8 +199,10 @@ export function riesgo(S, by, now = new Date(), costs, genome) {
       L(S, now, "TP", p.sym, `×${ESC[p.esc || 0]}: vende otro ${Math.round(fr * 100)} % de lo que queda · asegura ${pnlP >= 0 ? "+" : ""}${r2(pnlP)}`); p.esc = (p.esc || 0) + 1;
     }
     const ageH = (tnow - Date.parse(p.t0)) / 3600e3;
+    const al = alarmaSalida(G, p, q, liq, pr), tre = trailEf(G, p, pr);
     if (pr <= p.px * (1 - G.stop)) cerrar(S, a, now, pr, liq, `stop −${G.stop * 100} %`, "STOP");
-    else if (p.trailing && pr <= p.peak * (1 - G.trail)) cerrar(S, a, now, pr, liq, `stop móvil (${G.trail * 100} % bajo el máximo)`, "EXIT");
+    else if (al) cerrar(S, a, now, pr, liq, al, "EXIT");
+    else if (p.trailing && pr <= p.peak * (1 - tre)) cerrar(S, a, now, pr, liq, `stop móvil (${Math.round(tre * 100)} % bajo el máximo)`, "EXIT");
     else if (ageH >= G.maxHoldH) cerrar(S, a, now, pr, liq, `tiempo máximo (${G.maxHoldH} h)`, "EXIT");
   }
   return px;
@@ -279,7 +294,7 @@ export function pasoIdeal(S, by, now, ext) {
 // v179 · ⚡ TURBO: cuenta ficticia aparte, con costes reales, que opera MUCHO más (reglas más anchas y salidas rápidas).
 // Mismas fuentes y mismas comprobaciones de seguridad; no toca el dinero real (que sigue con las reglas del terminal principal).
 export const TURBO = { ...VIDEO, estilo: "video", ageMin: 5, ageMax: 14 * 1440, mcapMin: 50e3, mcapMax: 100e6, liqMin: 15e3, vol1hMin: 10e3, pump1hMax: 400,
-  top10Max: 40, devMax: 10, bundleMax: 30, lpLockMin: 80, mint: 1, stop: 0.1, trailOn: 0.08, trail: 0.1, maxHoldH: 4, size: 0.05, minScore: 45, maxPos: 15, cooldownH: 3, tp: 0.25, tpFrac: 0.5, esc: 0.35, orgMin: 0 };
+  top10Max: 40, devMax: 10, bundleMax: 30, lpLockMin: 80, mint: 1, stop: 0.1, trailOn: 0.08, trail: 0.1, maxHoldH: 4, size: 0.05, minScore: 45, maxPos: 15, cooldownH: 3, tp: 0.25, tpFrac: 0.5, esc: 0.35, alerta: 1, orgMin: 0 };
 export const turboG = (S) => (S.turboGenome ? { ...VIDEO, ...S.turboGenome } : TURBO);
 export function pasoTurbo(S, by, now, ext) {
   let T = S.turbo; if (!T || T.v !== S.v) { T = S.turbo = freshState(); }

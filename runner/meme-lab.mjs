@@ -2,7 +2,7 @@
 // ficticio (50 € cada una), los MISMOS datos en vivo y costes reales. Cada ~3 h se juzgan: las peores se archivan (nunca se borran) y nacen
 // otras (mutaciones y cruces de las mejores, y alguna inventada de cero). Si una variante demuestra con muchas operaciones que es mejor que las
 // reglas que usa el terminal, el terminal la adopta solo. La variante «vídeo» (las reglas originales) no se elimina nunca: es la referencia.
-import { setIA, ESC, R, VIDEO, TURBO, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS, NOMEME } from "./meme.mjs";
+import { setIA, ESC, alarmaSalida, trailEf, R, VIDEO, TURBO, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS, NOMEME } from "./meme.mjs";
 const ESTS = Object.keys(ESTILOS);
 
 export const POP = 40, GEN_H = 0.5, MIN_N = 8, ADOPT_N = 30, BT_N = 20;
@@ -12,12 +12,12 @@ import { entrenar } from "./meme-ia.mjs";
 export const RANGOS = {
   ageMin: [5, 240, 5], ageMax: [120, 7 * 1440, 60], mcapMin: [50e3, 2e6, 50e3], mcapMax: [2e6, 100e6, 1e6],
   liqMin: [10e3, 150e3, 5e3], vol1hMin: [10e3, 300e3, 10e3], top10Max: [10, 50, 1], devMax: [1, 10, 0.5], bundleMax: [3, 30, 1],
-  pump1hMax: [30, 300, 10], lpLockMin: [50, 100, 5], stop: [0.03, 0.25, 0.01], trailOn: [0.05, 0.5, 0.01], trail: [0.05, 0.4, 0.01], tp: [0.1, 1.5, 0.05], tpFrac: [0, 0.7, 0.05], esc: [0, 0.6, 0.05], orgMin: [0, 80, 5],
+  pump1hMax: [30, 300, 10], lpLockMin: [50, 100, 5], stop: [0.03, 0.25, 0.01], trailOn: [0.05, 0.5, 0.01], trail: [0.05, 0.4, 0.01], tp: [0.1, 1.5, 0.05], tpFrac: [0, 0.7, 0.05], esc: [0, 0.6, 0.05], alerta: [0, 1, 1], orgMin: [0, 80, 5],
   maxHoldH: [1, 72, 1], size: [0.03, 0.15, 0.01], minScore: [50, 90, 1]
 };
 // v174 · SIN TECHO: si las mejores variantes se pegan al borde de un rango, ese rango se ensancha solo (hasta unos límites de cordura)
 export const DUROS = { ageMin: [1, 10080], ageMax: [30, 5 * 525600], mcapMin: [5e3, 1e9], mcapMax: [1e5, 1e11], liqMin: [1e3, 5e6], vol1hMin: [1e3, 1e7], top10Max: [3, 95], devMax: [0.1, 50],
-  bundleMax: [0.5, 90], pump1hMax: [5, 2000], lpLockMin: [0, 100], stop: [0.01, 0.6], trailOn: [0.02, 3], trail: [0.02, 0.8], maxHoldH: [0.25, 720], size: [0.01, 0.3], minScore: [20, 99], tp: [0.03, 10], tpFrac: [0, 0.95], esc: [0, 0.9], orgMin: [0, 99] };
+  bundleMax: [0.5, 90], pump1hMax: [5, 2000], lpLockMin: [0, 100], stop: [0.01, 0.6], trailOn: [0.02, 3], trail: [0.02, 0.8], maxHoldH: [0.25, 720], size: [0.01, 0.3], minScore: [20, 99], tp: [0.03, 10], tpFrac: [0, 0.95], esc: [0, 0.9], alerta: [0, 1], orgMin: [0, 99] };
 export function aplicarRangos(L) { for (const [k, r] of Object.entries((L && L.rangos) || {})) if (RANGOS[k] && Array.isArray(r)) { RANGOS[k][0] = r[0]; RANGOS[k][1] = r[1]; } }
 export function ensanchar(L, best, now) {
   const ev = []; L.rangos = L.rangos || {};
@@ -32,7 +32,7 @@ export function ensanchar(L, best, now) {
 }
 export const NOMBRES = { ageMin: "edad mínima (min)", ageMax: "edad máxima (min)", mcapMin: "tamaño mínimo ($)", mcapMax: "tamaño máximo ($)", liqMin: "liquidez mínima ($)", vol1hMin: "volumen 1 h mínimo ($)",
   top10Max: "top 10 máx. (%)", devMax: "creador máx. (%)", bundleMax: "bloque máx. (%)", pump1hMax: "subida 1 h máx. (%)", lpLockMin: "LP bloqueada mín. (%)", stop: "stop", trailOn: "activa el móvil en", trail: "móvil bajo el máximo",
-  maxHoldH: "tiempo máximo (h)", size: "tamaño de cada compra", minScore: "nota mínima", tp: "venta parcial en", tpFrac: "parte que vende", esc: "escalera (parte que vende en ×2, ×3 y ×5)", orgMin: "actividad real mínima (Jupiter)", mint: "exige mint/freeze revocados", w: "pesos de la nota" };
+  maxHoldH: "tiempo máximo (h)", size: "tamaño de cada compra", minScore: "nota mínima", tp: "venta parcial en", tpFrac: "parte que vende", esc: "escalera (parte que vende en ×2, ×3 y ×5)", alerta: "salida inteligente (alarmas de desplome)", orgMin: "actividad real mínima (Jupiter)", mint: "exige mint/freeze revocados", w: "pesos de la nota" };
 const r2 = (x) => Math.round(x * 100) / 100;
 const snap = (k, v) => { const [a, b, st] = RANGOS[k]; return Math.max(a, Math.min(b, Math.round(v / st) * st)); };
 const SIG = ["mom", "ub", "bs", "hg", "lm", "sw", "ia"];
@@ -99,8 +99,10 @@ export function pasoVar(V, by, now, ext, smart, hold, rnd = Math.random) {
       if (p.peak >= p.px * (1 + G.trailOn)) p.tr = 1;
       if (G.tpFrac > 0 && !p.tp1 && pr >= p.px * (1 + G.tp)) { const qv = p.q * G.tpFrac, gross = qv * pr, g2 = Math.max(0, gross * (1 - slipR(gross, liq)) * (1 - R.fee) - R.fixFee); V.cash += g2; V.fees += gross - g2; p.q -= qv; p.gp = (p.gp || 0) + g2; p.tp1 = 1; }
       while (G.esc > 0 && (p.esc || 0) < ESC.length && pr >= p.px * ESC[p.esc || 0]) { const qv = p.q * G.esc, gross = qv * pr, g2 = Math.max(0, gross * (1 - slipR(gross, liq)) * (1 - R.fee) - R.fixFee); V.cash += g2; V.fees += gross - g2; p.q -= qv; p.gp = (p.gp || 0) + g2; p.esc = (p.esc || 0) + 1; }
+      const al = alarmaSalida(G, p, q, liq, pr);
       if (pr <= p.px * (1 - G.stop)) cerrar(a, pr, liq, "stop");
-      else if (p.tr && pr <= p.peak * (1 - G.trail)) cerrar(a, pr, liq, "móvil");
+      else if (al) cerrar(a, pr, liq, "alarma");
+      else if (p.tr && pr <= p.peak * (1 - trailEf(G, p, pr))) cerrar(a, pr, liq, "móvil");
       else if ((tnow - Date.parse(p.t0)) / 3600e3 >= G.maxHoldH) cerrar(a, pr, liq, "tiempo");
     }
     if (ext.full) {
