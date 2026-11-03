@@ -14,8 +14,9 @@ const r2 = (x) => Math.round(x * 100) / 100, r4 = (x) => Math.round(x * 1e4) / 1
 const UA = { "User-Agent": "Mozilla/5.0 (bot-trading)", Accept: "application/json" };
 async function J(u) { const r = await fetch(u, { headers: UA, signal: AbortSignal.timeout(8000) }); if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); }
 // símbolos entre paréntesis, p. ej. «Binance Will List Foo (FOO)» → FOO
-export const simbolos = (t) => [...String(t || "").matchAll(/\(([A-Z0-9]{2,12})\)/g)].map((m) => m[1]).filter((s) => !/^(USDT|USDC|KRW|BTC|ETH|SPOT|UTC|KST|AM|PM)$/.test(s));
-const esListado = (t) => /list|listing|신규|거래지원/i.test(t) && !/delist|종료|remove|removal|suspen|migration|swap|airdrop|futures|perpetual|margin/i.test(t);
+// v213 · también «GRVT/USD» o «IRYS/USDT» (así titula OKX)
+export const simbolos = (t) => [...new Set([...String(t || "").matchAll(/\(([A-Z0-9]{2,12})\)/g)].map((m) => m[1]).concat([...String(t || "").matchAll(/\b([A-Z0-9]{2,12})\/(?:USDT|USDC|USD|EUR)\b/g)].map((m) => m[1])))].filter((s) => !/^(USDT|USDC|USD|EUR|KRW|BTC|ETH|SPOT|UTC|KST|AM|PM)$/.test(s));
+const esListado = (t) => /list|listing|launch|신규|거래지원/i.test(t) && !/delist|종료|remove|removal|suspen|migration|swap|airdrop|futures|perpetual|margin|collateral|tokenized|bstocks|stock/i.test(t);
 // cada fuente devuelve [{ id, sym, titulo }]
 export const FUENTES = {
   // v209 · Upbit y Binance cada medio segundo (cada fuente en su propio bucle, en paralelo; si una fuente se queja, espera más y vuelve a bajar)
@@ -29,6 +30,12 @@ export const FUENTES = {
   coinbase: { cada: 10, n: "Coinbase", leer: async () => { const j = await J("https://api.exchange.coinbase.com/products"); return (j || []).map((x) => ({ id: "c" + x.base_currency, sym: x.base_currency, titulo: "Coinbase abre " + x.id })); } },
   bithumb: { cada: 10, n: "Bithumb (Corea)", leer: async () => { const j = await J("https://api.bithumb.com/public/ticker/ALL_KRW"); return Object.keys((j && j.data) || {}).filter((k) => k !== "date").map((k) => ({ id: "h" + k, sym: k, titulo: "Bithumb abre " + k + "/KRW" })); } }
 };
+// v213 · más exchanges que abren mercados nuevos a menudo (más anuncios = aprende antes): MEXC, Gate y Kraken, cada 30 s
+Object.assign(FUENTES, {
+  mexc: { cada: 30, n: "MEXC", leer: async () => { const j = await J("https://api.mexc.com/api/v3/defaultSymbols"); return ((j && j.data) || []).filter((x) => /USDT$/.test(x)).map((x) => ({ id: "m" + x, sym: x.replace(/USDT$/, ""), titulo: "MEXC abre " + x })); } },
+  gate: { cada: 30, n: "Gate", leer: async () => { const j = await J("https://api.gateio.ws/api/v4/spot/currency_pairs"); return (j || []).filter((x) => x.quote === "USDT" && x.trade_status === "tradable").map((x) => ({ id: "g" + x.id, sym: x.base, titulo: "Gate abre " + x.id, pub: x.buy_start ? x.buy_start * 1000 : null })); } },
+  kraken: { cada: 30, n: "Kraken", leer: async () => { const j = await J("https://api.kraken.com/0/public/AssetPairs"); return Object.values((j && j.result) || {}).filter((x) => /EUR$|USD$/.test(x.wsname || "")).map((x) => ({ id: "r" + x.wsname, sym: String(x.wsname).split("/")[0].replace(/^XBT$/, "BTC"), titulo: "Kraken abre " + x.wsname })); } }
+});
 export function fresh(now = new Date()) { return { v: 1, start: START, cash: START, pos: {}, closed: [], log: [], eq: [], st: { trades: 0, wins: 0, losses: 0, fees: 0, pnl: 0 }, seen: {}, ev: [], fuentes: {}, since: now.toISOString() }; }
 const L = (S, now, ev, sym, txt) => { S.log.unshift({ t: now.toISOString(), ev, sym, txt }); S.log = S.log.slice(0, 200); };
 // lo aprendido por fuente: media del cambio de precio a cada horizonte (ya con costes de entrar y salir) → mejor tiempo y si se opera
