@@ -5,13 +5,14 @@
 // (validación cruzada), así que la bola nunca se examina con datos que la IA ya ha visto. En vivo usa el modelo entrenado con todo.
 export const SUBE = 0.02, CAE = 0.015, VELAS = 72, RONDAS = 120, LR = 0.1, BINS = 16;
 export const NOMBRES = ["impulso 15 min", "impulso 1 h", "impulso 4 h", "sobre su media", "mínimos crecientes", "volumen", "corrección desde máximo", "rompe máximo 24 h",
-  "rompe máximo 20 h", "ruptura de Williams", "RSI(2)", "sobre media larga", "fuerza frente a las demás", "última vela", "volumen última vela", "pico de volumen", "deja de caer", "máximo de 3,5 días", "hora (seno)", "hora (coseno)"];
+  "rompe máximo 20 h", "ruptura de Williams", "RSI(2)", "sobre media larga", "fuerza frente a las demás", "última vela", "volumen última vela", "pico de volumen", "deja de caer", "máximo de 3,5 días", "hora (seno)", "hora (coseno)", "👑 posición de los mejores traders", "👑 cambio de los mejores (1 h)"];
 const cl = (x, a, b) => (x == null || !Number.isFinite(+x) ? 0 : Math.max(a, Math.min(b, +x)));
 export function vector(f) {
   if (!f) return null; const h = new Date(f.t || 0).getUTCHours() / 24 * 2 * Math.PI;
   return [cl(f.m15, -0.1, 0.1), cl(f.m60, -0.2, 0.2), cl(f.m240, -0.4, 0.4), f.sobre ? 1 : 0, cl(f.hl, 0, 1), cl(Math.log(Math.max(0.05, f.vol || 1)), -3, 3), cl(f.pull, 0, 0.5), cl(f.rompe, -0.3, 0.1),
     f.don == null ? -0.5 : cl(f.don, -0.3, 0.1), f.vb == null ? 0 : cl(f.vb, -3, 3), cl(f.rsi2, 0, 100) / 100, f.sobre200 ? 1 : 0, f.rk == null ? 0.5 : cl(f.rk, 0, 1), cl(f.c1, -0.1, 0.1), cl(Math.log(Math.max(0.05, f.v1 || 1)), -3, 4),
-    cl(Math.log(Math.max(0.05, f.vmax || 1)), -3, 4), f.estab ? 1 : 0, f.maxW == null ? -0.5 : cl(f.maxW, -0.5, 0.1), Math.sin(h), Math.cos(h)];
+    cl(Math.log(Math.max(0.05, f.vmax || 1)), -3, 4), f.estab ? 1 : 0, f.maxW == null ? -0.5 : cl(f.maxW, -0.5, 0.1), Math.sin(h), Math.cos(h),
+    f.smart == null ? 0 : cl(f.smart, -1, 1), f.smartD == null ? 0 : cl(f.smartD, -2, 2)];
 }
 // etiqueta: ¿tocó +2 % antes de −1,5 % en las siguientes 6 h? (entrando en la apertura de la vela siguiente)
 export function etiquetas(c) {

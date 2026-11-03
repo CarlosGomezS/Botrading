@@ -9,10 +9,11 @@ import { execSync } from "node:child_process";
 import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { entrenarIA, predecir, vector } from "./bitvavo-ia.mjs";
+import * as HLm from "./hyperliquid.mjs";
 
 const API = "https://api.bitvavo.com/v2", REPO = process.env.GITHUB_REPOSITORY || "", TOKEN = process.env.GITHUB_TOKEN || "";
 const RAMA = "bitvavo", RAMA_H = "bitvavo-hist";
-export const FEE = 0.0025, START = 100, MIN_VOL = 2e5, MAX_MKT = 50, HIST_MKT = 40, GEN_MIN = 10, POP = 60, ESTS = ["tendencia", "rebote", "ruptura", "media", "tortuga", "williams", "connors", "rotacion", "capitulacion", "fade", "maximos", "ia"];   // v205 · aprende cada 10 min, con 7 días y 4 estilos
+export const FEE = 0.0025, START = 100, MIN_VOL = 2e5, MAX_MKT = 50, HIST_MKT = 40, GEN_MIN = 10, POP = 60, ESTS = ["tendencia", "rebote", "ruptura", "media", "tortuga", "williams", "connors", "rotacion", "capitulacion", "fade", "maximos", "ia", "copia"];   // v205 · aprende cada 10 min, con 7 días y 4 estilos
 export const NO = /^(USDC|USDT|EURC|EURT|DAI|PYUSD|TUSD|FDUSD|USDE|EURI|XAUT|PAXG)-/;   // estables y oro: no se mueven
 const r2 = (x) => Math.round(x * 100) / 100, r4 = (x) => Math.round(x * 1e4) / 1e4, sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const cl = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -71,6 +72,8 @@ export function entra(g, f) {
   if (!f) return false;
   // v219 · 🧠 la IA como filtro de cualquier estilo (si la regla lo pide) y como estilo propio («ia»: compra lo que la IA ve más probable)
   if (g.iaMin > 0 && !(f.ia >= g.iaMin)) return false;
+  // v220 · «copia»: comprar lo que los mejores traders de Hyperliquid tienen claramente en largo (y no están soltando)
+  if (g.estilo === "copia") return f.smart != null && f.smart >= 0.2 + g.k * 0.5 && (f.smartD == null || f.smartD >= 0) && f.m60 > -0.02;
   if (g.estilo === "ia") return f.ia != null && f.ia >= Math.max(0.25, g.iaMin) && f.m15 > -0.01;
   // ruptura: supera el máximo de las últimas ~24 h con volumen; media: en tendencia de fondo, compra una bajada corta
   if (g.estilo === "ruptura") return f.rompe > 0 && f.rompe <= Math.max(0.004, g.pullMax) && f.vol >= g.volMin && f.m60 >= g.m60Min && f.m60 <= g.m60Max;
@@ -226,6 +229,9 @@ async function main() {
   const F = {}, quiero = [...new Set([...U, ...Object.keys(S.pos)])];
   await enParalelo(quiero, 8, async (m) => { try { const c = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)); const f = rasgos(c); F[m] = f[f.length - 1]; } catch (e) { S.err = String(e.message).slice(0, 60); } });
   { const vs = Object.values(F).filter(Boolean).sort((x, y) => y.m240 - x.m240); vs.forEach((f, i) => { f.rk = vs.length > 4 ? i / (vs.length - 1) : null; }); }
+  // 👑 lo que hacen ahora los mejores traders de Hyperliquid
+  try { S.hl = await HLm.actualizar(S.hl, now); } catch (e) {}
+  { const sn = (S.hl && S.hl.snap) || {}, pv = (S.hl && S.hl.prev) || {}; for (const [m, f] of Object.entries(F)) if (f) { const c = m.replace("-EUR", ""); f.smart = sn[c] ? sn[c].s : null; f.smartD = sn[c] && pv[c] ? sn[c].s - pv[c].s : null; } }
   if (S.iaM) for (const f of Object.values(F)) if (f) f.ia = predecir(S.iaM, vector(f));
   paso(S, tick, F, now);
   // 3) laboratorio cada 30 min
@@ -235,6 +241,9 @@ async function main() {
     // 7 días: dos tandas de 1.000 velas de 5 min por mercado
     await enParalelo(hm, 6, async (m) => { try { const c1 = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)); const c0 = c1.length ? velas(await J(`${API}/${m}/candles?interval=5m&limit=1000&end=${c1[0][0] - 1}`, 2)) : []; const c = c0.concat(c1); if (c.length > 300) H.m[m] = { c, f: rasgos(c), sp: tick[m].sp }; } catch (e) {} });
     rankear(Object.fromEntries(Object.entries(H.m).map(([m, x]) => [m, x.f])));
+    // historial de la señal de los mejores (cada 10 min, 7 días) → rasgo de cada vela para la IA y las reglas
+    try { let hh = null; try { hh = await leer("hl-hist.json", RAMA_H); } catch (e) {} hh = HLm.anotar(hh, S.hl && S.hl.snap, now.getTime()); publicar("hl-hist.json", hh, RAMA_H); S.hlHist = Object.keys(hh).length;
+      for (const [m, x] of Object.entries(H.m)) { const se = hh[m.replace("-EUR", "")]; for (const f of x.f) if (f) { f.smart = HLm.enMomento(se, f.t); const s1 = HLm.enMomento(se, f.t - 3600e3); f.smartD = f.smart != null && s1 != null ? f.smart - s1 : null; } } } catch (e) { console.log("Bitvavo: historial de los mejores: " + e.message); }
     try { const ti = Date.now(), IA = entrenarIA(H); S.iaM = IA.listo ? IA.modelo : null; delete IA.modelo; S.ia = { ...IA, seg: Math.round((Date.now() - ti) / 1000) }; if (IA.listo) L(S, now, "INFO", "", `🧠 IA reentrenada con ${IA.n} momentos: con días que no ha visto ordena bien subidas y caídas ${Math.round(IA.auc * 100)} de cada 100`); } catch (e) { S.ia = { listo: false, err: String(e.message).slice(0, 60) }; }
     if (Object.keys(H.m).length >= 10) { const evo = evolucionar(S, H, now, Math.random, Math.max(5e3, 45e3 - (Date.now() - t0))); L(S, now, "INFO", "", `🔬 generación ${evo.gen}: ${evo.probadas} reglas probadas en ${Object.keys(H.m).length} mercados`); }
   }
