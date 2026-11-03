@@ -192,6 +192,12 @@ async function main() {
   S.lastEq = r2(eq); S.last = now.toISOString(); S.diag = { mercados: Object.keys(tick).length, liquidos: U.length, velas: Object.keys(F).length, t: now.toISOString(), seg: Math.round((Date.now() - t0) / 1000) };
   S.top = U.slice(0, 12).map((m) => ({ m, sym: m.replace("-EUR", ""), px: tick[m].last, ch24: r2(tick[m].ch24 * 100), f: F[m] ? { m60: r2(F[m].m60 * 100), vol: r2(F[m].vol), ok: entra({ ...BASE, ...S.genome }, F[m]) } : null }));
   for (const v of S.lab.pop) { delete v.c; }
+  // 🔔 avisos por Telegram cuando algo es MUY efectivo
+  try {
+    const AV = await import("./avisos.mjs"); S.av = S.av || {}; const msgs = AV.avisosCuenta(S.av, "bv", "🇪🇺 Bitvavo", S, now, { med: 1, big: 5 });
+    const ad = (S.lab.adopt || [])[0]; if (ad && ad.ok && now - Date.parse(ad.t) < 3 * 60000) { const m = AV.avisoReglas(S.av, "bv-adopta:" + ad.id, `🏆 Bitvavo ha encontrado reglas que GANAN tanto en los días antiguos como en los recientes (${ad.id}). Deja el modo prueba y opera con ellas (dinero ficticio).`, now); if (m) msgs.push(m); }
+    for (const m of msgs.slice(0, 4)) await AV.tg(m);
+  } catch (e) { console.log("Bitvavo: avisos no enviados"); }
   publicar("bitvavo.json", S, RAMA);
   console.log(`Bitvavo: ${U.length} mercados · saldo ${S.lastEq} € · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · gen ${S.lab.gen} · ${S.diag.seg} s`);
 }

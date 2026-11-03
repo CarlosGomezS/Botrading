@@ -535,6 +535,16 @@ async function main() {
   for (const v of LB.pop) LBm.pasoVar(v, by, now, { ...ext, full: true }, S.smart, S.hold);
   const evo = LBm.evolucionar(LB, S, now, Math.random, MUE); if (evo) L(S, now, "INFO", "", `🧬 generación ${evo.gen}: se archivan ${evo.out} variantes y nacen otras`);
   if (S.genomeId && S.genomeAt !== S.genomeId) { S.genomeAt = S.genomeId; L(S, now, "INFO", "", `🏆 el terminal pasa a usar las reglas aprendidas de ${S.genomeId}`); }
+  // v202 · 🔔 avisos por Telegram cuando algo es MUY efectivo (los textos no se escriben en el registro público)
+  try {
+    const AV = await import("./avisos.mjs"); S.av = S.av || {}; const red = CH.nombre, msgs = [];
+    msgs.push(...AV.avisosCuenta(S.av, "video", `🎬 Reglas del vídeo (${red})`, S, now, { med: 2, big: 30 }));
+    msgs.push(...AV.avisosCuenta(S.av, "turbo", `⚡ Turbo (${red})`, S.turbo, now, { med: 2, big: 30 }));
+    if (S.volat) msgs.push(...AV.avisosCuenta(S.av, "volat", `🌪️ Volátiles (${red})`, S.volat, now, { med: 1, big: 8 }));
+    for (const x of (LB.log || []).filter((x) => x.k === "adopta" && now - Date.parse(x.t) < 3 * 60000)) { const m = AV.avisoReglas(S.av, "adopta:" + x.txt.slice(0, 40), `🧬 La bola de aprendizaje (${red}) ha encontrado reglas que ganan:
+${x.txt}`, now); if (m) msgs.push(m); }
+    for (const m of msgs.slice(0, 6)) await AV.tg(m);
+  } catch (e) { console.log("Memes: avisos no enviados"); }
   await dineroReal(S, by, now, false);
   publicar(S, LB);
   publicarMue(MUE);
