@@ -1,0 +1,12 @@
+name: sonda-cors (temporal)
+on: workflow_dispatch
+jobs:
+  s:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          O="https://carlosgomezs.github.io"
+          for u in "https://api.dexscreener.com/tokens/v1/solana/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" "https://lite-api.jup.ag/price/v3?ids=DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" "https://api.geckoterminal.com/api/v2/simple/networks/solana/token_price/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" "https://api.bitvavo.com/v2/ticker/price?market=BTC-EUR" "https://api.bitvavo.com/v2/ticker/book?market=BTC-EUR"; do
+            echo "== $u"; curl -s -D - -o /dev/null -H "Origin: $O" "$u" | grep -i "^HTTP\|access-control-allow-origin"
+            curl -s -D - -o /dev/null -X OPTIONS -H "Origin: $O" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: cache-control" "$u" | grep -i "^HTTP\|access-control-allow"
+          done
