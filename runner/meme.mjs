@@ -266,7 +266,7 @@ async function main() {
   for (const d of ["5m", "1h", "6h", "24h"]) for (const pg of [1, 2, 3]) GTL.push(`${GT}/networks/solana/trending_pools?duration=${d}&page=${pg}`);
   for (const pg of [1, 2, 3, 4, 5]) GTL.push(`${GT}/networks/solana/new_pools?page=${pg}`);
   for (const pg of [1, 2, 3]) GTL.push(`${GT}/networks/solana/pools?sort=h24_volume_usd_desc&page=${pg}`, `${GT}/networks/solana/pools?sort=h24_tx_count_desc&page=${pg}`);
-  const rot = Math.floor(tnow / 60000), otras = GTL.filter((u) => !/new_pools\?page=[123]$/.test(u)), gtU = [`${GT}/networks/solana/new_pools?page=1`, `${GT}/networks/solana/new_pools?page=2`, `${GT}/networks/solana/new_pools?page=3`, ...Array.from({ length: 5 }, (_, i) => otras[(rot * 5 + i) % otras.length])];
+  const rot = Math.floor(tnow / 60000), otras = GTL.filter((u) => !/new_pools\?page=[123]$/.test(u)), gtU = [`${GT}/networks/solana/new_pools?page=1`, `${GT}/networks/solana/new_pools?page=2`, ...Array.from({ length: 3 }, (_, i) => otras[(rot * 3 + i) % otras.length])];   // 5 listas + 10 operaciones < 30 peticiones/min de GeckoTerminal
   const srcs = [DS + "/token-profiles/latest/v1", DS + "/token-boosts/latest/v1", DS + "/token-boosts/top/v1", ...["pump", "sol", "meme", "cat", "dog", "ai"].map((q) => `${DS}/latest/dex/search?q=${q}`).slice(rot % 6, rot % 6 + 2)];
   await enParalelo(srcs, 5, async (u) => { const j = await J(u, 2); const arr = Array.isArray(j) ? j : (j && j.pairs) || []; for (const x of arr) if (x && x.chainId === "solana") add(x.tokenAddress || (x.baseToken && x.baseToken.address)); });
   await enParalelo(gtU, 4, async (u) => { const j = await J(u, 2); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(/^solana_/, "")); } });
@@ -293,8 +293,10 @@ async function main() {
   const pasaTerm = (a, q) => conGenoma(S.genome, () => { const i = ext.rc[a], rr = reglas(q, i); return i && !RULES.some(([k]) => rr[k] !== true); });
   const preGT = pre.filter(([a, q]) => pasaTerm(a, q)).concat(pre.filter(([a, q]) => !pasaTerm(a, q)));
   const pideGT = preGT.filter(([a]) => { const i = ext.rc[a]; return i && !i.rugged; }).slice(0, R.gtPerRun);
-  await enParalelo(pideGT, 3, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; const j = await J(`${GT}/networks/solana/pools/${q.pairAddress}/trades`, 2); ngt++; if (j && j.data) ext.gt[a] = gtInfo(j.data, tnow); });
-  S.diag = { t: now.toISOString(), monedas: Object.keys(by).length, candidatas: pre.length, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
+  let gtOk = 0; S.gtc = S.gtc || {};
+  for (const [a, c] of Object.entries(S.gtc)) { if (tnow - c.t > 15 * 60000) delete S.gtc[a]; else if (tnow - c.t < 4 * 60000) ext.gt[a] = c.g; }   // operaciones de GeckoTerminal: se reutilizan 4 min
+  await enParalelo(pideGT.filter(([a]) => !ext.gt[a]), 2, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; ngt++; const j = await J(`${GT}/networks/solana/pools/${q.pairAddress}/trades`, 2); if (j && j.data) { const g = gtInfo(j.data, tnow); ext.gt[a] = g; S.gtc[a] = { t: tnow, g: { ...g, buyers: g.buyers.slice(0, 150) } }; gtOk++; } });
+  S.diag = { t: now.toISOString(), monedas: Object.keys(by).length, candidatas: pre.length, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
   paso(S, by, now, Math.random, ext);
   pasoIdeal(S, by, now, ext);
   for (const v of LB.pop) LBm.pasoVar(v, by, now, { ...ext, full: true }, S.smart, S.hold);
