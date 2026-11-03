@@ -18,6 +18,16 @@ const api = async (m, body) => {
 };
 const say = (chat, text) => api("sendMessage", { chat_id: chat, text, disable_web_page_preview: true }).catch(() => {});
 
+// v175 · orden de Memes con dinero real: se guarda en la rama «meme-ctl» (ctl.json, sin importes)
+async function memesCtl(o) {
+  const u = `https://api.github.com/repos/${REPO}/contents/ctl.json`, H = { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "Content-Type": "application/json" };
+  const r = await fetch(u + "?ref=meme-ctl", { headers: H }); const cur = r.ok ? await r.json() : null; let c = { aprobado: null, parado: false };
+  try { if (cur && cur.content) c = JSON.parse(Buffer.from(cur.content, "base64").toString("utf8")); } catch (e) {}
+  if (o.accion === "aprobar") { c.aprobado = o.id; c.parado = false; } else if (o.accion === "no") c.rechazado = o.id; else if (o.accion === "parar") { c.parado = true; c.motivo = "lo has parado tú"; } else if (o.accion === "seguir") { c.parado = false; c.motivo = null; }
+  c.t = new Date().toISOString();
+  const w = await fetch(u, { method: "PUT", headers: H, body: JSON.stringify({ message: "memes: orden desde Telegram", content: Buffer.from(JSON.stringify(c)).toString("base64"), branch: "meme-ctl", ...(cur && cur.sha ? { sha: cur.sha } : {}) }) });
+  return w.ok;
+}
 async function dispatch(accion, plan) {
   const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/real.yml/dispatches`, {
     method: "POST", headers: { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" },
@@ -28,12 +38,14 @@ async function dispatch(accion, plan) {
 
 export function parseUpdates(ups, chat) {
   // devuelve la última orden válida de TU chat y los mensajes a contestar
-  let act = null, last = 0; const replies = [], answers = [];
+  let act = null, last = 0, memes = null; const replies = [], answers = [];
   for (const u of ups || []) {
     last = Math.max(last, u.update_id || 0);
     if (u.callback_query) {
       const q = u.callback_query, cid = String((q.message && q.message.chat && q.message.chat.id) || (q.from && q.from.id) || "");
       if (!chat || cid !== chat) { answers.push([q.id, "No autorizado."]); continue; }
+      const mm = String(q.data || "").match(/^(ma|mx):([A-Za-z0-9_-]{1,40})$/);   // v175 · memes con dinero real: aprobar / todavía no
+      if (mm) { memes = { accion: mm[1] === "ma" ? "aprobar" : "no", id: mm[2], msg: q.message ? { chat: cid, id: q.message.message_id } : null }; answers.push([q.id, mm[1] === "ma" ? "✅ Recibido: empiezo con dinero real" : "Vale, sigue en ficticio"]); continue; }
       const m = String(q.data || "").match(/^(ap|re|mc|mr):([A-Za-z0-9_-]{1,40})$/);
       if (!m) { answers.push([q.id, "Botón no válido."]); continue; }
       act = { accion: { ap: "aprobar", re: "rechazar", mc: "metodo-si", mr: "metodo-no" }[m[1]], plan: m[2], msg: q.message ? { chat: cid, id: q.message.message_id } : null };
@@ -42,10 +54,12 @@ export function parseUpdates(ups, chat) {
       const cid = String(u.message.chat.id), t = String(u.message.text || "").trim();
       if (!chat) replies.push([cid, `Hola 👋 Tu número de chat es:\n\n${cid}\n\nCópialo en la web: 💶 Real → Ajustes de la cartera real → Claves → «Telegram: tu número de chat» (TELEGRAM_CHAT) y guarda. A partir de entonces te avisaré aquí de todo lo que haga la cartera real.`]);
       else if (/^\/(id|chat|numero|número)\b/i.test(t)) replies.push([cid, `Tu número de chat es:\n\n${cid}\n\nCópialo en la web: ⚙️ Ajustes → «📤 Telegram en este dispositivo».`]);
+      else if (cid === chat && /^\/(parar|stop)\b/i.test(t)) memes = { accion: "parar" };
+      else if (cid === chat && /^\/(seguir|reanudar)\b/i.test(t)) memes = { accion: "seguir" };
       else if (cid === chat && /^\/(start|ayuda|help)/i.test(t)) replies.push([cid, "Estoy conectado ✔\n\nTe aviso aquí de todo lo que hace tu cartera real. Cuando proponga órdenes, verás los botones «✅ Aprobar» y «❌ Rechazar»: se procesan en 5-15 minutos y te contesto con el resultado."]);
     }
   }
-  return { act, last, replies, answers };
+  return { act, last, replies, answers, memes };
 }
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop())) {
@@ -53,10 +67,16 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop()
     if (!TOK) { console.log("Telegram sin configurar (falta TELEGRAM_TOKEN): no hago nada."); return; }
     const ups = await api("getUpdates", { timeout: 0, allowed_updates: ["message", "callback_query"] });
     if (!ups.length) { console.log("Sin novedades en Telegram."); return; }
-    const { act, last, replies, answers } = parseUpdates(ups, CHAT);
+    const { act, last, replies, answers, memes } = parseUpdates(ups, CHAT);
     await api("getUpdates", { offset: last + 1, timeout: 0 }).catch(() => {});   // marca como leídos
     for (const [id, text] of answers) await api("answerCallbackQuery", { callback_query_id: id, text }).catch(() => {});
     for (const [cid, text] of replies) await say(cid, text);
+    if (memes) {
+      if (memes.msg) await api("editMessageReplyMarkup", { chat_id: memes.msg.chat, message_id: memes.msg.id, reply_markup: { inline_keyboard: [] } }).catch(() => {});
+      const ok = await memesCtl(memes);
+      await say(CHAT, !ok ? "✖ No pude guardar la orden de Memes en GitHub. Inténtalo de nuevo." : { aprobar: "💶 Hecho: Memes empieza a copiar al terminal con tu cartera del bot en la próxima vuelta (1-2 min).", no: "Vale: Memes sigue en ficticio. Te volveré a preguntar si sigue ganando.", parar: "🛑 Memes real PARADO: en la próxima vuelta vende lo que tenga abierto y no compra más. Para volver: /seguir", seguir: "▶️ Memes real reanudado." }[memes.accion]);
+      console.log("Orden de Memes procesada");
+    }
     if (act) {
       if (act.msg) await api("editMessageReplyMarkup", { chat_id: act.msg.chat, message_id: act.msg.id, reply_markup: { inline_keyboard: [] } }).catch(() => {});
       const ok = await dispatch(act.accion, act.plan);

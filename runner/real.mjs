@@ -113,7 +113,7 @@ function gitShow(branch, file) {
   sh(`git -C "${ROOT}" fetch -q --depth 1 https://x-access-token:${TOKEN}@github.com/${REPO}.git ${branch}`);
   return sh(`git -C "${ROOT}" show FETCH_HEAD:${file}`);
 }
-const SECRET_NAMES = ["T212_KEY", "T212_SECRET", "REAL_VIEW_PASS", "NTFY_TOPIC", "SMTP_USER", "SMTP_PASS", "EMAIL", "TELEGRAM_TOKEN", "TELEGRAM_CHAT"];
+const SECRET_NAMES = ["T212_KEY", "T212_SECRET", "REAL_VIEW_PASS", "NTFY_TOPIC", "SMTP_USER", "SMTP_PASS", "EMAIL", "TELEGRAM_TOKEN", "TELEGRAM_CHAT", "MEME_SOL_KEY", "MEME_RPC"];
 // El repositorio es PÚBLICO y los registros de GitHub Actions también: aquí nunca se escriben importes, posiciones ni tickers.
 function secretsMeta() { const o = {}; for (const k of SECRET_NAMES) o[k] = !!env(k); return o; }
 

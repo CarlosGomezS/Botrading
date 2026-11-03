@@ -19,6 +19,7 @@ export const CHAINS = {
 // palabras con las que se buscan monedas en DexScreener (rotan cada minuto: así van apareciendo cientos distintas)
 const PALABRAS = ["pepe", "doge", "shib", "inu", "cat", "dog", "frog", "trump", "elon", "ai", "agent", "gpt", "moon", "pump", "meme", "baby", "king", "chad", "wojak", "bonk",
   "wif", "popcat", "giga", "sigma", "based", "cult", "degen", "ape", "monkey", "bear", "bull", "panda", "fish", "duck", "goat", "rocket", "gem", "coin", "token", "mog", "brett", "toshi", "floki", "kitty", "hamster", "penguin", "dragon", "tiger"];
+export const NOMEME = new Set(["So11111111111111111111111111111111111111112", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"]);   // SOL, USDC y USDT: no son memecoins
 const ARGS = process.argv.slice(2), CH = CHAINS[ARGS.find((x) => CHAINS[x])] || CHAINS.solana, RAPIDO = ARGS.includes("rapido");
 export const R = {
   start: 100, size: 0.08,         // v167: prueba con 100 €, lo que piensas meter de verdad
@@ -198,7 +199,7 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs
   // EXPLORADOR → FILTRO → ANALISTA
   const cands = []; let nNew = 0;
   for (const [a, q] of Object.entries(by)) {
-    if (S.pos[a]) continue;
+    if (S.pos[a] || NOMEME.has(a)) continue;
     let z = S.seen[a]; const first = !z || typeof z !== "object"; if (first) z = S.seen[a] = { t: tnow, k: 0, s: 0 };
     const ex = explorador(q, tnow);
     // v165 · se siguen vigilando (hasta 72 h) las que aún son muy jóvenes o pequeñas pero están vivas: pueden crecer y cumplir más tarde
@@ -290,6 +291,17 @@ function publicar(S, LB) {
   for (let i = 0; i < 4; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git HEAD:${CH.rama}`); return; } catch (e) { if (i === 3) throw new Error("no pude guardar meme.json"); } }
 }
 
+// v175 · 💶 dinero real (solo Solana): copia al terminal con tu cartera del bot si lo has aprobado (runner/meme-real.mjs)
+async function dineroReal(S, by, now, rapidoV) {
+  if (CH.id !== "solana" || !process.env.REAL_VIEW_PASS) return;
+  try {
+    if (!S.eurUsd || now - Date.parse(S.eurUsd.t) > 6 * 3600e3) { const j = await J("https://api.frankfurter.app/latest?from=EUR&to=USD", 2).catch(() => null); if (j && j.rates && +j.rates.USD > 0) S.eurUsd = { v: +j.rates.USD, t: now.toISOString() }; }
+    const sol = by["So11111111111111111111111111111111111111112"]; if (sol && +sol.priceUsd > 0) S.solUsd = +sol.priceUsd;
+    if (rapidoV && !S.realAbierto) return;   // en la vuelta rápida solo si hay algo abierto con dinero real
+    const MR = await import("./meme-real.mjs"), RS = await MR.pasoReal(S, by, now, S.eurUsd ? S.eurUsd.v : 1.08);
+    S.realAbierto = !!(RS && Object.keys(RS.pos || {}).length); S.realEstado = RS ? RS.estado : null;
+  } catch (e) { console.log("Memes real: " + String(e.message || e).slice(0, 120)); }
+}
 async function main() {
   const now = new Date(), tnow = now.getTime(), t0 = Date.now(), LBm = await import("./meme-lab.mjs");
   R.fixFee = CH.fixFee;
@@ -300,7 +312,7 @@ async function main() {
   LBm.aplicarRangos(LB);   // v174 · los rangos que la bola ya haya ensanchado
   const varOpen = () => LB.pop.flatMap((v) => Object.keys(v.pos || {}));
   if (RAPIDO) {
-    const open = [...new Set([...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()])];
+    const open = [...new Set([...(CH.id === "solana" && S.realAbierto ? ["So11111111111111111111111111111111111111112"] : []), ...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()])];
     if (!open.length) { console.log("Memes (rápido): nada abierto."); return; }
     const pairs = []; for (let i = 0; i < open.length; i += 30) { const j = await J(`${DS}/tokens/v1/${CH.ds}/${open.slice(i, i + 30).join(",")}`); if (Array.isArray(j)) pairs.push(...j); }
     const by = bestPairs(pairs, CH.ds); if (!Object.keys(by).length) { console.log("Memes (rápido): sin precios."); return; }
@@ -308,6 +320,7 @@ async function main() {
     rapido(S, by, now);
     for (const v of LB.pop) LBm.pasoVar(v, by, now, { full: false });
     publicar(S, LB);
+    await dineroReal(S, by, now, true);
     console.log(`Memes (rápido): ${open.length} abiertas vigiladas · saldo ${r2(S.lastEq)}`); return;
   }
   if (S.last && tnow - Date.parse(S.last) < 40e3) { console.log("Memes: la última vuelta fue hace menos de 40 s; nada que hacer."); return; }
@@ -332,7 +345,7 @@ async function main() {
   }
   await enParalelo(gtU, 4, async (u) => { const j = await J(u, 2); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(new RegExp("^" + CH.gt + "_"), "")); } });
   // primero lo abierto y lo recién encontrado; las «jóvenes» que se vuelven a mirar, como mucho 200
-  const must = new Set([...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()]);
+  const must = new Set([...(CH.id === "solana" ? ["So11111111111111111111111111111111111111112"] : []), ...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()]);
   const young = Object.entries(S.young || {}).sort((a, b) => b[1] - a[1]).slice(0, 1200).map((x) => x[0]);
   const list = [...new Set([...must, ...[...addrs].filter((a) => !(S.young || {})[a]), ...young])].slice(0, 2400), pairs = [];
   const batches = []; for (let i = 0; i < list.length; i += 30) batches.push(list.slice(i, i + 30));
@@ -372,6 +385,7 @@ async function main() {
   const evo = LBm.evolucionar(LB, S, now); if (evo) L(S, now, "INFO", "", `🧬 generación ${evo.gen}: se archivan ${evo.out} variantes y nacen otras`);
   if (S.genomeId && S.genomeAt !== S.genomeId) { S.genomeAt = S.genomeId; L(S, now, "INFO", "", `🏆 el terminal pasa a usar las reglas aprendidas de ${S.genomeId}`); }
   publicar(S, LB);
+  await dineroReal(S, by, now, false);
   console.log(`Memes: ${Object.keys(by).length} monedas · RugCheck ${nrc} · GeckoTerminal ${ngt} · saldo ${r2(S.lastEq)} · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · variantes ${LB.pop.length} (gen ${LB.gen}) · ${Math.round((Date.now() - t0) / 1000)} s`);
 }
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.log("Memes: " + (e.message || e)); process.exit(0); });

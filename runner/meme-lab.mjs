@@ -2,7 +2,7 @@
 // ficticio (50 € cada una), los MISMOS datos en vivo y costes reales. Cada ~3 h se juzgan: las peores se archivan (nunca se borran) y nacen
 // otras (mutaciones y cruces de las mejores, y alguna inventada de cero). Si una variante demuestra con muchas operaciones que es mejor que las
 // reglas que usa el terminal, el terminal la adopta solo. La variante «vídeo» (las reglas originales) no se elimina nunca: es la referencia.
-import { R, VIDEO, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS } from "./meme.mjs";
+import { R, VIDEO, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS, NOMEME } from "./meme.mjs";
 const ESTS = Object.keys(ESTILOS);
 
 export const POP = 30, GEN_H = 2, MIN_N = 8, ADOPT_N = 30;
@@ -98,7 +98,7 @@ export function pasoVar(V, by, now, ext, smart, hold, rnd = Math.random) {
     if (ext.full) {
       const S0 = { smart: smart || {}, hold: hold || {} }, cands = [];
       for (const [a, q] of Object.entries(by)) {
-        if (V.pos[a] || explorador(q, tnow)) continue; if (V.cool[a] && tnow - V.cool[a] < G.cooldownH * 3600e3) continue;
+        if (V.pos[a] || NOMEME.has(a) || explorador(q, tnow)) continue; if (V.cool[a] && tnow - V.cool[a] < G.cooldownH * 3600e3) continue;
         const info = RCI[a] || null, rr = reglas(q, info); if (!info || info.rugged || RULES.some(([k]) => rr[k] !== true)) continue;
         const jx = (ext.jup || {})[a] || null; if (G.orgMin > 0 && jx && jx.org != null && jx.org < G.orgMin) continue;
         const an = analista(S0, a, q, info, GTI[a] || null, tnow, jx); if (an.sc >= G.minScore) cands.push({ a, q, sc: an.sc });
