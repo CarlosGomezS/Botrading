@@ -95,14 +95,27 @@ export function gtInfo(trades, nowMs) {
 
 // ---- las 8 reglas: cada una dice si pasa (true), falla (false) o falta el dato (null) ----
 export function reglas(p, info) {
-  const liq = +(p.liquidity && p.liquidity.usd) || 0, v1 = +(p.volume && p.volume.h1) || 0, ch1 = +(p.priceChange && p.priceChange.h1) || 0;
+  const liq = +(p.liquidity && p.liquidity.usd) || 0, v1 = +(p.volume && p.volume.h1) || 0, ch1 = +(p.priceChange && p.priceChange.h1) || 0, ch6 = +(p.priceChange && p.priceChange.h6) || 0, e = est();
+  if (e === "grandes") return { liq: liq >= Math.max(G.liqMin, 3e5), vol: v1 >= Math.max(G.vol1hMin, 1e5), pump: ch1 <= G.pump1hMax, mint: info ? (G.mint === 0 ? true : info.mintOk) : null,
+    lp: info ? true : null, top10: info ? info.top10 <= Math.max(G.top10Max, 60) : null, dev: info ? info.dev <= Math.max(G.devMax, 10) : null, bundle: info ? true : null };
+  if (e === "rebote") return { liq: liq >= G.liqMin, vol: v1 >= G.vol1hMin, pump: ch6 <= -15, mint: info ? (G.mint === 0 ? true : info.mintOk) : null, lp: info ? info.lp >= G.lpLockMin : null,
+    top10: info ? info.top10 <= Math.max(G.top10Max, 40) : null, dev: info ? info.dev <= Math.max(G.devMax, 5) && !info.devRug : null, bundle: info ? info.bundle <= Math.max(G.bundleMax, 20) : null };
   return { liq: liq >= G.liqMin, vol: v1 >= G.vol1hMin, pump: ch1 <= G.pump1hMax,
     mint: info ? (G.mint === 0 ? true : info.mintOk) : null, lp: info ? info.lp >= G.lpLockMin : null, top10: info ? info.top10 <= G.top10Max : null,
     dev: info ? info.dev <= G.devMax && !info.devRug : null, bundle: info ? info.bundle <= G.bundleMax : null };
 }
+// v171 · ESTILOS: además del método del vídeo, la bola de aprendizaje prueba otras formas de ganar con memecoins
+export const ESTILOS = {
+  video: { n: "como el vídeo: monedas recién nacidas" },
+  grandes: { n: "memecoins grandes en tendencia", age: [7 * 1440, 5 * 525600], mc: [20e6, 5e9] },
+  rebote: { n: "rebote tras una caída fuerte", age: [1440, 5 * 525600], mc: [1e6, 1e9] },
+  volumen: { n: "explosión de volumen", age: [60, 30 * 1440], mc: [5e5, 5e8] }
+};
+const est = () => ESTILOS[G.estilo] ? G.estilo : "video";
 export function explorador(p, now) {
-  const age = (now - (+p.pairCreatedAt || 0)) / 60000, mc = +(p.marketCap || p.fdv) || 0;
-  if (!(+p.priceUsd > 0)) return "sin precio"; if (age < G.ageMin) return "joven"; if (age > G.ageMax) return "vieja"; if (mc < G.mcapMin || mc > G.mcapMax) return "tamaño"; return null;
+  const age = (now - (+p.pairCreatedAt || 0)) / 60000, mc = +(p.marketCap || p.fdv) || 0, E = ESTILOS[est()];
+  const [a0, a1] = E.age || [G.ageMin, G.ageMax], [m0, m1] = E.mc || [G.mcapMin, G.mcapMax];
+  if (!(+p.priceUsd > 0)) return "sin precio"; if (age < a0) return "joven"; if (age > a1) return "vieja"; if (mc < m0 || mc > m1) return "tamaño"; return null;
 }
 // ---- el analista: 6 señales de 0 a 100 y la nota final (la media) ----
 export function analista(S, a, p, info, g, nowMs) {
@@ -111,8 +124,9 @@ export function analista(S, a, p, info, g, nowMs) {
   const ageH = Math.max(0.5, (nowMs - (+p.pairCreatedAt || nowMs)) / 3600e3), hp = S.hold[a];
   const hg = info && info.holders ? (hp && nowMs - hp.t > 10 * 60000 ? cl((info.holders / hp.n - 1) * 100 / ((nowMs - hp.t) / 3600e3), 0, 20) : cl(info.holders / ageH, 0, 300)) : 0.5;
   const nSmart = Object.keys(S.smart).length, sm = g ? g.buyers.filter((w) => S.smart[w]).length : 0;
-  const sig = { mom: Math.round(100 * (0.7 * cl(ch1, 0, 40) + 0.3 * cl(ch5, 0, 8))), ub: g ? Math.round(100 * cl(g.ub, 0, 150)) : Math.round(100 * cl(+t.buys || 0, 0, 250)) /* sin GeckoTerminal: aproximado con el nº de compras de la última hora (DexScreener) */, bs: Math.round(100 * cl(br, 1, 2)),
-    hg: Math.round(100 * hg), lm: Math.round(100 * cl(liq / mc, 0.03, 0.15)), sw: nSmart < R.smartMinList ? 50 : Math.round(100 * cl(sm, 0, 3)) };
+  const ch6 = +(p.priceChange && p.priceChange.h6) || 0, ch24 = +(p.priceChange && p.priceChange.h24) || 0, v1 = +(p.volume && p.volume.h1) || 0, v24 = +(p.volume && p.volume.h24) || 0, surge = v24 > 0 ? v1 / (v24 / 24) : 1, e = est();
+  const sig = { mom: Math.round(100 * (e === "grandes" ? 0.4 * cl(ch1, 0, 10) + 0.3 * cl(ch6, 0, 25) + 0.3 * cl(ch24, 0, 50) : e === "rebote" ? 0.5 * cl(-ch6, 15, 50) + 0.25 * cl(ch5, 0, 5) + 0.25 * cl(ch1, 0, 10) : e === "volumen" ? cl(ch1, 0, 30) : 0.7 * cl(ch1, 0, 40) + 0.3 * cl(ch5, 0, 8))), ub: g ? Math.round(100 * cl(g.ub, 0, 150)) : Math.round(100 * cl(+t.buys || 0, 0, 250)) /* sin GeckoTerminal: aproximado con el nº de compras de la última hora (DexScreener) */, bs: Math.round(100 * cl(br, 1, 2)),
+    hg: Math.round(100 * (e === "video" ? hg : e === "volumen" ? cl(surge, 2, 6) : cl(surge, 1, 3))), lm: Math.round(100 * (e === "grandes" ? cl(liq / mc, 0.01, 0.08) : cl(liq / mc, 0.03, 0.15))), sw: nSmart < R.smartMinList ? 50 : Math.round(100 * cl(sm, 0, 3)) };
   const w = G.w || {}, ws = Object.keys(sig).reduce((t, k) => t + (w[k] ?? 1), 0) || 1;
   return { sig, sc: Math.round(Object.keys(sig).reduce((t, k) => t + (w[k] ?? 1) * sig[k], 0) / ws), sm, learning: nSmart < R.smartMinList };
 }
@@ -120,7 +134,7 @@ export function analista(S, a, p, info, g, nowMs) {
 export const IDEAL = { fee: 0, slipMin: 0, slipMax: 0, failP: 0, failCost: 0, fixFee: 0 };
 let C = R;
 // v164 · reglas en uso (genoma): las del vídeo (R) o las que el laboratorio de memes haya aprendido
-export const VIDEO = { ageMin: R.ageMin, ageMax: R.ageMax, mcapMin: R.mcapMin, mcapMax: R.mcapMax, liqMin: R.liqMin, vol1hMin: R.vol1hMin, top10Max: R.top10Max, devMax: R.devMax, bundleMax: R.bundleMax, pump1hMax: R.pump1hMax, lpLockMin: R.lpLockMin, mint: 1, stop: R.stop, trailOn: R.trailOn, trail: R.trail, maxHoldH: R.maxHoldH, size: R.size, minScore: R.minScore, maxPos: R.maxPos, cooldownH: R.cooldownH, w: { mom: 1, ub: 1, bs: 1, hg: 1, lm: 1, sw: 1 } };
+export const VIDEO = { ageMin: R.ageMin, ageMax: R.ageMax, mcapMin: R.mcapMin, mcapMax: R.mcapMax, liqMin: R.liqMin, vol1hMin: R.vol1hMin, top10Max: R.top10Max, devMax: R.devMax, bundleMax: R.bundleMax, pump1hMax: R.pump1hMax, lpLockMin: R.lpLockMin, mint: 1, stop: R.stop, trailOn: R.trailOn, trail: R.trail, maxHoldH: R.maxHoldH, size: R.size, minScore: R.minScore, maxPos: R.maxPos, cooldownH: R.cooldownH, estilo: "video", w: { mom: 1, ub: 1, bs: 1, hg: 1, lm: 1, sw: 1 } };
 let G = VIDEO;
 export function conGenoma(g, fn) { const p = G; G = { ...VIDEO, ...(g || {}) }; try { return fn(); } finally { G = p; } }
 export const slip = (eur, liq) => C.slipMax <= 0 ? 0 : Math.min(C.slipMax, C.slipMin + eur / Math.max(1, liq));
@@ -269,7 +283,7 @@ async function main() {
   let S = await leerArchivo("meme.json"); if (!S || S.v !== 5) { const old = S; S = freshState(); L(S, now, "INFO", "", `empieza de cero en ${CH.nombre} con 100 € (lo que piensas meter de verdad) y sus costes fijos`); }
   S.chain = CH.id; S.chainNombre = CH.nombre;
   let LB = null; try { LB = await leerArchivo("meme-lab.json"); } catch (e) { console.log("Memes: " + e.message); return; }
-  if (!LB || LB.v !== 2 || (S.genomeId && !LB.pop.some((v) => v.id === S.genomeId) && false)) { LB = LBm.freshLab(now); L(S, now, "INFO", "", `🧬 nace el laboratorio de memes: ${LB.pop.length} variantes de las reglas compiten en ficticio`); }
+  if (!LB || LB.v !== 3 || (S.genomeId && !LB.pop.some((v) => v.id === S.genomeId) && false)) { LB = LBm.freshLab(now); L(S, now, "INFO", "", `🧬 nace el laboratorio de memes: ${LB.pop.length} variantes de las reglas compiten en ficticio`); }
   const varOpen = () => LB.pop.flatMap((v) => Object.keys(v.pos || {}));
   if (RAPIDO) {
     const open = [...new Set([...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()])];
@@ -310,7 +324,7 @@ async function main() {
   conGenoma(lx, () => { for (const [a, q] of Object.entries(by)) { if (S.pos[a] || explorador(q, tnow)) continue; const rr = reglas(q, null); if (rr.liq && rr.vol && rr.pump) pre.push([a, q]); } });
   pre.sort((x, y) => (+(y[1].volume && y[1].volume.h1) || 0) - (+(x[1].volume && x[1].volume.h1) || 0));
   let nrc = 0; const pide = [];
-  for (const [a] of pre) { const c = S.rc[a]; if (c && tnow - c.t < 30 * 60000) ext.rc[a] = c.i; else if (pide.length < R.rcPerRun) pide.push(a); }
+  for (const [a, q] of pre) { const c = S.rc[a], vieja = tnow - (+q.pairCreatedAt || tnow) > 2 * 86400e3; if (c && tnow - c.t < (vieja ? 6 * 3600e3 : 30 * 60000)) ext.rc[a] = c.i; else if (pide.length < R.rcPerRun) pide.push(a); }
   let rcOk = 0, rcErr = 0, rcLate = 0; const tPre = Date.now() - t0;
   if (CH.seg === "rugcheck") await enParalelo(pide, 4, async (a) => { if (Date.now() - t0 > 45e3) { rcLate++; return; } nrc++; try { const j = await J(`${RC}/tokens/${a}/report`, 2); if (j) { const i = rcInfo(j); S.rc[a] = { t: tnow, i }; ext.rc[a] = i; rcOk++; } else rcErr++; } catch (e) { rcErr++; S.rcLastErr = String(e.message || e).slice(0, 80); } });
   else { const lotes = []; for (let i = 0; i < pide.length; i += 10) lotes.push(pide.slice(i, i + 10));

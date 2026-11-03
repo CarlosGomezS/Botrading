@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { freshLab, pasoVar, evolucionar, fitness, mutar, aleatorio, gkey, POP } from "../runner/meme-lab.mjs";
-import { gpInfo, CHAINS } from "../runner/meme.mjs";
+import { gpInfo, CHAINS, ESTILOS, conGenoma, VIDEO } from "../runner/meme.mjs";
 import { freshState, paso, pasoIdeal, rapido, reglas, rcInfo, gtInfo, analista, explorador, bestPairs, R } from "../runner/meme.mjs";
 
 const T0 = Date.parse("2026-11-03T10:00:00Z");
@@ -121,4 +121,19 @@ test("Base y BNB: GoPlus detecta trampas, impuestos, liquidez bloqueada, poseedo
   assert.equal(gpInfo({ ...ok, sell_tax: "0.10" }).mintOk, false, "impuesto al vender"); assert.equal(gpInfo({ ...ok, is_mintable: "1" }).mintOk, false);
   assert.ok(reglas(par("x"), i).bundle, "sin dato de bloque en estas redes: no elimina");
   assert.deepEqual(Object.keys(CHAINS), ["solana", "base", "bsc"]);
+});
+
+test("estilos nuevos: grandes en tendencia, rebote tras caída y explosión de volumen", () => {
+  assert.deepEqual(Object.keys(ESTILOS), ["video", "grandes", "rebote", "volumen"]);
+  const big = { ...par("big", { mc: 3e8, liq: 2e6, v1: 5e5, ch1: 4 }), pairCreatedAt: T0 - 30 * 86400e3, priceChange: { m5: 1, h1: 4, h6: 12, h24: 30 }, volume: { h1: 5e5, h24: 4e6 } };
+  assert.equal(explorador(big, T0), "vieja", "el método del vídeo no mira monedas de un mes");
+  assert.equal(conGenoma({ ...VIDEO, estilo: "grandes" }, () => explorador(big, T0)), null, "el estilo «grandes» sí");
+  const infoBig = { ...okInfo, top10: 45, lp: 10 };
+  assert.ok(conGenoma({ ...VIDEO, estilo: "grandes" }, () => Object.values(reglas(big, infoBig)).every(Boolean)), "en las grandes no se exige LP bloqueada ni top 10 ≤ 25 %");
+  const dip = { ...par("dip", { mc: 5e6, ch1: 3 }), pairCreatedAt: T0 - 3 * 86400e3, priceChange: { m5: 2, h1: 3, h6: -35, h24: -40 } };
+  assert.ok(conGenoma({ ...VIDEO, estilo: "rebote" }, () => reglas(dip, okInfo).pump), "rebote: exige haber caído");
+  assert.ok(!conGenoma({ ...VIDEO, estilo: "rebote" }, () => reglas(big, okInfo).pump), "rebote: no compra lo que sube");
+  const S = freshState(), an = conGenoma({ ...VIDEO, estilo: "rebote" }, () => analista(S, "dip", dip, okInfo, null, T0));
+  assert.ok(an.sig.mom > 40, "la caída con recuperación puntúa en impulso");
+  const Lb = freshLab(new Date(T0)); assert.ok(["grandes", "rebote", "volumen"].every((e) => Lb.pop.some((v) => v.g.estilo === e)), "la población inicial prueba todos los estilos");
 });

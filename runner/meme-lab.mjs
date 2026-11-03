@@ -2,7 +2,8 @@
 // ficticio (50 € cada una), los MISMOS datos en vivo y costes reales. Cada ~3 h se juzgan: las peores se archivan (nunca se borran) y nacen
 // otras (mutaciones y cruces de las mejores, y alguna inventada de cero). Si una variante demuestra con muchas operaciones que es mejor que las
 // reglas que usa el terminal, el terminal la adopta solo. La variante «vídeo» (las reglas originales) no se elimina nunca: es la referencia.
-import { R, VIDEO, conGenoma, explorador, reglas, analista, equity, RULES } from "./meme.mjs";
+import { R, VIDEO, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS } from "./meme.mjs";
+const ESTS = Object.keys(ESTILOS);
 
 export const POP = 20, GEN_H = 3, MIN_N = 8, ADOPT_N = 30;
 // rango de cada pieza del genoma [mín, máx, paso]
@@ -18,13 +19,14 @@ export const NOMBRES = { ageMin: "edad mínima (min)", ageMax: "edad máxima (mi
 const r2 = (x) => Math.round(x * 100) / 100;
 const snap = (k, v) => { const [a, b, st] = RANGOS[k]; return Math.max(a, Math.min(b, Math.round(v / st) * st)); };
 const SIG = ["mom", "ub", "bs", "hg", "lm", "sw"];
-export const gkey = (g) => JSON.stringify(Object.keys(RANGOS).map((k) => g[k]).concat([g.mint, SIG.map((k) => r2((g.w || {})[k] ?? 1))]));
+export const gkey = (g) => JSON.stringify(Object.keys(RANGOS).map((k) => g[k]).concat([g.mint, g.estilo || "video", SIG.map((k) => r2((g.w || {})[k] ?? 1))]));
 
 export function aleatorio(rnd = Math.random) {
   const g = { ...VIDEO, w: {} };
   for (const k of Object.keys(RANGOS)) { const [a, b] = RANGOS[k]; g[k] = snap(k, a + rnd() * (b - a)); }
   if (g.mcapMax <= g.mcapMin) g.mcapMax = snap("mcapMax", g.mcapMin * 4); if (g.ageMax <= g.ageMin) g.ageMax = snap("ageMax", g.ageMin + 600);
   g.mint = rnd() < 0.85 ? 1 : 0; for (const k of SIG) g.w[k] = r2(rnd() * 2);
+  g.estilo = ESTS[Math.floor(rnd() * ESTS.length)];
   return g;
 }
 export function mutar(p, rnd = Math.random) {
@@ -32,22 +34,23 @@ export function mutar(p, rnd = Math.random) {
   for (let i = 0; i < n; i++) { const k = ks[Math.floor(rnd() * ks.length)], [a, b] = RANGOS[k]; g[k] = snap(k, g[k] + (rnd() - 0.5) * (b - a) * 0.3); }
   if (rnd() < 0.3) { const k = SIG[Math.floor(rnd() * SIG.length)]; g.w[k] = r2(Math.max(0, Math.min(2, (g.w[k] ?? 1) + (rnd() - 0.5)))); }
   if (rnd() < 0.05) g.mint = g.mint ? 0 : 1;
+  if (rnd() < 0.08) g.estilo = ESTS[Math.floor(rnd() * ESTS.length)];
   if (g.mcapMax <= g.mcapMin) g.mcapMax = snap("mcapMax", g.mcapMin * 4); if (g.ageMax <= g.ageMin) g.ageMax = snap("ageMax", g.ageMin + 600);
   return g;
 }
 export function cruzar(a, b, rnd = Math.random) {
   const g = { ...VIDEO, w: {} };
   for (const k of Object.keys(RANGOS)) g[k] = rnd() < 0.5 ? a[k] : b[k];
-  g.mint = rnd() < 0.5 ? a.mint : b.mint; for (const k of SIG) g.w[k] = rnd() < 0.5 ? (a.w || {})[k] ?? 1 : (b.w || {})[k] ?? 1;
+  g.mint = rnd() < 0.5 ? a.mint : b.mint; g.estilo = rnd() < 0.5 ? a.estilo || "video" : b.estilo || "video"; for (const k of SIG) g.w[k] = rnd() < 0.5 ? (a.w || {})[k] ?? 1 : (b.w || {})[k] ?? 1;
   if (g.mcapMax <= g.mcapMin) g.mcapMax = snap("mcapMax", g.mcapMin * 4); if (g.ageMax <= g.ageMin) g.ageMax = snap("ageMax", g.ageMin + 600);
   return g;
 }
 export function nuevaVar(id, g, now, gen, why) { return { id, g, gen, born: now.toISOString(), why, cash: R.start, pos: {}, cool: {}, closed: [], n: 0, s1: 0, s2: 0, w: 0, pnl: 0, fees: 0, rugs: 0, peak: R.start, dd: 0, eq: [], lastEq: R.start }; }
 export function freshLab(now = new Date()) {
-  const L = { v: 2, gen: 0, nextId: 1, since: now.toISOString(), lastGen: now.toISOString(), pop: [], arch: [], log: [], adopt: [] };
+  const L = { v: 3, gen: 0, nextId: 1, since: now.toISOString(), lastGen: now.toISOString(), pop: [], arch: [], log: [], adopt: [] };
   L.pop.push(nuevaVar("v0", { ...VIDEO }, now, 0, "las reglas del vídeo (referencia, no se elimina)"));
   const seen = new Set([gkey(VIDEO)]); let i = 1, guard = 0;
-  while (L.pop.length < POP && guard++ < 500) { const g = i < 10 ? mutar(VIDEO) : aleatorio(), k = gkey(g); if (seen.has(k)) continue; seen.add(k); L.pop.push(nuevaVar("v" + L.nextId++, g, now, 0, i < 10 ? "variante de las reglas del vídeo" : "inventada de cero")); i++; }
+  while (L.pop.length < POP && guard++ < 500) { const otro = ["grandes", "rebote", "volumen"][i % 3], g = i < 6 ? mutar(VIDEO) : { ...(i < 13 ? mutar(VIDEO) : aleatorio()), estilo: otro }, k = gkey(g); if (seen.has(k)) continue; seen.add(k); L.pop.push(nuevaVar("v" + L.nextId++, g, now, 0, i < 6 ? "variante de las reglas del vídeo" : "estilo: " + ESTILOS[otro].n)); i++; }
   return L;
 }
 // nota de cada variante: la «t» de sus operaciones (media del % por operación ÷ su error), castigada si se hunde mucho
@@ -100,8 +103,8 @@ export function pasoVar(V, by, now, ext, smart, hold, rnd = Math.random) {
 }
 // lo más laxo de toda la población: para saber de qué monedas hay que pedir datos a RugCheck y GeckoTerminal
 export function laxo(L) {
-  const gs = [VIDEO, ...L.pop.map((v) => ({ ...VIDEO, ...v.g }))];
-  return { ageMin: Math.min(...gs.map((g) => g.ageMin)), ageMax: Math.max(...gs.map((g) => g.ageMax)), mcapMin: Math.min(...gs.map((g) => g.mcapMin)), mcapMax: Math.max(...gs.map((g) => g.mcapMax)),
+  const gs = [VIDEO, ...L.pop.map((v) => ({ ...VIDEO, ...v.g }))], E = gs.map((g) => ESTILOS[g.estilo] || {});
+  return { ageMin: Math.min(...gs.map((g) => g.ageMin), ...E.filter((e) => e.age).map((e) => e.age[0])), ageMax: Math.max(...gs.map((g) => g.ageMax), ...E.filter((e) => e.age).map((e) => e.age[1])), mcapMin: Math.min(...gs.map((g) => g.mcapMin), ...E.filter((e) => e.mc).map((e) => e.mc[0])), mcapMax: Math.max(...gs.map((g) => g.mcapMax), ...E.filter((e) => e.mc).map((e) => e.mc[1])),
     liqMin: Math.min(...gs.map((g) => g.liqMin)), vol1hMin: Math.min(...gs.map((g) => g.vol1hMin)), pump1hMax: Math.max(...gs.map((g) => g.pump1hMax)) };
 }
 // SELECCIÓN (cada GEN_H horas): se archivan las peores, nacen nuevas y, si hay una claramente mejor con muchas operaciones, el terminal la adopta
