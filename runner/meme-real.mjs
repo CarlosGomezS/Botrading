@@ -21,7 +21,9 @@ const madridD = (t) => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madr
 export function prueba(S) {
   const cl = (S && S.closed) || [], n = cl.length, w = cl.filter((x) => x.pnl > 0).reduce((t, x) => t + x.pnl, 0), l = -cl.filter((x) => x.pnl <= 0).reduce((t, x) => t + x.pnl, 0);
   const pf = l > 0 ? w / l : w > 0 ? 99 : 0, exp = n ? (w - l) / n : 0;
-  return { n, pf: r2(pf), exp: r2(exp), ok: n >= LIM.n && pf > LIM.pf && exp > 0 };
+  // v176 · o bien el terminal lo ha demostrado en vivo, o bien usa reglas adoptadas que ganan en 60+ casos ya vividos (muestras) Y lo confirman en vivo (10+ operaciones con ganancia media positiva)
+  const gp = S && S.genomeId && S.genomePrueba, bt = gp && gp.bt, okBt = !!(bt && bt.n >= 60 && bt.pf > LIM.pf && bt.med > 0 && gp.n >= 10 && gp.med > 0);
+  return { n, pf: r2(pf), exp: r2(exp), okVivo: n >= LIM.n && pf > LIM.pf && exp > 0, okBt, bt: bt || null, ok: (n >= LIM.n && pf > LIM.pf && exp > 0) || okBt };
 }
 // ---------- decisiones (sin red: se pueden probar) ----------
 // qué hacer para copiar al terminal: comprar lo que el terminal acaba de comprar, vender lo que ha cerrado, vender parte si él vendió parte
@@ -96,7 +98,7 @@ export async function pasoReal(S, by, now, eurUsd) {
   // 1) ¿proponer arrancar?
   if (!ctl.aprobado && P.ok && tieneClave && RS.propuesto !== P.n - (P.n % 10)) {
     RS.propuesto = P.n - (P.n % 10); const id = "m" + Date.now().toString(36);
-    await tg(`🪙 Memes (Solana) ya ha demostrado que gana con costes reales:\n• ${P.n} operaciones\n• factor de beneficio ${P.pf} (más de ${LIM.pf})\n• ganancia media por operación positiva\n\n¿Empiezo a copiarlo con tu cartera del bot (≈100 €)? Frenos: cada compra ≤ 8 % y ≤ ${LIM.maxOrdenEur} €, se para solo si la cuenta cae al ${LIM.suelo * 100} %, pausa si un día pierde un ${LIM.perdidaDia * 100} %. Puedes pararlo cuando quieras con /parar.`,
+    await tg(`🪙 Memes (Solana) ya ha demostrado que gana con costes reales:\n${P.okVivo ? `• ${P.n} operaciones en vivo\n• factor de beneficio ${P.pf} (más de ${LIM.pf})\n• ganancia media por operación positiva` : `• sus reglas ganan en ${P.bt.n} casos ya vividos (factor ${P.bt.pf}, ${P.bt.med} % de media por operación, con costes)\n• y lo confirman en vivo`}\n\n¿Empiezo a copiarlo con tu cartera del bot (≈100 €)? Frenos: cada compra ≤ 8 % y ≤ ${LIM.maxOrdenEur} €, se para solo si la cuenta cae al ${LIM.suelo * 100} %, pausa si un día pierde un ${LIM.perdidaDia * 100} %. Puedes pararlo cuando quieras con /parar.`,
       [{ text: "✅ Empezar con dinero real", callback_data: "ma:" + id }, { text: "❌ Todavía no", callback_data: "mx:" + id }]);
     L(RS, now, `propuesta enviada a Telegram (${P.n} operaciones, factor ${P.pf})`);
   }

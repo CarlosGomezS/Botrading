@@ -5,7 +5,8 @@
 import { R, VIDEO, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS, NOMEME } from "./meme.mjs";
 const ESTS = Object.keys(ESTILOS);
 
-export const POP = 30, GEN_H = 2, MIN_N = 8, ADOPT_N = 30;
+export const POP = 30, GEN_H = 1, MIN_N = 8, ADOPT_N = 30, BT_N = 20;
+import { backtest } from "./meme-muestras.mjs";
 // rango de cada pieza del genoma [mín, máx, paso]
 export const RANGOS = {
   ageMin: [5, 240, 5], ageMax: [120, 7 * 1440, 60], mcapMin: [50e3, 2e6, 50e3], mcapMax: [2e6, 100e6, 1e6],
@@ -69,10 +70,15 @@ export function freshLab(now = new Date()) {
   return L;
 }
 // nota de cada variante: la «t» de sus operaciones (media del % por operación ÷ su error), castigada si se hunde mucho
-export function fitness(V) {
+export function fitnessVivo(V) {
   if (V.n < MIN_N) return null;
   const m = V.s1 / V.n, sd = Math.sqrt(Math.max(1e-9, V.s2 / V.n - m * m)), t = m / (sd / Math.sqrt(V.n));
   return r2(t - (V.dd < -0.5 ? 2 : V.dd < -0.35 ? 1 : 0));
+}
+// v176 · nota = la de sus operaciones en vivo (ficticias) y la de su prueba sobre las muestras ya vividas, a partes iguales si hay de las dos
+export function fitness(V) {
+  const a = fitnessVivo(V), b = V.bt && V.bt.n >= BT_N ? V.bt.t : null;
+  return a == null ? b : b == null ? a : r2((a + b) / 2);
 }
 const slipR = (eur, liq) => Math.min(R.slipMax, R.slipMin + eur / Math.max(1, liq));
 
@@ -125,10 +131,11 @@ export function laxo(L) {
     liqMin: Math.min(...gs.map((g) => g.liqMin)), vol1hMin: Math.min(...gs.map((g) => g.vol1hMin)), pump1hMax: Math.max(...gs.map((g) => g.pump1hMax)) };
 }
 // SELECCIÓN (cada GEN_H horas): se archivan las peores, nacen nuevas y, si hay una claramente mejor con muchas operaciones, el terminal la adopta
-export function evolucionar(L, S, now = new Date(), rnd = Math.random) {
+export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null) {
   if (now - Date.parse(L.lastGen) < GEN_H * 3600e3) return null;
   L.lastGen = now.toISOString(); L.gen++;
   const ev = (txt, k) => { L.log.unshift({ t: now.toISOString(), k, txt }); L.log = L.log.slice(0, 200); };
+  if (M) { for (const v of L.pop) v.bt = backtest({ ...VIDEO, ...v.g }, M); L.muestras = (M.hechas || []).length; L.siguiendo = Object.keys(M.abiertas || {}).length; }
   for (const v of L.pop) v.fit = fitness(v);
   try { ensanchar(L, L.pop.filter((v) => v.fit != null && v.fit > 0).sort((a, b) => b.fit - a.fit).slice(0, 5), now); } catch (e) {}
   const ageH = (v) => (now - Date.parse(v.born)) / 3600e3;
@@ -145,13 +152,15 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random) {
     else if (top.length > 1 && r < 0.8) { const a = top[Math.floor(rnd() * top.length)], b = top[Math.floor(rnd() * top.length)]; if (a === b) continue; g = cruzar(a.g, b.g); why = "cruce de " + a.id + " y " + b.id; }
     else { const inv = rnd() < 0.5; g = inv ? aleatorio() : mutar(VIDEO); why = inv ? "inventada de cero" : "variante de las reglas del vídeo"; }
     const k = gkey(g); if (seen.has(k)) continue; seen.add(k);
-    const v = nuevaVar("v" + L.nextId++, g, now, L.gen, why); L.pop.push(v); ev(`${v.id} nace (${why})`, "nace");
+    const v = nuevaVar("v" + L.nextId++, g, now, L.gen, why); if (M) { v.bt = backtest({ ...VIDEO, ...g }, M); v.fit = fitness(v); } L.pop.push(v); ev(`${v.id} nace (${why})${v.bt && v.bt.n ? ` · en las muestras: ${v.bt.n} operaciones, ${v.bt.med >= 0 ? "+" : ""}${v.bt.med} % de media` : ""}`, "nace");
   }
+  if (S.genomeId) { const u = L.pop.find((v) => v.id === S.genomeId); if (u) S.genomePrueba = { bt: u.bt || null, n: u.n, med: u.n ? r2(u.s1 / u.n * 100) : null, t: now.toISOString() }; }
   // ¿adopta el terminal otras reglas? Solo con muchas operaciones y claramente mejor que las que usa ahora
-  const champ = ranked.find((v) => v.n >= ADOPT_N && v.fit != null && v.fit >= 2 && v.s1 / v.n > 0);
+  const btOk = (v) => v.bt && v.bt.n >= 60 && v.bt.pf > 1.3 && v.bt.med > 0 && v.bt.t >= 2 && v.n >= 10 && v.s1 > 0;
+  const champ = ranked.find((v) => (v.n >= ADOPT_N && v.fit != null && v.fit >= 2 && v.s1 / v.n > 0) || btOk(v));
   const curKey = gkey({ ...VIDEO, ...(S.genome || {}) }), cur = L.pop.find((v) => gkey({ ...VIDEO, ...v.g }) === curKey);
   if (champ && gkey({ ...VIDEO, ...champ.g }) !== curKey && (!cur || cur.fit == null || champ.fit > cur.fit + 0.5)) {
-    S.genome = { ...champ.g }; S.genomeId = champ.id; L.adopt.unshift({ t: now.toISOString(), id: champ.id, fit: champ.fit, n: champ.n }); L.adopt = L.adopt.slice(0, 50);
+    S.genome = { ...champ.g }; S.genomeId = champ.id; S.genomePrueba = { bt: champ.bt || null, n: champ.n, med: champ.n ? r2(champ.s1 / champ.n * 100) : null, t: now.toISOString() }; L.adopt.unshift({ t: now.toISOString(), id: champ.id, fit: champ.fit, n: champ.n }); L.adopt = L.adopt.slice(0, 50);
     ev(`🏆 el terminal adopta las reglas de ${champ.id} (nota ${champ.fit} con ${champ.n} operaciones)`, "adopta");
   }
   return { gen: L.gen, out: out.length };

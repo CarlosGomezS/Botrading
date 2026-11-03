@@ -274,14 +274,22 @@ export function rapido(S, by, now) {
 
 // v165 · varias peticiones a la vez (con un tope) para que la vuelta quepa en un minuto
 async function enParalelo(items, n, fn) { const out = []; let i = 0; await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) { const k = i++; try { out[k] = await fn(items[k], k); } catch (e) { out[k] = null; } } })); return out; }
-async function leerArchivo(f) {
+async function leerArchivo(f, rama = CH.rama) {
   if (!REPO || !TOKEN) return null;
-  const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${f}?ref=${CH.rama}`, { headers: { Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github.raw+json" } });
+  const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${f}?ref=${rama}`, { headers: { Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github.raw+json" } });
   if (r.status === 404) return null; if (!r.ok) throw new Error("no pude leer " + f + " (HTTP " + r.status + ")");
   return await r.json();
 }
 // se publican juntos (un solo commit en la rama «meme»): el terminal y su laboratorio
-function publicar(S, LB) {
+// v176 · las muestras van en su propia rama (meme-mue, meme-base-mue, meme-bsc-mue): solo se guardan en la vuelta completa
+function publicarMue(M) {
+  if (!REPO || !TOKEN || !M) return;
+  const pub = path.join(process.cwd(), ".pubmue-" + CH.id); rmSync(pub, { recursive: true, force: true }); mkdirSync(pub); writeFileSync(path.join(pub, "meme-muestras.json"), JSON.stringify(M));
+  const g = (c) => execSync(`git -C "${pub}" ${c}`, { stdio: "pipe" });
+  g("init -q -b mue"); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"'); g("add -A"); g(`commit -q -m "muestras ${new Date().toISOString()}"`);
+  for (let i = 0; i < 3; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git HEAD:${CH.rama}-mue`); return; } catch (e) { if (i === 2) console.log("Memes: no pude guardar las muestras"); } }
+}
+function publicar(S, LB, M) {
   const out = JSON.stringify(S); writeFileSync("meme.json", out); if (LB) writeFileSync("meme-lab.json", JSON.stringify(LB));
   if (!REPO || !TOKEN) { console.log("Ejecución local: guardado en meme.json"); return; }
   const pub = path.join(process.cwd(), ".pubmeme-" + CH.id); rmSync(pub, { recursive: true, force: true }); mkdirSync(pub); writeFileSync(path.join(pub, "meme.json"), out);
@@ -302,6 +310,7 @@ async function dineroReal(S, by, now, rapidoV) {
     S.realAbierto = !!(RS && Object.keys(RS.pos || {}).length); S.realEstado = RS ? RS.estado : null;
   } catch (e) { console.log("Memes real: " + String(e.message || e).slice(0, 120)); }
 }
+let MUE = null;   // muestras de esta red (se cargan al empezar y se guardan con cada vuelta)
 async function main() {
   const now = new Date(), tnow = now.getTime(), t0 = Date.now(), LBm = await import("./meme-lab.mjs");
   R.fixFee = CH.fixFee;
@@ -309,7 +318,8 @@ async function main() {
   S.chain = CH.id; S.chainNombre = CH.nombre;
   let LB = null; try { LB = await leerArchivo("meme-lab.json"); } catch (e) { console.log("Memes: " + e.message); return; }
   if (!LB || LB.v !== 3 || (S.genomeId && !LB.pop.some((v) => v.id === S.genomeId) && false)) { LB = LBm.freshLab(now); L(S, now, "INFO", "", `🧬 nace el laboratorio de memes: ${LB.pop.length} variantes de las reglas compiten en ficticio`); }
-  LBm.aplicarRangos(LB);   // v174 · los rangos que la bola ya haya ensanchado
+  LBm.aplicarRangos(LB);
+  const MS = await import("./meme-muestras.mjs"); try { MUE = RAPIDO ? null : await leerArchivo("meme-muestras.json", CH.rama + "-mue"); } catch (e) { console.log("Memes: " + e.message); return; } if (!RAPIDO && (!MUE || MUE.v !== 1)) MUE = MS.freshM();   // v174 · los rangos que la bola ya haya ensanchado
   const varOpen = () => LB.pop.flatMap((v) => Object.keys(v.pos || {}));
   if (RAPIDO) {
     const open = [...new Set([...(CH.id === "solana" && S.realAbierto ? ["So11111111111111111111111111111111111111112"] : []), ...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()])];
@@ -346,7 +356,7 @@ async function main() {
   await enParalelo(gtU, 4, async (u) => { const j = await J(u, 2); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(new RegExp("^" + CH.gt + "_"), "")); } });
   // primero lo abierto y lo recién encontrado; las «jóvenes» que se vuelven a mirar, como mucho 200
   const must = new Set([...(CH.id === "solana" ? ["So11111111111111111111111111111111111111112"] : []), ...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()]);
-  const young = Object.entries(S.young || {}).sort((a, b) => b[1] - a[1]).slice(0, 1200).map((x) => x[0]);
+  const young = Object.entries(S.young || {}).sort((a, b) => b[1] - a[1]).slice(0, 1200).map((x) => x[0]).concat(Object.keys((MUE && MUE.abiertas) || {}));
   const list = [...new Set([...must, ...[...addrs].filter((a) => !(S.young || {})[a]), ...young])].slice(0, 2400), pairs = [];
   const batches = []; for (let i = 0; i < list.length; i += 30) batches.push(list.slice(i, i + 30));
   let fallo = false;
@@ -379,13 +389,15 @@ async function main() {
   for (const [a, c] of Object.entries(S.gtc)) { if (tnow - c.t > 15 * 60000) delete S.gtc[a]; else if (tnow - c.t < 4 * 60000) ext.gt[a] = c.g; }   // operaciones de GeckoTerminal: se reutilizan 4 min
   await enParalelo(pideGT.filter(([a]) => !ext.gt[a]), 2, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; ngt++; let j = null; try { j = await J(`${GT}/networks/${CH.gt}/pools/${q.pairAddress}/trades`, 3); } catch (e) { S.gtErr = String(e.message || e).slice(0, 60); } if (!j) S.gtErr = S.gtErr || "404 (piscina no encontrada)"; if (j && j.data) { const g = gtInfo(j.data, tnow); ext.gt[a] = g; S.gtc[a] = { t: tnow, g: { ...g, buyers: g.buyers.slice(0, 150) } }; gtOk++; } });
   S.diag = { t: now.toISOString(), jupiter: CH.id === "solana" ? S.jupN || 0 : undefined, monedas: Object.keys(by).length, candidatas: pre.length, motivos: mot, laxo: lx, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, gtErr: S.gtErr || null, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
+  try { MS.registrar(MUE, pre, by, ext, now); } catch (e) { console.log("Memes: muestras: " + e.message); }
   paso(S, by, now, Math.random, ext);
   pasoIdeal(S, by, now, ext);
   for (const v of LB.pop) LBm.pasoVar(v, by, now, { ...ext, full: true }, S.smart, S.hold);
-  const evo = LBm.evolucionar(LB, S, now); if (evo) L(S, now, "INFO", "", `🧬 generación ${evo.gen}: se archivan ${evo.out} variantes y nacen otras`);
+  const evo = LBm.evolucionar(LB, S, now, Math.random, MUE); if (evo) L(S, now, "INFO", "", `🧬 generación ${evo.gen}: se archivan ${evo.out} variantes y nacen otras`);
   if (S.genomeId && S.genomeAt !== S.genomeId) { S.genomeAt = S.genomeId; L(S, now, "INFO", "", `🏆 el terminal pasa a usar las reglas aprendidas de ${S.genomeId}`); }
   await dineroReal(S, by, now, false);
   publicar(S, LB);
+  publicarMue(MUE);
   console.log(`Memes: ${Object.keys(by).length} monedas · RugCheck ${nrc} · GeckoTerminal ${ngt} · saldo ${r2(S.lastEq)} · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · variantes ${LB.pop.length} (gen ${LB.gen}) · ${Math.round((Date.now() - t0) / 1000)} s`);
 }
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.log("Memes: " + (e.message || e)); process.exit(0); });

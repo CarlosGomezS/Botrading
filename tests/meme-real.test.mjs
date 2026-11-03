@@ -37,3 +37,9 @@ test("Telegram: botones de Memes y /parar /seguir, solo desde tu chat", () => {
   assert.equal(parseUpdates([{ update_id: 2, message: { chat: { id: 7 }, text: "/parar" } }], "7").memes.accion, "parar");
   assert.equal(parseUpdates([{ update_id: 2, message: { chat: { id: 7 }, text: "/seguir" } }], "7").memes.accion, "seguir");
 });
+test("también vale si las reglas adoptadas ganan en 60+ casos vividos y lo confirman en vivo", () => {
+  const base = { closed: [], genomeId: "v7" };
+  assert.equal(prueba({ ...base, genomePrueba: { bt: { n: 80, pf: 1.6, med: 2.1 }, n: 12, med: 1.5 } }).ok, true);
+  assert.equal(prueba({ ...base, genomePrueba: { bt: { n: 80, pf: 1.6, med: 2.1 }, n: 4, med: 1.5 } }).ok, false, "falta confirmarlo en vivo");
+  assert.equal(prueba({ ...base, genomePrueba: { bt: { n: 80, pf: 1.1, med: 0.4 }, n: 12, med: 1.5 } }).ok, false, "factor insuficiente");
+});

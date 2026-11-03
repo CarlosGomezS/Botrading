@@ -161,3 +161,22 @@ test("sin techo: si las mejores se pegan al borde de un rango, el rango se ensan
   RANGOS.size[1] = b0; aplicarRangos(L); assert.deepEqual(RANGOS.size.slice(0, 2), saved, "se recuerda entre vueltas");
   RANGOS.size[1] = b0;
 });
+
+import { freshM, registrar, simular, backtest } from "../runner/meme-muestras.mjs";
+test("muestras: se guardan las candidatas, se sigue su precio y cualquier variante se prueba al momento sobre ellas", () => {
+  const M = freshM(), t = (m) => new Date(T0 + m * 60000), ext = { rc: { a: okInfo, b: okInfo }, gt: { a: gtInfo(gtTr(300), T0) } };
+  registrar(M, [["a", par("a")], ["b", par("b")]], { a: par("a"), b: par("b") }, ext, t(0));
+  assert.equal(Object.keys(M.abiertas).length, 2);
+  // a sube un 40 % y luego cae; b se hunde (rug)
+  const pxA = [1.05, 1.15, 1.3, 1.4, 1.2, 1.0, 0.95];
+  for (let i = 1; i <= 7; i++) registrar(M, [], { a: par("a", { px: pxA[i - 1] }), b: par("b", { px: 1 - i * 0.02, liq: i >= 5 ? 1000 : 2e5 }) }, ext, t(i * 10));
+  assert.equal(M.hechas.length, 1, "b terminó (rug)"); assert.equal(M.hechas[0].fin, "rug");
+  for (let i = 8; i <= 150; i++) registrar(M, [], { a: par("a", { px: 0.95 }) }, ext, t(i * 10));
+  assert.equal(M.hechas.length, 2, "a terminó a las 24 h"); assert.equal(Object.keys(M.abiertas).length, 0);
+  const sa = M.hechas.find((x) => x.a === "a");
+  const conMovil = simular({ ...VIDEO, trailOn: 0.12, trail: 0.15, stop: 0.06 }, sa), conParcial = simular({ ...VIDEO, tp: 0.3, tpFrac: 0.5, trailOn: 0.12, trail: 0.15 }, sa);
+  assert.ok(conMovil > 0.05, "con stop móvil sale ganando tras la subida"); assert.ok(conParcial > 0, "la venta parcial también gana");
+  assert.equal(simular({ ...VIDEO, minScore: 99 }, sa), null, "con nota mínima 99 no habría entrado");
+  const sb = M.hechas.find((x) => x.a === "b"); assert.ok(simular({ ...VIDEO, stop: 0.2 }, sb) < 0, "en el rug pierde");
+  const bt = backtest({ ...VIDEO }, M); assert.equal(bt.n, 2); assert.ok(bt.win === 50);
+});
