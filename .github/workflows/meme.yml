@@ -59,7 +59,7 @@ jobs:
           while [ "$(date +%s)" -lt "$end" ]; do
             # v168 · las tres redes a la vez (Solana, Base y BNB Chain), cada una en su rama
             s=$(date +%s)
-            for c in solana base bsc; do timeout 75 node runner/meme.mjs $c > /tmp/m-$c.log 2>&1 & done; wait; cat /tmp/m-*.log
+            for c in solana base bsc; do timeout 75 node runner/meme.mjs $c > /tmp/m-$c.log 2>&1 & done; timeout 75 node runner/bitvavo.mjs > /tmp/m-bv.log 2>&1 & wait; cat /tmp/m-*.log
             for k in 1 2; do w=$(( s + 20*k - $(date +%s) )); if [ "$w" -gt 0 ]; then sleep "$w"; fi; for c in solana base bsc; do timeout 18 node runner/meme.mjs $c rapido > /tmp/r-$c.log 2>&1 & done; wait; cat /tmp/r-*.log; done
             w=$(( 60 - ($(date +%s) - s) )); if [ "$w" -gt 0 ]; then sleep "$w"; fi
           done
