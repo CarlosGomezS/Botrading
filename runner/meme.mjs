@@ -358,7 +358,7 @@ export const volatG = (S) => (S.volatGenome ? { ...VIDEO, ...S.volatGenome, esti
 export function pasoVolatil(S, by, now, ext) {
   let V = S.volat; if (!V || V.v !== S.v) { V = S.volat = freshState(); }
   V.smart = S.smart; V.hold = S.hold; V.watch = {}; V.rc = {};
-  try { paso(V, by, now, Math.random, ext, VOLC, volatG(S)); V.genomeId = S.volatGenomeId || "vv"; } finally { delete V.smart; delete V.hold; delete V.watch; delete V.rc; }
+  try { paso(V, by, now, Math.random, ext, VOLC, volatG(S)); V.genomeId = S.volatGenomeId || "vv"; V.genome = volatG(S); } finally { delete V.smart; delete V.hold; delete V.watch; delete V.rc; }
   V.log = (V.log || []).slice(0, 120); V.closed = (V.closed || []).slice(0, 400); V.flow = []; V.nights = (V.nights || []).slice(0, 60); V.seen = Object.fromEntries(Object.entries(V.seen || {}).slice(-3000));
   for (const p of Object.values(V.pos || {})) p.h = (p.h || []).slice(-60);
   V.lastEq = r2(equity(V, {})); return V;
@@ -372,7 +372,7 @@ export function pasoTurbo(S, by, now, ext) {
   if (T && T.tv !== TURBO_V && T.st) { S.turboAntes = (S.turboAntes || []).concat([{ v: T.tv || 1, eq: r2(equity(T, {})), trades: T.st.trades, wins: T.st.wins, hasta: now.toISOString() }]).slice(-10); T = null; delete S.turboGenome; delete S.turboGenomeId; }
   if (!T || T.v !== S.v) { T = S.turbo = freshState(); T.tv = TURBO_V; const a = (S.turboAntes || []).slice(-1)[0]; if (a) L(T, now, "INFO", "", `⚡ empieza el Turbo ${TURBO_V} con 100 € (el Turbo ${a.v} acabó en ${a.eq} € tras ${a.trades} compras)`); }
   T.smart = S.smart; T.hold = S.hold; T.watch = {}; T.rc = {};
-  try { paso(T, by, now, Math.random, ext, null, turboG(S)); T.genomeId = S.turboGenomeId || "vt"; } finally { delete T.smart; delete T.hold; delete T.watch; delete T.rc; }
+  try { paso(T, by, now, Math.random, ext, null, turboG(S)); T.genomeId = S.turboGenomeId || "vt"; T.genome = turboG(S); } finally { delete T.smart; delete T.hold; delete T.watch; delete T.rc; }
   T.log = (T.log || []).slice(0, 120); T.closed = (T.closed || []).slice(0, 400); T.flow = []; T.nights = (T.nights || []).slice(0, 60); T.seen = Object.fromEntries(Object.entries(T.seen || {}).slice(-3000));
   for (const p of Object.values(T.pos || {})) p.h = (p.h || []).slice(-60);
   T.lastEq = r2(equity(T, {})); return T;
