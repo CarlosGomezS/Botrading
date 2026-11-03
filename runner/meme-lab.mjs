@@ -5,17 +5,17 @@
 import { R, VIDEO, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS } from "./meme.mjs";
 const ESTS = Object.keys(ESTILOS);
 
-export const POP = 20, GEN_H = 3, MIN_N = 8, ADOPT_N = 30;
+export const POP = 30, GEN_H = 2, MIN_N = 8, ADOPT_N = 30;
 // rango de cada pieza del genoma [mín, máx, paso]
 export const RANGOS = {
   ageMin: [5, 240, 5], ageMax: [120, 7 * 1440, 60], mcapMin: [50e3, 2e6, 50e3], mcapMax: [2e6, 100e6, 1e6],
   liqMin: [10e3, 150e3, 5e3], vol1hMin: [10e3, 300e3, 10e3], top10Max: [10, 50, 1], devMax: [1, 10, 0.5], bundleMax: [3, 30, 1],
-  pump1hMax: [30, 300, 10], lpLockMin: [50, 100, 5], stop: [0.03, 0.25, 0.01], trailOn: [0.05, 0.5, 0.01], trail: [0.05, 0.4, 0.01],
+  pump1hMax: [30, 300, 10], lpLockMin: [50, 100, 5], stop: [0.03, 0.25, 0.01], trailOn: [0.05, 0.5, 0.01], trail: [0.05, 0.4, 0.01], tp: [0.1, 1.5, 0.05], tpFrac: [0, 0.7, 0.05], orgMin: [0, 80, 5],
   maxHoldH: [1, 72, 1], size: [0.03, 0.15, 0.01], minScore: [50, 90, 1]
 };
 export const NOMBRES = { ageMin: "edad mínima (min)", ageMax: "edad máxima (min)", mcapMin: "tamaño mínimo ($)", mcapMax: "tamaño máximo ($)", liqMin: "liquidez mínima ($)", vol1hMin: "volumen 1 h mínimo ($)",
   top10Max: "top 10 máx. (%)", devMax: "creador máx. (%)", bundleMax: "bloque máx. (%)", pump1hMax: "subida 1 h máx. (%)", lpLockMin: "LP bloqueada mín. (%)", stop: "stop", trailOn: "activa el móvil en", trail: "móvil bajo el máximo",
-  maxHoldH: "tiempo máximo (h)", size: "tamaño de cada compra", minScore: "nota mínima", mint: "exige mint/freeze revocados", w: "pesos de la nota" };
+  maxHoldH: "tiempo máximo (h)", size: "tamaño de cada compra", minScore: "nota mínima", tp: "venta parcial en", tpFrac: "parte que vende", orgMin: "actividad real mínima (Jupiter)", mint: "exige mint/freeze revocados", w: "pesos de la nota" };
 const r2 = (x) => Math.round(x * 100) / 100;
 const snap = (k, v) => { const [a, b, st] = RANGOS[k]; return Math.max(a, Math.min(b, Math.round(v / st) * st)); };
 const SIG = ["mom", "ub", "bs", "hg", "lm", "sw"];
@@ -67,7 +67,7 @@ export function pasoVar(V, by, now, ext, smart, hold, rnd = Math.random) {
     const G = { ...VIDEO, ...V.g }, tnow = now.getTime(), px = {}, RCI = ext.rc || {}, GTI = ext.gt || {};
     const cerrar = (a, pr, liq, why, rug) => {
       const p = V.pos[a], sl = rug ? 0 : slipR(p.q * pr, liq), gross = p.q * pr, got = rug ? 0 : Math.max(0, gross * (1 - sl) * (1 - R.fee) - R.fixFee);
-      const pnl = got - p.cost, pc = got / p.cost - 1; V.cash += got; V.fees += rug ? 0 : gross - got; V.pnl += pnl; V.n++; V.s1 += pc; V.s2 += pc * pc; if (pnl > 0) V.w++; if (rug) V.rugs++;
+      const gotT = got + (p.gp || 0), pnl = gotT - p.cost, pc = gotT / p.cost - 1; V.cash += got; V.fees += rug ? 0 : gross - got; V.pnl += pnl; V.n++; V.s1 += pc; V.s2 += pc * pc; if (pnl > 0) V.w++; if (rug) V.rugs++;
       V.closed.unshift({ sym: p.sym, t1: now.toISOString(), pc: r2(pc * 100), pnl: r2(pnl), why }); V.closed = V.closed.slice(0, 60); V.cool[a] = tnow; delete V.pos[a];
     };
     for (const [a, p] of Object.entries(V.pos)) {
@@ -75,6 +75,7 @@ export function pasoVar(V, by, now, ext, smart, hold, rnd = Math.random) {
       if (!q || !(pr > 0) || liq < R.rugLiq) { if (!q && !ext.full) continue; cerrar(a, 0, 0, "rug", true); continue; }
       px[a] = pr; p.peak = Math.max(p.peak, pr); p.last = pr;
       if (p.peak >= p.px * (1 + G.trailOn)) p.tr = 1;
+      if (G.tpFrac > 0 && !p.tp1 && pr >= p.px * (1 + G.tp)) { const qv = p.q * G.tpFrac, gross = qv * pr, g2 = Math.max(0, gross * (1 - slipR(gross, liq)) * (1 - R.fee) - R.fixFee); V.cash += g2; V.fees += gross - g2; p.q -= qv; p.gp = (p.gp || 0) + g2; p.tp1 = 1; }
       if (pr <= p.px * (1 - G.stop)) cerrar(a, pr, liq, "stop");
       else if (p.tr && pr <= p.peak * (1 - G.trail)) cerrar(a, pr, liq, "móvil");
       else if ((tnow - Date.parse(p.t0)) / 3600e3 >= G.maxHoldH) cerrar(a, pr, liq, "tiempo");
@@ -84,7 +85,8 @@ export function pasoVar(V, by, now, ext, smart, hold, rnd = Math.random) {
       for (const [a, q] of Object.entries(by)) {
         if (V.pos[a] || explorador(q, tnow)) continue; if (V.cool[a] && tnow - V.cool[a] < G.cooldownH * 3600e3) continue;
         const info = RCI[a] || null, rr = reglas(q, info); if (!info || info.rugged || RULES.some(([k]) => rr[k] !== true)) continue;
-        const an = analista(S0, a, q, info, GTI[a] || null, tnow); if (an.sc >= G.minScore) cands.push({ a, q, sc: an.sc });
+        const jx = (ext.jup || {})[a] || null; if (G.orgMin > 0 && jx && jx.org != null && jx.org < G.orgMin) continue;
+        const an = analista(S0, a, q, info, GTI[a] || null, tnow, jx); if (an.sc >= G.minScore) cands.push({ a, q, sc: an.sc });
       }
       cands.sort((x, y) => y.sc - x.sc);
       for (const { a, q, sc } of cands) {

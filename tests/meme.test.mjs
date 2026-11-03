@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { freshLab, pasoVar, evolucionar, fitness, mutar, aleatorio, gkey, POP } from "../runner/meme-lab.mjs";
-import { gpInfo, CHAINS, ESTILOS, conGenoma, VIDEO } from "../runner/meme.mjs";
+import { gpInfo, CHAINS, ESTILOS, conGenoma, VIDEO, jupInfo } from "../runner/meme.mjs";
 import { freshState, paso, pasoIdeal, rapido, reglas, rcInfo, gtInfo, analista, explorador, bestPairs, R } from "../runner/meme.mjs";
 
 const T0 = Date.parse("2026-11-03T10:00:00Z");
@@ -136,4 +136,20 @@ test("estilos nuevos: grandes en tendencia, rebote tras caída y explosión de v
   const S = freshState(), an = conGenoma({ ...VIDEO, estilo: "rebote" }, () => analista(S, "dip", dip, okInfo, null, T0));
   assert.ok(an.sig.mom > 40, "la caída con recuperación puntúa en impulso");
   const Lb = freshLab(new Date(T0)); assert.ok(["grandes", "rebote", "volumen"].every((e) => Lb.pop.some((v) => v.g.estilo === e)), "la población inicial prueba todos los estilos");
+});
+
+test("venta parcial: a +tp vende una parte, el resto sigue, y el resultado final suma las dos", () => {
+  const S = freshState(); S.genome = { ...VIDEO, tp: 0.3, tpFrac: 0.5, trailOn: 0.5 };
+  paso(S, { a: par("a") }, new Date(T0), () => 1, { rc: { a: okInfo }, gt: { a: gtInfo(gtTr(300), T0) } });
+  const q0 = S.pos.a.q, c0 = S.cash;
+  paso(S, { a: par("a", { px: 1.35 }) }, new Date(T0 + 60e3), () => 1, {});
+  assert.ok(Math.abs(S.pos.a.q - q0 / 2) < 1e-9, "vende la mitad"); assert.ok(S.cash > c0, "cobra la parte vendida"); assert.ok(S.log.some((x) => x.ev === "TP"));
+  paso(S, { a: par("a", { px: 0.9 }) }, new Date(T0 + 120e3), () => 1, {});   // la otra mitad salta en el stop
+  const c = S.closed[0]; assert.ok(/tras vender parte/.test(c.why)); assert.ok(c.pnl > -0.1 * c.cost, "la venta parcial compensa casi todo el stop");
+  assert.ok(Math.abs(S.st.pnl - c.pnl) < 0.01, "la ganancia total cuadra");
+});
+test("Jupiter: actividad real, traders y poseedores", () => {
+  const j = jupInfo({ id: "x", organicScore: 72.5, stats1h: { numTraders: 410, numOrganicBuyers: 180, holderChange: 4.2 } });
+  assert.deepEqual(j, { org: 72.5, traders: 410, organicBuyers: 180, holderChg: 4.2 });
+  const S = freshState(), an = analista(S, "a", par("a"), okInfo, null, T0, j); assert.equal(an.sig.ub, 60, "compradores reales de Jupiter"); assert.equal(an.sig.hg, 42);
 });

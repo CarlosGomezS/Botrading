@@ -84,6 +84,11 @@ export function gpInfo(r) {
   return { mintOk, lp, top10, dev: (f(r.creator_percent) + (r.owner_address && r.owner_address !== r.creator_address ? f(r.owner_percent) : 0)) * 100, devRug: b(r.honeypot_with_same_creator),
     bundle: 0, sinBloque: true, holders: f(r.holder_count), rugged: b(r.is_honeypot), insiders: 0, tax: Math.max(f(r.buy_tax), f(r.sell_tax)) };
 }
+// ---- v173 · lo que da Jupiter de cada moneda de Solana: «actividad real» (organic score: descuenta bots y volumen falso), traders, compradores reales y cambio de poseedores
+export function jupInfo(x) {
+  if (!x) return null; const h = x.stats1h || {};
+  return { org: x.organicScore != null ? +x.organicScore : null, traders: h.numTraders != null ? +h.numTraders : null, organicBuyers: h.numOrganicBuyers != null ? +h.numOrganicBuyers : null, holderChg: h.holderChange != null ? +h.holderChange : null };
+}
 // ---- lo que se saca de las operaciones de GeckoTerminal (cada una con su cartera) ----
 export function gtInfo(trades, nowMs) {
   if (!Array.isArray(trades)) return null;
@@ -118,15 +123,15 @@ export function explorador(p, now) {
   if (!(+p.priceUsd > 0)) return "sin precio"; if (age < a0) return "joven"; if (age > a1) return "vieja"; if (mc < m0 || mc > m1) return "tamaño"; return null;
 }
 // ---- el analista: 6 señales de 0 a 100 y la nota final (la media) ----
-export function analista(S, a, p, info, g, nowMs) {
+export function analista(S, a, p, info, g, nowMs, j) {
   const ch1 = +(p.priceChange && p.priceChange.h1) || 0, ch5 = +(p.priceChange && p.priceChange.m5) || 0, liq = +(p.liquidity && p.liquidity.usd) || 1, mc = +(p.marketCap || p.fdv) || 1;
   const t = (p.txns && p.txns.h1) || {}, br = g && g.b + g.s > 0 ? g.b / Math.max(1, g.s) : (+t.buys || 0) / Math.max(1, +t.sells || 0);
   const ageH = Math.max(0.5, (nowMs - (+p.pairCreatedAt || nowMs)) / 3600e3), hp = S.hold[a];
   const hg = info && info.holders ? (hp && nowMs - hp.t > 10 * 60000 ? cl((info.holders / hp.n - 1) * 100 / ((nowMs - hp.t) / 3600e3), 0, 20) : cl(info.holders / ageH, 0, 300)) : 0.5;
   const nSmart = Object.keys(S.smart).length, sm = g ? g.buyers.filter((w) => S.smart[w]).length : 0;
   const ch6 = +(p.priceChange && p.priceChange.h6) || 0, ch24 = +(p.priceChange && p.priceChange.h24) || 0, v1 = +(p.volume && p.volume.h1) || 0, v24 = +(p.volume && p.volume.h24) || 0, surge = v24 > 0 ? v1 / (v24 / 24) : 1, e = est();
-  const sig = { mom: Math.round(100 * (e === "grandes" ? 0.4 * cl(ch1, 0, 10) + 0.3 * cl(ch6, 0, 25) + 0.3 * cl(ch24, 0, 50) : e === "rebote" ? 0.5 * cl(-ch6, 15, 50) + 0.25 * cl(ch5, 0, 5) + 0.25 * cl(ch1, 0, 10) : e === "volumen" ? cl(ch1, 0, 30) : 0.7 * cl(ch1, 0, 40) + 0.3 * cl(ch5, 0, 8))), ub: g ? Math.round(100 * cl(g.ub, 0, 150)) : Math.round(100 * cl(+t.buys || 0, 0, 250)) /* sin GeckoTerminal: aproximado con el nº de compras de la última hora (DexScreener) */, bs: Math.round(100 * cl(br, 1, 2)),
-    hg: Math.round(100 * (e === "video" ? hg : e === "volumen" ? cl(surge, 2, 6) : cl(surge, 1, 3))), lm: Math.round(100 * (e === "grandes" ? cl(liq / mc, 0.01, 0.08) : cl(liq / mc, 0.03, 0.15))), sw: nSmart < R.smartMinList ? 50 : Math.round(100 * cl(sm, 0, 3)) };
+  const sig = { mom: Math.round(100 * (e === "grandes" ? 0.4 * cl(ch1, 0, 10) + 0.3 * cl(ch6, 0, 25) + 0.3 * cl(ch24, 0, 50) : e === "rebote" ? 0.5 * cl(-ch6, 15, 50) + 0.25 * cl(ch5, 0, 5) + 0.25 * cl(ch1, 0, 10) : e === "volumen" ? cl(ch1, 0, 30) : 0.7 * cl(ch1, 0, 40) + 0.3 * cl(ch5, 0, 8))), ub: j && j.traders != null ? Math.round(100 * cl(j.organicBuyers ?? j.traders, 0, 300)) : g ? Math.round(100 * cl(g.ub, 0, 150)) : Math.round(100 * cl(+t.buys || 0, 0, 250)) /* sin GeckoTerminal: aproximado con el nº de compras de la última hora (DexScreener) */, bs: Math.round(100 * cl(br, 1, 2)),
+    hg: Math.round(100 * (j && j.holderChg != null ? cl(j.holderChg, 0, 10) : e === "video" ? hg : e === "volumen" ? cl(surge, 2, 6) : cl(surge, 1, 3))), lm: Math.round(100 * (e === "grandes" ? cl(liq / mc, 0.01, 0.08) : cl(liq / mc, 0.03, 0.15))), sw: nSmart < R.smartMinList ? 50 : Math.round(100 * cl(sm, 0, 3)) };
   const w = G.w || {}, ws = Object.keys(sig).reduce((t, k) => t + (w[k] ?? 1), 0) || 1;
   return { sig, sc: Math.round(Object.keys(sig).reduce((t, k) => t + (w[k] ?? 1) * sig[k], 0) / ws), sm, learning: nSmart < R.smartMinList };
 }
@@ -134,7 +139,7 @@ export function analista(S, a, p, info, g, nowMs) {
 export const IDEAL = { fee: 0, slipMin: 0, slipMax: 0, failP: 0, failCost: 0, fixFee: 0 };
 let C = R;
 // v164 · reglas en uso (genoma): las del vídeo (R) o las que el laboratorio de memes haya aprendido
-export const VIDEO = { ageMin: R.ageMin, ageMax: R.ageMax, mcapMin: R.mcapMin, mcapMax: R.mcapMax, liqMin: R.liqMin, vol1hMin: R.vol1hMin, top10Max: R.top10Max, devMax: R.devMax, bundleMax: R.bundleMax, pump1hMax: R.pump1hMax, lpLockMin: R.lpLockMin, mint: 1, stop: R.stop, trailOn: R.trailOn, trail: R.trail, maxHoldH: R.maxHoldH, size: R.size, minScore: R.minScore, maxPos: R.maxPos, cooldownH: R.cooldownH, estilo: "video", w: { mom: 1, ub: 1, bs: 1, hg: 1, lm: 1, sw: 1 } };
+export const VIDEO = { ageMin: R.ageMin, ageMax: R.ageMax, mcapMin: R.mcapMin, mcapMax: R.mcapMax, liqMin: R.liqMin, vol1hMin: R.vol1hMin, top10Max: R.top10Max, devMax: R.devMax, bundleMax: R.bundleMax, pump1hMax: R.pump1hMax, lpLockMin: R.lpLockMin, mint: 1, stop: R.stop, trailOn: R.trailOn, trail: R.trail, maxHoldH: R.maxHoldH, size: R.size, minScore: R.minScore, maxPos: R.maxPos, cooldownH: R.cooldownH, estilo: "video", tp: 0.5, tpFrac: 0, orgMin: 0, w: { mom: 1, ub: 1, bs: 1, hg: 1, lm: 1, sw: 1 } };
 let G = VIDEO;
 export function conGenoma(g, fn) { const p = G; G = { ...VIDEO, ...(g || {}) }; try { return fn(); } finally { G = p; } }
 export const slip = (eur, liq) => C.slipMax <= 0 ? 0 : Math.min(C.slipMax, C.slipMin + eur / Math.max(1, liq));
@@ -143,12 +148,12 @@ export function equity(S, px) { let v = S.cash; for (const [a, p] of Object.entr
 function L(S, now, ev, sym, txt) { S.line = (S.line || 0) + 1; S.log.unshift({ n: S.line, t: now.toISOString(), ev, sym, txt }); S.log = S.log.slice(0, 500); }
 function cerrar(S, a, now, px, liq, why, ev, rug) {
   const p = S.pos[a]; const sl = rug ? 0 : slip(p.q * px, liq), gross = p.q * px, got = rug ? 0 : Math.max(0, gross * (1 - sl) * (1 - C.fee) - (C.fixFee || 0)), fee = rug ? 0 : gross - got;
-  const pnl = got - p.cost; S.cash += got; S.st.pnl += pnl; S.st.fees += fee; if (pnl >= 0) S.st.wins++; else S.st.losses++; if (rug) S.st.rugs++; if (ev === "STOP") S.st.stops++;
+  const gotT = got + (p.gotPart || 0), pnl = gotT - p.cost; S.cash += got; S.st.pnl += pnl - (p.pnlPart || 0); S.st.fees += fee; if (pnl >= 0) S.st.wins++; else S.st.losses++; if (rug) S.st.rugs++; if (ev === "STOP") S.st.stops++;
   S.st.worst = Math.min(S.st.worst || 0, pnl); S.st.best = Math.max(S.st.best || 0, pnl);
-  S.closed.unshift({ sym: p.sym, a, url: p.url, t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(got), pnl: r2(pnl), pc: r2((got / p.cost - 1) * 100), why, sc: p.sc, h: (p.h || []).slice(-120), px0: p.px, peak: p.peak, out: px }); S.closed = S.closed.slice(0, 600);
+  S.closed.unshift({ sym: p.sym, a, url: p.url, t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(gotT), pnl: r2(pnl), pc: r2((gotT / p.cost - 1) * 100), why: p.gotPart ? why + " (tras vender parte con ganancia)" : why, sc: p.sc, h: (p.h || []).slice(-120), px0: p.px, peak: p.peak, out: px }); S.closed = S.closed.slice(0, 600);
   S.cool[a] = now.getTime(); delete S.pos[a];
   S.ag.risk = { sym: p.sym, txt: why, t: now.toISOString() };
-  L(S, now, ev, p.sym, why); L(S, now, pnl >= 0 ? "WIN" : "LOSS", p.sym, `${pnl >= 0 ? "+" : ""}${r2(pnl)} · ${r2((got / p.cost - 1) * 100)} %`);
+  L(S, now, ev, p.sym, why); L(S, now, pnl >= 0 ? "WIN" : "LOSS", p.sym, `${pnl >= 0 ? "+" : ""}${r2(pnl)} · ${r2((gotT / p.cost - 1) * 100)} %`);
 }
 
 // una vuelta completa: riesgo vigila lo abierto → explorador → filtro → analista → ejecutor → registro. ext = {rc:{a:info}, gt:{a:info}}
@@ -162,6 +167,12 @@ export function riesgo(S, by, now = new Date(), costs, genome) {
     if (!q || !(pr > 0) || liq < R.rugLiq) { cerrar(S, a, now, 0, 0, "liquidez retirada o moneda desaparecida", "RUG", true); continue; }
     px[a] = pr; p.last = pr; p.peak = Math.max(p.peak || p.px, pr); p.liq = liq; p.h = (p.h || []); p.h.push([now.toISOString(), pr]); p.h = p.h.slice(-200);
     if (!p.trailing && p.peak >= p.px * (1 + G.trailOn)) { p.trailing = true; L(S, now, "TRAIL", p.sym, `+${G.trailOn * 100} % alcanzado · stop móvil activado`); }
+    // v173 · venta parcial: al llegar a +tp se vende una parte y el resto sigue con su stop móvil (asegura ganancia sin cortar la subida)
+    if (G.tpFrac > 0 && !p.tp1 && pr >= p.px * (1 + G.tp)) {
+      const qv = p.q * G.tpFrac, gross = qv * pr, sl = slip(gross, liq), got = Math.max(0, gross * (1 - sl) * (1 - C.fee) - (C.fixFee || 0)), pnlP = got - p.cost * G.tpFrac;
+      S.cash += got; S.st.fees += gross - got; S.st.pnl += pnlP; p.q -= qv; p.gotPart = (p.gotPart || 0) + got; p.pnlPart = (p.pnlPart || 0) + pnlP; p.tp1 = 1;
+      L(S, now, "TP", p.sym, `+${Math.round(G.tp * 100)} %: vende el ${Math.round(G.tpFrac * 100)} % · asegura ${pnlP >= 0 ? "+" : ""}${r2(pnlP)}`);
+    }
     const ageH = (tnow - Date.parse(p.t0)) / 3600e3;
     if (pr <= p.px * (1 - G.stop)) cerrar(S, a, now, pr, liq, `stop −${G.stop * 100} %`, "STOP");
     else if (p.trailing && pr <= p.peak * (1 - G.trail)) cerrar(S, a, now, pr, liq, `stop móvil (${G.trail * 100} % bajo el máximo)`, "EXIT");
@@ -206,7 +217,9 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs
     if (miss.length) continue;   // falta RugCheck: se mira en la siguiente vuelta
     if (!z.p) { z.p = 1; L(S, now, "PASS", q.baseToken.symbol, "8/8 reglas → analista"); }
     S.ag.filter = { sym: q.baseToken.symbol, rule: 8, ok: true, t: now.toISOString() };
-    const g = GTI[a] || null, an = analista(S, a, q, info, g, tnow);
+    const g = GTI[a] || null, jx = (ext.jup || {})[a] || null;
+    if (G.orgMin > 0 && jx && jx.org != null && jx.org < G.orgMin) { if (!z.o) { z.o = 1; L(S, now, "KILL", q.baseToken.symbol, `actividad real baja (Jupiter ${Math.round(jx.org)} < ${G.orgMin})`); } continue; }
+    const an = analista(S, a, q, info, g, tnow, jx);
     if (info && info.holders) S.hold[a] = S.hold[a] && tnow - S.hold[a].t < 10 * 60000 ? S.hold[a] : { n: info.holders, t: tnow };
     if (!z.s) { z.s = 1; S.st.scored++; L(S, now, "SCORE", q.baseToken.symbol, `${an.sc}${an.sc >= G.minScore ? " → ejecutor" : " · por debajo de 70: descartada"}`); }
     S.ag.analyst = { sym: q.baseToken.symbol, sc: an.sc, sig: an.sig, learning: an.learning, t: now.toISOString() };
@@ -313,7 +326,7 @@ async function main() {
   if (CH.id === "solana") {
     const JL = []; for (const c of ["toptrending", "toptraded", "toporganicscore"]) for (const iv of ["5m", "1h", "6h", "24h"]) JL.push(`${JUP}/tokens/v2/${c}/${iv}?limit=100`);
     const jupU = [`${JUP}/tokens/v2/recent`, ...Array.from({ length: 3 }, (_, i) => JL[(rot * 3 + i) % JL.length])];
-    let nj = 0; await enParalelo(jupU, 4, async (u) => { const j = await J(u, 2); for (const x of Array.isArray(j) ? j : []) { const a = x && (x.id || x.address || x.mint); if (a) { add(a); nj++; } } });
+    let nj = 0; S.jupc = S.jupc || {}; await enParalelo(jupU, 4, async (u) => { const j = await J(u, 2); for (const x of Array.isArray(j) ? j : []) { const a = x && (x.id || x.address || x.mint); if (a) { add(a); nj++; const ji = jupInfo(x); if (ji) S.jupc[a] = { t: tnow, i: ji }; } } });
     S.jupN = nj;
   }
   await enParalelo(gtU, 4, async (u) => { const j = await J(u, 2); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(new RegExp("^" + CH.gt + "_"), "")); } });
@@ -337,6 +350,12 @@ async function main() {
   if (CH.seg === "rugcheck") await enParalelo(pide, 4, async (a) => { if (Date.now() - t0 > 45e3) { rcLate++; return; } nrc++; try { const j = await J(`${RC}/tokens/${a}/report`, 2); if (j) { const i = rcInfo(j); S.rc[a] = { t: tnow, i }; ext.rc[a] = i; rcOk++; } else rcErr++; } catch (e) { rcErr++; S.rcLastErr = String(e.message || e).slice(0, 80); } });
   else { const lotes = []; for (let i = 0; i < pide.length; i += 10) lotes.push(pide.slice(i, i + 10));
     await enParalelo(lotes, 2, async (lo) => { if (Date.now() - t0 > 45e3) { rcLate += lo.length; return; } nrc += lo.length; try { const j = await J(`${GP}/token_security/${CH.gp}?contract_addresses=${lo.join(",")}`, 2); const res = (j && j.result) || {}; for (const a of lo) { const r = res[a.toLowerCase()]; if (r) { const i = gpInfo(r); S.rc[a] = { t: tnow, i }; ext.rc[a] = i; rcOk++; } else rcErr++; } if (j && j.code !== 1 && j.message) S.rcLastErr = String(j.message).slice(0, 80); } catch (e) { rcErr += lo.length; S.rcLastErr = String(e.message || e).slice(0, 80); } }); }
+  if (CH.id === "solana") {
+    S.jupc = S.jupc || {}; ext.jup = {};
+    for (const [a, c] of Object.entries(S.jupc)) { if (tnow - c.t > 20 * 60000) delete S.jupc[a]; else if (tnow - c.t < 3 * 60000) ext.jup[a] = c.i; }
+    const faltan = pre.map(([a]) => a).filter((a) => !ext.jup[a]).slice(0, 100);
+    if (faltan.length) { try { const j = await J(`${JUP}/tokens/v2/search?query=${faltan.join(",")}`, 2); for (const x of Array.isArray(j) ? j : []) { const a = x && x.id, ji = jupInfo(x); if (a && ji) { S.jupc[a] = { t: tnow, i: ji }; ext.jup[a] = ji; } } } catch (e) { S.jupErr = String(e.message || e).slice(0, 60); } }
+  }
   // ANALISTA: operaciones con cartera de GeckoTerminal para las que tienen datos de RugCheck y no son rug (primero las de más volumen)
   let ngt = 0;
   const pasaTerm = (a, q) => conGenoma(S.genome, () => { const i = ext.rc[a], rr = reglas(q, i); return i && !RULES.some(([k]) => rr[k] !== true); });
