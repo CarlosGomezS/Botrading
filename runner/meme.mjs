@@ -11,7 +11,9 @@ import path from "node:path";
 const REPO = process.env.GITHUB_REPOSITORY || "", TOKEN = process.env.GITHUB_TOKEN || "";
 const DS = "https://api.dexscreener.com", GT = "https://api.geckoterminal.com/api/v2", RC = "https://api.rugcheck.xyz/v1";
 export const R = {
-  start: 500, size: 0.08, maxPos: 8, minScore: 70,
+  start: 50, size: 0.08,          // v163: prueba con 50 € (como si los metieras de verdad)
+  fixFee: 0.08,                    // € fijos por transacción en Solana: propina de prioridad/Jito y cuenta de la moneda (no dependen del tamaño)
+  maxPos: 8, minScore: 70,
   ageMin: 30, ageMax: 72 * 60, mcapMin: 300e3, mcapMax: 20e6,                     // explorador
   liqMin: 40e3, vol1hMin: 50e3, top10Max: 25, devMax: 3, bundleMax: 10, pump1hMax: 80, lpLockMin: 90, // filtro
   stop: 0.06, trailOn: 0.12, trail: 0.15, maxHoldH: 24, rugLiq: 5000, cooldownH: 24, // riesgo
@@ -38,7 +40,7 @@ async function J(u, tries = 3) {
   return null;
 }
 export function freshState() {
-  return { v: 3, start: R.start, cash: R.start, pos: {}, closed: [], log: [], line: 0, eq: [], seen: {}, cool: {}, young: {}, rc: {}, hold: {}, watch: {}, smart: {}, flow: [], ag: {},
+  return { v: 4, start: R.start, cash: R.start, pos: {}, closed: [], log: [], line: 0, eq: [], seen: {}, cool: {}, young: {}, rc: {}, hold: {}, watch: {}, smart: {}, flow: [], ag: {},
     st: { seen: 0, killed: 0, scored: 0, trades: 0, wins: 0, losses: 0, fees: 0, failed: 0, rugs: 0, pnl: 0, stops: 0, worst: 0, best: 0 }, rk: {}, rate: [], nights: [], since: new Date().toISOString() };
 }
 export function bestPairs(pairs) { const m = {}; for (const p of pairs || []) { if (!p || p.chainId !== "solana" || !p.baseToken) continue; const a = p.baseToken.address, l = +(p.liquidity && p.liquidity.usd) || 0; if (!m[a] || l > (+(m[a].liquidity && m[a].liquidity.usd) || 0)) m[a] = p; } return m; }
@@ -91,14 +93,14 @@ export function analista(S, a, p, info, g, nowMs) {
   return { sig, sc: Math.round(Object.values(sig).reduce((x, y) => x + y, 0) / 6), sm, learning: nSmart < R.smartMinList };
 }
 // costes en uso: los realistas (R) o los «como el vídeo» (sin comisión, sin deslizamiento y sin órdenes fallidas)
-export const IDEAL = { fee: 0, slipMin: 0, slipMax: 0, failP: 0, failCost: 0 };
+export const IDEAL = { fee: 0, slipMin: 0, slipMax: 0, failP: 0, failCost: 0, fixFee: 0 };
 let C = R;
 export const slip = (eur, liq) => C.slipMax <= 0 ? 0 : Math.min(C.slipMax, C.slipMin + eur / Math.max(1, liq));
 export function equity(S, px) { let v = S.cash; for (const [a, p] of Object.entries(S.pos)) v += p.q * (px[a] != null ? px[a] : p.last); return v; }
 
 function L(S, now, ev, sym, txt) { S.line = (S.line || 0) + 1; S.log.unshift({ n: S.line, t: now.toISOString(), ev, sym, txt }); S.log = S.log.slice(0, 500); }
 function cerrar(S, a, now, px, liq, why, ev, rug) {
-  const p = S.pos[a]; const sl = rug ? 0 : slip(p.q * px, liq), gross = p.q * px, got = rug ? 0 : gross * (1 - sl) * (1 - C.fee), fee = rug ? 0 : gross - got;
+  const p = S.pos[a]; const sl = rug ? 0 : slip(p.q * px, liq), gross = p.q * px, got = rug ? 0 : Math.max(0, gross * (1 - sl) * (1 - C.fee) - (C.fixFee || 0)), fee = rug ? 0 : gross - got;
   const pnl = got - p.cost; S.cash += got; S.st.pnl += pnl; S.st.fees += fee; if (pnl >= 0) S.st.wins++; else S.st.losses++; if (rug) S.st.rugs++; if (ev === "STOP") S.st.stops++;
   S.st.worst = Math.min(S.st.worst || 0, pnl); S.st.best = Math.max(S.st.best || 0, pnl);
   S.closed.unshift({ sym: p.sym, a, url: p.url, t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(got), pnl: r2(pnl), pc: r2((got / p.cost - 1) * 100), why, sc: p.sc, h: (p.h || []).slice(-120), px0: p.px, peak: p.peak, out: px }); S.closed = S.closed.slice(0, 600);
@@ -174,7 +176,8 @@ export function paso(S, by, now = new Date(), rnd = Math.random, ext = {}, costs
     const eq = equity(S, px), amt = Math.min(S.cash, eq * R.size), liq = +q.liquidity.usd, pr = +q.priceUsd;
     if (amt < 1) break;
     if (C.failP > 0 && rnd() < C.failP) { S.cash -= C.failCost; S.st.failed++; S.st.fees += C.failCost; L(S, now, "FAIL", q.baseToken.symbol, "la orden no entró (red saturada): se pierde la propina"); continue; }
-    const sl = slip(amt, liq), fill = pr * (1 + sl), qn = amt * (1 - C.fee) / fill;
+    const sl = slip(amt, liq), fill = pr * (1 + sl), qn = Math.max(0, amt * (1 - C.fee) - (C.fixFee || 0)) / fill;
+    if (amt <= (C.fixFee || 0) * 4) break;   // una compra tan pequeña que los costes fijos se la comerían
     S.cash -= amt; S.st.trades++; S.st.fees += amt - qn * pr;
     S.pos[a] = { sym: q.baseToken.symbol, name: q.baseToken.name, url: q.url, q: qn, px: pr, cost: amt, t0: now.toISOString(), peak: pr, last: pr, sc, sig, liq, h: [[now.toISOString(), pr]] };
     px[a] = pr; S.ag.exec = { sym: q.baseToken.symbol, amt: r2(amt), t: now.toISOString() };
@@ -227,7 +230,7 @@ function publicar(S) {
 
 async function main() {
   const now = new Date(), tnow = now.getTime(), t0 = Date.now();
-  let S = await leerEstado(); if (!S || S.v !== 3) { const old = S; S = freshState(); if (old && old.since) L(S, now, "INFO", "", "versión nueva del terminal: empieza de cero con las 8 reglas reales"); }
+  let S = await leerEstado(); if (!S || S.v !== 4) { const old = S; S = freshState(); if (old && old.since) L(S, now, "INFO", "", "empieza de cero con 50 € y los costes fijos de Solana"); }
   if (process.argv[2] === "rapido") {
     const open = [...new Set([...Object.keys(S.pos || {}), ...Object.keys((S.ideal && S.ideal.pos) || {})])];
     if (!open.length) { console.log("Memes (rápido): nada abierto."); return; }
