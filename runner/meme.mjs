@@ -9,7 +9,7 @@ import { execSync } from "node:child_process";
 import path from "node:path";
 
 const REPO = process.env.GITHUB_REPOSITORY || "", TOKEN = process.env.GITHUB_TOKEN || "";
-const DS = "https://api.dexscreener.com", GT = "https://api.geckoterminal.com/api/v2", RC = "https://api.rugcheck.xyz/v1", GP = "https://api.gopluslabs.io/api/v1";
+const JUP = "https://lite-api.jup.ag", DS = "https://api.dexscreener.com", GT = "https://api.geckoterminal.com/api/v2", RC = "https://api.rugcheck.xyz/v1", GP = "https://api.gopluslabs.io/api/v1";
 // v168 · REDES: el mismo terminal en Solana, Base y BNB Chain (cada una con su estado, su bola de aprendizaje y su rama: meme, meme-base, meme-bsc)
 export const CHAINS = {
   solana: { id: "solana", nombre: "Solana", ds: "solana", gt: "solana", seg: "rugcheck", rama: "meme", fixFee: 0.08, gtTurno: 0, busca: ["pump", "sol", "meme", "cat", "dog", "ai"] },
@@ -308,11 +308,19 @@ async function main() {
   const rot = Math.floor(tnow / 60000), otras = GTL.filter((u) => !/new_pools\?page=[123]$/.test(u)), gtU = [rot % 2 ? `${GT}/networks/${CH.gt}/new_pools?page=1` : otras[Math.floor(rot / 2) % otras.length]];   // v170 · una lista por red y minuto (nuevas o tendencia, alternando): las 3 redes caben en el límite de GeckoTerminal   // v165 · GitHub comparte IP: GeckoTerminal limita mucho; listas solo un minuto de cada dos y el resto para las operaciones   // 5 listas + 10 operaciones < 30 peticiones/min de GeckoTerminal
   const srcs = [DS + "/token-profiles/latest/v1", DS + "/token-boosts/latest/v1", DS + "/token-boosts/top/v1", ...PALABRAS.concat(CH.busca).filter((_, i, A) => (i + rot * 8) % A.length < 8).map((q) => `${DS}/latest/dex/search?q=${encodeURIComponent(q)}`)];   // v170 · 8 búsquedas distintas por minuto (DexScreener admite 300/min)
   await enParalelo(srcs, 5, async (u) => { const j = await J(u, 2); const arr = Array.isArray(j) ? j : (j && j.pairs) || []; for (const x of arr) if (x && x.chainId === CH.ds) add(x.tokenAddress || (x.baseToken && x.baseToken.address)); });
+  // v172 · Solana: listas de Jupiter (gratis, sin clave): las más negociadas, en tendencia y con más actividad real de 5 min a 24 h, y las recién creadas.
+  // Dan cientos de monedas por minuto dentro del rango del vídeo (el explorador del vídeo ve ~3 pares nuevos por minuto)
+  if (CH.id === "solana") {
+    const JL = []; for (const c of ["toptrending", "toptraded", "toporganicscore"]) for (const iv of ["5m", "1h", "6h", "24h"]) JL.push(`${JUP}/tokens/v2/${c}/${iv}?limit=100`);
+    const jupU = [`${JUP}/tokens/v2/recent`, ...Array.from({ length: 3 }, (_, i) => JL[(rot * 3 + i) % JL.length])];
+    let nj = 0; await enParalelo(jupU, 4, async (u) => { const j = await J(u, 2); for (const x of Array.isArray(j) ? j : []) { const a = x && (x.id || x.address || x.mint); if (a) { add(a); nj++; } } });
+    S.jupN = nj;
+  }
   await enParalelo(gtU, 4, async (u) => { const j = await J(u, 2); for (const x of (j && j.data) || []) { const id = x.relationships && x.relationships.base_token && x.relationships.base_token.data && x.relationships.base_token.data.id; if (id) add(id.replace(new RegExp("^" + CH.gt + "_"), "")); } });
   // primero lo abierto y lo recién encontrado; las «jóvenes» que se vuelven a mirar, como mucho 200
   const must = new Set([...Object.keys(S.pos), ...Object.keys((S.ideal && S.ideal.pos) || {}), ...varOpen()]);
   const young = Object.entries(S.young || {}).sort((a, b) => b[1] - a[1]).slice(0, 1200).map((x) => x[0]);
-  const list = [...new Set([...must, ...[...addrs].filter((a) => !(S.young || {})[a]), ...young])].slice(0, 1500), pairs = [];
+  const list = [...new Set([...must, ...[...addrs].filter((a) => !(S.young || {})[a]), ...young])].slice(0, 2400), pairs = [];
   const batches = []; for (let i = 0; i < list.length; i += 30) batches.push(list.slice(i, i + 30));
   let fallo = false;
   await enParalelo(batches, 6, async (b) => { try { const j = await J(`${DS}/tokens/v1/${CH.ds}/${b.join(",")}`); if (Array.isArray(j)) pairs.push(...j); } catch (e) { if (b.some((a) => must.has(a))) fallo = true; } });
@@ -337,7 +345,7 @@ async function main() {
   let gtOk = 0; S.gtc = S.gtc || {};
   for (const [a, c] of Object.entries(S.gtc)) { if (tnow - c.t > 15 * 60000) delete S.gtc[a]; else if (tnow - c.t < 4 * 60000) ext.gt[a] = c.g; }   // operaciones de GeckoTerminal: se reutilizan 4 min
   await enParalelo(pideGT.filter(([a]) => !ext.gt[a]), 2, async ([a, q]) => { if (Date.now() - t0 > 52e3) return; ngt++; let j = null; try { j = await J(`${GT}/networks/${CH.gt}/pools/${q.pairAddress}/trades`, 3); } catch (e) { S.gtErr = String(e.message || e).slice(0, 60); } if (!j) S.gtErr = S.gtErr || "404 (piscina no encontrada)"; if (j && j.data) { const g = gtInfo(j.data, tnow); ext.gt[a] = g; S.gtc[a] = { t: tnow, g: { ...g, buyers: g.buyers.slice(0, 150) } }; gtOk++; } });
-  S.diag = { t: now.toISOString(), monedas: Object.keys(by).length, candidatas: pre.length, motivos: mot, laxo: lx, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, gtErr: S.gtErr || null, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
+  S.diag = { t: now.toISOString(), jupiter: CH.id === "solana" ? S.jupN || 0 : undefined, monedas: Object.keys(by).length, candidatas: pre.length, motivos: mot, laxo: lx, rcPedidas: pide.length, rcOk, rcErr, rcTarde: rcLate, rcErrMsg: S.rcLastErr || null, gt: ngt, gtOk, gtErr: S.gtErr || null, sPrevias: Math.round(tPre / 1000), s: Math.round((Date.now() - t0) / 1000) };
   paso(S, by, now, Math.random, ext);
   pasoIdeal(S, by, now, ext);
   for (const v of LB.pop) LBm.pasoVar(v, by, now, { ...ext, full: true }, S.smart, S.hold);
