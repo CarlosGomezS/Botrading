@@ -1,3 +1,4 @@
+import { predecir, rasgos } from "./meme-ia.mjs";
 // v159 · 🪙 MEMES · TERMINAL (SOLO DINERO FICTICIO): imita el «Grok Bot Terminal» de memecoins de Solana que circula por redes,
 // con sus 6 agentes (explorador, filtro, analista, ejecutor, riesgo y registro), sus 8 reglas duras y su nota de 6 señales,
 // pero con costes REALISTAS para saber con números si gana de verdad. Nunca toca dinero real ni Trading 212 (no tiene memecoins).
@@ -124,6 +125,8 @@ export function explorador(p, now) {
   if (!(+p.priceUsd > 0)) return "sin precio"; if (age < a0) return "joven"; if (age > a1) return "vieja"; if (mc < m0 || mc > m1) return "tamaño"; return null;
 }
 // ---- el analista: 6 señales de 0 a 100 y la nota final (la media) ----
+// v181 · 🧠 modelo de IA en uso (lo entrena la bola en cada generación; solo se usa si acierta más que el azar)
+let IA = null; export function setIA(m) { IA = m && m.listo && m.w ? m : null; } export const iaEnUso = () => IA;
 export function analista(S, a, p, info, g, nowMs, j) {
   const ch1 = +(p.priceChange && p.priceChange.h1) || 0, ch5 = +(p.priceChange && p.priceChange.m5) || 0, liq = +(p.liquidity && p.liquidity.usd) || 1, mc = +(p.marketCap || p.fdv) || 1;
   const t = (p.txns && p.txns.h1) || {}, br = g && g.b + g.s > 0 ? g.b / Math.max(1, g.s) : (+t.buys || 0) / Math.max(1, +t.sells || 0);
@@ -133,6 +136,7 @@ export function analista(S, a, p, info, g, nowMs, j) {
   const ch6 = +(p.priceChange && p.priceChange.h6) || 0, ch24 = +(p.priceChange && p.priceChange.h24) || 0, v1 = +(p.volume && p.volume.h1) || 0, v24 = +(p.volume && p.volume.h24) || 0, surge = v24 > 0 ? v1 / (v24 / 24) : 1, e = est();
   const sig = { mom: Math.round(100 * (e === "grandes" ? 0.4 * cl(ch1, 0, 10) + 0.3 * cl(ch6, 0, 25) + 0.3 * cl(ch24, 0, 50) : e === "rebote" ? 0.5 * cl(-ch6, 15, 50) + 0.25 * cl(ch5, 0, 5) + 0.25 * cl(ch1, 0, 10) : e === "volumen" ? cl(ch1, 0, 30) : 0.7 * cl(ch1, 0, 40) + 0.3 * cl(ch5, 0, 8))), ub: j && j.traders != null ? Math.round(100 * cl(j.organicBuyers ?? j.traders, 0, 300)) : g ? Math.round(100 * cl(g.ub, 0, 150)) : Math.round(100 * cl(+t.buys || 0, 0, 250)) /* sin GeckoTerminal: aproximado con el nº de compras de la última hora (DexScreener) */, bs: Math.round(100 * cl(br, 1, 2)),
     hg: Math.round(100 * (j && j.holderChg != null ? cl(j.holderChg, 0, 10) : e === "video" ? hg : e === "volumen" ? cl(surge, 2, 6) : cl(surge, 1, 3))), lm: Math.round(100 * (e === "grandes" ? cl(liq / mc, 0.01, 0.08) : cl(liq / mc, 0.03, 0.15))), sw: nSmart < R.smartMinList ? 50 : Math.round(100 * cl(sm, 0, 3)) };
+  if (IA) { const pr = predecir(IA, rasgos(p, info, nowMs, j)); if (pr != null) sig.ia = Math.round(100 * cl(pr, IA.base * 0.5, Math.min(0.95, Math.max(IA.base * 3, IA.base + 0.2)))); }
   const w = G.w || {}, ws = Object.keys(sig).reduce((t, k) => t + (w[k] ?? 1), 0) || 1;
   return { sig, sc: Math.round(Object.keys(sig).reduce((t, k) => t + (w[k] ?? 1) * sig[k], 0) / ws), sm, learning: nSmart < R.smartMinList };
 }
@@ -332,6 +336,7 @@ async function main() {
   S.chain = CH.id; S.chainNombre = CH.nombre;
   let LB = null; try { LB = await leerArchivo("meme-lab.json"); } catch (e) { console.log("Memes: " + e.message); return; }
   if (!LB || LB.v !== 3 || (S.genomeId && !LB.pop.some((v) => v.id === S.genomeId) && false)) { LB = LBm.freshLab(now); L(S, now, "INFO", "", `🧬 nace el laboratorio de memes: ${LB.pop.length} variantes de las reglas compiten en ficticio`); }
+  setIA(LB.ia);
   LBm.aplicarRangos(LB);
   const MS = await import("./meme-muestras.mjs"); try { MUE = RAPIDO ? null : await leerArchivo("meme-muestras.json", CH.rama + "-mue"); } catch (e) { console.log("Memes: " + e.message); return; } if (!RAPIDO && (!MUE || MUE.v !== 1)) MUE = MS.freshM();   // v174 · los rangos que la bola ya haya ensanchado
   const varOpen = () => LB.pop.flatMap((v) => Object.keys(v.pos || {}));

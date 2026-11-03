@@ -218,3 +218,14 @@ test("turbo aprende: «vt» vive en la bola y el Turbo adopta una variante muy a
   if (v.fit >= 1) assert.equal(S.turboGenomeId, v.id); else assert.equal(S.turboGenomeId, undefined);
   assert.ok(Lb.pop.some((x) => x.id === "vt"), "vt no se archiva");
 });
+import { entrenar, etiqueta, predecir, rasgos } from "../runner/meme-ia.mjs";
+test("IA: aprende sola qué rasgos tenían las que subieron y lo valida con casos que no ha visto", () => {
+  assert.equal(etiqueta([[0, 1], [30, 1.1, 1.25, 0.97]]), 1); assert.equal(etiqueta([[0, 1], [30, 0.95, 1.05, 0.88], [60, 1.3, 1.3, 1.2]]), 0);
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, M = { hechas: [], hist: [] };
+  for (let i = 0; i < 400; i++) { const buena = rnd() < 0.3, q = par("c" + i, { liq: buena ? 6e5 : 6e4, mc: 2e6, ch1: rnd() * 40 }); q.volume.h24 = 2e6;
+    M.hechas.push({ a: "c" + i, t0: T0 + i * 60000, q, info: okInfo, jup: null, p: [[0, 1], [30, buena ? 1.25 : 0.88, buena ? 1.3 : 1.02, buena ? 0.98 : 0.86], [60, 1, 1, 1]] }); }
+  const m = entrenar(M, new Date(T0)); assert.ok(m.listo && m.auc > 0.9, "acierta: " + m.auc);
+  const p1 = predecir(m, rasgos(par("x", { liq: 6e5, mc: 2e6 }), okInfo, T0, null)), p0 = predecir(m, rasgos(par("y", { liq: 6e4, mc: 2e6 }), okInfo, T0, null));
+  assert.ok(p1 > p0, "da más probabilidad a la que se parece a las buenas");
+  assert.equal(entrenar({ hechas: M.hechas.slice(0, 50) }).listo, false, "con pocos casos no opina");
+});

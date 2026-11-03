@@ -2,11 +2,12 @@
 // ficticio (50 € cada una), los MISMOS datos en vivo y costes reales. Cada ~3 h se juzgan: las peores se archivan (nunca se borran) y nacen
 // otras (mutaciones y cruces de las mejores, y alguna inventada de cero). Si una variante demuestra con muchas operaciones que es mejor que las
 // reglas que usa el terminal, el terminal la adopta solo. La variante «vídeo» (las reglas originales) no se elimina nunca: es la referencia.
-import { R, VIDEO, TURBO, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS, NOMEME } from "./meme.mjs";
+import { setIA, R, VIDEO, TURBO, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS, NOMEME } from "./meme.mjs";
 const ESTS = Object.keys(ESTILOS);
 
 export const POP = 40, GEN_H = 0.5, MIN_N = 8, ADOPT_N = 30, BT_N = 20;
 import { backtest } from "./meme-muestras.mjs";
+import { entrenar } from "./meme-ia.mjs";
 // rango de cada pieza del genoma [mín, máx, paso]
 export const RANGOS = {
   ageMin: [5, 240, 5], ageMax: [120, 7 * 1440, 60], mcapMin: [50e3, 2e6, 50e3], mcapMax: [2e6, 100e6, 1e6],
@@ -34,7 +35,7 @@ export const NOMBRES = { ageMin: "edad mínima (min)", ageMax: "edad máxima (mi
   maxHoldH: "tiempo máximo (h)", size: "tamaño de cada compra", minScore: "nota mínima", tp: "venta parcial en", tpFrac: "parte que vende", orgMin: "actividad real mínima (Jupiter)", mint: "exige mint/freeze revocados", w: "pesos de la nota" };
 const r2 = (x) => Math.round(x * 100) / 100;
 const snap = (k, v) => { const [a, b, st] = RANGOS[k]; return Math.max(a, Math.min(b, Math.round(v / st) * st)); };
-const SIG = ["mom", "ub", "bs", "hg", "lm", "sw"];
+const SIG = ["mom", "ub", "bs", "hg", "lm", "sw", "ia"];
 export const gkey = (g) => JSON.stringify(Object.keys(RANGOS).map((k) => g[k]).concat([g.mint, g.estilo || "video", SIG.map((k) => r2((g.w || {})[k] ?? 1))]));
 
 export function aleatorio(rnd = Math.random) {
@@ -137,6 +138,7 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null)
   const ev = (txt, k) => { L.log.unshift({ t: now.toISOString(), k, txt }); L.log = L.log.slice(0, 200); };
   // v180 · ⚡ el Turbo también aprende: su punto de partida vive en la bola («vt», no se elimina) y de él nacen variantes activas
   if (!L.pop.some((v) => v.id === "vt")) { L.pop.push(nuevaVar("vt", { ...TURBO }, now, L.gen, "reglas del Turbo (referencia, no se elimina)")); ev("vt nace (reglas del Turbo: punto de partida de las variantes con mucha actividad)", "nace"); }
+  if (M) { try { L.ia = entrenar(M, now); setIA(L.ia); if (L.ia.listo) ev(`🧠 la IA se reentrena con ${L.ia.n} casos: acierta ${Math.round(L.ia.auc * 100)} de 100 al ordenar buenas y malas (50 = azar)`, "ia"); } catch (e) {} }
   if (M) { for (const v of L.pop) v.bt = backtest({ ...VIDEO, ...v.g }, M); L.muestras = (M.hechas || []).length; L.historia = (M.hist || []).length; L.siguiendo = Object.keys(M.abiertas || {}).length; }
   for (const v of L.pop) v.fit = fitness(v);
   try { ensanchar(L, L.pop.filter((v) => v.fit != null && v.fit > 0).sort((a, b) => b.fit - a.fit).slice(0, 5), now); } catch (e) {}
