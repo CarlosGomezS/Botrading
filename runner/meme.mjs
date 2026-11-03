@@ -74,7 +74,7 @@ export function rcInfo(rc) {
   const risks = (rc.risks || []).map((x) => String(x.name || "") + " " + String(x.description || ""));
   const devRug = risks.some((t) => /rug/i.test(t) && /creator|dev|previous|history/i.test(t)) || (rc.creatorTokens || []).some((x) => x && (x.rugged || x.isRugged));
   const bundle = sup > 0 ? (rc.insiderNetworks || []).reduce((t, n) => t + (+n.currentHolding || 0), 0) / sup * 100 : 0;
-  return { mintOk: !rc.mintAuthority && !rc.freezeAuthority && !tok.mintAuthority && !tok.freezeAuthority, lp, top10, dev, devRug, bundle, holders: +rc.totalHolders || 0, rugged: !!rc.rugged, insiders: +rc.graphInsidersDetected || 0 };
+  return { mintOk: !rc.mintAuthority && !rc.freezeAuthority && !tok.mintAuthority && !tok.freezeAuthority, freezeOk: !rc.freezeAuthority && !tok.freezeAuthority, lp, top10, dev, devRug, bundle, holders: +rc.totalHolders || 0, rugged: !!rc.rugged, insiders: +rc.graphInsidersDetected || 0 };
 }
 // ---- v168 · Base y BNB Chain: la seguridad sale de GoPlus (gratis): trampa que no deja vender (honeypot), mint, dueño oculto, impuestos,
 // liquidez bloqueada, mayores poseedores y creador. No da «lanzamiento en bloque»: en esas redes esa regla no se puede aplicar (pasa sin dato)
@@ -115,7 +115,7 @@ export function reglas(p, info) {
   const liq = +(p.liquidity && p.liquidity.usd) || 0, v1 = +(p.volume && p.volume.h1) || 0, ch1 = +(p.priceChange && p.priceChange.h1) || 0, ch6 = +(p.priceChange && p.priceChange.h6) || 0, e = est();
   if (e === "grandes") return { liq: liq >= Math.max(G.liqMin, 3e5), vol: v1 >= Math.max(G.vol1hMin, 1e5), pump: ch1 <= G.pump1hMax, mint: info ? (G.mint === 0 ? true : info.mintOk) : null,
     lp: info ? true : null, top10: info ? info.top10 <= Math.max(G.top10Max, 60) : null, dev: info ? info.dev <= Math.max(G.devMax, 10) : null, bundle: info ? true : null };
-  if (e === "volatil") return { liq: liq >= Math.max(G.liqMin, 5e5), vol: v1 >= Math.max(G.vol1hMin, 5e4), pump: ch1 <= G.pump1hMax && ch1 >= -G.pump1hMax, mint: info ? (G.mint === 0 ? true : info.mintOk) : null,
+  if (e === "volatil") return { liq: liq >= Math.max(G.liqMin, 5e5), vol: v1 >= Math.max(G.vol1hMin, 5e4), pump: ch1 <= G.pump1hMax && ch1 >= -G.pump1hMax, mint: info ? (G.mint === 0 ? true : (info.freezeOk ?? info.mintOk)) : null,   // en criptos grandes y antiguas basta con que nadie pueda congelarte las monedas
     lp: info ? true : null, top10: info ? true : null, dev: info ? true : null, bundle: info ? true : null };
   if (e === "rebote") return { liq: liq >= G.liqMin, vol: v1 >= G.vol1hMin, pump: ch6 <= -15, mint: info ? (G.mint === 0 ? true : info.mintOk) : null, lp: info ? info.lp >= G.lpLockMin : null,
     top10: info ? info.top10 <= Math.max(G.top10Max, 40) : null, dev: info ? info.dev <= Math.max(G.devMax, 5) && !info.devRug : null, bundle: info ? info.bundle <= Math.max(G.bundleMax, 20) : null };
@@ -188,7 +188,7 @@ export function analista(S, a, p, info, g, nowMs, j) {
   const nSmart = Object.keys(S.smart).length, sm = g ? g.buyers.filter((w) => S.smart[w]).length : 0;
   const ch6 = +(p.priceChange && p.priceChange.h6) || 0, ch24 = +(p.priceChange && p.priceChange.h24) || 0, v1 = +(p.volume && p.volume.h1) || 0, v24 = +(p.volume && p.volume.h24) || 0, surge = v24 > 0 ? v1 / (v24 / 24) : 1, e = est();
   const sig = { mom: Math.round(100 * (e === "volatil" ? 0.35 * cl(ch1, 0, 4) + 0.35 * cl(ch6, 0, 12) + 0.15 * cl(ch24, -5, 20) + 0.15 * cl(ch5, 0, 1.5) : e === "grandes" ? 0.4 * cl(ch1, 0, 10) + 0.3 * cl(ch6, 0, 25) + 0.3 * cl(ch24, 0, 50) : e === "rebote" ? 0.5 * cl(-ch6, 15, 50) + 0.25 * cl(ch5, 0, 5) + 0.25 * cl(ch1, 0, 10) : e === "volumen" ? cl(ch1, 0, 30) : 0.7 * cl(ch1, 0, 40) + 0.3 * cl(ch5, 0, 8))), ub: j && j.traders != null ? Math.round(100 * cl(j.organicBuyers ?? j.traders, 0, 300)) : g ? Math.round(100 * cl(g.ub, 0, 150)) : Math.round(100 * cl(+t.buys || 0, 0, 250)) /* sin GeckoTerminal: aproximado con el nº de compras de la última hora (DexScreener) */, bs: Math.round(100 * cl(br, 1, 2)),
-    hg: Math.round(100 * (j && j.holderChg != null ? cl(j.holderChg, 0, 10) : e === "video" ? hg : e === "volumen" ? cl(surge, 2, 6) : cl(surge, 1, 3))), lm: Math.round(100 * (e === "grandes" ? cl(liq / mc, 0.01, 0.08) : cl(liq / mc, 0.03, 0.15))), sw: nSmart < R.smartMinList ? 50 : Math.round(100 * cl(sm, 0, 3)) };
+    hg: Math.round(100 * (j && j.holderChg != null ? cl(j.holderChg, 0, 10) : e === "video" ? hg : e === "volumen" ? cl(surge, 2, 6) : cl(surge, 1, 3))), lm: Math.round(100 * (e === "volatil" ? cl(liq / mc, 0.002, 0.02) : e === "grandes" ? cl(liq / mc, 0.01, 0.08) : cl(liq / mc, 0.03, 0.15))), sw: nSmart < R.smartMinList ? 50 : Math.round(100 * cl(sm, 0, 3)) };
   if (GRAF[a]) sig.gr = GRAF[a].sc;
   if (IA) { const pr = predecir(IA, rasgos(p, info, nowMs, j)); if (pr != null) sig.ia = Math.round(100 * cl(pr, IA.base * 0.5, Math.min(0.95, Math.max(IA.base * 3, IA.base + 0.2)))); }
   const w = G.w || {}, ws = Object.keys(sig).reduce((t, k) => t + (w[k] ?? 1), 0) || 1;
@@ -349,13 +349,16 @@ export const VOLATILES = ["EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", "DezXA
   "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv", "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof", "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE", "85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ", "MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5",
   "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82"];
 export const VOLC = { fee: 0.0025, slipMin: 0.002, slipMax: 0.05, failP: 0.02, failCost: 0.01, fixFee: 0.02 };   // costes reales de Jupiter en monedas con mucha liquidez
+export const costesDe = (g) => (g && g.estilo === "volatil" ? { ...R, ...VOLC } : R);
+// v191 · más activo: hasta 6 posiciones, vuelve a una moneda a la hora, toma ganancias pequeñas y seguras (+5 %) y corta pérdidas pronto (−4 %)
 export const VOLATIL = { ...VIDEO, estilo: "volatil", ageMin: 30 * 1440, ageMax: 20 * 525600, mcapMin: 10e6, mcapMax: 30e9, liqMin: 5e5, vol1hMin: 5e4, pump1hMax: 12, mint: 1,
-  stop: 0.05, trailOn: 0.04, trail: 0.03, maxHoldH: 24, size: 0.2, minScore: 60, maxPos: 4, cooldownH: 4, tp: 0.08, tpFrac: 0.5, esc: 0, alerta: 1, orgMin: 0,
+  stop: 0.04, trailOn: 0.03, trail: 0.025, maxHoldH: 12, size: 0.15, minScore: 55, maxPos: 6, cooldownH: 1, tp: 0.05, tpFrac: 0.5, esc: 0, alerta: 1, orgMin: 0,
   w: { mom: 2, ub: 0.5, bs: 1, hg: 0.5, lm: 0.5, sw: 0, ia: 1, gr: 2 } };
+export const volatG = (S) => (S.volatGenome ? { ...VIDEO, ...S.volatGenome, estilo: "volatil" } : VOLATIL);
 export function pasoVolatil(S, by, now, ext) {
   let V = S.volat; if (!V || V.v !== S.v) { V = S.volat = freshState(); }
   V.smart = S.smart; V.hold = S.hold; V.watch = {}; V.rc = {};
-  try { paso(V, by, now, Math.random, ext, VOLC, VOLATIL); } finally { delete V.smart; delete V.hold; delete V.watch; delete V.rc; }
+  try { paso(V, by, now, Math.random, ext, VOLC, volatG(S)); V.genomeId = S.volatGenomeId || "vv"; } finally { delete V.smart; delete V.hold; delete V.watch; delete V.rc; }
   V.log = (V.log || []).slice(0, 120); V.closed = (V.closed || []).slice(0, 400); V.flow = []; V.nights = (V.nights || []).slice(0, 60); V.seen = Object.fromEntries(Object.entries(V.seen || {}).slice(-3000));
   for (const p of Object.values(V.pos || {})) p.h = (p.h || []).slice(-60);
   V.lastEq = r2(equity(V, {})); return V;
@@ -379,7 +382,7 @@ export function rapido(S, by, now) {
   riesgo(S, by, now);
   if (S.ideal) { const I = S.ideal; riesgo(I, by, now, IDEAL, VIDEO); I.lastEq = r2(equity(I, {})); }
   if (S.turbo) { const T = S.turbo; riesgo(T, by, now, null, turboG(S)); T.lastEq = r2(equity(T, {})); }
-  if (S.volat) { const V = S.volat; riesgo(V, by, now, VOLC, VOLATIL); V.lastEq = r2(equity(V, {})); }
+  if (S.volat) { const V = S.volat; riesgo(V, by, now, VOLC, volatG(S)); V.lastEq = r2(equity(V, {})); }
   S.lastEq = r2(equity(S, {})); S.lastQ = now.toISOString();
 }
 
@@ -477,7 +480,7 @@ async function main() {
   const by = bestPairs(pairs, CH.ds);
   if (!Object.keys(by).length) { console.log("Memes: sin datos de DexScreener; se intenta en la siguiente vuelta."); return; }
   // FILTRO (datos de cadena): RugCheck para las que pasan lo barato con las reglas MÁS LAXAS de toda la población (caché de 30 min)
-  if (S.rcV !== 189) { S.rc = {}; S.rcV = 189; }   // v185 · la seguridad de Base/BNB se lee distinto: se vuelve a pedir
+  if (S.rcV !== 191) { S.rc = {}; S.rcV = 191; }   // v185 · la seguridad de Base/BNB se lee distinto: se vuelve a pedir
   const lx = (() => { const x = LBm.laxo(LB); return { ...x, ageMin: Math.min(x.ageMin, TURBO.ageMin), ageMax: Math.max(x.ageMax, TURBO.ageMax), mcapMin: Math.min(x.mcapMin, TURBO.mcapMin), mcapMax: Math.max(x.mcapMax, TURBO.mcapMax, CH.id === "solana" ? VOLATIL.mcapMax : 0), liqMin: Math.min(x.liqMin, TURBO.liqMin), vol1hMin: Math.min(x.vol1hMin, TURBO.vol1hMin), pump1hMax: Math.max(x.pump1hMax, TURBO.pump1hMax) }; })(), ext = { rc: {}, gt: {} }, pre = [];
   const mot = {}; conGenoma(lx, () => { for (const [a, q] of Object.entries(by)) { if (S.pos[a]) continue; const ex = explorador(q, tnow); if (ex) { mot[ex] = (mot[ex] || 0) + 1; continue; } const rr = reglas(q, null); if (rr.liq && rr.vol && rr.pump) pre.push([a, q]); else { const k = !rr.liq ? "liquidez" : !rr.vol ? "volumen" : "subida"; mot[k] = (mot[k] || 0) + 1; } } });
   pre.sort((x, y) => (+(y[1].volume && y[1].volume.h1) || 0) - (+(x[1].volume && x[1].volume.h1) || 0));

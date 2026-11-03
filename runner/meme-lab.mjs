@@ -2,7 +2,7 @@
 // ficticio (50 € cada una), los MISMOS datos en vivo y costes reales. Cada ~3 h se juzgan: las peores se archivan (nunca se borran) y nacen
 // otras (mutaciones y cruces de las mejores, y alguna inventada de cero). Si una variante demuestra con muchas operaciones que es mejor que las
 // reglas que usa el terminal, el terminal la adopta solo. La variante «vídeo» (las reglas originales) no se elimina nunca: es la referencia.
-import { setIA, ESC, alarmaSalida, trailEf, R, VIDEO, TURBO, TURBO_V, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS, NOMEME } from "./meme.mjs";
+import { setIA, ESC, alarmaSalida, trailEf, costesDe, VOLATIL, R as R0, VIDEO, TURBO, TURBO_V, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS, NOMEME } from "./meme.mjs";
 const ESTS = Object.keys(ESTILOS);
 
 export const POP = 60, GEN_H = 0.5, MIN_N = 8, ADOPT_N = 30, BT_N = 20;
@@ -81,10 +81,14 @@ export function fitness(V) {
   const a = fitnessVivo(V), b = V.bt && V.bt.n >= BT_N ? V.bt.t : null;
   return a == null ? b : b == null ? a : r2((a + b) / 2);
 }
+let R = R0;   // v191 · costes de la variante en curso (las de «volátiles» pagan los de Jupiter en monedas líquidas)
 const slipR = (eur, liq) => Math.min(R.slipMax, R.slipMin + eur / Math.max(1, liq));
 
 // una vuelta de una variante (con costes reales). info y g vienen ya calculados del terminal (los mismos datos para todas)
 export function pasoVar(V, by, now, ext, smart, hold, rnd = Math.random) {
+  R = costesDe({ ...VIDEO, ...V.g }); try { return pasoVar0(V, by, now, ext, smart, hold, rnd); } finally { R = R0; }
+}
+function pasoVar0(V, by, now, ext, smart, hold, rnd) {
   return conGenoma(V.g, () => {
     const G = { ...VIDEO, ...V.g }, tnow = now.getTime(), px = {}, RCI = ext.rc || {}, GTI = ext.gt || {};
     const cerrar = (a, pr, liq, why, rug) => {
@@ -141,6 +145,7 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null)
   const ev = (txt, k) => { L.log.unshift({ t: now.toISOString(), k, txt }); L.log = L.log.slice(0, 200); };
   // v180 · ⚡ el Turbo también aprende: su punto de partida vive en la bola («vt», no se elimina) y de él nacen variantes activas
   { const vt = L.pop.find((v) => v.id === "vt"); if (vt && vt.tv !== TURBO_V) { L.pop = L.pop.filter((v) => v !== vt); ev("vt se renueva con las reglas del Turbo 2", "sale"); } }
+  if (!L.pop.some((v) => v.id === "vv")) { const v = nuevaVar("vv", { ...VOLATIL }, now, L.gen, "reglas de Volátiles (referencia, no se elimina)"); L.pop.push(v); ev("vv nace (reglas de Volátiles: criptos grandes y líquidas)", "nace"); }
   if (!L.pop.some((v) => v.id === "vt")) { { const v = nuevaVar("vt", { ...TURBO }, now, L.gen, "reglas del Turbo (referencia, no se elimina)"); v.tv = TURBO_V; L.pop.push(v); } ev("vt nace (reglas del Turbo: punto de partida de las variantes con mucha actividad)", "nace"); }
   if (M) { try { L.ia = entrenar(M, now); setIA(L.ia); if (L.ia.listo) ev(`🧠 la IA se reentrena con ${L.ia.n} casos: acierta ${Math.round(L.ia.auc * 100)} de 100 al ordenar buenas y malas (50 = azar)`, "ia"); } catch (e) {} }
   if (M) { for (const v of L.pop) v.bt = backtest({ ...VIDEO, ...v.g }, M); L.muestras = (M.hechas || []).length; L.historia = (M.hist || []).length; L.lecciones = (M.lecc || []).length; L.siguiendo = Object.keys(M.abiertas || {}).length; }
@@ -149,7 +154,7 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null)
   const ageH = (v) => (now - Date.parse(v.born)) / 3600e3;
   const ranked = L.pop.slice().sort((a, b) => (b.fit ?? -99) - (a.fit ?? -99) || b.lastEq - a.lastEq);
   // fuera: las peores con pruebas suficientes, y las que en 48 h casi no operan (reglas tan duras que no sirven)
-  const out = ranked.filter((v) => v.id !== "v0" && v.id !== "vt" && ((v.fit != null && v.fit < 0 && ranked.indexOf(v) >= POP * 0.6) || (ageH(v) > 48 && v.n < 3))).slice(-Math.ceil(POP * 0.35));
+  const out = ranked.filter((v) => v.id !== "v0" && v.id !== "vt" && v.id !== "vv" && ((v.fit != null && v.fit < 0 && ranked.indexOf(v) >= POP * 0.6) || (ageH(v) > 48 && v.n < 3))).slice(-Math.ceil(POP * 0.35));
   for (const v of out) { L.arch.unshift({ id: v.id, g: v.g, gen: v.gen, born: v.born, out: now.toISOString(), n: v.n, fit: v.fit, ret: r2((v.lastEq / R.start - 1) * 100), win: v.n ? Math.round(v.w / v.n * 100) : null, why: v.n < 3 ? "casi no opera" : "de las peores" }); ev(`${v.id} se archiva (${v.n < 3 ? "casi no opera" : "nota " + v.fit}) · ${r2((v.lastEq / R.start - 1) * 100)} %`, "sale"); }
   L.arch = L.arch.slice(0, 20000); /* el archivo no se borra: hasta 20.000 variantes */ L.pop = L.pop.filter((v) => !out.includes(v));
   const top = ranked.filter((v) => !out.includes(v) && v.fit != null && v.fit > 0).slice(0, 5), seen = new Set(L.pop.map((v) => gkey(v.g)));
@@ -166,7 +171,7 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null)
       const r = rnd(); let g, why;
       if (r < 0.45 && padres.length) { const p = padres[Math.floor(rnd() * padres.length)]; g = mutar(p.g); why = "búsqueda: mutación de " + p.id; }
       else if (r < 0.6 && padres.length > 1) { const a = padres[Math.floor(rnd() * padres.length)], b = padres[Math.floor(rnd() * padres.length)]; if (a === b) continue; g = cruzar(a.g, b.g); why = "búsqueda: cruce de " + a.id + " y " + b.id; }
-      else if (r < 0.8) { const tb = rnd() < 0.5; g = mutar(mutar(tb ? TURBO : VIDEO)); why = tb ? "búsqueda: variante del Turbo" : "búsqueda: variante del vídeo"; }
+      else if (r < 0.8) { const x = rnd(), base = x < 0.35 ? TURBO : x < 0.7 ? VOLATIL : VIDEO; g = mutar(mutar(base)); if (base === VOLATIL) g.estilo = "volatil"; why = base === TURBO ? "búsqueda: variante del Turbo" : base === VOLATIL ? "búsqueda: variante de Volátiles" : "búsqueda: variante del vídeo"; }
       else { g = aleatorio(); why = "búsqueda: inventada"; }
       const k = gkey(g); if (vistos.has(k)) continue; vistos.add(k); cand.push({ g, why, s: robusta(g) });
     }
@@ -200,6 +205,9 @@ export function evolucionar(L, S, now = new Date(), rnd = Math.random, M = null)
     S.turboGenome = { ...tChamp.g }; S.turboGenomeId = tChamp.id; S.turboAdopt = (S.turboAdopt || []).concat([{ t: now.toISOString(), id: tChamp.id, fit: tChamp.fit, n: tChamp.n }]).slice(-20);
     ev(`⚡ el Turbo adopta las reglas de ${tChamp.id} (nota ${tChamp.fit}, ${tChamp.n} operaciones, ${Math.round(diaria(tChamp))} al día)`, "adopta");
   }
+  // 🌪️ Volátiles adopta la mejor variante de su estilo que opere a menudo (≥ 4 al día, ≥ 15 en total) y gane
+  const vCur = L.pop.find((v) => v.id === (S.volatGenomeId || "vv")), vChamp = ranked.find((v) => (v.g.estilo === "volatil") && v.n >= 15 && diaria(v) >= 4 && v.fit != null && v.fit >= 1 && v.s1 > 0);
+  if (vChamp && vChamp.id !== (S.volatGenomeId || "vv") && (!vCur || vCur.fit == null || vChamp.fit > vCur.fit + 0.3)) { S.volatGenome = { ...vChamp.g }; S.volatGenomeId = vChamp.id; ev(`🌪️ Volátiles adopta las reglas de ${vChamp.id} (nota ${vChamp.fit}, ${vChamp.n} operaciones)`, "adopta"); }
   return { gen: L.gen, out: out.length };
 }
 // lo que va aprendiendo: en qué se diferencian las 5 mejores de las reglas del vídeo

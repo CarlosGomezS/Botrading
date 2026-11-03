@@ -3,7 +3,7 @@
 // cada 10 min (con su máximo y su mínimo de cada tramo) durante 24 h. Con eso, CUALQUIER variante (también las recién nacidas) se puede probar al momento sobre cientos de casos
 // reales ya vividos: entra si sus reglas y su nota la dejan, y sale con su stop, su venta parcial, su stop móvil y su tiempo máximo,
 // pagando los mismos costes. Es una prueba sobre el pasado reciente; la prueba en vivo (ficticia) sigue mandando para el dinero real.
-import { ESC, R, VIDEO, conGenoma, explorador, reglas, analista, RULES, NOMEME } from "./meme.mjs";
+import { ESC, costesDe, R, VIDEO, conGenoma, explorador, reglas, analista, RULES, NOMEME } from "./meme.mjs";
 
 export const MAXSEG = 800, HORAS = 24, PASO_MIN = 10, MAXHECHAS = 700;
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -47,9 +47,9 @@ export function simular(g, s, S0 = { smart: {}, hold: {} }) {
     const rr = reglas(s.q, s.info); if (!s.info || s.info.rugged || RULES.some(([k]) => rr[k] !== true)) return null;
     if (G.orgMin > 0 && s.jup && s.jup.org != null && s.jup.org < G.orgMin) return null;
     const an = analista(S0, "x", s.q, s.info, s.gt, t0, s.jup); if (an.sc < G.minScore) return null;
-    const amt = R.start * G.size, liq = +s.q.liquidity.usd || 1, sl = Math.min(R.slipMax, R.slipMin + amt / liq);
-    const ent = (1 + sl) / (1 - R.fee) + R.fixFee / amt;   // lo que cuesta entrar, por unidad de precio
-    const sale = (rel) => rel <= 0 ? 0 : rel * (1 - Math.min(R.slipMax, R.slipMin + amt * rel / liq)) * (1 - R.fee) - R.fixFee / amt;
+    const K = costesDe(G), amt = R.start * G.size, liq = +s.q.liquidity.usd || 1, sl = Math.min(K.slipMax, K.slipMin + amt / liq);   // v191 · costes según el tipo de moneda
+    const ent = (1 + sl) / (1 - K.fee) + K.fixFee / amt;   // lo que cuesta entrar, por unidad de precio
+    const sale = (rel) => rel <= 0 ? 0 : rel * (1 - Math.min(K.slipMax, K.slipMin + amt * rel / liq)) * (1 - K.fee) - K.fixFee / amt;
     let q = 1, cobrado = 0, peak = 1, tr = false, tp1 = false, prev = 1, esc = 0;
     // al saltar un stop dentro de un tramo se vende al nivel del stop; si el tramo ya empezó por debajo (hueco), al precio de ese momento
     const nivel = (lv, rel) => (prev >= lv ? lv : Math.min(rel, prev));

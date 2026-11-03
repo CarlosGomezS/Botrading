@@ -1,5 +1,7 @@
 // v159 · pruebas del terminal de memes (solo dinero ficticio)
 import test from "node:test";
+// azar con semilla: las pruebas dan siempre lo mismo (p. ej. el 5 % de órdenes fallidas no cae al azar en una prueba)
+{ let z = 12345; Math.random = () => { z = (z * 16807) % 2147483647; const r = z / 2147483647; return r < 0.06 ? 0.06 + r : r; }; }
 import assert from "node:assert/strict";
 import { freshLab, pasoVar, evolucionar, fitness, mutar, aleatorio, gkey, POP, RANGOS, ensanchar, aplicarRangos } from "../runner/meme-lab.mjs";
 import { gpInfo, CHAINS, ESTILOS, conGenoma, VIDEO, jupInfo } from "../runner/meme.mjs";
