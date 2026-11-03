@@ -11,16 +11,22 @@ import path from "node:path";
 
 const API = "https://api.bitvavo.com/v2", REPO = process.env.GITHUB_REPOSITORY || "", TOKEN = process.env.GITHUB_TOKEN || "";
 const RAMA = "bitvavo", RAMA_H = "bitvavo-hist";
-export const FEE = 0.0025, START = 100, MIN_VOL = 2e5, MAX_MKT = 50, HIST_MKT = 40, GEN_MIN = 10, POP = 60, ESTS = ["tendencia", "rebote", "ruptura", "media"];   // v205 · aprende cada 10 min, con 7 días y 4 estilos
+export const FEE = 0.0025, START = 100, MIN_VOL = 2e5, MAX_MKT = 50, HIST_MKT = 40, GEN_MIN = 10, POP = 60, ESTS = ["tendencia", "rebote", "ruptura", "media", "tortuga", "williams", "connors", "rotacion"];   // v205 · aprende cada 10 min, con 7 días y 4 estilos
 export const NO = /^(USDC|USDT|EURC|EURT|DAI|PYUSD|TUSD|FDUSD|USDE|EURI|XAUT|PAXG)-/;   // estables y oro: no se mueven
 const r2 = (x) => Math.round(x * 100) / 100, r4 = (x) => Math.round(x * 1e4) / 1e4, sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const cl = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---- reglas (genoma). Estilos: «tendencia» (sube con fuerza y sin pasarse) o «rebote» (cayó mucho y empieza a girarse)
 export const BASE = { estilo: "tendencia", m15Min: 0.002, m60Min: 0.006, m60Max: 0.05, m240Min: -0.01, ema: 1, hlMin: 0.5, volMin: 1.2, pullMax: 0.03,
-  stop: 0.025, tp: 0.03, tpFrac: 0.5, trailOn: 0.015, trail: 0.012, maxHoldH: 6, size: 0.15, maxPos: 6, cooldownH: 1 };
+  stop: 0.025, tp: 0.03, tpFrac: 0.5, trailOn: 0.015, trail: 0.012, maxHoldH: 6, size: 0.15, maxPos: 6, cooldownH: 1, k: 0.5, rsiMax: 10, rkMax: 0.1 };
+// v206 · 🏛️ MÉTODOS DE GRANDES TRADERS (la bola los prueba, los mezcla y se queda con los que ganen aquí y ahora):
+//  · «tortuga»: las Tortugas de Richard Dennis (años 80): comprar cuando el precio rompe el máximo de las últimas 20 velas (aquí, 20 h)
+//  · «williams»: ruptura de volatilidad de Larry Williams (ganó la Robbins World Cup de 1987 pasando de 10.000 $ a más de 1,1 M$):
+//    comprar cuando el precio supera la apertura del día + k × el rango del día anterior
+//  · «connors»: RSI(2) de Larry Connors: comprar un sobreventa muy corto dentro de una tendencia de fondo (por encima de su media larga)
+//  · «rotacion»: momentum entre criptos (estudiado en cripto por Liu y Tsyvinski, entre otros): comprar las más fuertes del momento
 export const RANG = { m15Min: [-0.01, 0.01], m60Min: [-0.02, 0.03], m60Max: [0.01, 0.12], m240Min: [-0.15, 0.03], hlMin: [0, 1], volMin: [0.5, 4], pullMax: [0.005, 0.1],
-  stop: [0.008, 0.08], tp: [0.006, 0.12], tpFrac: [0, 0.8], trailOn: [0.004, 0.06], trail: [0.003, 0.05], maxHoldH: [0.5, 48], size: [0.05, 0.25], cooldownH: [0.25, 12] };
+  stop: [0.008, 0.08], tp: [0.006, 0.12], tpFrac: [0, 0.8], trailOn: [0.004, 0.06], trail: [0.003, 0.05], maxHoldH: [0.5, 48], size: [0.05, 0.25], cooldownH: [0.25, 12], k: [0.15, 1.2], rsiMax: [2, 30], rkMax: [0.03, 0.35] };
 export function aleatorio(rnd = Math.random) { const g = { ...BASE, estilo: ESTS[Math.floor(rnd() * ESTS.length)], ema: rnd() < 0.7 ? 1 : 0 }; for (const [k, [a, b]] of Object.entries(RANG)) g[k] = r4(a + rnd() * (b - a)); return g; }
 export function mutar(p, rnd = Math.random) {
   const g = { ...p }, ks = Object.keys(RANG), n = 1 + Math.floor(rnd() * 3);
@@ -32,13 +38,21 @@ export const gkey = (g) => JSON.stringify(Object.keys(BASE).map((k) => (typeof g
 
 // ---- rasgos de cada vela de 5 min (iguales en el backtest y en vivo). c = [[t, o, h, l, c, v], …] de antigua a reciente
 export function rasgos(c) {
-  const n = c.length, cs = c.map((x) => x[4]), out = new Array(n).fill(null); let e = cs[0]; const k = 2 / 21;
+  const n = c.length, cs = c.map((x) => x[4]), out = new Array(n).fill(null); let e = cs[0], e200 = cs[0]; const k = 2 / 21, k2 = 2 / 201;
+  // días (UTC): apertura de cada día y rango del día anterior (para Williams); RSI(2) de Wilder (para Connors)
+  const dia = c.map((x) => Math.floor(x[0] / 86400e3)), D = {}; for (let i = 0; i < n; i++) { const d = D[dia[i]] || (D[dia[i]] = { o: c[i][1], h: c[i][2], l: c[i][3] }); d.h = Math.max(d.h, c[i][2]); d.l = Math.min(d.l, c[i][3]); }
+  let ag = 0, al = 0;
   for (let i = 0; i < n; i++) {
-    e = cs[i] * k + e * (1 - k); if (i < 48) continue;
+    e = cs[i] * k + e * (1 - k); e200 = cs[i] * k2 + e200 * (1 - k2);
+    if (i > 0) { const d = cs[i] - cs[i - 1]; ag = (ag + Math.max(0, d)) / 2; al = (al + Math.max(0, -d)) / 2; }
+    if (i < 48) continue;
     const ch = (j) => cs[i] / cs[i - j] - 1, w = cs.slice(i - 11, i + 1), m1 = Math.min(...w.slice(0, 4)), m2 = Math.min(...w.slice(4, 8)), m3 = Math.min(...w.slice(8));
     let va = 0; for (let j = i - 47; j <= i - 4; j++) va += c[j][5]; va /= 44; const vr = (c[i][5] + c[i - 1][5] + c[i - 2][5]) / 3 / Math.max(1e-9, va);
     const mx = Math.max(...cs.slice(i - 23, i + 1)), mxPrev = Math.max(...cs.slice(Math.max(0, i - 287), i - 2));
-    out[i] = { m15: ch(3), m60: ch(12), m240: ch(48), sobre: cs[i] > e ? 1 : 0, hl: (m2 > m1 ? 0.5 : 0) + (m3 > m2 ? 0.5 : 0), vol: vr, pull: 1 - cs[i] / mx, rompe: cs[i] / mxPrev - 1 };
+    let hiD = 0; if (i >= 241) for (let j = i - 240; j < i; j++) hiD = Math.max(hiD, c[j][2]);
+    const hoy = D[dia[i]], ayer = D[dia[i] - 1], rng = ayer ? ayer.h - ayer.l : 0;
+    out[i] = { m15: ch(3), m60: ch(12), m240: ch(48), sobre: cs[i] > e ? 1 : 0, hl: (m2 > m1 ? 0.5 : 0) + (m3 > m2 ? 0.5 : 0), vol: vr, pull: 1 - cs[i] / mx, rompe: cs[i] / mxPrev - 1,
+      t: c[i][0], don: hiD > 0 ? cs[i] / hiD - 1 : null, vb: rng > 0 && hoy ? (cs[i] - hoy.o) / rng : null, rsi2: al + ag > 0 ? Math.min(100, Math.max(0, 100 * ag / (ag + al))) : 50, sobre200: i >= 200 && cs[i] > e200 ? 1 : 0, rk: null };
   }
   return out;
 }
@@ -47,8 +61,17 @@ export function entra(g, f) {
   // ruptura: supera el máximo de las últimas ~24 h con volumen; media: en tendencia de fondo, compra una bajada corta
   if (g.estilo === "ruptura") return f.rompe > 0 && f.rompe <= Math.max(0.004, g.pullMax) && f.vol >= g.volMin && f.m60 >= g.m60Min && f.m60 <= g.m60Max;
   if (g.estilo === "media") return f.m240 >= Math.max(0, g.m240Min) && f.m15 <= -Math.abs(g.m15Min) - 0.003 && f.pull >= 0.008 && f.pull <= g.pullMax + 0.02 && (!g.ema || !f.sobre);
+  if (g.estilo === "tortuga") return f.don != null && f.don > 0 && f.don <= Math.max(0.004, g.pullMax) && f.vol >= Math.min(g.volMin, 1.5);
+  if (g.estilo === "williams") return f.vb != null && f.vb >= g.k && f.vb <= g.k + 0.25 && f.m15 > 0;
+  if (g.estilo === "connors") return f.sobre200 === 1 && f.rsi2 <= g.rsiMax;
+  if (g.estilo === "rotacion") return f.rk != null && f.rk <= g.rkMax && f.m240 > 0 && f.m60 > 0;
   if (g.estilo === "rebote") return f.m240 <= -Math.abs(g.m240Min) - 0.03 && f.m15 >= Math.max(0.001, g.m15Min) && f.vol >= g.volMin && f.pull >= 0.02;
   return f.m15 >= g.m15Min && f.m60 >= g.m60Min && f.m60 <= g.m60Max && f.m240 >= g.m240Min && (!g.ema || f.sobre) && f.hl >= g.hlMin && f.vol >= g.volMin && f.pull <= g.pullMax;
+}
+// posición de cada cripto frente a las demás en cada momento (0 = la más fuerte en 4 h, 1 = la más floja): para «rotacion»
+export function rankear(F) {   // F: { mercado: rasgos[] } con los mismos tiempos (velas de 5 min) → rellena f.rk
+  const porT = new Map(); for (const [m, arr] of Object.entries(F)) arr.forEach((f, i) => { if (f && f.t != null) { let a = porT.get(f.t); if (!a) porT.set(f.t, (a = [])); a.push(f); } });
+  for (const a of porT.values()) { if (a.length < 5) continue; a.sort((x, y) => y.m240 - x.m240); a.forEach((f, i) => { f.rk = i / (a.length - 1); }); }
 }
 // ---- backtest de un genoma sobre las velas de varios mercados (con comisión y diferencial)
 export function backtest(g, H, desde = 0, hasta = Infinity) {
@@ -182,7 +205,8 @@ async function main() {
   uni.sort((a, b) => tick[b].vq - tick[a].vq); const U = uni.slice(0, MAX_MKT);
   // 2) velas de 5 min de los mercados líquidos (y de lo abierto) → rasgos
   const F = {}, quiero = [...new Set([...U, ...Object.keys(S.pos)])];
-  await enParalelo(quiero, 8, async (m) => { try { const c = velas(await J(`${API}/${m}/candles?interval=5m&limit=80`, 2)); const f = rasgos(c); F[m] = f[f.length - 1]; } catch (e) { S.err = String(e.message).slice(0, 60); } });
+  await enParalelo(quiero, 8, async (m) => { try { const c = velas(await J(`${API}/${m}/candles?interval=5m&limit=400`, 2)); const f = rasgos(c); F[m] = f[f.length - 1]; } catch (e) { S.err = String(e.message).slice(0, 60); } });
+  { const vs = Object.values(F).filter(Boolean).sort((x, y) => y.m240 - x.m240); vs.forEach((f, i) => { f.rk = vs.length > 4 ? i / (vs.length - 1) : null; }); }
   paso(S, tick, F, now);
   // 3) laboratorio cada 30 min
   let H = null;
@@ -190,6 +214,7 @@ async function main() {
     H = { m: {} }; const hm = U.slice(0, HIST_MKT);
     // 7 días: dos tandas de 1.000 velas de 5 min por mercado
     await enParalelo(hm, 6, async (m) => { try { const c1 = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)); const c0 = c1.length ? velas(await J(`${API}/${m}/candles?interval=5m&limit=1000&end=${c1[0][0] - 1}`, 2)) : []; const c = c0.concat(c1); if (c.length > 300) H.m[m] = { c, f: rasgos(c), sp: tick[m].sp }; } catch (e) {} });
+    rankear(Object.fromEntries(Object.entries(H.m).map(([m, x]) => [m, x.f])));
     if (Object.keys(H.m).length >= 10) { const evo = evolucionar(S, H, now, Math.random, Math.max(5e3, 45e3 - (Date.now() - t0))); L(S, now, "INFO", "", `🔬 generación ${evo.gen}: ${evo.probadas} reglas probadas en ${Object.keys(H.m).length} mercados`); }
   }
   const eq = equity(S, tick); S.eq.push([now.toISOString(), r2(eq)]); if (S.eq.length > 3000) S.eq = S.eq.filter((_, i) => i % 2 === 0 || i > S.eq.length - 500);

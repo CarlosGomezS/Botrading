@@ -30,3 +30,11 @@ test("paso en vivo: compra al precio de venta del libro, paga comisión, y el st
   paso(S, { "AAA-EUR": { bid: 9.99, ask: 10 } }, { "AAA-EUR": f }, new Date(T0)); const p = S.pos["AAA-EUR"]; assert.ok(p && Math.abs(p.cost - 15) < 1e-9 && p.q < 1.5);
   paso(S, { "AAA-EUR": { bid: 9.6, ask: 9.61 } }, {}, new Date(T0 + 60000)); assert.equal(Object.keys(S.pos).length, 0); assert.ok(S.closed[0].pc < -3 && S.closed[0].pc > -5);
 });
+import { rankear } from "../runner/bitvavo.mjs";
+test("métodos de grandes traders: tortuga, williams, connors y rotación se calculan y pueden entrar", () => {
+  const H = {}; for (let k = 0; k < 6; k++) { const c = mercado(900, "tend", k + 40); H["M" + k] = rasgos(c); }
+  rankear(H); const f = H.M0.filter(Boolean); assert.ok(f.some((x) => x.rk != null), "hay ranking entre criptos");
+  assert.ok(f.some((x) => x.don != null) && f.some((x) => x.vb != null) && f.every((x) => x.rsi2 >= 0 && x.rsi2 <= 100));
+  for (const [estilo, extra] of [["tortuga", { pullMax: 0.05, volMin: 0.5 }], ["williams", { k: 0.2 }], ["connors", { rsiMax: 30 }], ["rotacion", { rkMax: 0.35 }]])
+    assert.ok(Object.values(H).some((arr) => arr.some((x) => entra({ ...BASE, estilo, ...extra }, x))), estilo + " entra alguna vez");
+});
