@@ -5,7 +5,7 @@
 import { setIA, ESC, alarmaSalida, trailEf, costesDe, VOLATIL, R as R0, VIDEO, TURBO, TURBO_V, conGenoma, explorador, reglas, analista, equity, RULES, ESTILOS, NOMEME } from "./meme.mjs";
 const ESTS = Object.keys(ESTILOS);
 
-export const POP = 60, GEN_H = 0.5, MIN_N = 8, ADOPT_N = 30, BT_N = 20;
+export const POP = 60, GEN_H = 0.25, MIN_N = 8, ADOPT_N = 30, BT_N = 20;
 import { backtest } from "./meme-muestras.mjs";
 import { entrenar } from "./meme-ia.mjs";
 // rango de cada pieza del genoma [mín, máx, paso]

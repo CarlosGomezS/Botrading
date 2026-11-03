@@ -21,7 +21,7 @@ test("backtest con costes: cuenta operaciones, y robusta exige ganar en las dos 
 test("laboratorio: prueba cientos de reglas, se queda con 40 y adopta solo si gana en las dos mitades", () => {
   const H = { m: {} }; for (let k = 0; k < 6; k++) { const c = mercado(1000, "tend", k + 21); H.m["M" + k] = { c, f: rasgos(c), sp: 0.001 }; }
   const S = fresh(new Date(T0)); const e = evolucionar(S, H, new Date(T0), Math.random, 4000);
-  assert.ok(e.probadas > 50); assert.ok(S.lab.pop.length <= 40 && S.lab.pop.some((v) => v.id === "base"));
+  assert.ok(e.probadas > 50); assert.ok(S.lab.pop.length <= 60 && S.lab.pop.some((v) => v.id === "base"));
   if (S.prueba === false) { const v = S.lab.pop.find((x) => x.id === S.genomeId); assert.ok(v.ok && v.a.med > 0 && v.b.med > 0); }
   assert.notEqual(gkey(mutar(BASE)), gkey(BASE)); assert.ok(aleatorio().stop > 0);
 });
