@@ -271,3 +271,10 @@ test("lecciones: cada operación cerrada se guarda con su foto de entrada y lo q
   paso(S, { [a]: par(a) }, new Date(T0 + 30 * 3600e3), () => 1, ext); assert.equal(Object.keys(S.pos).length, 0, "vetada tras perder");
   const M = { hechas: [], hist: [], lecc: S.lecc }; assert.ok(backtest({ ...VIDEO, minScore: 0 }, M).n >= 0);
 });
+test("Base/BNB: liquidez repartida entre muchos proveedores cuenta según lo que puede retirar el mayor; WETH/WBNB no son memes", async () => {
+  const base = { is_honeypot: "0", is_mintable: "0", hidden_owner: "0", can_take_back_ownership: "0", owner_change_balance: "0", transfer_pausable: "0", cannot_sell_all: "0", slippage_modifiable: "0", buy_tax: "0", sell_tax: "0", is_open_source: "1", creator_address: "0xcre", holders: [] };
+  const rep = gpInfo({ ...base, lp_holders: [0.15, 0.12, 0.1, 0.1, 0.08, 0.45].map((p, i) => ({ address: "0xe" + i, is_contract: 0, is_locked: 0, percent: String(p / (i === 5 ? 9 : 1)) })) });
+  assert.ok(rep.lp >= 80, "repartida: " + rep.lp);
+  const una = gpInfo({ ...base, lp_holders: [{ address: "0xe1", is_contract: 0, percent: "0.9" }, { address: "0xe2", is_contract: 0, percent: "0.05" }, { address: "0xe3", is_contract: 0, percent: "0.05" }] }); assert.ok(una.lp <= 10, "una sola cartera manda");
+  const { NOMEME } = await import("../runner/meme.mjs"); assert.ok(NOMEME.has("0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c") && NOMEME.has("0x4200000000000000000000000000000000000006"));
+});

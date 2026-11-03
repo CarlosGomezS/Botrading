@@ -20,7 +20,10 @@ export const CHAINS = {
 // palabras con las que se buscan monedas en DexScreener (rotan cada minuto: así van apareciendo cientos distintas)
 const PALABRAS = ["pepe", "doge", "shib", "inu", "cat", "dog", "frog", "trump", "elon", "ai", "agent", "gpt", "moon", "pump", "meme", "baby", "king", "chad", "wojak", "bonk",
   "wif", "popcat", "giga", "sigma", "based", "cult", "degen", "ape", "monkey", "bear", "bull", "panda", "fish", "duck", "goat", "rocket", "gem", "coin", "token", "mog", "brett", "toshi", "floki", "kitty", "hamster", "penguin", "dragon", "tiger"];
-export const NOMEME = new Set(["So11111111111111111111111111111111111111112", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"]);   // SOL, USDC y USDT: no son memecoins
+export const NOMEME = new Set(["So11111111111111111111111111111111111111112", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+  // v189 · Base y BNB: monedas base, estables y grandes que no son memecoins (WETH, USDC, USDbC, DAI, cbBTC, AERO, WBNB, USDT, BUSD, USDC, ETH, BTCB, CAKE)
+  ...["0x4200000000000000000000000000000000000006", "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA", "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb", "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+    "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", "0x55d398326f99059fF775485246999027B3197955", "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56", "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", "0x2170Ed0880ac9A755fd29B2688956BD959F933F8", "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c", "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82"].flatMap((x) => [x, x.toLowerCase()])]);   // SOL, USDC y USDT: no son memecoins
 const ARGS = process.argv.slice(2), CH = CHAINS[ARGS.find((x) => CHAINS[x])] || CHAINS.solana, RAPIDO = ARGS.includes("rapido");
 export const R = {
   start: 100, size: 0.08,         // v167: prueba con 100 €, lo que piensas meter de verdad
@@ -85,7 +88,10 @@ export function gpInfo(r) {
   const own = String(r.owner_address || "").toLowerCase(), cre = String(r.creator_address || "").toLowerCase(), conDueno = own && !DEAD.has(own) && !/^0x0+$/.test(own);
   const mintOk = !b(r.is_honeypot) && !(b(r.is_mintable) && conDueno) && !b(r.hidden_owner) && !b(r.can_take_back_ownership) && !b(r.owner_change_balance) && !b(r.transfer_pausable) && !b(r.cannot_sell_all) && !b(r.slippage_modifiable)
     && f(r.buy_tax) <= 0.01 && f(r.sell_tax) <= 0.01 && r.is_open_source !== "0";
-  const lp = Math.min(100, (r.lp_holders || []).reduce((t, h) => { const ad = String(h.address || "").toLowerCase(); return t + (b(h.is_locked) || DEAD.has(ad) || (b(h.is_contract) && ad !== own && ad !== cre) ? f(h.percent) : 0); }, 0) * 100);
+  const LPH = r.lp_holders || [], segura = (h) => { const ad = String(h.address || "").toLowerCase(); return b(h.is_locked) || DEAD.has(ad) || (b(h.is_contract) && ad !== own && ad !== cre); };
+  // v189 · si la liquidez está repartida entre muchos (≥ 3 proveedores), el riesgo es lo que puede retirar el mayor de ellos o el creador
+  const maxLibre = Math.max(0, ...LPH.filter((h) => !segura(h)).map((h) => f(h.percent))), delCre = LPH.filter((h) => [own, cre].includes(String(h.address || "").toLowerCase())).reduce((t, h) => t + f(h.percent), 0);
+  const lp = Math.min(100, Math.max(LPH.reduce((t, h) => t + (segura(h) ? f(h.percent) : 0), 0), LPH.length >= 3 ? 1 - Math.max(maxLibre, delCre) : 0) * 100);
   const top10 = (r.holders || []).filter((h) => !b(h.is_contract) && !b(h.is_locked) && !DEAD.has(String(h.address || "").toLowerCase())).slice(0, 10).reduce((t, h) => t + f(h.percent), 0) * 100;
   return { mintOk, lp, top10, dev: (f(r.creator_percent) + (r.owner_address && r.owner_address !== r.creator_address ? f(r.owner_percent) : 0)) * 100, devRug: b(r.honeypot_with_same_creator),
     bundle: 0, sinBloque: true, holders: f(r.holder_count), rugged: b(r.is_honeypot), insiders: 0, tax: Math.max(f(r.buy_tax), f(r.sell_tax)) };
@@ -449,7 +455,7 @@ async function main() {
   const by = bestPairs(pairs, CH.ds);
   if (!Object.keys(by).length) { console.log("Memes: sin datos de DexScreener; se intenta en la siguiente vuelta."); return; }
   // FILTRO (datos de cadena): RugCheck para las que pasan lo barato con las reglas MÁS LAXAS de toda la población (caché de 30 min)
-  if (S.rcV !== 185) { S.rc = {}; S.rcV = 185; }   // v185 · la seguridad de Base/BNB se lee distinto: se vuelve a pedir
+  if (S.rcV !== 189) { S.rc = {}; S.rcV = 189; }   // v185 · la seguridad de Base/BNB se lee distinto: se vuelve a pedir
   const lx = (() => { const x = LBm.laxo(LB); return { ...x, ageMin: Math.min(x.ageMin, TURBO.ageMin), ageMax: Math.max(x.ageMax, TURBO.ageMax), mcapMin: Math.min(x.mcapMin, TURBO.mcapMin), mcapMax: Math.max(x.mcapMax, TURBO.mcapMax), liqMin: Math.min(x.liqMin, TURBO.liqMin), vol1hMin: Math.min(x.vol1hMin, TURBO.vol1hMin), pump1hMax: Math.max(x.pump1hMax, TURBO.pump1hMax) }; })(), ext = { rc: {}, gt: {} }, pre = [];
   const mot = {}; conGenoma(lx, () => { for (const [a, q] of Object.entries(by)) { if (S.pos[a]) continue; const ex = explorador(q, tnow); if (ex) { mot[ex] = (mot[ex] || 0) + 1; continue; } const rr = reglas(q, null); if (rr.liq && rr.vol && rr.pump) pre.push([a, q]); else { const k = !rr.liq ? "liquidez" : !rr.vol ? "volumen" : "subida"; mot[k] = (mot[k] || 0) + 1; } } });
   pre.sort((x, y) => (+(y[1].volume && y[1].volume.h1) || 0) - (+(x[1].volume && x[1].volume.h1) || 0));

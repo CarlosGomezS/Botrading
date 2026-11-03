@@ -1,9 +1,0 @@
-name: sonda-gp (temporal)
-on: workflow_dispatch
-jobs:
-  s:
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          for q in "8453 0x14D6C649292c5c9790c5196D1a9EA039307947a1,0x07b3D902783c3C12b077508c3B5c00113d1291D0" "56 0x9b8E987e6fEc8Cf1380C4dcA7071e2C7853AEEA1,0xa0c56a8c0692bD10B3fA8f8bA79Cf5332B7107F9,0x6CEd5c6d3F913b48D59Fa07AbBfe9060C409087C"; do
-            set -- $q; curl -s "https://api.gopluslabs.io/api/v1/token_security/$1?contract_addresses=$2" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);for(const [a,r] of Object.entries(j.result||{})){console.log("TOKEN",a.slice(0,10),"owner",r.owner_address,"creator",r.creator_address,"lpcount",r.lp_holder_count);for(const h of (r.lp_holders||[]).slice(0,5))console.log("  LP",h.address,"c",h.is_contract,"lk",h.is_locked,"pct",h.percent,"tag",h.tag,"nft",(h.NFT_list||[]).length);for(const d of (r.dex||[]).slice(0,3))console.log("  DEX",d.liquidity_type,d.name,Math.round(d.liquidity))}})'; sleep 2; done
