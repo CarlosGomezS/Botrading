@@ -135,7 +135,9 @@ const est = () => ESTILOS[G.estilo] ? G.estilo : "video";
 export function explorador(p, now) {
   const age = (now - (+p.pairCreatedAt || 0)) / 60000, mc = +(p.marketCap || p.fdv) || 0, E = ESTILOS[est()];
   const [a0, a1] = E.age || [G.ageMin, G.ageMax], [m0, m1] = E.mc || [G.mcapMin, G.mcapMax];
-  if (!(+p.priceUsd > 0)) return "sin precio"; if (age < a0) return "joven"; if (age > a1) return "vieja"; if (mc < m0 || mc > m1) return "tamaño"; return null;
+  if (!(+p.priceUsd > 0)) return "sin precio";
+  // v193 · en Volátiles no cuentan estables, SOL «envuelto» o en staking (mSOL, jitoSOL…) ni monedas puente de BTC/ETH: apenas se mueven
+  if (est() === "volatil" && /usd|eur|^(m|jito|b|js|inf|h|ls|jup|st|vsol|bnsol|dsol|lst)?sol$|btc|eth$|^w?eth|dai$/i.test(String((p.baseToken && p.baseToken.symbol) || ""))) return "no volátil"; if (age < a0) return "joven"; if (age > a1) return "vieja"; if (mc < m0 || mc > m1) return "tamaño"; return null;
 }
 // ---- el analista: 6 señales de 0 a 100 y la nota final (la media) ----
 // v181 · 🧠 modelo de IA en uso (lo entrena la bola en cada generación; solo se usa si acierta más que el azar)
