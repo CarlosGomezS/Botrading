@@ -481,10 +481,11 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .mt-gw{text-align:center;font-size:9.5px}.mt-gauge{width:96px;height:96px}
 .mt-pos{display:grid;gap:8px}.mt-pchart{width:100%;height:130px;background:linear-gradient(#ffffff05,transparent);border-radius:8px}.mt-sym{font-size:20px}.mt-pinfo{display:grid;gap:6px}.mt-kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:11px}.mt-kv span{color:var(--mt-dm)}
 .mt-sb{display:grid;grid-template-columns:1.3fr 1fr auto;gap:8px;align-items:center;padding:3px 0;font-size:11px}.mt-sb span{color:var(--mt-dm)}.mt-sb div{height:5px;border-radius:3px;overflow:hidden}.mt-sb div i{display:block;height:100%;border-radius:3px}.mt-sb b{text-align:right}
+.mt-lw{width:100%;min-height:170px;position:relative}.mt-lw .mt-pchart{height:170px}
 .mt-log{font-size:11px;line-height:1.65;max-height:320px;overflow:auto}
 @media(min-width:760px){.mt-head{grid-template-columns:auto 1fr auto}.mt-bal{grid-column:auto}.mt-agents{grid-template-columns:repeat(3,1fr)}}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v160</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v161</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2500,6 +2501,51 @@ async function memeLoad(force){if(MM.busy)return;if(!force&&MM.S&&Date.now()-MM.
  try{const c=window.__CLOUD,r=c&&c.ri?c.ri():null,o=r?r.o:"CarlosGomezS",rr=r?r.r:"Botrading",t=Math.floor(Date.now()/60000);
   let j=null;for(const u of [`https://raw.githubusercontent.com/${o}/${rr}/meme/meme.json?t=${t}`,`https://api.github.com/repos/${o}/${rr}/contents/meme.json?ref=meme`]){try{const x=await fetch(u,{headers:u.includes("api.github")?{Accept:"application/vnd.github.raw+json"}:{},cache:"no-store"});if(x.status===404){MM.err="nada";continue}if(!x.ok)continue;j=await x.json();break}catch(e){}}
   if(j){MM.S=j;MM.err=null}MM.at=Date.now()}finally{MM.busy=false}memeDraw()}
+/* v161 · gráficos de TradingView (Lightweight Charts, se carga solo al abrir Memes) e informe de rendimiento tipo QuantStats */
+const LWURLS=["vendor/lightweight-charts-4.2.0.js","https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"];
+function lwLoad(){if(window.LightweightCharts)return Promise.resolve(true);if(window.__lwP)return window.__lwP;
+ window.__lwP=new Promise(ok=>{let i=0;const tryN=()=>{if(i>=LWURLS.length){window.__lwP=null;ok(false);return}const s=document.createElement("script");s.src=LWURLS[i++];s.async=true;s.onload=()=>window.LightweightCharts?ok(true):tryN();s.onerror=tryN;document.head.appendChild(s)};tryN()});return window.__lwP}
+const lwT=iso=>Math.floor(Date.parse(iso)/1000);
+function lwSeries(arr){const m=new Map();for(const[t,v]of arr){const k=lwT(t);if(Number.isFinite(k)&&Number.isFinite(+v))m.set(k,+v)}return[...m.entries()].sort((a,b)=>a[0]-b[0]).map(([time,value])=>({time,value}))}
+function lwChart(el,h){const L=window.LightweightCharts;el.innerHTML="";return L.createChart(el,{height:h,autoSize:true,layout:{background:{type:"solid",color:"transparent"},textColor:"#7f8ea3",fontFamily:"ui-monospace,monospace",fontSize:10,attributionLogo:false},grid:{vertLines:{color:"#1a2638"},horzLines:{color:"#1a2638"}},rightPriceScale:{borderColor:"#1f2d42"},timeScale:{borderColor:"#1f2d42",timeVisible:true,secondsVisible:false},crosshair:{mode:0},localization:{locale:"es-ES",timeFormatter:t=>new Date(t*1000).toLocaleString("es-ES",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})},handleScroll:{vertTouchDrag:false}})}
+function memeCharts(S,P0,open,f){(MM.charts||[]).forEach(c=>{try{c.remove()}catch(e){}});MM.charts=[];
+ lwLoad().then(ok=>{if(MM.S!==S)return;if(!ok){const ee=document.getElementById("mt-eqc"),E=(S.eq||[]).slice(-400);if(ee&&E.length>1){const W=320,H=150,v=E.map(x=>x[1]),lo=Math.min(...v,S.start),hi=Math.max(...v,S.start),y=x=>H-6-(x-lo)/((hi-lo)||1)*(H-12);ee.innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:170px"><line x1="0" x2="${W}" y1="${y(S.start)}" y2="${y(S.start)}" stroke="#7f8ea3" stroke-dasharray="4 4"/><polyline fill="none" stroke="#3dd6b5" stroke-width="2" points="${E.map((x,i)=>(i/(E.length-1)*W).toFixed(1)+","+y(x[1]).toFixed(1)).join(" ")}"/></svg>`}else if(ee)ee.innerHTML='<div class="mt-dim">Aún no hay curva.</div>';return}try{
+  const pe=document.getElementById("mt-pc");
+  if(pe&&P0&&(P0.h||[]).length>1){const c=lwChart(pe,170);MM.charts.push(c);const e=+P0.px;
+   const s=c.addLineSeries({color:"#ff7bd0",lineWidth:2,priceFormat:{type:"price",precision:8,minMove:1e-10},lastValueVisible:true,priceLineVisible:false});
+   const d=lwSeries(P0.h);s.setData(d);
+   s.createPriceLine({price:e,color:"#c9d4e3",lineStyle:2,lineWidth:1,title:"entrada"});s.createPriceLine({price:e*0.94,color:"#ff5d73",lineStyle:2,lineWidth:1,title:"stop −6 %"});s.createPriceLine({price:e*1.12,color:"#9aa7b8",lineStyle:3,lineWidth:1,title:"+12 % móvil"});
+   if(P0.trailing||(!open&&P0.peak>=e*1.12))s.createPriceLine({price:P0.peak*0.85,color:"#f5c451",lineStyle:2,lineWidth:1,title:"stop móvil"});
+   const mk=[{time:d[0].time,position:"belowBar",color:"#5eb3ff",shape:"arrowUp",text:""}];if(!open)mk.push({time:d[d.length-1].time,position:"aboveBar",color:P0.pnl>=0?"#3dd6b5":"#ff5d73",shape:"arrowDown",text:"VENTA"});s.setMarkers(mk);c.timeScale().fitContent()}
+  const ee=document.getElementById("mt-eqc");
+  if(ee&&(S.eq||[]).length>1){const c=lwChart(ee,190);MM.charts.push(c);
+   const s=c.addAreaSeries({lineColor:"#3dd6b5",topColor:"rgba(61,214,181,.28)",bottomColor:"rgba(61,214,181,0)",lineWidth:2,priceFormat:{type:"custom",formatter:v=>E0(v)}});
+   const d=lwSeries(S.eq.map(([t,v])=>[t,v*f]));s.setData(d);s.createPriceLine({price:S.start*f,color:"#7f8ea3",lineStyle:2,lineWidth:1,title:"inicio"});
+   const t0=d[0].time,t1=d[d.length-1].time,mk=[];
+   for(const x of (S.closed||[])){const ti=lwT(x.t1);if(ti>=t0&&ti<=t1){const near=d.reduce((b,p)=>Math.abs(p.time-ti)<Math.abs(b.time-ti)?p:b,d[0]);mk.push({time:near.time,position:x.pnl>=0?"aboveBar":"belowBar",color:x.pnl>=0?"#3dd6b5":"#ff5d73",shape:"circle",text:"$"+x.sym})}}
+   for(const [a,p] of Object.entries(S.pos||{})){const ti=lwT(p.t0);if(ti>=t0&&ti<=t1){const near=d.reduce((b,q)=>Math.abs(q.time-ti)<Math.abs(b.time-ti)?q:b,d[0]);mk.push({time:near.time,position:"belowBar",color:"#5eb3ff",shape:"arrowUp",text:""})}}
+   mk.sort((a,b)=>a.time-b.time);s.setMarkers(mk.slice(-80));c.timeScale().fitContent()}
+ }catch(e){try{console.error(e)}catch(_){}}})}
+/* informe de rendimiento (como QuantStats): con la curva de saldo y las operaciones cerradas */
+function memeQS(S){const eq=(S.eq||[]).map(([t,v])=>[Date.parse(t),+v]).filter(x=>Number.isFinite(x[0])&&x[1]>0);if(eq.length<2)return null;
+ let pk=eq[0][1],dd=0,ddT=0,pkT=eq[0][0],ddLong=0;for(const[t,v]of eq){if(v>=pk){pk=v;pkT=t}else{dd=Math.min(dd,v/pk-1);ddLong=Math.max(ddLong,t-pkT)}}
+ const hr=[];let next=eq[0][0]+3600e3,lastV=eq[0][1];for(const[t,v]of eq){if(t>=next){hr.push(v/lastV-1);lastV=v;next=t+3600e3}}
+ const mean=hr.length?hr.reduce((a,b)=>a+b,0)/hr.length:0,sd=hr.length>1?Math.sqrt(hr.reduce((a,b)=>a+(b-mean)**2,0)/(hr.length-1)):0;
+ const cl=S.closed||[],w=cl.filter(x=>x.pnl>0),l=cl.filter(x=>x.pnl<=0),sw=w.reduce((a,x)=>a+x.pnl,0),sl=-l.reduce((a,x)=>a+x.pnl,0);
+ let st=0,mx=0;for(const x of cl.slice().reverse()){if(x.pnl<=0){st++;mx=Math.max(mx,st)}else st=0}
+ const hold=cl.length?cl.reduce((a,x)=>a+(Date.parse(x.t1)-Date.parse(x.t0)),0)/cl.length:null;
+ return{ret:eq[eq.length-1][1]/S.start-1,dd,ddLong,hours:(eq[eq.length-1][0]-eq[0][0])/3600e3,volD:hr.length>=6?sd*Math.sqrt(24):null,sharpe:hr.length>=24&&sd>0?mean/sd*Math.sqrt(24*365):null,
+  n:cl.length,win:cl.length?w.length/cl.length:null,pf:sl>0?sw/sl:(sw>0?Infinity:null),avgW:w.length?sw/w.length:null,avgL:l.length?-sl/l.length:null,exp:cl.length?(sw-sl)/cl.length:null,streak:mx,hold,rugs:(S.st||{}).rugs||0,fees:(S.st||{}).fees||0}}
+function memeQSHtml(S,f){const q=memeQS(S);if(!q)return"";const pc=x=>x==null?"—":Math.abs(x)<0.0005?"0,0 %":(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",",")+" %",dur=ms=>ms==null?"—":ms<3600e3?Math.round(ms/60000)+" min":(ms/3600e3).toFixed(1).replace(".",",")+" h",nm=(x,d=2)=>x==null?"—":x===Infinity?"∞":x.toFixed(d).replace(".",",");
+ const row=(t,v,c,h)=>`<div class="mt-sb"><span>${t}${h?`<br><i class="mt-dim" style="font-style:normal;font-size:9.5px">${h}</i>`:""}</span><div></div><b class="${c||""}">${v}</b></div>`;
+ const ver=q.n<20?"Aún pocas operaciones: estas cifras cambiarán mucho.":q.pf!=null&&q.pf>1.3&&q.ret>0&&q.dd>-0.3?"Por ahora gana con costes reales. Habrá que ver si se mantiene semanas.":q.ret<0?"Por ahora pierde dinero con costes reales.":"Por ahora no hay ventaja clara.";
+ return`<div class="mt-p"><div class="mt-ph"><span>INFORME DE RENDIMIENTO · COMO QUANTSTATS</span><span class="mt-dim">${q.hours<48?Math.round(q.hours)+" h":Math.round(q.hours/24)+" días"} de datos</span></div>
+ ${row("rentabilidad total",pc(q.ret),q.ret>=0?"up":"dn","frente a dejar el dinero quieto (0 %)")}${row("caída máxima",pc(q.dd),"dn","lo más que ha llegado a bajar desde un máximo")}${row("tiempo más largo bajo el máximo",dur(q.ddLong))}
+ ${row("volatilidad diaria",q.volD==null?"—":pc(q.volD).replace("+",""),"","cuánto se mueve el saldo en un día normal")}${row("ratio de Sharpe",nm(q.sharpe),q.sharpe==null?"":q.sharpe>=1?"up":"dn","ganancia por cada unidad de riesgo · más de 1 es bueno")}
+ ${row("% de acierto",q.win==null?"—":Math.round(q.win*100)+" %","",q.n+" operaciones cerradas")}${row("factor de beneficio",nm(q.pf),q.pf==null?"":q.pf>=1?"up":"dn","lo ganado ÷ lo perdido · más de 1 = gana")}
+ ${row("ganancia media / pérdida media",(q.avgW==null?"—":E2r(q.avgW*f))+" / "+(q.avgL==null?"—":E2r(q.avgL*f)))}${row("esperanza por operación",q.exp==null?"—":E2r(q.exp*f),q.exp==null?"":q.exp>=0?"up":"dn","lo que gana o pierde de media cada compra, ya con costes")}
+ ${row("racha de pérdidas más larga",q.streak)}${row("tiempo medio en cada moneda",dur(q.hold))}
+ <div class="mt-foot" style="text-align:left">${ver}</div></div>`}
 function memeDraw(){const el=$("#mm-body");if(!el)return;const S=MM.S,f=FSC(),Eu=x=>E0((+x||0)*f),W2=x=>E2r((+x||0)*f);
  if(!S||S.v<3){el.innerHTML=`<div class="mt"><div class="mt-p"><div class="mt-dim">${MM.err==="nada"||(S&&S.v<3)?"El terminal arranca con su primera vuelta. Hace una vuelta cada minuto: vuelve en un momento.":"Cargando…"}</div></div></div>`;return}
  const st=S.st||{},rk=S.rk||{},ag=S.ag||{},eq=+S.lastEq||S.start,pos=Object.entries(S.pos||{}),cl=S.closed||[],LOG=S.log||[],tnow=Date.now();
@@ -2528,7 +2574,7 @@ function memeDraw(){const el=$("#mm-body");if(!el)return;const S=MM.S,f=FSC(),Eu
  let posH='<div class="mt-dim">Sin operaciones todavía.</div>';
  if(P0){const H=(P0.h||[]).map(x=>+x[1]),e=+P0.px,lo=Math.min(...H,e*(1-0.06))*0.98,hi=Math.max(...H,e*1.12)*1.02,Wd=300,Hd=120,y=v=>Hd-6-(v-lo)/((hi-lo)||1)*(Hd-12),xs=i=>H.length>1?i/(H.length-1)*(Wd-70):0,cur=op?+P0.last:+P0.out,pc=(cur/e-1)*100;
   const ln=(v,c,t,d)=>`<line x1="0" x2="${Wd-70}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="${c}" stroke-dasharray="${d}" stroke-width="1"/><text x="${Wd-66}" y="${(y(v)+3).toFixed(1)}" fill="${c}" font-size="9" font-family="ui-monospace,monospace">${t}</text>`;
-  posH=`<div class="mt-pos"><svg viewBox="0 0 ${Wd} ${Hd}" class="mt-pchart">${ln(e*1.12,"#9aa7b8","+12 % móvil","2 3")}${ln(e,"#c9d4e3","entrada","6 3")}${ln(e*0.94,"#ff5d73","stop −6 %","4 3")}${H.length>1?`<polyline fill="none" stroke="#ff7bd0" stroke-width="2" points="${H.map((v,i)=>xs(i).toFixed(1)+","+y(v).toFixed(1)).join(" ")}"/><circle cx="${xs(H.length-1).toFixed(1)}" cy="${y(H[H.length-1]).toFixed(1)}" r="3.5" fill="#ff7bd0"/>`:""}</svg>
+  posH=`<div class="mt-pos"><div id="mt-pc" class="mt-lw"><svg viewBox="0 0 ${Wd} ${Hd}" class="mt-pchart">${ln(e*1.12,"#9aa7b8","+12 % móvil","2 3")}${ln(e,"#c9d4e3","entrada","6 3")}${ln(e*0.94,"#ff5d73","stop −6 %","4 3")}${H.length>1?`<polyline fill="none" stroke="#ff7bd0" stroke-width="2" points="${H.map((v,i)=>xs(i).toFixed(1)+","+y(v).toFixed(1)).join(" ")}"/><circle cx="${xs(H.length-1).toFixed(1)}" cy="${y(H[H.length-1]).toFixed(1)}" r="3.5" fill="#ff7bd0"/>`:""}</svg></div>
   <div class="mt-pinfo"><b class="mt-sym">$${esc(P0.sym)}</b><span class="mt-bdg" style="--c:${op?"var(--mt-g)":"#9aa7b8"}">${op?(P0.trailing?"ABIERTA · MÓVIL ACTIVO":"ABIERTA · STOP PUESTO"):"CERRADA · "+esc(P0.why)}</span>
   <div class="mt-kv"><span>tamaño</span><b>8 % · ${Eu(P0.cost)}</b><span>stop</span><b>−6 % · puesto antes de entrar</b><span>móvil</span><b>tras +12 % · 15 % bajo el máximo</b></div><div class="mt-big ${pc>=0?"up":"dn"}">${pc>=0?"+":"−"}${Math.abs(pc).toFixed(1).replace(".",",")} %</div></div></div>`}
  // estadísticas
@@ -2553,6 +2599,8 @@ function memeDraw(){const el=$("#mm-body");if(!el)return;const S=MM.S,f=FSC(),Eu
  <div class="mt-p"><div class="mt-ph"><span>FILTRO · 8 REGLAS DURAS</span>${fx.sym?`<span class="mt-bdg" style="--c:#ff5d73">$${esc(fx.sym)}</span>`:""}</div>${ruleRows}<div class="mt-foot">${fx.sym?`${fx.ok?"pasa 8/8 → al analista":"comprobando"} $${esc(fx.sym)} · regla ${fx.rule}/8`:"esperando la primera moneda"}</div></div>
  <div class="mt-p"><div class="mt-ph"><span>ANALISTA · NOTA 0-100</span>${an.sym?`<span class="mt-bdg" style="--c:#a78bfa">$${esc(an.sym)}</span>`:""}</div><div class="mt-an"><div class="mt-bars">${bars}</div><div class="mt-gw">${gauge}<div class="mt-dim">nota final</div><div class="mt-dim">70 o más pasa · por debajo se descarta</div></div></div><div class="mt-foot">${an.sym?(sc>=70?`${sc} ≥ 70 → al EJECUTOR`:`${sc} < 70 → descartada`):"—"}</div></div>
  <div class="mt-p"><div class="mt-ph"><span>EJECUTOR + RIESGO · POSICIÓN</span><span class="mt-dim">${op?"abierta":"última cerrada"}</span></div>${posH}</div>
+ <div class="mt-p"><div class="mt-ph"><span>SALDO · CON CADA COMPRA Y VENTA</span><span class="mt-dim">toca y arrastra</span></div><div id="mt-eqc" class="mt-lw" style="min-height:190px"><div class="mt-dim">cargando el gráfico…</div></div><div class="mt-dim" style="margin-top:6px;font-size:10px">▲ compra · ● venta (verde gana, rojo pierde) · gráficos: <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="color:inherit">TradingView Lightweight Charts</a></div></div>
+ ${memeQSHtml(S,f)}
  <div class="mt-p"><div class="mt-ph"><span>ESTADÍSTICAS DE LA NOCHE</span><span class="mt-dim">dinero ficticio</span></div>${stats}<div class="mt-dim" style="margin-top:6px">Con costes reales (comisión, deslizamiento, fallidas). Las memecoins son de altísimo riesgo: se puede perder todo.</div></div>
  <div class="mt-p"><div class="mt-ph"><span>$ tail -f night.log</span><span class="mt-dim">línea #${S.line||0}</span></div><div class="mt-log">${tail||'<span class="mt-dim">—</span>'}</div></div>
  </div>`;
@@ -2569,7 +2617,7 @@ function memeDraw(){const el=$("#mm-body");if(!el)return;const S=MM.S,f=FSC(),Eu
  <b>Ejecutor y riesgo:</b> 8 % del saldo por operación, como mucho 8 a la vez; stop −6 % puesto antes de entrar; móvil al 15 % bajo el máximo tras +12 %; como mucho 24 h; si retiran la liquidez, se pierde todo.<br>
  <b>Costes:</b> 0,5 % por lado + deslizamiento del 1 % al 12 % según liquidez; el 5 % de las órdenes fallan y cuestan la propina.<br>
  <b>Límites honestos:</b> mira cada minuto (un bot real, al instante); las «carteras listas» las aprende él (los servicios de pago traen listas hechas). Es una prueba, no una recomendación.</div></details></div>`;
- el.innerHTML=h}
+ el.innerHTML=h;memeCharts(S,P0,!!op,f)}
 {const g0=go;go=function(t){g0(t);if(t==="memes")memeLoad(false)}}
 setInterval(()=>{const t=document.getElementById("t-memes");if(t&&t.classList.contains("on")&&!document.hidden)memeLoad(true)},60000);
 setInterval(()=>{const e=document.getElementById("mt-run"),S=MM.S;if(e&&S&&S.since&&!document.hidden){const s=Math.max(0,Math.floor((Date.now()-Date.parse(S.since))/1000)),d=Math.floor(s/86400),z=n=>String(n).padStart(2,"0");e.textContent=(d?d+" d ":"")+z(Math.floor(s%86400/3600))+":"+z(Math.floor(s%3600/60))+":"+z(s%60)}},1000);
