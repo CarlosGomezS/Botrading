@@ -319,8 +319,8 @@ async function main() {
     for (const a of open) if (!by[a]) { console.log("Memes (rápido): falta el precio de alguna; espero a la vuelta completa."); return; }
     rapido(S, by, now);
     for (const v of LB.pop) LBm.pasoVar(v, by, now, { full: false });
-    publicar(S, LB);
     await dineroReal(S, by, now, true);
+    publicar(S, LB);
     console.log(`Memes (rápido): ${open.length} abiertas vigiladas · saldo ${r2(S.lastEq)}`); return;
   }
   if (S.last && tnow - Date.parse(S.last) < 40e3) { console.log("Memes: la última vuelta fue hace menos de 40 s; nada que hacer."); return; }
@@ -384,8 +384,8 @@ async function main() {
   for (const v of LB.pop) LBm.pasoVar(v, by, now, { ...ext, full: true }, S.smart, S.hold);
   const evo = LBm.evolucionar(LB, S, now); if (evo) L(S, now, "INFO", "", `🧬 generación ${evo.gen}: se archivan ${evo.out} variantes y nacen otras`);
   if (S.genomeId && S.genomeAt !== S.genomeId) { S.genomeAt = S.genomeId; L(S, now, "INFO", "", `🏆 el terminal pasa a usar las reglas aprendidas de ${S.genomeId}`); }
-  publicar(S, LB);
   await dineroReal(S, by, now, false);
+  publicar(S, LB);
   console.log(`Memes: ${Object.keys(by).length} monedas · RugCheck ${nrc} · GeckoTerminal ${ngt} · saldo ${r2(S.lastEq)} · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · variantes ${LB.pop.length} (gen ${LB.gen}) · ${Math.round((Date.now() - t0) / 1000)} s`);
 }
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.log("Memes: " + (e.message || e)); process.exit(0); });
