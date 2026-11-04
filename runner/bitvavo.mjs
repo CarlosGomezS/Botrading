@@ -163,7 +163,8 @@ export function fresh(now = new Date()) {
     genome: { ...BASE }, genomeId: "base", prueba: true, lab: { gen: 0, lastGen: null, pop: [], log: [], adopt: [] } };
 }
 const L = (S, now, ev, sym, txt) => { S.log.unshift({ t: now.toISOString(), ev, sym, txt }); S.log = S.log.slice(0, 200); };
-const equity = (S, px) => S.cash + Object.entries(S.pos).reduce((t, [m, p]) => t + p.q * ((px[m] && px[m].bid) || p.last || p.px), 0);
+// v229 · el saldo cuenta lo que se cobraría si se vendiera ahora (precio de compra del libro MENOS la comisión de venta), igual que en la pantalla
+const equity = (S, px) => S.cash + Object.entries(S.pos).reduce((t, [m, p]) => t + p.q * ((px[m] && px[m].bid) || p.last || p.px) * (1 - FEE), 0);
 function cerrar(S, m, now, bid, why) {
   const p = S.pos[m], got = p.q * bid * (1 - FEE), gotT = got + (p.cob || 0), pnl = gotT - p.cost;
   S.cash += got; S.st.pnl += pnl; S.st.fees += p.q * bid * FEE; if (pnl >= 0) S.st.wins++; else S.st.losses++;
