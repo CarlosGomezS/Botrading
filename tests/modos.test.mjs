@@ -69,3 +69,15 @@ test("Submodos de IA: cada laboratorio respeta sus propios límites", async () =
   }
   assert.equal(B.PERF.mix.base.estilo, "ia"); assert.equal(B.PERF.eq.base.estilo, "tendencia");
 });
+
+test("Financiación aprende: elige umbrales que ganan en las dos mitades y se para si nada habría ganado", () => {
+  const n = 336, buena = Array.from({ length: n }, (_, i) => 0.0001 * (1 + 0.3 * Math.sin(i / 10))), mala = Array.from({ length: n }, (_, i) => (i % 96 < 80 ? 0.00008 : -0.0006));
+  const A = FIN.aprender({ AAA: buena, BBB: buena.map((x) => x * 0.8) }, () => 0.001, "cons");
+  assert.ok(A.ok && A.a.tot > 0 && A.b.tot > 0, JSON.stringify(A)); assert.ok(!A.pausa);
+  const M = FIN.aprender({ CCC: mala, DDD: mala }, () => 0.001, "turbo");
+  assert.ok(!M.ok, JSON.stringify(M));
+  // si aprendió que nada gana, no abre aunque ahora pague
+  const F = FIN.fresh(new Date(0)); F.apr = { ...M, pausa: true }; const D = { ctx: Object.fromEntries(["AAA", ...Array.from({ length: 20 }, (_, i) => "Z" + i)].map((c) => [c, { f: 0.0002, mark: 1, vol: 1e8 }])), cand: ["AAA"], fr: { AAA: { a3: 0.0002, a1: 0.0002, pos: 1, n: 72 } } };
+  const G = FIN.vuelta(F, D, { "AAA-EUR": { bid: 0.9, ask: 0.9, sp: 0.001, vq: 1e6 } }, 0.9, new Date(3600e3), FIN.PERF.turbo);
+  assert.equal(Object.keys(G.pos).length, 0);
+});

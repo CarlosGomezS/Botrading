@@ -45,6 +45,32 @@ export function merece(r, cur, sp, P = PERF.cons) {
   if (!r || r.a3 == null || r.n < 48) return false;
   return r.a3 * AN >= P.min && r.a1 > 0 && cur > 0 && r.pos >= 0.8 && r.a3 * 24 * P.dias >= coste(sp) * 1.2;   // en «dias» días (lo normal es mantenerla semanas)
 }
+// v226 · 🧠 APRENDE SOLA: cada hora repasa los últimos 14 días de financiación (hora a hora) de las ~30 criptos que más pagan y
+// simula su propia regla con distintos umbrales (financiación mínima al año y en cuántos días tiene que pagar los costes).
+// Se queda con los que más habrían ganado ya con costes, y solo si ganan en las DOS mitades de esos días. Si ni la regla de
+// partida habría ganado, deja de abrir posiciones (la misma regla estricta que el resto).
+export const BUSCA = { cons: { min: [0.08, 0.1, 0.15, 0.2], dias: [10, 14, 21] }, turbo: { min: [0.1, 0.15, 0.2, 0.3], dias: [5, 7, 10] }, amplio: { min: [0.05, 0.08, 0.1, 0.12], dias: [14, 21, 30] } };
+export function simular(series, spOf, P, q) {
+  const ev = []; let n = 0;   // [momento (0–1), € por € usado]: lo cobrado cuenta en la hora en que se cobra; cada coste, cuando se paga
+  for (const [coin, r] of Object.entries(series || {})) {
+    if (r.length < 120) continue; const cst = coste(spOf(coin)) / (1 + P.gar), L = r.length; let h0 = -1, cool = -1;
+    const med = (a, b) => { let x = 0; for (let i = a; i < b; i++) x += r[i]; return x / (b - a); };
+    for (let h = 72; h < L; h++) {
+      const a3 = med(h - 72, h), a1 = med(h - 24, h);
+      if (h0 >= 0) { ev.push([h / L, r[h] / (1 + P.gar)]); if ((h - h0 >= 8 && a1 < 0) || (h - h0 >= 48 && a3 * AN < 0.04)) { ev.push([h / L, -cst / 2]); h0 = -1; cool = h + 24; } continue; }
+      if (h < cool) continue; let pos = 0; for (let i = h - 72; i < h; i++) if (r[i] > 0) pos++;
+      if (a3 * AN >= q.min && a1 > 0 && r[h - 1] > 0 && pos / 72 >= 0.8 && a3 * 24 * q.dias >= coste(spOf(coin)) * 1.2) { h0 = h; n++; ev.push([h / L, -cst / 2]); }
+    }
+    if (h0 >= 0) ev.push([1 - 1e-9, -cst / 2]);   // las que siguen abiertas pagan su salida al final
+  }
+  const sum = (a, b) => r4(ev.filter((x) => x[0] >= a && x[0] < b).reduce((s, x) => s + x[1], 0) * 100);
+  return { n, tot: sum(0, 2), a: { tot: sum(0, 0.5) }, b: { tot: sum(0.5, 2) } };
+}
+export function aprender(series, spOf, k) {
+  const P = PERF[k], B = BUSCA[k]; let best = null; const base = simular(series, spOf, P, P);
+  for (const min of B.min) for (const dias of B.dias) { const r = simular(series, spOf, P, { min, dias }), ok = r.n >= 2 && r.a.tot > 0 && r.b.tot > 0, s = ok ? Math.min(r.a.tot, r.b.tot) : -99 + r.tot / 1e3; if (!best || s > best.s) best = { min, dias, ...r, ok, s }; }
+  return { ...best, base: { n: base.n, tot: base.tot }, pausa: !best.ok && base.n >= 3 && base.tot < 0, t: new Date().toISOString() };
+}
 // ¿hay que salir? (la financiación se ha girado o ya no compensa, o el precio se ha disparado y el corto corre peligro)
 export function salir(p, r, mark, now, P = PERF.cons) {
   if (mark >= p.pp * (1 + P.sube)) return `el precio se ha disparado un +${Math.round(P.sube * 100)} %: se cierra por seguridad del corto`;
@@ -69,14 +95,16 @@ export async function datos(D, tick, now = new Date(), fx = fetch, monedas = [])
   D.cand = Object.entries(ctx).map(([coin, c]) => ({ coin, m: moneda(coin) + "-EUR" })).filter((x) => tick[x.m] && tick[x.m].sp < 0.006 && tick[x.m].vq >= 2e5 && ctx[x.coin].vol >= 2e6 && ctx[x.coin].mark > 0).map((x) => x.coin);
   // historial de la financiación (3 días) cada hora: de las abiertas y de las 30 que más pagan ahora
   if (t - (D.frAt || 0) >= CADA_HIST) {
-    const quiero = [...new Set([...monedas, ...D.cand.slice().sort((a, b) => ctx[b].f - ctx[a].f).slice(0, 30)])], nuevo = {};
-    let i = 0; await Promise.all(Array.from({ length: 6 }, async () => { while (i < quiero.length) { const coin = quiero[i++]; try { const h = await post({ type: "fundingHistory", coin, startTime: t - 72 * 3600e3 }, fx); if (Array.isArray(h)) nuevo[coin] = resumen(h, t); } catch (e) {} } }));
-    if (Object.keys(nuevo).length) { D.fr = nuevo; D.frAt = t; }
+    const quiero = [...new Set([...monedas, ...D.cand.slice().sort((a, b) => ctx[b].f - ctx[a].f).slice(0, 30)])], nuevo = {}, serie = {}; delete D.series;
+    let i = 0; await Promise.all(Array.from({ length: 6 }, async () => { while (i < quiero.length) { const coin = quiero[i++]; try { const h = await post({ type: "fundingHistory", coin, startTime: t - 14 * 86400e3 }, fx); if (Array.isArray(h)) { nuevo[coin] = resumen(h, t); serie[coin] = h.slice().sort((a, b) => a.time - b.time).map((x) => +x.fundingRate); } } catch (e) {} } }));
+    if (Object.keys(nuevo).length) { D.fr = nuevo; D.frAt = t; D.series = serie; }
   }
   D.fr = D.fr || {}; return D;
 }
 // una vuelta de una cuenta (cada minuto). tick: precios de Bitvavo { "BTC-EUR": {bid, ask, sp, vq} }; ue: euros por dólar (USDC-EUR)
-export function vuelta(F, D, tick, ue, now = new Date(), P = PERF.cons) {
+export function vuelta(F, D, tick, ue, now = new Date(), P0 = PERF.cons) {
+  // usa los umbrales aprendidos (si ganaron en las dos mitades); si no, los de partida
+  const P = F && F.apr && F.apr.ok ? { ...P0, min: F.apr.min, dias: F.apr.dias } : P0;
   if (!F || F.v !== 1) { F = fresh(now); L(F, now, "INFO", "", `💸 empieza «Cobrar financiación» ${P.nombre} con 100 € ficticios: ${P.txt}`); }
   if (!(ue > 0)) { F.err = "sin cambio euro/dólar"; return F; }
   if (!D || !D.ctx) { F.err = (D && D.err) || "sin datos de Hyperliquid"; return F; }
@@ -94,7 +122,7 @@ export function vuelta(F, D, tick, ue, now = new Date(), P = PERF.cons) {
   }
   // 5) entradas: las que más pagan, si lo que cobrarían en una semana paga los costes con margen
   const eq = equity(F, tick, ctx, ue);
-  const buenas = cand.filter((x) => !Object.values(F.pos).some((p) => p.coin === x.coin) && !(F.cool && t - (F.cool[x.coin] || 0) < 24 * 3600e3) && merece(fr[x.coin], x.c.f, tick[x.m].sp, P)).sort((a, b) => fr[b.coin].a3 - fr[a.coin].a3);
+  const buenas = F.apr && F.apr.pausa ? [] : cand.filter((x) => !Object.values(F.pos).some((p) => p.coin === x.coin) && !(F.cool && t - (F.cool[x.coin] || 0) < 24 * 3600e3) && merece(fr[x.coin], x.c.f, tick[x.m].sp, P)).sort((a, b) => fr[b.coin].a3 - fr[a.coin].a3);
   for (const x of buenas) {
     if (Object.keys(F.pos).length >= P.maxpos) break;
     const N = Math.min(F.cash, eq * P.parte) / (1 + P.gar); if (N < 5) break;   // N al contado y N × gar de garantía para el corto

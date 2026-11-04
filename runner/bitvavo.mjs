@@ -285,6 +285,8 @@ async function main() {
   // v224/v225 · cobrar financiación y rejilla: tres submodos cada uno, con sus propios 100 € ficticios
   { const u = T.find((x) => x.market === "USDC-EUR"), ue = u ? +u.last || (+u.bid + +u.ask) / 2 : 0;
     try { const D = await FIN.datos(S.finD, tick, now, fetch, Object.values(S.fins).flatMap((f) => Object.keys((f && f.pos) || {})));
+      if (D.series) for (const k of Object.keys(FIN.PERF)) try { const ti = Date.now(), A = FIN.aprender(D.series, (c) => (tick[FIN.moneda(c) + "-EUR"] || {}).sp || 0.003, k); A.seg = Math.round((Date.now() - ti) / 1000); S.fins[k] = S.fins[k] || FIN.fresh(now); S.fins[k].apr = A; } catch (e) { console.log("Financiación (aprender): " + String(e.message).slice(0, 80)); }
+      delete D.series;
       for (const k of Object.keys(FIN.PERF)) S.fins[k] = FIN.vuelta(S.fins[k], D, tick, ue, now, FIN.PERF[k]); S.finD = { fr: D.fr, frAt: D.frAt, err: D.err || null }; } catch (e) { console.log("Financiación: " + String(e.message).slice(0, 80)); }
     for (const k of Object.keys(REJ.PERF)) try { S.rejs[k] = REJ.vuelta(S.rejs[k], tick, LAT, now, REJ.PERF[k]); } catch (e) { console.log("Rejilla: " + String(e.message).slice(0, 80)); } }
   // 3) laboratorio cada 30 min
