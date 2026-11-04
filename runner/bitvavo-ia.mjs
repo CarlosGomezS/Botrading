@@ -51,7 +51,8 @@ export function entrenarIA(H, rnd = Math.random) {
   const filas = []; let tMin = Infinity, tMax = 0;
   for (const m of Object.values(H.m || {})) { const y = etiquetas(m.c); m.f.forEach((f, i) => { if (!f || y[i] == null) return; const x = vector(f); filas.push({ f, x, y: y[i], t: m.c[i][0] }); tMin = Math.min(tMin, m.c[i][0]); tMax = Math.max(tMax, m.c[i][0]); }); }
   if (filas.length < 2000) return { listo: false, n: filas.length };
-  const corte = (tMin + tMax) / 2, A = filas.filter((r) => r.t < corte), B = filas.filter((r) => r.t >= corte);
+  const ts = filas.map((r) => r.t).sort((a, b) => a - b), corte = ts[Math.floor(ts.length / 2)];   /* v228 · mediana (no el punto medio): mitades equilibradas */ void tMin; void tMax;
+  const A = filas.filter((r) => r.t < corte), B = filas.filter((r) => r.t >= corte);
   const sub = (rs, k) => (rs.length > k ? rs.filter(() => rnd() < k / rs.length) : rs);   // para que entrene rápido
   const tr = (rs) => { const s2 = sub(rs, 25000); return entrenar(s2.map((r) => r.x), s2.map((r) => r.y)); };
   const mA = tr(A), mB = tr(B); if (!mA || !mB) return { listo: false, n: filas.length };

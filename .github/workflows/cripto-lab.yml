@@ -42,7 +42,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for k in eq turbo mix; do (timeout 3240 node --max-old-space-size=3072 runner/bitvavo-lab.mjs $k 50 > /tmp/lab-$k.log 2>&1 || true) & done
+          for k in eq turbo mix; do (timeout 3240 node --max-old-space-size=3072 runner/bitvavo-lab.mjs $k 48 > /tmp/lab-$k.log 2>&1 || true) & done
           wait || true
           for k in eq turbo mix; do echo "=== $k"; tail -n 60 /tmp/lab-$k.log; done
       - name: Siguiente tramo (en cadena)

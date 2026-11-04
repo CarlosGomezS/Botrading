@@ -30,9 +30,17 @@ export async function actualizar(HL, now = Date.now(), fx = fetch) {
   if (HL.top && (!HL.at || t - HL.at >= CADA_POS)) {
     const pos = []; let ok = 0;
     for (let i = 0; i < HL.top.length; i += 8) await Promise.all(HL.top.slice(i, i + 8).map(async (u) => { try { const r = await fx(INFO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "clearinghouseState", user: u.a }), signal: AbortSignal.timeout(10000) }); const j = await r.json(); pos.push((j.assetPositions || []).map((x) => x.position)); ok++; } catch (e) {} }));
-    if (ok >= 5) { const prev = HL.snap || {}; HL.prev = prev; HL.snap = senal(pos); HL.at = t; HL.ok = ok; delete HL.err; }
+    if (ok >= 5) { HL.snap = senal(pos); HL.at = t; HL.ok = ok; delete HL.err;
+      // v228 · memoria de ~100 min de señales (compacta) para calcular el cambio en 1 h, igual que en las pruebas
+      HL.ring = (HL.ring || []).concat([[t, Object.fromEntries(Object.entries(HL.snap).map(([c, o]) => [c, o.s]))]]).filter((x) => t - x[0] <= 100 * 60000);
+      HL.prev = hace(HL, t, 3600e3); }
   }
   return HL;
+}
+// la señal de hace «ms» (la más cercana anterior, con 40 min de margen), como { cripto: s }; null si no hay
+export function hace(HL, t, ms) {
+  let best = null; for (const [ti, sn] of (HL && HL.ring) || []) if (ti <= t - ms && t - ms - ti <= 40 * 60000 && (!best || ti > best[0])) best = [ti, sn];
+  return best ? Object.fromEntries(Object.entries(best[1]).map(([c, s]) => [c, { s }])) : null;
 }
 // historial (cada 10 min, 7 días) para que la IA pueda aprender del pasado
 export function anotar(hist, snap, t, quedan = 7 * 86400e3) {

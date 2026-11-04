@@ -6,7 +6,7 @@
 // de reglas distintas con los costes reales; cada regla se puntúa con su PEOR mitad (días antiguos y recientes por separado).
 // El terminal adopta la mejor solo si gana en las dos mitades; si ninguna gana, opera en «modo prueba» (compras a la mitad).
 import { execSync } from "node:child_process";
-import { writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { writeFileSync, readFileSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { entrenarIA, predecir, vector } from "./bitvavo-ia.mjs";
 import * as HLm from "./hyperliquid.mjs";
@@ -111,17 +111,19 @@ export function backtest(g, H, desde = 0, hasta = Infinity) {
     for (let i = 48; i < c.length; i++) {
       const t = c[i][0]; if (t < desde || t >= hasta) { if (pos && t >= hasta) { rs.push((pos.cob + pos.q * c[i][4] * (1 - sp / 2) * (1 - FEE)) / pos.cost - 1); pos = null; } continue; }
       if (pos) {
-        const [, , h, l, cc] = c[i]; pos.peak = Math.max(pos.peak, h); const ven = (px) => pos.q * px * (1 - sp / 2) * (1 - FEE);
+        const [, , h, l, cc] = c[i]; const ven = (px) => pos.q * px * (1 - sp / 2) * (1 - FEE);
+        // v228 · PESIMISTA: si en la misma vela se tocan el stop y la venta con ganancia, se supone que el stop llegó primero
+        let out = null; const sl = Math.max(pos.px * (1 - g.stop), pos.be || 0);
+        if (l <= sl) { out = Math.min(c[i][1], sl); rs.push((pos.cob + ven(out)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; continue; }
+        pos.peak = Math.max(pos.peak, h);
         if (g.pir > 0 && !pos.pir && h >= pos.px * (1 + g.pirOn)) { const ap = pos.px * (1 + g.pirOn) * (1 + sp / 2); pos.q += g.pir * (1 - FEE) / ap; pos.cost += g.pir; pos.pir = 1; pos.be = (pos.cost - pos.cob) / (pos.q * (1 - sp / 2) * (1 - FEE)); }
         if (g.tpFrac > 0 && !pos.tp && h >= pos.px * (1 + g.tp)) { pos.cob += pos.q * g.tpFrac * pos.px * (1 + g.tp) * (1 - sp / 2) * (1 - FEE); pos.q *= 1 - g.tpFrac; pos.tp = 1; }
-        let out = null; const sl = Math.max(pos.px * (1 - g.stop), pos.be || 0);
-        if (l <= sl) out = Math.min(c[i][1], sl);
-        else if (pos.peak >= pos.px * (1 + g.trailOn) && l <= pos.peak * (1 - g.trail)) out = Math.min(c[i][1], pos.peak * (1 - g.trail));
+        if (pos.peak >= pos.px * (1 + g.trailOn) && l <= pos.peak * (1 - g.trail)) out = Math.min(c[i][1], pos.peak * (1 - g.trail));
         else if ((t - pos.t) / 3600e3 >= g.maxHoldH) out = cc;
         if (out != null) { rs.push((pos.cob + ven(out)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; }
         continue;
       }
-      if (t >= cool && entra(g, F[i]) && i + 1 < c.length) { const px = c[i + 1][1] * (1 + sp / 2); pos = { px, q: (1 - FEE) / px, cob: 0, cost: 1, peak: px, t: c[i + 1][0] }; i++; }
+      if (t >= cool && entra(g, F[i]) && i + 1 < c.length && c[i + 1][0] < hasta) { const px = c[i + 1][1] * (1 + sp / 2); pos = { px, q: (1 - FEE) / px, cob: 0, cost: 1, peak: px, t: c[i + 1][0] }; }   // v228 · la vela de entrada también se revisa (antes se saltaba)
     }
   }
   const n = rs.length; if (!n) return { n: 0 };
@@ -166,7 +168,7 @@ function cerrar(S, m, now, bid, why) {
   const p = S.pos[m], got = p.q * bid * (1 - FEE), gotT = got + (p.cob || 0), pnl = gotT - p.cost;
   S.cash += got; S.st.pnl += pnl; S.st.fees += p.q * bid * FEE; if (pnl >= 0) S.st.wins++; else S.st.losses++;
   S.closed.unshift({ m, gid: p.gid || null, sym: m.replace("-EUR", ""), t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(gotT), pnl: r2(pnl), pc: r2((gotT / p.cost - 1) * 100), why: p.cob ? why + " (tras vender parte con ganancia)" : why, h: (p.h || []).slice(-120), px0: p.px, peak: p.peak, out: bid });
-  S.closed = S.closed.slice(0, 500); S.cool[m] = now.getTime(); delete S.pos[m];
+  S.closed = S.closed.slice(0, 500); for (let i = 40; i < S.closed.length && S.closed[i].h; i++) delete S.closed[i].h; S.cool[m] = now.getTime(); delete S.pos[m];
   L(S, now, pnl >= 0 ? "WIN" : "LOSS", m.replace("-EUR", ""), `${pnl >= 0 ? "+" : ""}${r2(pnl)} € · ${r2((gotT / p.cost - 1) * 100)} % · ${why}`);
 }
 // una vuelta: vigila lo abierto y compra lo que diga el genoma
@@ -220,7 +222,7 @@ export function evolucionar(S, H, now = new Date(), rnd = Math.random, budgetMs 
   // v222 · 🩺 PRUEBA EN VIVO: si con las reglas en uso las últimas ≥ 6 operaciones reales pierden de media más de un 1 %, esas reglas
   // quedan vetadas (no vuelven a adoptarse) aunque en el pasado ganaran: lo que manda es lo que pasa de verdad
   { const vivas = (S.closed || []).filter((c) => c.gid === S.genomeId).slice(0, 12), med = vivas.length ? vivas.reduce((x, c) => x + (+c.pc || 0), 0) / vivas.length : 0;
-    if (S.genomeId && S.genomeId !== "base" && vivas.length >= 6 && med < -1) { B.vetadas = B.vetadas || {}; B.vetadas[gkey(S.genome)] = now.toISOString(); B.pop = B.pop.filter((v) => v.id !== S.genomeId); ev(`🩺 ${S.genomeId} queda vetada: en vivo pierde ${r2(med)} % de media en ${vivas.length} operaciones aunque en el pasado ganaba`); S.genomeId = null; }
+    if (S.genomeId && S.genomeId !== "base" && vivas.length >= 6 && med < -1) { B.vetadas = B.vetadas || {}; B.vetadas[gkey(S.genome)] = now.toISOString(); const kv = gkey(S.genome); B.pop = B.pop.filter((v) => v.id !== S.genomeId && gkey(v.g) !== kv); ev(`🩺 ${S.genomeId} queda vetada: en vivo pierde ${r2(med)} % de media en ${vivas.length} operaciones aunque en el pasado ganaba`); S.genomeId = null; }
     const ks = Object.keys(B.vetadas || {}); if (ks.length > 300) for (const k of ks.slice(0, ks.length - 300)) delete B.vetadas[k]; }
   const cur = B.pop.find((v) => v.id === S.genomeId), best = B.pop.slice().sort((a, b) => b.s - a.s)[0], ganadora0 = B.pop.filter((v) => v.ok).sort((a, b) => b.s - a.s)[0];
   // v222 · estabilidad: no cambia de reglas cada 10 min por diferencias mínimas; solo si la nueva es claramente mejor (+0,5) o la actual ya no vale
@@ -229,7 +231,7 @@ export function evolucionar(S, H, now = new Date(), rnd = Math.random, budgetMs 
   if (elegida && (elegida.id !== S.genomeId || S.prueba !== !ganadora)) {
     S.genome = { ...elegida.g }; S.genomeId = elegida.id; S.prueba = !ganadora;
     B.adopt.unshift({ t: now.toISOString(), id: elegida.id, s: elegida.s, ok: !!ganadora }); B.adopt = B.adopt.slice(0, 50);
-    ev(ganadora ? `🏆 adopta ${elegida.id}: gana en los días antiguos (${elegida.a.med} % de media, ${elegida.a.n} ops) y en los recientes (${elegida.b.med} %, ${elegida.b.n} ops)` : `🧪 ninguna regla gana aún en las dos mitades: usa la mejor (${elegida.id}) en modo prueba, con compras a la mitad`);
+    ev(ganadora ? `🏆 adopta ${elegida.id}: gana en los días antiguos (${elegida.a.med} % de media, ${elegida.a.n} ops) y en los recientes (${elegida.b.med} %, ${elegida.b.n} ops)` : `🛑 ninguna regla gana aún en las dos mitades: no compra (vigila con ${elegida.id} y sigue aprendiendo)`);
   }
   return { gen: B.gen, probadas: cand.length };
 }
@@ -244,13 +246,16 @@ async function J(u, tries = 3) {
 }
 async function enParalelo(xs, n, fn) { let i = 0; await Promise.all(Array.from({ length: n }, async () => { while (i < xs.length) { const x = xs[i++]; await fn(x); } })); }
 const velas = (j) => (Array.isArray(j) ? j.map((x) => [+x[0], +x[1], +x[2], +x[3], +x[4], +x[5]]).filter((x) => x[4] > 0).sort((a, b) => a[0] - b[0]) : []);
+// BV_LOCAL=<carpeta>: modo de pruebas (lee y guarda en esa carpeta en vez de en GitHub)
+const LOCAL = process.env.BV_LOCAL || "";
 async function leer(f, rama) {
+  if (LOCAL) { try { return JSON.parse(readFileSync(path.join(LOCAL, rama + "__" + f), "utf8")); } catch (e) { return null; } }
   if (!REPO || !TOKEN) return null;
   const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${f}?ref=${rama}`, { headers: { Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github.raw+json" } });
   if (r.status === 404) return null; if (!r.ok) throw new Error("no pude leer " + f + " (HTTP " + r.status + ")"); return await r.json();
 }
 function publicar(f, obj, rama) {
-  const out = JSON.stringify(obj); if (!REPO || !TOKEN) { writeFileSync(f, out); return; }
+  const out = JSON.stringify(obj); if (LOCAL) { writeFileSync(path.join(LOCAL, rama + "__" + f), out); return; } if (!REPO || !TOKEN) { writeFileSync(f, out); return; }
   const pub = path.join(process.cwd(), ".pub-" + rama); rmSync(pub, { recursive: true, force: true }); mkdirSync(pub); writeFileSync(path.join(pub, f), out);
   const g = (c) => execSync(`git -C "${pub}" ${c}`, { stdio: "pipe" });
   g("init -q -b x"); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"'); g("add -A"); g(`commit -q -m "${rama} ${new Date().toISOString()}"`);
@@ -260,7 +265,9 @@ function publicar(f, obj, rama) {
 // v227 · historial de velas de 5 min + rasgos (igual en el bot de cada minuto y en el laboratorio dedicado). paginas × 1.000 velas
 export async function cargarHist(hm, tick, paginas = 4, S = null, now = new Date(), hilos = 6) {
   const H = { m: {} };
-  await enParalelo(hm, hilos, async (m) => { try { let c = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)); for (let k = 0; k < paginas - 1 && c.length; k++) { const prev = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000&end=${c[0][0] - 1}`, 2)); if (!prev.length) break; c = prev.concat(c); } c = c.filter((x) => x[0] + 300e3 <= Date.now()); if (c.length > 300) H.m[m] = { c, f: rasgos(c), sp: tick[m].sp }; } catch (e) {} });
+  await enParalelo(hm, hilos, async (m) => { try { let c = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)); for (let k = 0; k < paginas - 1 && c.length; k++) { const prev = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000&end=${c[0][0] - 1}`, 2)); if (!prev.length) break; c = prev.concat(c); } const desde = Date.now() - paginas * 1000 * 300e3; c = c.filter((x) => x[0] + 300e3 <= Date.now() && x[0] >= desde);
+    // v228 · las criptos con poco volumen tienen huecos (velas sin operaciones): traerían meses viejos y descuadran todo. Solo con ≥ 85 % de las velas
+    if (c.length >= paginas * 1000 * 0.85) H.m[m] = { c, f: rasgos(c), sp: tick[m].sp }; } catch (e) {} });
   rankear(Object.fromEntries(Object.entries(H.m).map(([m, x]) => [m, x.f])));
   { const B = H.m["BTC-EUR"], R = new Map(); if (B) B.f.forEach((f) => { if (f) R.set(f.t, f.m240 > 0 && f.sobre200 ? 1 : 0); }); for (const x of Object.values(H.m)) for (const f of x.f) if (f) f.reg = R.has(f.t) ? R.get(f.t) : null; }
   // historial de la señal de los mejores (cada 10 min, 7 días) → rasgo de cada vela para la IA y las reglas (el bot de cada minuto lo va anotando)
@@ -284,7 +291,7 @@ async function main() {
   // v225 · todos los modos y submodos vuelven a 100 € (lo aprendido —reglas, IA, rejillas— se conserva)
   if (!S.r225) { Object.assign(S, { cash: START, pos: {}, closed: [], eq: [], cool: {}, st: { trades: 0, wins: 0, losses: 0, fees: 0, pnl: 0 }, since: now.toISOString(), r225: 1, sub: {}, fins: {}, rejs: {} });
     delete S.fin; delete S.rej; L(S, now, "INFO", "", "🔄 todos los modos vuelven a empezar con 100 € (lo aprendido se conserva)"); }
-  S.sub = S.sub || {}; S.fins = S.fins || {}; S.rejs = S.rejs || {};
+  S.sub = S.sub || {}; S.fins = S.fins || {}; S.rejs = S.rejs || {}; delete S.err;
   for (const k of SUBS) if (!S.sub[k] || S.sub[k].v !== 1) { const c = fresh(now); c.genome = { ...PERF[k].base }; L(c, now, "INFO", "", `🎛️ empieza ${PERF[k].nombre} con 100 € ficticios: ${PERF[k].txt}`); S.sub[k] = c; }
   // 1) precios de todo (una petición)
   const UV = await universo(); if (!UV) { console.log("Bitvavo: sin precios"); return; } const { T, tick, U } = UV;
@@ -294,7 +301,7 @@ async function main() {
   { const vs = Object.values(F).filter(Boolean).sort((x, y) => y.m240 - x.m240); vs.forEach((f, i) => { f.rk = vs.length > 4 ? i / (vs.length - 1) : null; }); }
   // 👑 lo que hacen ahora los mejores traders de Hyperliquid
   try { S.hl = await HLm.actualizar(S.hl, now); } catch (e) {}
-  { const sn = (S.hl && S.hl.snap) || {}, pv = (S.hl && S.hl.prev) || {}; for (const [m, f] of Object.entries(F)) if (f) { const c = m.replace("-EUR", ""); f.smart = sn[c] ? sn[c].s : null; f.smartD = sn[c] && pv[c] ? sn[c].s - pv[c].s : null; } }
+  { const sn = (S.hl && S.hl.snap) || {}, pv = (S.hl && HLm.hace(S.hl, S.hl.at || now.getTime(), 3600e3)) || {};   /* v228 · cambio en 1 h (como en las pruebas), no en 3 min */ for (const [m, f] of Object.entries(F)) if (f) { const c = m.replace("-EUR", ""); f.smart = sn[c] ? sn[c].s : null; f.smartD = sn[c] && pv[c] ? sn[c].s - pv[c].s : null; } }
   { const b = F["BTC-EUR"], reg = b ? (b.m240 > 0 && b.sobre200 ? 1 : 0) : null; for (const f of Object.values(F)) if (f) f.reg = reg; S.regimen = reg; }
   if (S.iaM) for (const f of Object.values(F)) if (f) f.ia = predecir(S.iaM, vector(f));
   paso(S, tick, F, now);
@@ -317,14 +324,13 @@ async function main() {
   const labVivo = S.labFresh && now - Date.parse(S.labFresh) < 30 * 60000;
   // 3) si no hay laboratorio dedicado: generación propia cada 15 min
   let H = null;
-  if (!labVivo && (!S.lab.lastGen || now - Date.parse(S.lab.lastGen) >= GEN_MIN * 60000)) {
+  if (!labVivo && (!S.lab.lastGen || !(now - Date.parse(S.lab.lastGen) < GEN_MIN * 60000 && now - Date.parse(S.lab.lastGen) >= 0))) {
     H = await cargarHist(U.slice(0, HIST_MKT), tick, 4, S, now);
     try { const ti = Date.now(), IA = entrenarIA(H); S.iaM = IA.listo ? IA.modelo : null; delete IA.modelo; S.ia = { ...IA, seg: Math.round((Date.now() - ti) / 1000) }; if (IA.listo) L(S, now, "INFO", "", `🧠 IA reentrenada con ${IA.n} momentos: con días que no ha visto ordena bien subidas y caídas ${Math.round(IA.auc * 100)} de cada 100`); } catch (e) { S.ia = { listo: false, err: String(e.message).slice(0, 60) }; }
     if (Object.keys(H.m).length >= 10) for (const k of Object.keys(REJ.PERF)) try { const R0 = S.rejs[k]; if (!R0) continue; const ti = Date.now(); R0.apr = REJ.aprender(H, REJ.PERF[k]); R0.aprAt = now.toISOString(); R0.aprSeg = Math.round((Date.now() - ti) / 1000); } catch (e) { console.log("Rejilla (aprender): " + String(e.message).slice(0, 80)); }
-    // tres laboratorios (uno por submodo) se reparten el tiempo: 40 % el equilibrado, 35 % el turbo, 25 % IA + los mejores
-    if (Object.keys(H.m).length >= 10) { const resto = Math.max(9e3, 58e3 - (Date.now() - t0));
-      const evo = evolucionar(S, H, now, Math.random, Math.max(4e3, resto * 0.4)); L(S, now, "INFO", "", `🔬 generación ${evo.gen}: ${evo.probadas} reglas probadas en ${Object.keys(H.m).length} mercados`);
-      for (const [k, fr] of [["turbo", 0.35], ["mix", 0.25]]) try { const C = S.sub[k], e2 = evolucionar(C, H, now, Math.random, Math.max(3e3, resto * fr), PERF[k]); L(C, now, "INFO", "", `🔬 generación ${e2.gen}: ${e2.probadas} reglas probadas`); for (const v of C.lab.pop) delete v.c; } catch (e) { console.log("Laboratorio " + k + ": " + String(e.message).slice(0, 80)); } }
+    // v228 · por turnos (equilibrado → turbo → IA + los mejores): cada generación examina un submodo para no pasar nunca de ~75 s
+    if (Object.keys(H.m).length >= 10 && Date.now() - t0 < 60e3) { const PR = +process.env.BV_PRISA || 1, ks = ["eq", ...SUBS], k = ks[(S.labTurno = ((S.labTurno || 0) + 1) % ks.length)], C = k === "eq" ? S : S.sub[k];
+      try { const e2 = evolucionar(C, H, now, Math.random, Math.max(4e3, 70e3 - (Date.now() - t0) - 25e3) * PR, PERF[k]); L(C, now, "INFO", "", `🔬 generación ${e2.gen}: ${e2.probadas} reglas probadas en ${Object.keys(H.m).length} mercados`); for (const v of C.lab.pop) delete v.c; if (k !== "eq") S.lab.lastGen = now.toISOString(); } catch (e) { console.log("Laboratorio " + k + ": " + String(e.message).slice(0, 80)); } }
   }
   for (const k of SUBS) { const C = S.sub[k], e = equity(C, tick); C.eq.push([now.toISOString(), r2(e)]); if (C.eq.length > 2000) C.eq = C.eq.filter((_, i) => i % 2 === 0 || i > C.eq.length - 400); C.lastEq = r2(e); C.last = now.toISOString(); }
   const eq = equity(S, tick); S.eq.push([now.toISOString(), r2(eq)]); if (S.eq.length > 3000) S.eq = S.eq.filter((_, i) => i % 2 === 0 || i > S.eq.length - 500);
@@ -337,7 +343,7 @@ async function main() {
     for (const k of SUBS) msgs.push(...AV.avisosCuenta(S.av, "bv" + k, "🧠 " + PERF[k].nombre, S.sub[k], now, { med: 1, big: 5 }));
     for (const [k, X] of Object.entries(S.fins)) if (X) msgs.push(...AV.avisosCuenta(S.av, "bvfin" + k, "💸 Financiación " + FIN.PERF[k].nombre, X, now, { med: 0.3, big: 2 }));
     for (const [k, X] of Object.entries(S.rejs)) if (X) msgs.push(...AV.avisosCuenta(S.av, "bvrej" + k, "🪜 Rejilla " + REJ.PERF[k].nombre, X, now, { med: 0.5, big: 3 }));
-    const ad = (S.lab.adopt || [])[0]; if (ad && ad.ok && now - Date.parse(ad.t) < 3 * 60000) { const m = AV.avisoReglas(S.av, "bv-adopta:" + ad.id, `🏆 Bitvavo ha encontrado reglas que GANAN tanto en los días antiguos como en los recientes (${ad.id}). Deja el modo prueba y opera con ellas (dinero ficticio).`, now); if (m) msgs.push(m); }
+    for (const [k, C] of [["eq", S], ...SUBS.map((k) => [k, S.sub[k]])]) { const ad = ((C.lab || {}).adopt || [])[0]; if (ad && ad.ok && now - Date.parse(ad.t) < 60 * 60000) { const m = AV.avisoReglas(S.av, "bv-adopta:" + k + ":" + ad.id, `🏆 Bitvavo ${PERF[k].nombre} ha encontrado reglas que GANAN tanto en los días antiguos como en los recientes (${ad.id}) y empieza a operar con ellas (dinero ficticio).`, now); if (m) msgs.push(m); } }
     for (const m of msgs.slice(0, 4)) await AV.tg(m);
   } catch (e) { console.log("Bitvavo: avisos no enviados"); }
   publicar("bitvavo.json", S, RAMA);
@@ -346,4 +352,5 @@ async function main() {
   console.log(`Rejilla: ${Object.entries(S.rejs).map(([k, X]) => k + " " + (X ? X.lastEq + " € · " + Object.keys(X.g).length + " rejillas · aptas " + Object.values(X.apr || {}).filter((a) => a.ok).length : "—")).join(" · ")}`);
   console.log(`Bitvavo: ${U.length} mercados · saldo ${S.lastEq} € · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · gen ${S.lab.gen} · ${S.diag.seg} s`);
 }
+export { main };
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.log("Bitvavo: " + (e.message || e)); process.exit(0); });

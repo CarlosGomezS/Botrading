@@ -11,3 +11,12 @@ test("Hyperliquid: elige a los mejores (sin creadores de mercado), saca la seña
   const fx = async (u, o) => ({ json: async () => (u.includes("leaderboard") ? { leaderboardRows: Array.from({ length: 12 }, (_, i) => fila("x" + i, 1e6, 1e5 + i, 1e5, 1e6)) } : { assetPositions: [{ position: { coin: "ETH", szi: "1", positionValue: "50" } }] }) });
   const HL = await actualizar({}, 1e9, fx); assert.equal(HL.top.length, 12); assert.equal(HL.snap.ETH.s, 1);
 });
+
+test("Hyperliquid: el cambio de los mejores se mide en 1 h (como en las pruebas), no entre dos lecturas seguidas", async () => {
+  const { actualizar, hace } = await import("../runner/hyperliquid.mjs");
+  let lado = 1; const fila = (a) => ({ ethAddress: a, accountValue: "1000000", windowPerformances: [["month", { pnl: "100000", vlm: "1000000" }], ["allTime", { pnl: "100000" }]] });
+  const fx = async (u) => ({ json: async () => (u.includes("leaderboard") ? { leaderboardRows: Array.from({ length: 12 }, (_, i) => fila("x" + i)) } : { assetPositions: [{ position: { coin: "ETH", szi: String(lado), positionValue: "50" } }] }) });
+  let HL = {}; for (let m = 0; m <= 66; m += 3) { lado = m < 30 ? -1 : 1; HL = await actualizar(HL, m * 60000, fx); }
+  assert.equal(HL.snap.ETH.s, 1); assert.equal(HL.prev.ETH.s, -1, "hace 1 h estaban cortos"); assert.equal(hace(HL, 66 * 60000, 3600e3).ETH.s, -1);
+  assert.equal(hace({ ring: [] }, 1e9, 3600e3), null); assert.ok(HL.ring.length <= 35);
+});
