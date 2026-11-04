@@ -13,7 +13,24 @@
     ]
   },
   "cfg": {
-    "fee": 0.15
+    "fee": 0.15,
+    "slip": 0.0015,
+    "minpos": 50,
+    "slots": 3,
+    "mrisk": 0.005,
+    "dloss": 0.01,
+    "ddstop": 0.06,
+    "sweep": 0
+  },
+  "mins": 8,
+  "avisos": {
+    "movil": 1,
+    "correo": 1
+  },
+  "extra": {
+    "nt": 1,
+    "mon": 0,
+    "mc": 1
   },
   "recalc": {
     "id": "comision-0.15-2026-10-21"
