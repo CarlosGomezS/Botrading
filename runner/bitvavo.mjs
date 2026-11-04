@@ -301,7 +301,7 @@ export async function leerEstado() {
 export async function publicarEstado(S) {
   if (!PW()) { publicar("bitvavo.json", S, RAMA); return; }
   const enc = await encrypt(JSON.stringify(S), PW());
-  const cx = S.conex ? Object.fromEntries(["bitvavo", "okx"].map((k) => [k, S.conex[k] ? S.conex[k].estado : null])) : null; if (cx && S.conex) cx.cod = Object.fromEntries(["bitvavo", "okx"].map((k) => [k, S.conex[k] && S.conex[k].txt ? (String(S.conex[k].txt).match(/código (\w+)|\b(\d{3,5})\b/) || [])[1] || (String(S.conex[k].txt).match(/\b(\d{3,5})\b/) || [])[1] || null : null])); if (cx && S.conex) cx.tiene = Object.assign({}, ...["bitvavo", "okx"].map((k) => (S.conex[k] && S.conex[k].tiene) || {}));   /* solo si hay clave y si funciona: nunca importes */
+  const cx = S.conex ? Object.fromEntries(["bitvavo", "okx"].map((k) => [k, S.conex[k] ? S.conex[k].estado : null])) : null; if (cx && S.conex) cx.cod = Object.fromEntries(["bitvavo", "okx"].map((k) => { const t = String((S.conex[k] && S.conex[k].txt) || ""), m = t.match(/código (\w+)/) || t.match(/\b(\d{3,5})\b/); return [k, m ? m[1] : null]; })); if (cx && S.conex) cx.tiene = Object.assign({}, ...["bitvavo", "okx"].map((k) => (S.conex[k] && S.conex[k].tiene) || {}));   /* solo si hay clave y si funciona: nunca importes */
   publicar("bitvavo.json", { enc: 1, v: 1, ...enc, meta: { t: S.last, vivo: 1, seg: S.diag ? S.diag.seg : null, conex: cx } }, RAMA);
 }
 
