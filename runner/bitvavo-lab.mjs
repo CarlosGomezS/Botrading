@@ -58,7 +58,7 @@ async function main() {
     // una generación (~1 min de búsqueda)
     const now = new Date(), e = B.evolucionar(St, H, now, Math.random, 55e3, P, fuera); rondas++; St.info.reglas = (St.info.reglas || 0) + e.probadas;
     St.info.ultimas = e.probadas; St.info.t = now.toISOString();
-    for (const v of St.lab.pop) delete v.c;
+    for (const v of St.lab.pop) if (v.c && v.c.n == null) delete v.c;   // v246 · «c» ahora es el tercer tramo del examen (no se borra)
     const out = { t: now.toISOString(), k, lab: St.lab, genome: St.genome, genomeId: St.genomeId, prueba: St.prueba, info: St.info };
     if (k === "eq") Object.assign(out, { ia, iaM, rej });
     B.publicar(FILE, out, RAMA);
