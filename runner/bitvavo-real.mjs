@@ -191,6 +191,8 @@ export async function paso(S, tick, now, io) {
   if (!(env("BITVAVO_KEY") && env("BITVAVO_SECRET")) && !(env("OKX_KEY") && env("OKX_SECRET") && env("OKX_PASSPHRASE"))) { S.real = { estado: "sin clave" }; return; }
   let ctl = await io.leer("ctl.json", "bitvavo-ctl"); if (!ctl) { ctl = { copia: "mix", parado: false, capital: CAPITAL, ex: "bitvavo", t: now.toISOString() }; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
   const activo = EXS.includes(ctl.ex) ? ctl.ex : "bitvavo";
+  // si la clave del exchange elegido no funciona (prueba de conexión), no se intenta operar: se dice el motivo
+  if (S.conex && S.conex[activo] && ["clave mala", "error"].includes(S.conex[activo].estado)) { S.real = { estado: S.conex[activo].estado === "clave mala" ? "clave" : "error", ex: activo, t: now.toISOString() }; console.log("Real: la conexión con " + activo + " no funciona"); return; }
   const fuentes = { eq: S, turbo: S.sub && S.sub.turbo, mix: S.sub && S.sub.mix, mixokx: S.sub && S.sub.mixokx };
   S.real = { estado: "sin clave", ex: activo };
   for (const ex of [...EXS.filter((e) => e !== activo), activo]) {   // primero el que se deja (para vender lo que tenga), luego el elegido
