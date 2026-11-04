@@ -102,7 +102,7 @@ export function vuelta(R, tick, LAT, now = new Date(), P = PERF.eq, V = {}) {
     G.vt = G.vt || Date.parse(G.t0) + 300e3;
     for (const c of V[m] || []) if (c[0] >= G.vt) { suma(mover(G, c[3], c[2])); G.vt = c[0] + 300e3; }
     suma(mover(G, tk.ask, tk.bid)); G.caja += r.caja; G.lastAsk = tk.ask; G.lastBid = tk.bid; G.last = tk.bid; R.st.fees += r.fees;
-    if (r.ventas) { G.ventas += r.ventas; G.ganado += r.ganado; R.st.ventas += r.ventas; R.st.trades += r.ventas; Lg(R, now, "TP", m.replace("-EUR", ""), `vende ${r.ventas} escalón${r.ventas > 1 ? "es" : ""} (+${r2(G.paso * 100)} % cada uno) · +${r2(r.ganado)} €`); }
+    if (r.ventas) { G.ventas += r.ventas; G.ganado += r.ganado; R.st.ventas += r.ventas; R.st.trades += r.ventas; R.vlog = [{ sym: m.replace("-EUR", ""), t: now.toISOString(), n: r.ventas, g: Math.round(r.ganado * 100) / 100, paso: G.paso }, ...(R.vlog || [])].slice(0, 200); Lg(R, now, "TP", m.replace("-EUR", ""), `vende ${r.ventas} escalón${r.ventas > 1 ? "es" : ""} (+${r2(G.paso * 100)} % cada uno) · +${r2(r.ganado)} €`); }
     const L = LAT[m];
     if (rotaAbajo(G, tk.bid)) cerrarG(R, m, now, tk.bid, "el precio ha roto la rejilla por abajo (empieza a caer): vende todo y espera");
     else if (todoVendido(G) && tk.bid > G.lv[G.lv.length - 1].p) cerrarG(R, m, now, tk.bid, "el precio ha salido por arriba con todo vendido: cobra y la vuelve a centrar");
