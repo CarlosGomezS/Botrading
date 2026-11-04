@@ -5,7 +5,7 @@ name: Telegram (botones de la cartera real)
 # Solo obedece a TU chat (secreto TELEGRAM_CHAT). Si no hay TELEGRAM_TOKEN, termina en segundos sin hacer nada.
 on:
   schedule:
-    - cron: "*/5 5-21 * * *"
+    - cron: "*/5 * * * *"   # v233 · las 24 h: /parar debe funcionar siempre (dinero real en Bitvavo)
   workflow_dispatch:
 
 permissions:

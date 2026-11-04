@@ -28,6 +28,17 @@ async function memesCtl(o) {
   const w = await fetch(u, { method: "PUT", headers: H, body: JSON.stringify({ message: "memes: orden desde Telegram", content: Buffer.from(JSON.stringify(c)).toString("base64"), branch: "meme-ctl", ...(cur && cur.sha ? { sha: cur.sha } : {}) }) });
   return w.ok;
 }
+// v233 · /parar y /seguir también paran o reanudan Bitvavo con dinero real (rama «bitvavo-ctl», sin importes)
+async function bvCtl(o) {
+  if (o.accion !== "parar" && o.accion !== "seguir") return true;
+  const u = `https://api.github.com/repos/${REPO}/contents/ctl.json`, H = { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "Content-Type": "application/json" };
+  const r = await fetch(u + "?ref=bitvavo-ctl", { headers: H }); const cur = r.ok ? await r.json() : null; let c = { copia: "mix", parado: false };
+  try { if (cur && cur.content) c = JSON.parse(Buffer.from(cur.content, "base64").toString("utf8")); } catch (e) {}
+  if (o.accion === "parar") { c.parado = true; c.motivo = "lo has parado tú"; } else { c.parado = false; c.motivo = null; }
+  c.t = new Date().toISOString();
+  const w = await fetch(u, { method: "PUT", headers: H, body: JSON.stringify({ message: "bitvavo: orden desde Telegram", content: Buffer.from(JSON.stringify(c)).toString("base64"), branch: "bitvavo-ctl", ...(cur && cur.sha ? { sha: cur.sha } : {}) }) });
+  return w.ok;
+}
 async function dispatch(accion, plan) {
   const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/real.yml/dispatches`, {
     method: "POST", headers: { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" },
@@ -73,7 +84,7 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop()
     for (const [cid, text] of replies) await say(cid, text);
     if (memes) {
       if (memes.msg) await api("editMessageReplyMarkup", { chat_id: memes.msg.chat, message_id: memes.msg.id, reply_markup: { inline_keyboard: [] } }).catch(() => {});
-      const ok = await memesCtl(memes);
+      const ok0 = await memesCtl(memes).catch(() => false), okBv = await bvCtl(memes).catch(() => false), ok = ok0 || okBv;
       await say(CHAT, !ok ? "✖ No pude guardar la orden de Cripto en GitHub. Inténtalo de nuevo." : { aprobar: "💶 Hecho: Cripto empieza a copiar al terminal con tu cartera del bot en la próxima vuelta (1-2 min).", no: "Vale: Cripto sigue en ficticio. Te volveré a preguntar si sigue ganando.", parar: "🛑 Cripto real PARADO: en la próxima vuelta vende lo que tenga abierto y no compra más. Para volver: /seguir", seguir: "▶️ Cripto real reanudado." }[memes.accion]);
       console.log("Orden de Memes procesada");
     }

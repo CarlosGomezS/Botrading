@@ -47,6 +47,8 @@ jobs:
           REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          BITVAVO_KEY: ${{ secrets.BITVAVO_KEY }}
+          BITVAVO_SECRET: ${{ secrets.BITVAVO_SECRET }}
         run: |
           end=$(( $(date +%s) + 28*60 ))
           # una vuelta de Bitvavo por minuto (cada 10 min, además, su generación de aprendizaje)
