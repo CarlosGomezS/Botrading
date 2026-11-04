@@ -9,6 +9,7 @@ import { execSync } from "node:child_process";
 import { writeFileSync, readFileSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { entrenarIA, predecir, vector } from "./bitvavo-ia.mjs";
+import { encrypt, openAny } from "./real-cfg.mjs";
 import * as HLm from "./hyperliquid.mjs";
 import * as FIN from "./financiacion.mjs";
 import * as REJ from "./rejilla.mjs";
@@ -290,10 +291,22 @@ export async function universo() {
   uni.sort((a, b) => tick[b].vq - tick[a].vq); return { T, tick, U: uni.slice(0, MAX_MKT) };
 }
 export { leer, publicar, J };
+// v238 · 🔒 el estado de Cripto va CIFRADO con tu clave (REAL_VIEW_PASS): en GitHub (público) solo se ve la hora y si el bot está vivo
+const PW = () => (process.env.REAL_VIEW_PASS || "").trim(), PWS = () => [PW(), (process.env.REAL_VIEW_PASS_OLD || "").trim()].filter(Boolean);
+export async function leerEstado() {
+  const j = await leer("bitvavo.json", RAMA); if (!j || !j.enc) return j;
+  if (!PW()) throw new Error("el estado está cifrado y falta REAL_VIEW_PASS");
+  const o = await openAny(j, PWS()); if (o.error) throw new Error("no puedo descifrar el estado (¿ha cambiado la clave?)"); return o.j;
+}
+export async function publicarEstado(S) {
+  if (!PW()) { publicar("bitvavo.json", S, RAMA); return; }
+  const enc = await encrypt(JSON.stringify(S), PW());
+  publicar("bitvavo.json", { enc: 1, v: 1, ...enc, meta: { t: S.last, vivo: 1, seg: S.diag ? S.diag.seg : null } }, RAMA);
+}
 
 async function main() {
   const now = new Date(), t0 = Date.now();
-  let S = null; try { S = await leer("bitvavo.json", RAMA); } catch (e) { console.log("Bitvavo: " + e.message); return; }
+  let S = null; try { S = await leerEstado(); } catch (e) { console.log("Bitvavo: " + e.message); return; }
   if (!S || S.v !== 1) { S = fresh(now); L(S, now, "INFO", "", "🇪🇺 empieza Bitvavo con 100 € ficticios: criptos contra euros, costes del 0,25 %"); }
   // v225 · todos los modos y submodos vuelven a 100 € (lo aprendido —reglas, IA, rejillas— se conserva)
   if (!S.r225) { Object.assign(S, { cash: START, pos: {}, closed: [], eq: [], cool: {}, st: { trades: 0, wins: 0, losses: 0, fees: 0, pnl: 0 }, since: now.toISOString(), r225: 1, sub: {}, fins: {}, rejs: {} });
@@ -359,12 +372,17 @@ async function main() {
     for (const [k, X] of Object.entries(S.fins)) if (X) msgs.push(...AV.avisosCuenta(S.av, "bvfin" + k, "💸 Financiación " + FIN.PERF[k].nombre, X, now, { med: 0.3, big: 2 }));
     for (const [k, X] of Object.entries(S.rejs)) if (X) msgs.push(...AV.avisosCuenta(S.av, "bvrej" + k, "🪜 Rejilla " + REJ.PERF[k].nombre, X, now, { med: 0.5, big: 3 }));
     for (const [k, C] of [["eq", S], ...SUBS.map((k) => [k, S.sub[k]])]) { const ad = ((C.lab || {}).adopt || [])[0]; if (ad && ad.ok && now - Date.parse(ad.t) < 60 * 60000) { const m = AV.avisoReglas(S.av, "bv-adopta:" + k + ":" + ad.id, `🏆 Bitvavo ${PERF[k].nombre} ha encontrado reglas que GANAN tanto en los días antiguos como en los recientes (${ad.id}) y empieza a operar con ellas (dinero ficticio).`, now); if (m) msgs.push(m); } }
+    // v238 · 📊 resumen diario por Telegram (21:00 en España): como los datos van cifrados, así te llegan los números sin abrir la app
+    { const hES = +now.toLocaleString("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hour12: false }), dES = now.toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+      if (hES >= 21 && S.resumenDia !== dES) { S.resumenDia = dES; const f = (n, C) => { if (!C) return null; const cl = C.closed || [], w = cl.filter((c) => c.pnl > 0).length; return `• ${n}: ${r2(C.lastEq)} € (${C.lastEq >= (C.start || 100) ? "+" : ""}${r2((C.lastEq / (C.start || 100) - 1) * 100)} %) · ${cl.length} cerradas (${w} G / ${cl.length - w} P)${C.prueba === true ? " · sin regla ganadora" : C.prueba === false ? " · 🏆 regla ganadora" : ""}`; };
+        const L2 = [`📊 Cripto · resumen del día (dinero ficticio, 100 € por submodo)`, "🧠 IA y laboratorio", f("⚖️ Equilibrado", S), ...SUBS.map((k) => f(PERF[k].nombre, S.sub[k])), "💸 Cobrar financiación", ...Object.entries(S.fins).map(([k, X]) => f(FIN.PERF[k].nombre, X)), "🪜 Rejilla", ...Object.entries(S.rejs).map(([k, X]) => f(REJ.PERF[k].nombre, X)), `🧠 IA de predicción: acierta ${S.ia && S.ia.auc ? Math.round(S.ia.auc * 100) : "—"} de cada 100`].filter(Boolean);
+        msgs.unshift(L2.join("\n")); } }
     for (const m of msgs.slice(0, 4)) await AV.tg(m);
   } catch (e) { console.log("Bitvavo: avisos no enviados"); }
   // v233 · 💶 dinero real (50 €) copiando al submodo elegido; sin clave de Bitvavo no hace nada
   /* solo si queda tiempo de sobra en esta vuelta: así nunca se corta a medias entre una orden real y el guardado */
   if (Date.now() - t0 < 55e3) try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI }); } catch (e) { console.log("Real: error"); } else console.log("Real: vuelta larga, espera a la siguiente");
-  publicar("bitvavo.json", S, RAMA);
+  await publicarEstado(S);
   console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);
   console.log(`Financiación: ${Object.entries(S.fins).map(([k, X]) => k + " " + (X ? X.lastEq + " € · " + Object.keys(X.pos).length + " abiertas" + (X.err ? " · " + X.err : "") : "—")).join(" · ")}`);
   console.log(`Rejilla: ${Object.entries(S.rejs).map(([k, X]) => k + " " + (X ? X.lastEq + " € · " + Object.keys(X.g).length + " rejillas · aptas " + Object.values(X.apr || {}).filter((a) => a.ok).length : "—")).join(" · ")}`);

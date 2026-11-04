@@ -38,7 +38,7 @@ async function main() {
       } catch (e) { console.log(`Laboratorio ${k}: datos: ${String(e.message).slice(0, 80)}`); if (!H) { await sleep(60e3); continue; } }
     }
     // resultados reales de su cuenta (cada 5 min) para el veto en vivo
-    if (Date.now() - vivoAt > 5 * 60e3) { try { const S0 = await B.leer("bitvavo.json", "bitvavo"); const C = k === "eq" ? S0 : S0 && S0.sub && S0.sub[k]; St.closed = (C && C.closed) || []; vivoAt = Date.now(); } catch (e) {} }
+    if (Date.now() - vivoAt > 5 * 60e3) { try { const S0 = await B.leerEstado(); const C = k === "eq" ? S0 : S0 && S0.sub && S0.sub[k]; St.closed = (C && C.closed) || []; vivoAt = Date.now(); } catch (e) {} }
     // una generación (~1 min de búsqueda)
     const now = new Date(), e = B.evolucionar(St, H, now, Math.random, 55e3, P); rondas++; St.info.reglas = (St.info.reglas || 0) + e.probadas;
     St.info.ultimas = e.probadas; St.info.t = now.toISOString();
