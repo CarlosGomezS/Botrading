@@ -34,7 +34,7 @@ async function bvCtl(o) {
   const u = `https://api.github.com/repos/${REPO}/contents/ctl.json`, H = { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "Content-Type": "application/json" };
   const r = await fetch(u + "?ref=bitvavo-ctl", { headers: H }); const cur = r.ok ? await r.json() : null; let c = { copia: "mix", parado: false };
   try { if (cur && cur.content) c = JSON.parse(Buffer.from(cur.content, "base64").toString("utf8")); } catch (e) {}
-  if (o.accion === "parar") { c.parado = true; c.motivo = "lo has parado tú"; } else { c.parado = false; c.motivo = null; }
+  if (o.accion === "parar") { c.parado = true; c.motivo = "lo has parado tú"; } else { c.parado = false; c.motivo = null; for (const k of Object.values(c.cuentas || {})) if (k) { k.parado = false; k.motivo = null; } }   // v243: /seguir reanuda también la cuenta parada por el freno
   c.t = new Date().toISOString();
   const w = await fetch(u, { method: "PUT", headers: H, body: JSON.stringify({ message: "bitvavo: orden desde Telegram", content: Buffer.from(JSON.stringify(c)).toString("base64"), branch: "bitvavo-ctl", ...(cur && cur.sha ? { sha: cur.sha } : {}) }) });
   return w.ok;

@@ -152,3 +152,21 @@ test("Real: freno diario del 10 % (descansa hasta mañana y vuelve solo) y aviso
   o2 = await RL.vuelta(o2.RS, { mix: src }, { copia: "mix", parado: true }, tk(ex.px), new Date(Date.UTC(2026, 10, 7, 13)), deps);
   assert.ok(!o2.msgs.some((x) => x.includes("condiciones para retomar")), "como mucho un aviso al día");
 });
+
+test("Real v243: cada cuenta se enciende o apaga por separado (ninguna, una o las dos) y al apagarla vende lo abierto", async () => {
+  assert.deepEqual(Object.fromEntries(Object.entries(RL.cuentas({ ex: "okx", copia: "mix", capital: 50 })).map(([k, v]) => [k, v.on])), { bitvavo: false, okx: true }, "lo antiguo se respeta");
+  const C2 = RL.cuentas({ copia: "mix", capital: 50, cuentas: { bitvavo: { on: true, capital: 80, copia: "turbo" }, okx: { on: true } } });
+  assert.ok(C2.bitvavo.on && C2.okx.on); assert.equal(C2.bitvavo.capital, 80); assert.equal(C2.bitvavo.copia, "turbo"); assert.equal(C2.okx.copia, "mix"); assert.equal(C2.okx.capital, 50);
+  const S = { pos: {}, lastEq: 100, sub: { mix: { pos: {}, lastEq: 100 }, turbo: { pos: {}, lastEq: 100 } } }, store = {}, io = { leer: async (f, r) => store[r + "/" + f] || null, publicar: (f, o, r) => { store[r + "/" + f] = JSON.parse(JSON.stringify(o)); }, tg: async () => {} };
+  Object.assign(process.env, { BITVAVO_KEY: "CLAVE", BITVAVO_SECRET: "SECRETO", REAL_VIEW_PASS: "pw-de-prueba-123" });
+  const ex = exchange({ "A-EUR": 1 }), f0 = globalThis.fetch; globalThis.fetch = ex.fx;
+  try {
+    store["bitvavo-ctl/ctl.json"] = { copia: "mix", parado: false, cuentas: { bitvavo: { on: false }, okx: { on: false } } };
+    S.sub.mix.pos = { "A-EUR": { sym: "A", px: 1, cost0: 20, cost: 20, q: 1, q0: 1, t0: new Date(Date.now() + 2000).toISOString() } };
+    await RL.paso(S, tk(ex.px), new Date(), io); assert.equal(ex.orders.length, 0, "ninguna encendida: no opera"); assert.equal(S.real.estado, "apagado");
+    store["bitvavo-ctl/ctl.json"].cuentas.bitvavo.on = true; delete S.conex;
+    await RL.paso(S, tk(ex.px), new Date(), io); assert.equal(ex.orders.length, 1, "encendida: copia la compra"); assert.equal(S.real.cuentas.bitvavo.estado, "activo");
+    store["bitvavo-ctl/ctl.json"].cuentas.bitvavo.on = false; delete S.conex;
+    await RL.paso(S, tk(ex.px), new Date(), io); assert.equal(ex.orders.length, 2, "apagada: vende lo abierto"); assert.equal(ex.orders[1].side, "sell"); assert.equal(S.real.cuentas.bitvavo.estado, "apagada");
+  } finally { globalThis.fetch = f0; for (const k of ["BITVAVO_KEY", "BITVAVO_SECRET", "REAL_VIEW_PASS"]) delete process.env[k]; }
+});

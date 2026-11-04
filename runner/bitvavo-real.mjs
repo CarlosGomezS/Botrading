@@ -187,31 +187,50 @@ export async function probar(S, tick, now, io) {
   }
   S.conex = out; return out;
 }
+// v243 · ☑️ cada cuenta (Bitvavo y OKX) se enciende o apaga por separado: ninguna, una o las dos a la vez.
+// Cada una con su dinero, su método, sus frenos y su estado cifrado. «Parar todo» (/parar) las para las dos.
+export function cuentas(ctl) {
+  const def = { copia: SUBS_OK.includes(ctl.copia) ? ctl.copia : "mix", capital: Math.max(10, Math.round(+ctl.capital || CAPITAL)) };
+  const c = ctl.cuentas && typeof ctl.cuentas === "object" ? ctl.cuentas : null, act = EXS.includes(ctl.ex) ? ctl.ex : "bitvavo";
+  return Object.fromEntries(EXS.map((ex) => { const x = (c && c[ex]) || {}; return [ex, {
+    on: c ? !!x.on : ex === act, copia: SUBS_OK.includes(x.copia) ? x.copia : def.copia, capital: x.capital ? Math.max(10, Math.round(+x.capital)) : def.capital,
+    parado: !!x.parado, motivo: x.motivo || null, avisoSinSaldo: x.avisoSinSaldo || 0 }]; }));
+}
+const NOMBRE_EX = { bitvavo: "Bitvavo", okx: "OKX" };
 export async function paso(S, tick, now, io) {
   const pw = env("REAL_VIEW_PASS");
   try { const c = await probar(S, tick, now, io); console.log(`Conexión: Bitvavo ${c.bitvavo.estado} · OKX ${c.okx.estado}`); } catch (e) {}
   if (!(env("BITVAVO_KEY") && env("BITVAVO_SECRET")) && !(env("OKX_KEY") && env("OKX_SECRET") && env("OKX_PASSPHRASE"))) { S.real = { estado: "sin clave" }; return; }
   let ctl = await io.leer("ctl.json", "bitvavo-ctl"); if (!ctl) { ctl = { copia: "mix", parado: false, capital: CAPITAL, ex: "bitvavo", t: now.toISOString() }; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
-  const activo = EXS.includes(ctl.ex) ? ctl.ex : "bitvavo";
-  // si la clave del exchange elegido no funciona (prueba de conexión), no se intenta operar: se dice el motivo
-  if (S.conex && S.conex[activo] && ["clave mala", "error"].includes(S.conex[activo].estado)) { S.real = { estado: S.conex[activo].estado === "clave mala" ? "clave" : "error", ex: activo, t: now.toISOString() }; console.log("Real: la conexión con " + activo + " no funciona"); return; }
+  const CU = cuentas(ctl); let ctlMod = false;
   const fuentes = { eq: S, turbo: S.sub && S.sub.turbo, mix: S.sub && S.sub.mix, mixokx: S.sub && S.sub.mixokx };
-  S.real = { estado: "sin clave", ex: activo };
-  for (const ex of [...EXS.filter((e) => e !== activo), activo]) {   // primero el que se deja (para vender lo que tenga), luego el elegido
+  S.real = { estado: EXS.some((e) => CU[e].on) ? "activo" : "apagado", parado: !!ctl.parado, cuentas: {} };
+  for (const ex of EXS) {
+    const cfg = CU[ex], N = NOMBRE_EX[ex], R0 = (S.real.cuentas[ex] = { on: cfg.on, copia: cfg.copia, estado: cfg.on ? "sin clave" : "apagada", t: now.toISOString() });
+    const cx = S.conex && S.conex[ex];
+    if (cfg.on && cx && ["clave mala", "error"].includes(cx.estado)) { R0.estado = cx.estado === "clave mala" ? "clave" : "error"; console.log("Real: la conexión con " + ex + " no funciona"); continue; }
     let X = null; try { X = await exchange(ex, tick, io); } catch (e) { console.log("Real: no pude preparar " + ex); }
     if (!X) continue;
-    if (!pw) { S.real = { estado: "sin REAL_VIEW_PASS", ex: activo }; console.log("Real: falta REAL_VIEW_PASS (no se guarda nada sin cifrar)"); return; }
+    if (!pw) { R0.estado = "sin REAL_VIEW_PASS"; console.log("Real: falta REAL_VIEW_PASS (no se guarda nada sin cifrar)"); continue; }
     let RS = null; const j = await io.leer("real.json", RAMAS[ex]);
-    if (j) { const o = await openAny(j, [pw, env("REAL_VIEW_PASS_OLD")]); if (o.error) { console.log("Real: no puedo descifrar el estado de " + ex + "; no opero"); if (ex === activo) S.real = { estado: "error", ex }; continue; } RS = o.j; }
-    if (ex !== activo && (!RS || !Object.keys(RS.pos || {}).length)) continue;   // el que no se usa, sin nada abierto: no se toca
-    const c2 = ex === activo ? ctl : { ...ctl, parado: true, motivo: `cambias a ${activo === "okx" ? "OKX" : "Bitvavo"}` };
+    if (j) { const o = await openAny(j, [pw, env("REAL_VIEW_PASS_OLD")]); if (o.error) { console.log("Real: no puedo descifrar el estado de " + ex + "; no opero"); R0.estado = "error"; continue; } RS = o.j; }
+    if (!cfg.on && (!RS || !Object.keys(RS.pos || {}).length)) continue;   // apagada y sin nada abierto: no se toca
+    const c2 = { copia: cfg.copia, capital: cfg.capital, avisoSinSaldo: cfg.avisoSinSaldo,
+      parado: !cfg.on || !!ctl.parado || cfg.parado, motivo: !cfg.on ? `has apagado ${N}` : ctl.parado ? ctl.motivo || "lo has parado tú" : cfg.motivo };
     const out = await vuelta(RS, fuentes, c2, tick, now, { ex: X });
-    if (out.sinEmpezar) { if (ex === activo) { if (out.ctlCambia) io.publicar("ctl.json", { ...out.ctl, t: now.toISOString() }, "bitvavo-ctl"); S.real = { estado: "sin saldo", ex, t: now.toISOString() }; } for (const m of out.msgs) await io.tg(m); console.log("Real: sin saldo suficiente"); continue; }
-    if (out.ctlCambia && ex === activo) { ctl = { ...out.ctl, t: now.toISOString() }; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
+    const msgs = out.msgs.map((m) => (m.includes(N) ? m : m.replace(/^💶 /, `💶 ${N} · `)));
+    if (out.ctlCambia && cfg.on) {   // lo que cambia solo (freno grande, aviso de falta de saldo) se guarda en ESA cuenta
+      const k = (ctl.cuentas = ctl.cuentas || Object.fromEntries(EXS.map((e) => [e, { on: CU[e].on, copia: CU[e].copia, capital: CU[e].capital }])));
+      k[ex] = { ...(k[ex] || {}), avisoSinSaldo: out.ctl.avisoSinSaldo || 0, ...(out.ctl.parado && !c2.parado ? { parado: true, motivo: out.ctl.motivo } : {}) }; ctlMod = true;
+    }
+    if (out.sinEmpezar) { R0.estado = "sin saldo"; for (const m of msgs) await io.tg(m); console.log("Real (" + ex + "): sin saldo suficiente"); continue; }
     out.RS.ex = ex; out.RS.savedAt = Date.now(); const enc = await encrypt(JSON.stringify(out.RS), pw);
     io.publicar("real.json", { enc: 1, v: 1, ...enc, meta: { estado: out.RS.estado || "activo", copia: out.RS.copia, ex, t: now.toISOString() } }, RAMAS[ex]);
-    if (ex === activo) S.real = { estado: out.RS.estado, copia: out.RS.copia, ex, t: now.toISOString() };
-    for (const m of out.msgs.slice(0, 6)) await io.tg(m);
+    R0.estado = cfg.on ? out.RS.estado : "apagada"; R0.copia = out.RS.copia;
+    for (const m of msgs.slice(0, 6)) await io.tg(m);
     console.log(`Real (${ex}): ${out.RS.estado}${out.RS.err ? " (con avisos)" : ""}`);   // sin importes ni criptos: el registro es público
   }
+  if (ctlMod) { ctl.t = now.toISOString(); delete ctl.avisoSinSaldo; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
+  // compatibilidad: el estado «principal» es el de la primera cuenta encendida
+  const pri = EXS.find((e) => CU[e].on); if (pri) Object.assign(S.real, { estado: S.real.cuentas[pri].estado, ex: pri, copia: S.real.cuentas[pri].copia });
 }
