@@ -1,0 +1,52 @@
+name: Cripto · laboratorio dedicado (solo dinero ficticio)
+
+# v227 · 🚀 tres procesos (uno por submodo de «IA y laboratorio») que prueban reglas SIN PARAR con 30 días de velas de Bitvavo,
+# reentrenan la IA y reaprenden las rejillas. Cada tramo dura ~50 min y pide el siguiente (en cadena, las 24 horas).
+# El bot de cada minuto (meme.yml) recoge lo demostrado cada 3 min. Nunca toca dinero real ni Trading 212.
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: cripto-lab
+  cancel-in-progress: false
+
+jobs:
+  lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: ¿Ya hay otro tramo esperando?
+        id: dup
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          q=$(gh api "repos/${{ github.repository }}/actions/workflows/cripto-lab.yml/runs?status=queued&per_page=1" -q .total_count 2>/dev/null || echo 0)
+          p=$(gh api "repos/${{ github.repository }}/actions/workflows/cripto-lab.yml/runs?status=pending&per_page=1" -q .total_count 2>/dev/null || echo 0)
+          if [ "${{ github.event_name }}" = "schedule" ] && [ $(( ${q:-0} + ${p:-0} )) -gt 0 ]; then echo "go=false" >> "$GITHUB_OUTPUT"; else echo "go=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v5
+        if: steps.dup.outputs.go == 'true'
+        with:
+          sparse-checkout: runner
+      - uses: actions/setup-node@v5
+        if: steps.dup.outputs.go == 'true'
+        with:
+          node-version: 22
+      - name: Laboratorio (3 procesos en paralelo, ~50 min)
+        if: steps.dup.outputs.go == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for k in eq turbo mix; do (timeout 3240 node --max-old-space-size=3072 runner/bitvavo-lab.mjs $k 50 > /tmp/lab-$k.log 2>&1 || true) & done
+          wait || true
+          for k in eq turbo mix; do echo "=== $k"; tail -n 60 /tmp/lab-$k.log; done
+      - name: Siguiente tramo (en cadena)
+        if: always() && steps.dup.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: timeout 60 gh api -X POST "repos/${{ github.repository }}/actions/workflows/cripto-lab.yml/dispatches" -f ref=main && echo "Siguiente tramo pedido."
