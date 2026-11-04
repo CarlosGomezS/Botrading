@@ -10,6 +10,8 @@ import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { entrenarIA, predecir, vector } from "./bitvavo-ia.mjs";
 import * as HLm from "./hyperliquid.mjs";
+import * as FIN from "./financiacion.mjs";
+import * as REJ from "./rejilla.mjs";
 
 const API = "https://api.bitvavo.com/v2", REPO = process.env.GITHUB_REPOSITORY || "", TOKEN = process.env.GITHUB_TOKEN || "";
 const RAMA = "bitvavo", RAMA_H = "bitvavo-hist";
@@ -242,8 +244,8 @@ async function main() {
   for (const x of T) { if (!/-EUR$/.test(x.market) || NO.test(x.market)) continue; const bid = +x.bid, ask = +x.ask, vq = +x.volumeQuote || 0; if (!(bid > 0 && ask > 0)) continue; tick[x.market] = { bid, ask, last: +x.last, vq, ch24: +x.open > 0 ? +x.last / +x.open - 1 : 0, sp: (ask - bid) / ((ask + bid) / 2) }; if (vq >= MIN_VOL && tick[x.market].sp < 0.01) uni.push(x.market); }
   uni.sort((a, b) => tick[b].vq - tick[a].vq); const U = uni.slice(0, MAX_MKT);
   // 2) velas de 5 min de los mercados líquidos (y de lo abierto) → rasgos
-  const F = {}, quiero = [...new Set([...U, ...Object.keys(S.pos)])];
-  await enParalelo(quiero, 8, async (m) => { try { const c0 = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)), c = c0.length && c0[c0.length - 1][0] + 300e3 > Date.now() ? c0.slice(0, -1) : c0; const f = rasgos(c); F[m] = f[f.length - 1]; /* v222 · solo velas CERRADAS (igual que en las pruebas): la vela en curso engañaba al volumen y al impulso */ } catch (e) { S.err = String(e.message).slice(0, 60); } });
+  const F = {}, LAT = {}, quiero = [...new Set([...U, ...Object.keys(S.pos), ...Object.keys((S.rej && S.rej.g) || {})])];
+  await enParalelo(quiero, 8, async (m) => { try { const c0 = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)), c = c0.length && c0[c0.length - 1][0] + 300e3 > Date.now() ? c0.slice(0, -1) : c0; const f = rasgos(c); F[m] = f[f.length - 1]; LAT[m] = REJ.lateral(c); /* v222 · solo velas CERRADAS (igual que en las pruebas): la vela en curso engañaba al volumen y al impulso */ } catch (e) { S.err = String(e.message).slice(0, 60); } });
   { const vs = Object.values(F).filter(Boolean).sort((x, y) => y.m240 - x.m240); vs.forEach((f, i) => { f.rk = vs.length > 4 ? i / (vs.length - 1) : null; }); }
   // 👑 lo que hacen ahora los mejores traders de Hyperliquid
   try { S.hl = await HLm.actualizar(S.hl, now); } catch (e) {}
@@ -251,6 +253,10 @@ async function main() {
   { const b = F["BTC-EUR"], reg = b ? (b.m240 > 0 && b.sobre200 ? 1 : 0) : null; for (const f of Object.values(F)) if (f) f.reg = reg; S.regimen = reg; }
   if (S.iaM) for (const f of Object.values(F)) if (f) f.ia = predecir(S.iaM, vector(f));
   paso(S, tick, F, now);
+  // v224 · dos modos más, cada uno con sus propios 100 € ficticios, para comparar cuál gana de verdad
+  { const u = T.find((x) => x.market === "USDC-EUR"), ue = u ? +u.last || (+u.bid + +u.ask) / 2 : 0;
+    try { S.fin = await FIN.vuelta(S.fin, tick, ue, now); } catch (e) { console.log("Financiación: " + String(e.message).slice(0, 80)); }
+    try { S.rej = REJ.vuelta(S.rej, tick, LAT, now); } catch (e) { console.log("Rejilla: " + String(e.message).slice(0, 80)); } }
   // 3) laboratorio cada 30 min
   let H = null;
   if (!S.lab.lastGen || now - Date.parse(S.lab.lastGen) >= GEN_MIN * 60000) {
@@ -264,6 +270,7 @@ async function main() {
     try { let hh = null; try { hh = await leer("hl-hist.json", RAMA_H); } catch (e) {} hh = HLm.anotar(hh, S.hl && S.hl.snap, now.getTime()); publicar("hl-hist.json", hh, RAMA_H); S.hlHist = Object.keys(hh).length;
       for (const [m, x] of Object.entries(H.m)) { const se = hh[m.replace("-EUR", "")]; for (const f of x.f) if (f) { f.smart = HLm.enMomento(se, f.t); const s1 = HLm.enMomento(se, f.t - 3600e3); f.smartD = f.smart != null && s1 != null ? f.smart - s1 : null; } } } catch (e) { console.log("Bitvavo: historial de los mejores: " + e.message); }
     try { const ti = Date.now(), IA = entrenarIA(H); S.iaM = IA.listo ? IA.modelo : null; delete IA.modelo; S.ia = { ...IA, seg: Math.round((Date.now() - ti) / 1000) }; if (IA.listo) L(S, now, "INFO", "", `🧠 IA reentrenada con ${IA.n} momentos: con días que no ha visto ordena bien subidas y caídas ${Math.round(IA.auc * 100)} de cada 100`); } catch (e) { S.ia = { listo: false, err: String(e.message).slice(0, 60) }; }
+    try { if (S.rej && Object.keys(H.m).length >= 10) { const ti = Date.now(); S.rej.apr = REJ.aprender(H); S.rej.aprAt = now.toISOString(); S.rej.aprSeg = Math.round((Date.now() - ti) / 1000); } } catch (e) { console.log("Rejilla (aprender): " + String(e.message).slice(0, 80)); }
     if (Object.keys(H.m).length >= 10) { const evo = evolucionar(S, H, now, Math.random, Math.max(5e3, 45e3 - (Date.now() - t0))); L(S, now, "INFO", "", `🔬 generación ${evo.gen}: ${evo.probadas} reglas probadas en ${Object.keys(H.m).length} mercados`); }
   }
   const eq = equity(S, tick); S.eq.push([now.toISOString(), r2(eq)]); if (S.eq.length > 3000) S.eq = S.eq.filter((_, i) => i % 2 === 0 || i > S.eq.length - 500);
@@ -273,10 +280,13 @@ async function main() {
   // 🔔 avisos por Telegram cuando algo es MUY efectivo
   try {
     const AV = await import("./avisos.mjs"); S.av = S.av || {}; const msgs = AV.avisosCuenta(S.av, "bv", "🇪🇺 Bitvavo", S, now, { med: 1, big: 5 });
+    if (S.fin) msgs.push(...AV.avisosCuenta(S.av, "bvfin", "💸 Cobrar financiación", S.fin, now, { med: 0.3, big: 2 }));
+    if (S.rej) msgs.push(...AV.avisosCuenta(S.av, "bvrej", "🪜 Rejilla inteligente", S.rej, now, { med: 0.5, big: 3 }));
     const ad = (S.lab.adopt || [])[0]; if (ad && ad.ok && now - Date.parse(ad.t) < 3 * 60000) { const m = AV.avisoReglas(S.av, "bv-adopta:" + ad.id, `🏆 Bitvavo ha encontrado reglas que GANAN tanto en los días antiguos como en los recientes (${ad.id}). Deja el modo prueba y opera con ellas (dinero ficticio).`, now); if (m) msgs.push(m); }
     for (const m of msgs.slice(0, 4)) await AV.tg(m);
   } catch (e) { console.log("Bitvavo: avisos no enviados"); }
   publicar("bitvavo.json", S, RAMA);
+  console.log(`Financiación: ${S.fin ? S.fin.lastEq + " € · abiertas " + Object.keys(S.fin.pos).length + (S.fin.err ? " · " + S.fin.err : "") : "—"} · Rejilla: ${S.rej ? S.rej.lastEq + " € · rejillas " + Object.keys(S.rej.g).length + " · aptas " + Object.values(S.rej.apr || {}).filter((a) => a.ok).length : "—"}`);
   console.log(`Bitvavo: ${U.length} mercados · saldo ${S.lastEq} € · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · gen ${S.lab.gen} · ${S.diag.seg} s`);
 }
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.log("Bitvavo: " + (e.message || e)); process.exit(0); });
