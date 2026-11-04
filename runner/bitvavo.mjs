@@ -297,8 +297,8 @@ async function main() {
   // 1) precios de todo (una petición)
   const UV = await universo(); if (!UV) { console.log("Bitvavo: sin precios"); return; } const { T, tick, U } = UV;
   // 2) velas de 5 min de los mercados líquidos (y de lo abierto) → rasgos
-  const F = {}, LAT = {}, quiero = [...new Set([...U, ...Object.keys(S.pos), ...SUBS.flatMap((k) => Object.keys(S.sub[k].pos)), ...Object.values(S.rejs).flatMap((r) => Object.keys((r && r.g) || {}))])];
-  await enParalelo(quiero, 8, async (m) => { try { const c0 = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)), c = c0.length && c0[c0.length - 1][0] + 300e3 > Date.now() ? c0.slice(0, -1) : c0; const f = rasgos(c); F[m] = f[f.length - 1]; LAT[m] = REJ.lateral(c); /* v222 · solo velas CERRADAS (igual que en las pruebas): la vela en curso engañaba al volumen y al impulso */ } catch (e) { S.err = String(e.message).slice(0, 60); } });
+  const F = {}, LAT = {}, VEL = {}, quiero = [...new Set([...U, ...Object.keys(S.pos), ...SUBS.flatMap((k) => Object.keys(S.sub[k].pos)), ...Object.values(S.rejs).flatMap((r) => Object.keys((r && r.g) || {}))])];
+  await enParalelo(quiero, 8, async (m) => { try { const c0 = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)), c = c0.length && c0[c0.length - 1][0] + 300e3 > Date.now() ? c0.slice(0, -1) : c0; const f = rasgos(c); F[m] = f[f.length - 1]; LAT[m] = REJ.lateral(c); VEL[m] = c.slice(-12); /* v222 · solo velas CERRADAS (igual que en las pruebas): la vela en curso engañaba al volumen y al impulso */ } catch (e) { S.err = String(e.message).slice(0, 60); } });
   { const vs = Object.values(F).filter(Boolean).sort((x, y) => y.m240 - x.m240); vs.forEach((f, i) => { f.rk = vs.length > 4 ? i / (vs.length - 1) : null; }); }
   // 👑 lo que hacen ahora los mejores traders de Hyperliquid
   try { S.hl = await HLm.actualizar(S.hl, now); } catch (e) {}
@@ -313,7 +313,7 @@ async function main() {
       if (D.series) for (const k of Object.keys(FIN.PERF)) try { const ti = Date.now(), A = FIN.aprender(D.series, (c) => (tick[FIN.moneda(c) + "-EUR"] || {}).sp || 0.003, k); A.seg = Math.round((Date.now() - ti) / 1000); S.fins[k] = S.fins[k] || FIN.fresh(now); S.fins[k].apr = A; } catch (e) { console.log("Financiación (aprender): " + String(e.message).slice(0, 80)); }
       delete D.series;
       for (const k of Object.keys(FIN.PERF)) S.fins[k] = FIN.vuelta(S.fins[k], D, tick, ue, now, FIN.PERF[k]); S.finD = { fr: D.fr, frAt: D.frAt, err: D.err || null }; } catch (e) { console.log("Financiación: " + String(e.message).slice(0, 80)); }
-    for (const k of Object.keys(REJ.PERF)) try { S.rejs[k] = REJ.vuelta(S.rejs[k], tick, LAT, now, REJ.PERF[k]); } catch (e) { console.log("Rejilla: " + String(e.message).slice(0, 80)); } }
+    for (const k of Object.keys(REJ.PERF)) try { S.rejs[k] = REJ.vuelta(S.rejs[k], tick, LAT, now, REJ.PERF[k], VEL); } catch (e) { console.log("Rejilla: " + String(e.message).slice(0, 80)); } }
   // 👑 apunta la señal de los mejores cada 10 min (7 días) para que la IA y las reglas aprendan de ella
   if (!S.hlAnotAt || now - S.hlAnotAt >= 10 * 60000) try { let hh = null; try { hh = await leer("hl-hist.json", RAMA_H); } catch (e) {} hh = HLm.anotar(hh, S.hl && S.hl.snap, now.getTime()); publicar("hl-hist.json", hh, RAMA_H); S.hlHist = Object.keys(hh).length; S.hlAnotAt = now.getTime(); } catch (e) { console.log("Bitvavo: historial de los mejores: " + e.message); }
   // v227 · 🚀 LABORATORIO DEDICADO: tres procesos en la nube (uno por submodo) que prueban reglas SIN PARAR con 30 días de datos.

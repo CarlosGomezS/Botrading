@@ -81,3 +81,14 @@ test("Financiación aprende: elige umbrales que ganan en las dos mitades y se pa
   const G = FIN.vuelta(F, D, { "AAA-EUR": { bid: 0.9, ask: 0.9, sp: 0.001, vq: 1e6 } }, 0.9, new Date(3600e3), FIN.PERF.turbo);
   assert.equal(Object.keys(G.pos).length, 0);
 });
+
+test("Rejilla en vivo: también vende con los picos de dentro de las velas, una sola vez por vela", () => {
+  let R = REJ.vuelta(null, {}, {}, new Date(0)); R.apr = { "X-EUR": { paso: 0.01, a: { pc: 3 }, b: { pc: 2 }, ok: true } };
+  const LAT = { "X-EUR": { ok: true, er: 0.05, rango: 0.06, m240: 0, tendencia: false } }, tk = (p) => ({ "X-EUR": { bid: p * 0.9995, ask: p * 1.0005, sp: 0.001 } });
+  R = REJ.vuelta(R, tk(100), LAT, new Date(0)); const t0 = Date.parse(R.g["X-EUR"].t0);
+  const V = { "X-EUR": [[t0 + 300e3, 100, 101.2, 99.9, 100, 1], [t0 + 600e3, 100, 100.1, 98.8, 100, 1]] };   // pico arriba (vende) y pico abajo (compra)
+  R = REJ.vuelta(R, tk(100), LAT, new Date(t0 + 900e3), undefined, V);
+  assert.equal(R.st.ventas, 1, "vende con el pico"); const n = R.g["X-EUR"].lv.filter((l) => l.q > 0).length;
+  R = REJ.vuelta(R, tk(100), LAT, new Date(t0 + 960e3), undefined, V);
+  assert.equal(R.st.ventas, 1, "no repite la misma vela"); assert.equal(R.g["X-EUR"].lv.filter((l) => l.q > 0).length, n);
+});

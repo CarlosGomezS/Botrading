@@ -90,13 +90,18 @@ function cerrarG(R, m, now, bid, why) {
   Lg(R, now, pnl >= 0 ? "WIN" : "LOSS", m.replace("-EUR", ""), `${pnl >= 0 ? "+" : ""}${r2(pnl)} € · ${G.ventas} ventas con ganancia · ${why}`);
 }
 // una vuelta (cada minuto). LAT: { mercado: lateral(...) } con velas cerradas
-export function vuelta(R, tick, LAT, now = new Date(), P = PERF.eq) {
+export function vuelta(R, tick, LAT, now = new Date(), P = PERF.eq, V = {}) {
   if (!R || R.v !== 1) { R = fresh(now); Lg(R, now, "INFO", "", `🪜 empieza la rejilla ${P.nombre} con 100 € ficticios: ${P.txt}`); }
   const t = now.getTime();
   // rejillas abiertas: se mueven con el precio de ahora (y el mínimo/máximo visto desde la vuelta anterior)
   for (const [m, G] of Object.entries(R.g)) {
     const tk = tick[m]; if (!tk) continue;
-    const r = mover(G, tk.ask, tk.bid); G.caja += r.caja; G.lastAsk = tk.ask; G.lastBid = tk.bid; G.last = tk.bid; R.st.fees += r.fees;
+    // v231 · las órdenes limitadas de una rejilla también se ejecutan con los picos de dentro de cada vela (no solo con el precio de cada minuto):
+    // se repasan las velas de 5 min cerradas desde la última vez (mínimo y máximo), en orden, y después el precio de ahora
+    const r = { caja: 0, ventas: 0, ganado: 0, fees: 0 }, suma = (x) => { for (const k of Object.keys(r)) r[k] += x[k]; };
+    G.vt = G.vt || Date.parse(G.t0) + 300e3;
+    for (const c of V[m] || []) if (c[0] >= G.vt) { suma(mover(G, c[3], c[2])); G.vt = c[0] + 300e3; }
+    suma(mover(G, tk.ask, tk.bid)); G.caja += r.caja; G.lastAsk = tk.ask; G.lastBid = tk.bid; G.last = tk.bid; R.st.fees += r.fees;
     if (r.ventas) { G.ventas += r.ventas; G.ganado += r.ganado; R.st.ventas += r.ventas; R.st.trades += r.ventas; Lg(R, now, "TP", m.replace("-EUR", ""), `vende ${r.ventas} escalón${r.ventas > 1 ? "es" : ""} (+${r2(G.paso * 100)} % cada uno) · +${r2(r.ganado)} €`); }
     const L = LAT[m];
     if (rotaAbajo(G, tk.bid)) cerrarG(R, m, now, tk.bid, "el precio ha roto la rejilla por abajo (empieza a caer): vende todo y espera");
