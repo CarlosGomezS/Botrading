@@ -129,3 +129,26 @@ test("Real: el dinero a usar se elige, nunca pasa de lo que hay libre en Bitvavo
   const o2 = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 50 }, tk(ex.px), T(0), { ...deps, saldoEur: async () => 4 });
   assert.ok(o2.sinEmpezar); assert.equal(o2.RS, null);
 });
+
+test("Real: freno diario del 10 % (descansa hasta mañana y vuelve solo) y aviso para retomar tras el freno grande", async () => {
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  const D = (h) => new Date(Date.UTC(2026, 10, 4, h)), sp = (h) => ({ sym: "A", px: 1, cost0: 60, cost: 60, q: 1, q0: 1, t0: D(h).toISOString() });
+  let o = await RL.vuelta(null, { mix: fuente() }, { copia: "mix" }, tk(ex.px), D(8), deps);
+  o = await RL.vuelta(o.RS, { mix: fuente({ "A-EUR": sp(9) }) }, { copia: "mix" }, tk(ex.px), D(9), deps); assert.ok(o.RS.pos["A-EUR"]);
+  ex.px["A-EUR"] = 0.75;   // 30 € invertidos caen un 25 % → el total cae ~15 % (más que el 10 % diario, menos que el 25 % grande)
+  o = await RL.vuelta(o.RS, { mix: fuente({ "A-EUR": sp(9) }) }, { copia: "mix" }, tk(ex.px), D(10), deps);
+  assert.equal(o.RS.estado, "pausa"); assert.equal(Object.keys(o.RS.pos).length, 0); assert.ok(o.msgs.some((x) => x.includes("descansa hasta mañana")));
+  const n = ex.orders.length; o = await RL.vuelta(o.RS, { mix: fuente({ "A-EUR": sp(11) }) }, { copia: "mix" }, tk(ex.px), D(11), deps);
+  assert.equal(ex.orders.length, n, "hoy no compra");
+  o = await RL.vuelta(o.RS, { mix: fuente({ "A-EUR": { ...sp(0), t0: new Date(Date.UTC(2026, 10, 5, 9)).toISOString() } }) }, { copia: "mix" }, tk(ex.px), new Date(Date.UTC(2026, 10, 5, 9)), deps);
+  assert.ok(o.msgs.some((x) => x.includes("nuevo día"))); assert.ok(o.RS.pos["A-EUR"], "mañana vuelve a comprar");
+  // aviso para retomar: tras el freno grande, cuando el ficticio se recupera, hay regla ganadora y pasan 2 días
+  const RS = { ...o.RS, paradaAt: new Date(Date.UTC(2026, 10, 5, 10)).toISOString() }, ok = (t) => ({ pc: 1.5, t1: new Date(Date.UTC(2026, 10, 6, t)).toISOString() });
+  let src = { pos: {}, lastEq: 100, prueba: false, closed: [ok(1), ok(2), ok(3), ok(4), ok(5)] };
+  let o2 = await RL.vuelta(RS, { mix: src }, { copia: "mix", parado: true }, tk(ex.px), new Date(Date.UTC(2026, 10, 6, 12)), deps);
+  assert.ok(!o2.RS.retomar.ok, "aún no han pasado 2 días"); assert.ok(!o2.msgs.some((x) => x.includes("condiciones para retomar")));
+  o2 = await RL.vuelta(o2.RS, { mix: src }, { copia: "mix", parado: true }, tk(ex.px), new Date(Date.UTC(2026, 10, 7, 12)), deps);
+  assert.ok(o2.RS.retomar.ok); assert.ok(o2.msgs.some((x) => x.includes("condiciones para retomar")));
+  o2 = await RL.vuelta(o2.RS, { mix: src }, { copia: "mix", parado: true }, tk(ex.px), new Date(Date.UTC(2026, 10, 7, 13)), deps);
+  assert.ok(!o2.msgs.some((x) => x.includes("condiciones para retomar")), "como mucho un aviso al día");
+});

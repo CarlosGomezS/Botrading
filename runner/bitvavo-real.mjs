@@ -10,6 +10,7 @@
 import { createHmac } from "node:crypto";
 import { encrypt, openAny } from "./real-cfg.mjs";
 
+export const FRENO_DIA = 0.10;   // v235 · si en un mismo día pierde un 10 %, vende todo y descansa hasta el día siguiente
 export const API = "https://api.bitvavo.com", CAPITAL = 50, FRENO = 0.25, MAX_ORDEN = 30, PERSIGUE = 0.015, OPERADOR = 224224, FEE = 0.0025;
 export const SUBS_OK = ["mix", "eq", "turbo"];
 const env = (k) => (process.env[k] || "").trim(), r2 = (x) => Math.round(x * 100) / 100;
@@ -79,7 +80,12 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   }
   try {
     // 1) ¿parado? ¿cambio de submodo?
-    if (ctl.parado) { if (Object.keys(RS.pos).length) { await vendeTodo("parado: " + (ctl.motivo || "lo has parado tú")); } RS.estado = "parado"; return { RS, msgs, ctl }; }
+    if (ctl.parado) {
+      if (Object.keys(RS.pos).length) { await vendeTodo("parado: " + (ctl.motivo || "lo has parado tú")); } RS.estado = "parado";
+      if (RS.paradaAt) { const rt = retomar(RS, fuentes[copia], now); RS.retomar = rt; if (rt.ok && (!RS.avisoRetomar || now - Date.parse(RS.avisoRetomar) > 86400e3)) { RS.avisoRetomar = now.toISOString(); msgs.push(`💶 ✅ Se cumplen las condiciones para retomar el dinero real:\n• ${rt.c.map((x) => x.txt).join("\n• ")}\n\nSi quieres, escribe /seguir. Mi consejo: las primeras semanas, con la mitad del dinero (cámbialo en la app antes).`); } }
+      return { RS, msgs, ctl };
+    }
+    if (RS.paradaAt) { delete RS.paradaAt; delete RS.retomar; delete RS.avisoRetomar; }
     // al reanudar tras una parada, el freno se mide desde lo que hay ahora (si no, volvería a saltar al momento)
     if (RS.estado === "parado") { const e0 = valor(RS, tick); RS.start = e0; L(RS, now, `▶️ reanuda con ${r2(e0)} € (el freno se mide desde aquí; no repone lo perdido)`); }
     // 💰 cuánto dinero usar (lo eliges en la app): nunca más de lo que haya libre de verdad en tu cuenta de Bitvavo
@@ -87,13 +93,18 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       let d = objetivo - RS.capital;
       if (d > 0) { const hay = await libre(); const max = Math.max(0, Math.floor((hay - RS.cash) * 100) / 100); if (max < d) { d = max; if (!RS.avisoSaldo || now - Date.parse(RS.avisoSaldo) > 6 * 3600e3) { RS.avisoSaldo = now.toISOString(); msgs.push(`💶 ⚠️ Pediste usar ${objetivo} € pero en tu cuenta de Bitvavo solo hay ${r2(hay)} € libres: usa ${r2(RS.capital + d)} €. Si ingresas más, lo cogerá solo.`); } } }
       else d = -Math.min(-d, RS.cash);
-      if (Math.abs(d) >= 0.01) { RS.cash += d; RS.start += d; RS.capital += d; L(RS, now, `💰 ${d > 0 ? "añade" : "retira"} ${r2(Math.abs(d))} €: ahora usa ${r2(RS.capital)} €`); if (Math.abs(objetivo - RS.capital) < 1) msgs.push(`💶 💰 REAL: ahora usa ${r2(RS.capital)} €${d < 0 ? " (lo que se quita, cuando esté libre)" : ""}.`); }
+      if (Math.abs(d) >= 0.01) { RS.cash += d; RS.start += d; RS.capital += d; if (RS.dia) RS.dia.eq0 += d; L(RS, now, `💰 ${d > 0 ? "añade" : "retira"} ${r2(Math.abs(d))} €: ahora usa ${r2(RS.capital)} €`); if (Math.abs(objetivo - RS.capital) < 1) msgs.push(`💶 💰 REAL: ahora usa ${r2(RS.capital)} €${d < 0 ? " (lo que se quita, cuando esté libre)" : ""}.`); }
     }
     if (RS.copia !== copia) { await vendeTodo(`cambias de método: ahora copia a «${nombre(copia)}»`); L(RS, now, `🔁 ahora copia a «${copia}»`); msgs.push(`💶 🔁 REAL: ahora copia a «${nombre(copia)}» (lo abierto del método anterior se ha vendido)`); RS.copia = copia; RS.since = now.toISOString(); }
     const src = fuentes[copia]; if (!src) { RS.estado = "esperando"; return { RS, msgs, ctl }; }
     // 2) freno: si el saldo cae un 25 %, vende todo y se para
     const eq = valor(RS, tick);
-    if (eq < RS.start * (1 - FRENO)) { await vendeTodo(`freno: el saldo ha caído un ${FRENO * 100} %`); ctl = { ...ctl, parado: true, motivo: `freno automático: el saldo cayó un ${FRENO * 100} %` }; RS.estado = "parado"; msgs.push(`💶 🛑 REAL PARADO por el freno: el saldo ha caído por debajo de ${r2(RS.start * (1 - FRENO))} €. He vendido todo. Para volver: /seguir`); return { RS, msgs, ctl, ctlCambia: true }; }
+    if (eq < RS.start * (1 - FRENO)) { await vendeTodo(`freno: el saldo ha caído un ${FRENO * 100} %`); ctl = { ...ctl, parado: true, motivo: `freno automático: el saldo cayó un ${FRENO * 100} %` }; RS.estado = "parado"; RS.paradaAt = now.toISOString(); msgs.push(`💶 🛑 REAL PARADO por el freno: el saldo ha caído por debajo de ${r2(RS.start * (1 - FRENO))} €. He vendido todo y no compraré más. Te avisaré cuando se cumplan las condiciones para retomar (el método se recupera en ficticio, vuelve a tener regla ganadora y pasan 2 días). Para volver antes: /seguir`); return { RS, msgs, ctl, ctlCambia: true }; }
+    // 2b) freno diario: si hoy pierde un 10 % desde el principio del día, vende todo y descansa hasta mañana
+    { const d = diaES(now); if (!RS.dia || RS.dia.d !== d) RS.dia = { d, eq0: eq };
+      if (RS.pausaDia === d) { if (Object.keys(RS.pos).length) await vendeTodo("descanso hasta mañana (freno diario)"); RS.estado = "pausa"; return { RS, msgs, ctl }; }
+      if (RS.pausaDia && RS.pausaDia !== d) { delete RS.pausaDia; L(RS, now, "▶️ nuevo día: vuelve a operar tras el freno diario"); msgs.push("💶 ▶️ REAL: nuevo día, vuelve a operar tras el descanso del freno diario."); }
+      if (eq < RS.dia.eq0 * (1 - FRENO_DIA)) { await vendeTodo(`freno diario: hoy ha perdido un ${FRENO_DIA * 100} %`); RS.pausaDia = d; RS.estado = "pausa"; msgs.push(`💶 ⏸️ REAL: hoy ha perdido más de un ${FRENO_DIA * 100} % (de ${r2(RS.dia.eq0)} € a ${r2(eq)} €). He vendido todo y descansa hasta mañana; mañana vuelve solo.`); return { RS, msgs, ctl }; } }
     // 3) lo que tengo: ¿el submodo lo ha vendido entero, o una parte, o ha añadido (piramidar)?
     for (const [m, p] of Object.entries(RS.pos)) {
       const sp = src.pos[m]; if (tick[m]) p.last = tick[m].bid;
@@ -123,6 +134,18 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   const e2 = valor(RS, tick); RS.eq.push([now.toISOString(), r2(e2)]); if (RS.eq.length > 3000) RS.eq = RS.eq.filter((_, i) => i % 2 === 0 || i > RS.eq.length - 500);
   RS.lastEq = r2(e2); RS.last = now.toISOString();
   return { RS, msgs, ctl };
+}
+// día en España (para el freno diario)
+export const diaES = (d) => new Date(d).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+// ¿se dan las condiciones para retomar tras el freno? (lo decides tú; aquí solo se comprueba y se avisa)
+export function retomar(RS, src, now) {
+  const desde = Date.parse(RS.paradaAt || 0), cl = ((src && src.closed) || []), tras = cl.filter((c) => Date.parse(c.t1) > desde), ult = cl.slice(0, 15);
+  const med = (a) => (a.length ? a.reduce((x, c) => x + (+c.pc || 0), 0) / a.length : null), mT = med(tras), mU = med(ult);
+  const c = [
+    { ok: tras.length >= 5 && mT > 0 && mU > 0, txt: `el método en ficticio se ha recuperado (${tras.length} operaciones desde la parada${mT != null ? `, ${r2(mT)} % de media` : ""}; necesita ≥ 5 y en positivo)` },
+    { ok: !!src && !src.prueba, txt: "el laboratorio tiene una regla 🏆 ganadora en uso" },
+    { ok: now - desde >= 2 * 86400e3, txt: `han pasado al menos 2 días (${r2((now - desde) / 86400e3)} días)` }];
+  return { ok: c.every((x) => x.ok), c };
 }
 export const nombre = (k) => ({ mix: "🧠 IA + los mejores", eq: "⚖️ Equilibrado", turbo: "⚡ Turbo" })[k] || k;
 
