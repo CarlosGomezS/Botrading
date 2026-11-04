@@ -500,7 +500,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .mt-cmp>div,.mt-foot{background:color-mix(in srgb,var(--line) 20%,transparent);border:0;border-radius:12px}
 .mt-log,.mt-kv,.mt-rule,.mt-node{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v241</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v242</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3177,8 +3177,8 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
  function esc2(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 
  var SECRETS=[["OKX_KEY","🟦 OKX: clave API (cuenta europea; permisos SOLO «Leer» y «Operar», NUNCA «Retirar»)"],["OKX_SECRET","🟦 OKX: secreto de esa clave"],["OKX_PASSPHRASE","🟦 OKX: frase de paso que elegiste al crear la clave"],["BITVAVO_KEY","💶 Bitvavo: clave API (crea la clave SOLO con permiso «Operar», NUNCA «Retirar»)"],["BITVAVO_SECRET","💶 Bitvavo: secreto de esa clave API"],["ALPACA_KEY","Alpaca (formato ID:SECRETO) · recomendada"],["TWELVEDATA_KEY","Twelve Data"],["POLYGON_KEY","Polygon"],["ALPHAVANTAGE_KEY","Alpha Vantage"],["FMP_KEY","Financial Modeling Prep"],["SMTP_USER","Correo: usuario SMTP (tu Gmail)"],["SMTP_PASS","Correo: contraseña de aplicación"],["EMAIL","Correo: dónde recibir los avisos"],["NTFY_TOPIC","Móvil: tema de ntfy"],["WEB3FORMS_KEY","Correo: clave Web3Forms (respaldo)"],["SMTP_HOST","Correo: servidor SMTP (opcional; por defecto smtp.gmail.com)"],["SMTP_PORT","Correo: puerto SMTP (opcional; por defecto 465)"]];
- function secOk(k){if(SEC[k]!==undefined)return SEC[k];var M=(window.__SNAP&&__SNAP.meta&&__SNAP.meta.secrets)||null;return M?M[k]:null}
- function secField(s){var ok=secOk(s[0]);return'<div>'+(ok===true?"✔ ":ok===false?"✖ ":"· ")+esc2(s[1])+' <span style="opacity:.6">('+s[0]+')</span><input data-sk="'+s[0]+'" type="password" autocomplete="off" placeholder="'+(ok===true?"puesta · escribe para cambiarla":ok===false?"vacía":(/^(OKX_|BITVAVO_)/.test(s[0])?"no se ve aquí: mira Cripto → 💶 Dinero real":"vacía"))+'" style="width:100%">'+(ok===true?'<label style="display:block;font-size:12px;opacity:.8;margin-top:4px"><input type="checkbox" data-sd="'+s[0]+'" style="width:auto"> quitar esta clave</label>':'')+'</div>'}
+ function secOk(k){if(SEC[k]!==undefined)return SEC[k];if(/^(OKX_|BITVAVO_)/.test(k)){const t=window.__BVSEC;return t&&t[k]!=null?!!t[k]:null}var M=(window.__SNAP&&__SNAP.meta&&__SNAP.meta.secrets)||null;return M?M[k]:null}
+ function secField(s){var ok=secOk(s[0]);return'<div>'+(ok===true?"✔ ":ok===false?"✖ ":"· ")+esc2(s[1])+' <span style="opacity:.6">('+s[0]+')</span><input data-sk="'+s[0]+'" type="password" autocomplete="off" placeholder="'+(ok===true?"puesta · escribe para cambiarla"+(/^OKX_/.test(s[0])&&window.__BVCX&&window.__BVCX.okx==="clave mala"?" (OKX la rechaza: mira Cripto → 💶)":"")+(/^BITVAVO_/.test(s[0])&&window.__BVCX&&window.__BVCX.bitvavo==="clave mala"?" (Bitvavo la rechaza: mira Cripto → 💶)":""):ok===false?"vacía":(/^(OKX_|BITVAVO_)/.test(s[0])?"comprobando…":"vacía"))+'" style="width:100%">'+(ok===true?'<label style="display:block;font-size:12px;opacity:.8;margin-top:4px"><input type="checkbox" data-sd="'+s[0]+'" style="width:auto"> quitar esta clave</label>':'')+'</div>'}
  function yn(id,t,v,d){return'<div>'+t+'<select id="'+id+'" style="width:100%"><option value="1"'+((v==null?d:v)===0?'':' selected')+'>Sí</option><option value="0"'+((v==null?d:v)===0?' selected':'')+'>No</option></select></div>'}
  function h3(t){return'<h3 style="margin:16px 0 6px;font-size:15px">'+t+'</h3>'}
  function secretBad(k,v){if(k==="ALPACA_KEY"&&v.indexOf(":")<1)return"Alpaca debe tener el formato ID:SECRETO";if(k==="EMAIL"&&!/^[^@\s]+@[^@\s]+$/.test(v))return"el correo no parece válido";if(k==="SMTP_PORT"&&!(/^\d+$/.test(v)&&+v>=1&&+v<=65535))return"el puerto debe ser un número entre 1 y 65535";if(/[\r\n]/.test(v))return"no puede tener saltos de línea";return null}
@@ -3214,6 +3214,7 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
  function cloudPanel(){var host=document.querySelector("#t-ajustes");if(!host||document.getElementById("cloudset"))return;
   var d=document.createElement("div");d.id="cloudset";d.className="p";d.style.cssText="border:1px solid #4b5563;border-radius:10px;padding:10px;margin:10px 0";
   d.innerHTML='<h2>☁️ Ajustes (protegidos con clave)</h2><div id="cs_head"></div><div id="cs_body"></div>';host.insertBefore(d,host.firstChild);hideLegacy();cloudRender()}
+ try{window.cloudRender=cloudRender}catch(e){}
  function cloudRender(){try{window.__realLock&&window.__realLock()}catch(e){}var d=document.getElementById("cloudset"),hd=document.getElementById("cs_head"),bd=document.getElementById("cs_body");if(!d||!hd||!bd)return;var ri=repoInfo(),has=false;try{has=!!localStorage.getItem(ENC)}catch(e){}
   if(!ri){hd.innerHTML='<div class="m">Solo funciona desde la web publicada en GitHub Pages.</div>';bd.innerHTML="";return}
   var st='<div id="cs_st" class="m" style="margin-top:6px"></div>';
@@ -3399,6 +3400,10 @@ async function remLoad(){if(RL.noAuto)return;try{const old=localStorage.getItem(
  const o=JSON.parse(localStorage.getItem("rlpw2")||"null");if(!o||sessionStorage.getItem("rlpw"))return;const k=await devKey(false);if(!k)return;
  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64u(o.i)},k,b64u(o.c));sessionStorage.setItem("rlpw",new TextDecoder().decode(pt))}catch(e){}}
 const remHas=()=>{try{return!!localStorage.getItem("rlpw2")}catch(e){return false}};
+/* v242 · Ajustes: ¿están puestas las claves de Bitvavo y OKX? (lo dice el bot en la parte pública de Cripto: solo sí/no, nunca el valor) */
+(function(){async function cargar(){try{const r=await fetch("https://raw.githubusercontent.com/CarlosGomezS/Botrading/bitvavo/bitvavo.json?t="+Math.floor(Date.now()/60000),{cache:"no-store"});if(!r.ok)return;const j=await r.json(),cx=(j.meta&&j.meta.conex)||(j.conex?Object.assign({},...["bitvavo","okx"].map(k=>(j.conex[k]&&j.conex[k].tiene)||{})):null);if(!cx)return;const had=JSON.stringify(window.__BVSEC||null);window.__BVSEC=cx.tiene||null;window.__BVCX=cx;
+  const act=document.activeElement;if(had!==JSON.stringify(window.__BVSEC)&&!(act&&act.dataset&&act.dataset.sk)&&typeof window.cloudRender==="function")try{window.cloudRender()}catch(e){}}catch(e){}}
+ cargar();setInterval(cargar,120000)})();
 /* v238 · la clave de la web también abre Cripto (cifrado): estas funciones se comparten con esa pantalla */
 try{Object.assign(window,{pwGet,decrypt,remSave,remLoad})}catch(e){}
 async function remForget(){try{localStorage.removeItem("rlpw2");localStorage.removeItem("rlpw");sessionStorage.removeItem("rlpw")}catch(e){}try{const db=await devDb();db.transaction("k","readwrite").objectStore("k").delete("k")}catch(e){}}

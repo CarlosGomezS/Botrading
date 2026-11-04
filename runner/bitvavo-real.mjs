@@ -177,11 +177,13 @@ export async function probar(S, tick, now, io) {
   const huella = ["BITVAVO_KEY", "BITVAVO_SECRET", "OKX_KEY", "OKX_SECRET", "OKX_PASSPHRASE"].map((k) => (env(k) ? env(k).length : 0)).join(".");
   if (S.conex && S.conex.h === huella && now - Date.parse(S.conex.t) < 5 * 60000) return S.conex;
   const out = { t: now.toISOString(), h: huella };
+  const NOMS = { bitvavo: ["BITVAVO_KEY", "BITVAVO_SECRET"], okx: ["OKX_KEY", "OKX_SECRET", "OKX_PASSPHRASE"] };
   for (const ex of EXS) {
+    const tiene = Object.fromEntries(NOMS[ex].map((k) => [k, !!env(k)]));   // solo si está puesta o no (nunca el valor)
     let X = null; try { X = await exchange(ex, tick, io); } catch (e) { out[ex] = { estado: "error", txt: "no pude preparar la conexión" }; continue; }
-    if (!X) { out[ex] = { estado: "sin clave" }; continue; }
-    try { const eur = await X.saldoEur(); out[ex] = { estado: "ok", eur: Math.floor(eur * 100) / 100 }; }
-    catch (e) { out[ex] = { estado: (X.errClave || errClave)(e) ? "clave mala" : "error", txt: String(e.message).slice(0, 90) }; }
+    if (!X) { out[ex] = { estado: "sin clave", tiene }; continue; }
+    try { const eur = await X.saldoEur(); out[ex] = { estado: "ok", eur: Math.floor(eur * 100) / 100, tiene }; }
+    catch (e) { out[ex] = { estado: (X.errClave || errClave)(e) ? "clave mala" : "error", txt: String(e.message).slice(0, 90), tiene }; }
   }
   S.conex = out; return out;
 }
