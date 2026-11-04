@@ -19,7 +19,7 @@ test("Rejilla: distingue «de lado» de «tendencia» y gana de lado pero no en 
 
 test("Rejilla en vivo: monta, vende escalones al oscilar, no pierde dinero por el camino y se apaga si rompe por abajo", () => {
   let R = REJ.vuelta(null, {}, {}, new Date(0)); R.apr = { "X-EUR": { paso: 0.01, a: { pc: 3 }, b: { pc: 2 }, ok: true } };
-  const LAT = { "X-EUR": { ok: true, er: 0.05, rango: 0.06, tendencia: false } };
+  const LAT = { "X-EUR": { ok: true, er: 0.05, rango: 0.06, m240: 0, tendencia: false } };
   const tk = (p) => ({ "X-EUR": { bid: p * 0.9995, ask: p * 1.0005, sp: 0.001 } });
   R = REJ.vuelta(R, tk(100), LAT, new Date(60e3)); assert.equal(Object.keys(R.g).length, 1); assert.ok(R.lastEq > 99 && R.lastEq <= 100);
   let t = 120e3; for (let k = 0; k < 6; k++) for (const p of [98.5, 97.5, 99, 101.5, 102.5, 100]) R = REJ.vuelta(R, tk(p), LAT, new Date((t += 60e3)));
@@ -34,13 +34,38 @@ test("Financiación: entra solo si compensa, el precio le da igual y cobra cada 
   const uni = ["AAA", "BBB", ...Array.from({ length: 20 }, (_, i) => "Z" + i)];
   const fx = async (u, o) => { const b = JSON.parse(o.body); return { ok: true, json: async () => (b.type === "metaAndAssetCtxs" ? [{ universe: uni.map((name) => ({ name })) }, uni.map((n) => ({ funding: String(fr[n] || 0), markPx: String(n === "AAA" ? mark : 1), dayNtlVlm: "5e7", openInterest: "1e6" }))] : hist(fr[b.coin] || 0)) }; };
   const tick = (p) => ({ "AAA-EUR": { bid: p * 0.9 * 0.9995, ask: p * 0.9 * 1.0005, sp: 0.001, vq: 1e6 }, "BBB-EUR": { bid: 0.9, ask: 0.9, sp: 0.001, vq: 1e6 } });
-  let F = await FIN.vuelta(null, tick(2), 0.9, new Date(ahora), fx);
+  let D = await FIN.datos(null, tick(2), new Date(ahora), fx), F = FIN.vuelta(null, D, tick(2), 0.9, new Date(ahora));
   assert.deepEqual(Object.keys(F.pos), ["AAA"], "solo la que paga de verdad"); const e0 = F.lastEq; assert.ok(e0 > 99.5 && e0 < 100);
-  mark = 3; F = await FIN.vuelta(F, tick(3), 0.9, new Date(ahora + 60e3), fx);   // +50 % de precio
+  mark = 3; D = await FIN.datos(D, tick(3), new Date(ahora + 60e3), fx); F = FIN.vuelta(F, D, tick(3), 0.9, new Date(ahora + 60e3));   // +50 % de precio
   assert.ok(Math.abs(F.lastEq - e0) < 0.2, "neutral al precio: " + F.lastEq + " vs " + e0);
-  mark = 2; for (let h = 1; h <= 48; h++) F = await FIN.vuelta(F, tick(2), 0.9, new Date(ahora + h * 3600e3), fx);
+  mark = 2; for (let h = 1; h <= 48; h++) { D = await FIN.datos(D, tick(2), new Date(ahora + h * 3600e3), fx); F = FIN.vuelta(F, D, tick(2), 0.9, new Date(ahora + h * 3600e3)); }
   assert.ok(F.st.cobrado > 0.05, "cobra: " + F.st.cobrado); assert.ok(F.lastEq > e0 + 0.04, F.lastEq + " vs " + e0);
-  fr.AAA = -0.0002; F.frAt = 0; for (let h = 49; h <= 60; h++) F = await FIN.vuelta(F, tick(2), 0.9, new Date(ahora + h * 3600e3), fx);
+  fr.AAA = -0.0002; D.frAt = 0; for (let h = 49; h <= 60; h++) { D = await FIN.datos(D, tick(2), new Date(ahora + h * 3600e3), fx); F = FIN.vuelta(F, D, tick(2), 0.9, new Date(ahora + h * 3600e3)); }
+  // turbo ×3: con el mismo dinero, más tamaño (más financiación) y sale antes si el precio se dispara
+  const T = FIN.vuelta(null, D, tick(2), 0.9, new Date(ahora + 61 * 3600e3), FIN.PERF.turbo); void T;
   // con el historial «de 3 días» todo negativo (simulado) sale
   assert.equal(Object.keys(F.pos).length, 0, "sale cuando la financiación se gira"); assert.equal(F.closed.length, 1);
+});
+
+test("Financiación turbo ×3: el mismo dinero mueve más tamaño y sale si el precio sube un 20 %", async () => {
+  const ahora = 10 * 86400e3, uni = ["AAA", ...Array.from({ length: 20 }, (_, i) => "Z" + i)]; let mark = 2;
+  const fx = async (u, o) => { const b = JSON.parse(o.body); return { ok: true, json: async () => (b.type === "metaAndAssetCtxs" ? [{ universe: uni.map((name) => ({ name })) }, uni.map((n) => ({ funding: n === "AAA" ? "0.0001" : "0", markPx: String(n === "AAA" ? mark : 1), dayNtlVlm: "5e7" }))] : Array.from({ length: 72 }, (_, i) => ({ fundingRate: b.coin === "AAA" ? "0.0001" : "0", time: ahora - i * 3600e3 }))) }; };
+  const tick = (p) => ({ "AAA-EUR": { bid: p * 0.9, ask: p * 0.9, sp: 0.001, vq: 1e6 } });
+  let D = await FIN.datos(null, tick(2), new Date(ahora), fx);
+  const C = FIN.vuelta(null, D, tick(2), 0.9, new Date(ahora)), T = FIN.vuelta(null, D, tick(2), 0.9, new Date(ahora), FIN.PERF.turbo);
+  assert.ok(T.pos.AAA.qs > C.pos.AAA.qs * 1.3, "turbo lleva más tamaño");
+  mark = 2.5; D = await FIN.datos(D, tick(2.5), new Date(ahora + 60e3), fx);
+  const T2 = FIN.vuelta(T, D, tick(2.5), 0.9, new Date(ahora + 60e3), FIN.PERF.turbo), C2 = FIN.vuelta(C, D, tick(2.5), 0.9, new Date(ahora + 60e3));
+  assert.equal(Object.keys(T2.pos).length, 0, "turbo sale al +25 %"); assert.equal(Object.keys(C2.pos).length, 1, "el conservador aguanta");
+  assert.ok(T2.lastEq > 99, "sin perder dinero por la subida: " + T2.lastEq);
+});
+
+test("Submodos de IA: cada laboratorio respeta sus propios límites", async () => {
+  const B = await import("../runner/bitvavo.mjs"); let x = 7; const rnd = () => ((x = (x * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 200; i++) {
+    const t = B.aleatorio(rnd, B.PERF.turbo), m = B.mutar(t, rnd, B.PERF.turbo), ia = B.mutar(B.aleatorio(rnd, B.PERF.mix), rnd, B.PERF.mix);
+    for (const g of [t, m]) { assert.ok(g.maxHoldH <= 3 && g.maxPos === 8 && g.size >= 0.12, JSON.stringify(g)); }
+    assert.ok(["ia", "copia"].includes(ia.estilo) && ia.iaMin >= 0.3, JSON.stringify(ia));
+  }
+  assert.equal(B.PERF.mix.base.estilo, "ia"); assert.equal(B.PERF.eq.base.estilo, "tendencia");
 });

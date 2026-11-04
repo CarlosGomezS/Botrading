@@ -36,11 +36,17 @@ export const BASE = { estilo: "tendencia", m15Min: 0.002, m60Min: 0.006, m60Max:
 //  · piramidar («pir»): si la posición ya gana «pirOn», se añade una parte más y el stop sube a «sin pérdidas»
 export const RANG = { m15Min: [-0.01, 0.01], m60Min: [-0.02, 0.03], m60Max: [0.01, 0.12], m240Min: [-0.15, 0.03], hlMin: [0, 1], volMin: [0.5, 4], pullMax: [0.005, 0.1],
   stop: [0.008, 0.08], tp: [0.006, 0.12], tpFrac: [0, 0.8], trailOn: [0.004, 0.06], trail: [0.003, 0.05], maxHoldH: [0.5, 48], size: [0.05, 0.25], cooldownH: [0.25, 12], k: [0.15, 1.2], rsiMax: [2, 30], rkMax: [0.03, 0.35], pir: [0, 1], pirOn: [0.01, 0.1], iaMin: [0, 0.8] };
-export function aleatorio(rnd = Math.random) { const g = { ...BASE, estilo: ESTS[Math.floor(rnd() * ESTS.length)], ema: rnd() < 0.7 ? 1 : 0, regimen: rnd() < 0.5 ? 1 : 0 }; for (const [k, [a, b]] of Object.entries(RANG)) g[k] = r4(a + rnd() * (b - a)); return g; }
-export function mutar(p, rnd = Math.random) {
-  const g = { ...p }, ks = Object.keys(RANG), n = 1 + Math.floor(rnd() * 3);
-  for (let i = 0; i < n; i++) { const k = ks[Math.floor(rnd() * ks.length)], [a, b] = RANG[k]; g[k] = r4(cl(g[k] + (rnd() - 0.5) * (b - a) * 0.3, a, b)); }
-  if (rnd() < 0.1) g.estilo = ESTS[Math.floor(rnd() * ESTS.length)]; if (rnd() < 0.08) g.ema = g.ema ? 0 : 1; if (rnd() < 0.15) g.regimen = g.regimen ? 0 : 1; return g;
+// v225 · 🎛️ SUBMODOS: cada uno con sus 100 €, su propio laboratorio y sus propios límites (lo que la bola puede tocar)
+const rangos = (P) => ({ ...RANG, ...((P && P.rang) || {}) });
+export function ajustar(g, P) {
+  if (!P) return g; const R0 = rangos(P), ests = P.ests || ESTS; for (const [k, [a, b]] of Object.entries(R0)) if (typeof g[k] === "number") g[k] = r4(cl(g[k], a, b));
+  if (!ests.includes(g.estilo)) g.estilo = ests[0]; return Object.assign(g, P.fijo || {});
+}
+export function aleatorio(rnd = Math.random, P = null) { const ests = (P && P.ests) || ESTS, R0 = rangos(P), g = { ...BASE, estilo: ests[Math.floor(rnd() * ests.length)], ema: rnd() < 0.7 ? 1 : 0, regimen: rnd() < 0.5 ? 1 : 0 }; for (const [k, [a, b]] of Object.entries(R0)) g[k] = r4(a + rnd() * (b - a)); return ajustar(g, P); }
+export function mutar(p, rnd = Math.random, P = null) {
+  const g = { ...p }, R0 = rangos(P), ks = Object.keys(R0), n = 1 + Math.floor(rnd() * 3), ests = (P && P.ests) || ESTS;
+  for (let i = 0; i < n; i++) { const k = ks[Math.floor(rnd() * ks.length)], [a, b] = R0[k]; g[k] = r4(cl((g[k] ?? a) + (rnd() - 0.5) * (b - a) * 0.3, a, b)); }
+  if (rnd() < 0.1) g.estilo = ests[Math.floor(rnd() * ests.length)]; if (rnd() < 0.08) g.ema = g.ema ? 0 : 1; if (rnd() < 0.15) g.regimen = g.regimen ? 0 : 1; return ajustar(g, P);
 }
 export function cruzar(a, b, rnd = Math.random) { const g = {}; for (const k of Object.keys(BASE)) g[k] = rnd() < 0.5 ? a[k] : b[k]; return g; }
 export const gkey = (g) => JSON.stringify(Object.keys(BASE).map((k) => (typeof g[k] === "number" ? r4(g[k]) : g[k])));
@@ -123,15 +129,31 @@ export function backtest(g, H, desde = 0, hasta = Infinity) {
   let gw = 0, gl = 0, w = 0; for (const x of rs) { if (x > 0) { gw += x; w++; } else gl -= x; }
   return { n, win: r2(w / n * 100), med: r4(m * 100), pf: gl > 0 ? r2(gw / gl) : gw > 0 ? 99 : 0, t: r2(m / (sd / Math.sqrt(n))) };
 }
+function corteH(H) { if (H._corte) return H._corte; const ts = Object.values(H.m || {}).flatMap((m) => m.c.slice(48).map((x) => x[0])).sort((a, b) => a - b); return (H._corte = ts.length ? ts[Math.floor(ts.length / 2)] : null); }
+// ⚡ turbo: se puntúa por lo que gana EN TOTAL cada mitad (muchas operaciones pequeñas ganadoras valen más que pocas grandes)
+export function robustaTurbo(g, H) {
+  const corte = corteH(H); if (corte == null) return { s: -99 }; const a = backtest(g, H, 0, corte), b = backtest(g, H, corte);
+  if (!(a.n >= 15 && b.n >= 15)) return { s: -99, a, b };
+  const conf = Math.min(1, Math.sqrt(Math.min(a.n, b.n) / 40));
+  return { s: r2((Math.min(a.med * a.n, b.med * b.n) / 20 + Math.min(a.t, b.t)) * conf), a, b, ok: a.n >= 20 && b.n >= 20 && a.med > 0 && b.med > 0 && a.pf > 1.1 && b.pf > 1.1 };
+}
 export function robusta(g, H) {
-  const ts = Object.values(H.m || {}).flatMap((m) => m.c.slice(48).map((x) => x[0])).sort((a, b) => a - b); if (!ts.length) return { s: -99 };
-  const corte = ts[Math.floor(ts.length / 2)], a = backtest(g, H, 0, corte), b = backtest(g, H, corte);
+  const corte = corteH(H); if (corte == null) return { s: -99 }; const a = backtest(g, H, 0, corte), b = backtest(g, H, corte);
   // v222 · contra la sobreoptimización: con pocas operaciones cualquier regla «gana» por casualidad. Se exigen ≥ 20 por mitad,
   // la nota se rebaja si hay pocas (hasta 60 por mitad para nota completa) y «ganadora» exige ≥ 25 por mitad
   if (!(a.n >= 20 && b.n >= 20)) return { s: -99, a, b };
   const conf = Math.min(1, Math.sqrt(Math.min(a.n, b.n) / 60));
   return { s: r2((Math.min(a.t, b.t) + Math.min(a.med, b.med) * 2) * conf), a, b, ok: a.n >= 25 && b.n >= 25 && a.med > 0 && b.med > 0 && a.pf > 1.15 && b.pf > 1.15 };
 }
+
+export const PERF = {
+  eq: { nombre: "⚖️ Equilibrado", txt: "los 13 estilos; elige la regla más fiable (≥ 25 operaciones ganadoras en cada mitad de los 14 días)", ests: ESTS, rang: {}, fijo: {}, robusta },
+  turbo: { nombre: "⚡ Turbo", txt: "muchas operaciones cortas (como mucho 3 h), hasta 8 a la vez y más tamaño; se puntúa por lo que gana en total, no por operación", ests: ESTS,
+    rang: { maxHoldH: [0.25, 3], size: [0.12, 0.3], cooldownH: [0.1, 1.5], stop: [0.006, 0.04], tp: [0.006, 0.05], trailOn: [0.004, 0.03] }, fijo: { maxPos: 8 }, robusta: robustaTurbo },
+  mix: { nombre: "🧠 IA + los mejores", txt: "solo compra con la IA de predicción o copiando a los mejores traders de Hyperliquid; la bola aprende umbrales y cuándo vender", ests: ["ia", "copia"],
+    rang: { iaMin: [0.3, 0.75] }, fijo: {}, robusta } };
+for (const P of Object.values(PERF)) P.base = ajustar({ ...BASE }, P);
+export const SUBS = ["turbo", "mix"];
 
 // ---- estado
 export function fresh(now = new Date()) {
@@ -172,16 +194,18 @@ export function paso(S, tick, F, now = new Date()) {
   }
 }
 // ---- laboratorio: búsqueda dirigida con backtest robusto
-export function evolucionar(S, H, now = new Date(), rnd = Math.random, budgetMs = 20e3) {
+export function evolucionar(S, H, now = new Date(), rnd = Math.random, budgetMs = 20e3, P = PERF.eq) {
+  const BASE = P.base, robustaV = (g, H) => { const r = P.robusta(g, H); return { s: r.s, ok: !!r.ok, a: r.a || null, b: r.b || null }; };
+  const mutarP = (g, rnd) => mutar(g, rnd, P), aleatorioP = (rnd) => aleatorio(rnd, P), cruzarP = (a, b, rnd) => ajustar(cruzar(a, b, rnd), P);
   const B = S.lab; B.gen++; B.lastGen = now.toISOString(); const t0 = Date.now(), ev = (txt) => { B.log.unshift({ t: now.toISOString(), txt }); B.log = B.log.slice(0, 120); };
   for (const v of B.pop) Object.assign(v, robustaV(v.g, H));
   if (!B.pop.some((v) => v.id === "base")) B.pop.push({ id: "base", g: { ...BASE }, born: now.toISOString(), why: "reglas de partida", ...robustaV(BASE, H) });
   const top = B.pop.slice().sort((a, b) => b.s - a.s).slice(0, 8), seen = new Set(B.pop.map((v) => gkey(v.g))), cand = [];
   for (let i = 0; i < 2000 && Date.now() - t0 < budgetMs; i++) {
     const r = rnd(); let g, why;
-    if (r < 0.5 && top.length) { const p = top[Math.floor(rnd() * top.length)]; g = mutar(p.g, rnd); why = "mutación de " + p.id; }
-    else if (r < 0.7 && top.length > 1) { const a = top[Math.floor(rnd() * top.length)], b = top[Math.floor(rnd() * top.length)]; if (a === b) continue; g = cruzar(a.g, b.g, rnd); why = `cruce de ${a.id} y ${b.id}`; }
-    else { g = aleatorio(rnd); why = "inventada"; }
+    if (r < 0.5 && top.length) { const p = top[Math.floor(rnd() * top.length)]; g = mutarP(p.g, rnd); why = "mutación de " + p.id; }
+    else if (r < 0.7 && top.length > 1) { const a = top[Math.floor(rnd() * top.length)], b = top[Math.floor(rnd() * top.length)]; if (a === b) continue; g = cruzarP(a.g, b.g, rnd); why = `cruce de ${a.id} y ${b.id}`; }
+    else { g = aleatorioP(rnd); why = "inventada"; }
     const k = gkey(g); if (seen.has(k)) continue; seen.add(k); cand.push({ g, why, ...robustaV(g, H) });
   }
   // v222 · variedad: dos reglas que hacen exactamente las mismas operaciones son la misma regla (se queda una)
@@ -209,7 +233,6 @@ export function evolucionar(S, H, now = new Date(), rnd = Math.random, budgetMs 
   }
   return { gen: B.gen, probadas: cand.length };
 }
-function robustaV(g, H) { const r = robusta(g, H); return { s: r.s, ok: !!r.ok, a: r.a || null, b: r.b || null }; }
 
 // ---- red
 async function J(u, tries = 3) {
@@ -238,13 +261,18 @@ async function main() {
   const now = new Date(), t0 = Date.now();
   let S = null; try { S = await leer("bitvavo.json", RAMA); } catch (e) { console.log("Bitvavo: " + e.message); return; }
   if (!S || S.v !== 1) { S = fresh(now); L(S, now, "INFO", "", "🇪🇺 empieza Bitvavo con 100 € ficticios: criptos contra euros, costes del 0,25 %"); }
+  // v225 · todos los modos y submodos vuelven a 100 € (lo aprendido —reglas, IA, rejillas— se conserva)
+  if (!S.r225) { Object.assign(S, { cash: START, pos: {}, closed: [], eq: [], cool: {}, st: { trades: 0, wins: 0, losses: 0, fees: 0, pnl: 0 }, since: now.toISOString(), r225: 1, sub: {}, fins: {}, rejs: {} });
+    delete S.fin; delete S.rej; L(S, now, "INFO", "", "🔄 todos los modos vuelven a empezar con 100 € (lo aprendido se conserva)"); }
+  S.sub = S.sub || {}; S.fins = S.fins || {}; S.rejs = S.rejs || {};
+  for (const k of SUBS) if (!S.sub[k] || S.sub[k].v !== 1) { const c = fresh(now); c.genome = { ...PERF[k].base }; L(c, now, "INFO", "", `🎛️ empieza ${PERF[k].nombre} con 100 € ficticios: ${PERF[k].txt}`); S.sub[k] = c; }
   // 1) precios de todo (una petición)
   const T = await J(`${API}/ticker/24h`); if (!Array.isArray(T)) { console.log("Bitvavo: sin precios"); return; }
   const tick = {}, uni = [];
   for (const x of T) { if (!/-EUR$/.test(x.market) || NO.test(x.market)) continue; const bid = +x.bid, ask = +x.ask, vq = +x.volumeQuote || 0; if (!(bid > 0 && ask > 0)) continue; tick[x.market] = { bid, ask, last: +x.last, vq, ch24: +x.open > 0 ? +x.last / +x.open - 1 : 0, sp: (ask - bid) / ((ask + bid) / 2) }; if (vq >= MIN_VOL && tick[x.market].sp < 0.01) uni.push(x.market); }
   uni.sort((a, b) => tick[b].vq - tick[a].vq); const U = uni.slice(0, MAX_MKT);
   // 2) velas de 5 min de los mercados líquidos (y de lo abierto) → rasgos
-  const F = {}, LAT = {}, quiero = [...new Set([...U, ...Object.keys(S.pos), ...Object.keys((S.rej && S.rej.g) || {})])];
+  const F = {}, LAT = {}, quiero = [...new Set([...U, ...Object.keys(S.pos), ...SUBS.flatMap((k) => Object.keys(S.sub[k].pos)), ...Object.values(S.rejs).flatMap((r) => Object.keys((r && r.g) || {}))])];
   await enParalelo(quiero, 8, async (m) => { try { const c0 = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)), c = c0.length && c0[c0.length - 1][0] + 300e3 > Date.now() ? c0.slice(0, -1) : c0; const f = rasgos(c); F[m] = f[f.length - 1]; LAT[m] = REJ.lateral(c); /* v222 · solo velas CERRADAS (igual que en las pruebas): la vela en curso engañaba al volumen y al impulso */ } catch (e) { S.err = String(e.message).slice(0, 60); } });
   { const vs = Object.values(F).filter(Boolean).sort((x, y) => y.m240 - x.m240); vs.forEach((f, i) => { f.rk = vs.length > 4 ? i / (vs.length - 1) : null; }); }
   // 👑 lo que hacen ahora los mejores traders de Hyperliquid
@@ -253,10 +281,12 @@ async function main() {
   { const b = F["BTC-EUR"], reg = b ? (b.m240 > 0 && b.sobre200 ? 1 : 0) : null; for (const f of Object.values(F)) if (f) f.reg = reg; S.regimen = reg; }
   if (S.iaM) for (const f of Object.values(F)) if (f) f.ia = predecir(S.iaM, vector(f));
   paso(S, tick, F, now);
-  // v224 · dos modos más, cada uno con sus propios 100 € ficticios, para comparar cuál gana de verdad
+  for (const k of SUBS) paso(S.sub[k], tick, F, now);
+  // v224/v225 · cobrar financiación y rejilla: tres submodos cada uno, con sus propios 100 € ficticios
   { const u = T.find((x) => x.market === "USDC-EUR"), ue = u ? +u.last || (+u.bid + +u.ask) / 2 : 0;
-    try { S.fin = await FIN.vuelta(S.fin, tick, ue, now); } catch (e) { console.log("Financiación: " + String(e.message).slice(0, 80)); }
-    try { S.rej = REJ.vuelta(S.rej, tick, LAT, now); } catch (e) { console.log("Rejilla: " + String(e.message).slice(0, 80)); } }
+    try { const D = await FIN.datos(S.finD, tick, now, fetch, Object.values(S.fins).flatMap((f) => Object.keys((f && f.pos) || {})));
+      for (const k of Object.keys(FIN.PERF)) S.fins[k] = FIN.vuelta(S.fins[k], D, tick, ue, now, FIN.PERF[k]); S.finD = { fr: D.fr, frAt: D.frAt, err: D.err || null }; } catch (e) { console.log("Financiación: " + String(e.message).slice(0, 80)); }
+    for (const k of Object.keys(REJ.PERF)) try { S.rejs[k] = REJ.vuelta(S.rejs[k], tick, LAT, now, REJ.PERF[k]); } catch (e) { console.log("Rejilla: " + String(e.message).slice(0, 80)); } }
   // 3) laboratorio cada 30 min
   let H = null;
   if (!S.lab.lastGen || now - Date.parse(S.lab.lastGen) >= GEN_MIN * 60000) {
@@ -270,9 +300,13 @@ async function main() {
     try { let hh = null; try { hh = await leer("hl-hist.json", RAMA_H); } catch (e) {} hh = HLm.anotar(hh, S.hl && S.hl.snap, now.getTime()); publicar("hl-hist.json", hh, RAMA_H); S.hlHist = Object.keys(hh).length;
       for (const [m, x] of Object.entries(H.m)) { const se = hh[m.replace("-EUR", "")]; for (const f of x.f) if (f) { f.smart = HLm.enMomento(se, f.t); const s1 = HLm.enMomento(se, f.t - 3600e3); f.smartD = f.smart != null && s1 != null ? f.smart - s1 : null; } } } catch (e) { console.log("Bitvavo: historial de los mejores: " + e.message); }
     try { const ti = Date.now(), IA = entrenarIA(H); S.iaM = IA.listo ? IA.modelo : null; delete IA.modelo; S.ia = { ...IA, seg: Math.round((Date.now() - ti) / 1000) }; if (IA.listo) L(S, now, "INFO", "", `🧠 IA reentrenada con ${IA.n} momentos: con días que no ha visto ordena bien subidas y caídas ${Math.round(IA.auc * 100)} de cada 100`); } catch (e) { S.ia = { listo: false, err: String(e.message).slice(0, 60) }; }
-    try { if (S.rej && Object.keys(H.m).length >= 10) { const ti = Date.now(); S.rej.apr = REJ.aprender(H); S.rej.aprAt = now.toISOString(); S.rej.aprSeg = Math.round((Date.now() - ti) / 1000); } } catch (e) { console.log("Rejilla (aprender): " + String(e.message).slice(0, 80)); }
-    if (Object.keys(H.m).length >= 10) { const evo = evolucionar(S, H, now, Math.random, Math.max(5e3, 45e3 - (Date.now() - t0))); L(S, now, "INFO", "", `🔬 generación ${evo.gen}: ${evo.probadas} reglas probadas en ${Object.keys(H.m).length} mercados`); }
+    if (Object.keys(H.m).length >= 10) for (const k of Object.keys(REJ.PERF)) try { const R0 = S.rejs[k]; if (!R0) continue; const ti = Date.now(); R0.apr = REJ.aprender(H, REJ.PERF[k]); R0.aprAt = now.toISOString(); R0.aprSeg = Math.round((Date.now() - ti) / 1000); } catch (e) { console.log("Rejilla (aprender): " + String(e.message).slice(0, 80)); }
+    // tres laboratorios (uno por submodo) se reparten el tiempo: 40 % el equilibrado, 35 % el turbo, 25 % IA + los mejores
+    if (Object.keys(H.m).length >= 10) { const resto = Math.max(9e3, 58e3 - (Date.now() - t0));
+      const evo = evolucionar(S, H, now, Math.random, Math.max(4e3, resto * 0.4)); L(S, now, "INFO", "", `🔬 generación ${evo.gen}: ${evo.probadas} reglas probadas en ${Object.keys(H.m).length} mercados`);
+      for (const [k, fr] of [["turbo", 0.35], ["mix", 0.25]]) try { const C = S.sub[k], e2 = evolucionar(C, H, now, Math.random, Math.max(3e3, resto * fr), PERF[k]); L(C, now, "INFO", "", `🔬 generación ${e2.gen}: ${e2.probadas} reglas probadas`); for (const v of C.lab.pop) delete v.c; } catch (e) { console.log("Laboratorio " + k + ": " + String(e.message).slice(0, 80)); } }
   }
+  for (const k of SUBS) { const C = S.sub[k], e = equity(C, tick); C.eq.push([now.toISOString(), r2(e)]); if (C.eq.length > 2000) C.eq = C.eq.filter((_, i) => i % 2 === 0 || i > C.eq.length - 400); C.lastEq = r2(e); C.last = now.toISOString(); }
   const eq = equity(S, tick); S.eq.push([now.toISOString(), r2(eq)]); if (S.eq.length > 3000) S.eq = S.eq.filter((_, i) => i % 2 === 0 || i > S.eq.length - 500);
   S.lastEq = r2(eq); S.last = now.toISOString(); S.diag = { mercados: Object.keys(tick).length, liquidos: U.length, velas: Object.keys(F).length, t: now.toISOString(), seg: Math.round((Date.now() - t0) / 1000) };
   S.top = U.slice(0, 12).map((m) => ({ m, sym: m.replace("-EUR", ""), px: tick[m].last, ch24: r2(tick[m].ch24 * 100), f: F[m] ? { m60: r2(F[m].m60 * 100), vol: r2(F[m].vol), ok: entra({ ...BASE, ...S.genome }, F[m]) } : null }));
@@ -280,13 +314,16 @@ async function main() {
   // 🔔 avisos por Telegram cuando algo es MUY efectivo
   try {
     const AV = await import("./avisos.mjs"); S.av = S.av || {}; const msgs = AV.avisosCuenta(S.av, "bv", "🇪🇺 Bitvavo", S, now, { med: 1, big: 5 });
-    if (S.fin) msgs.push(...AV.avisosCuenta(S.av, "bvfin", "💸 Cobrar financiación", S.fin, now, { med: 0.3, big: 2 }));
-    if (S.rej) msgs.push(...AV.avisosCuenta(S.av, "bvrej", "🪜 Rejilla inteligente", S.rej, now, { med: 0.5, big: 3 }));
+    for (const k of SUBS) msgs.push(...AV.avisosCuenta(S.av, "bv" + k, "🧠 " + PERF[k].nombre, S.sub[k], now, { med: 1, big: 5 }));
+    for (const [k, X] of Object.entries(S.fins)) if (X) msgs.push(...AV.avisosCuenta(S.av, "bvfin" + k, "💸 Financiación " + FIN.PERF[k].nombre, X, now, { med: 0.3, big: 2 }));
+    for (const [k, X] of Object.entries(S.rejs)) if (X) msgs.push(...AV.avisosCuenta(S.av, "bvrej" + k, "🪜 Rejilla " + REJ.PERF[k].nombre, X, now, { med: 0.5, big: 3 }));
     const ad = (S.lab.adopt || [])[0]; if (ad && ad.ok && now - Date.parse(ad.t) < 3 * 60000) { const m = AV.avisoReglas(S.av, "bv-adopta:" + ad.id, `🏆 Bitvavo ha encontrado reglas que GANAN tanto en los días antiguos como en los recientes (${ad.id}). Deja el modo prueba y opera con ellas (dinero ficticio).`, now); if (m) msgs.push(m); }
     for (const m of msgs.slice(0, 4)) await AV.tg(m);
   } catch (e) { console.log("Bitvavo: avisos no enviados"); }
   publicar("bitvavo.json", S, RAMA);
-  console.log(`Financiación: ${S.fin ? S.fin.lastEq + " € · abiertas " + Object.keys(S.fin.pos).length + (S.fin.err ? " · " + S.fin.err : "") : "—"} · Rejilla: ${S.rej ? S.rej.lastEq + " € · rejillas " + Object.keys(S.rej.g).length + " · aptas " + Object.values(S.rej.apr || {}).filter((a) => a.ok).length : "—"}`);
+  console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);
+  console.log(`Financiación: ${Object.entries(S.fins).map(([k, X]) => k + " " + (X ? X.lastEq + " € · " + Object.keys(X.pos).length + " abiertas" + (X.err ? " · " + X.err : "") : "—")).join(" · ")}`);
+  console.log(`Rejilla: ${Object.entries(S.rejs).map(([k, X]) => k + " " + (X ? X.lastEq + " € · " + Object.keys(X.g).length + " rejillas · aptas " + Object.values(X.apr || {}).filter((a) => a.ok).length : "—")).join(" · ")}`);
   console.log(`Bitvavo: ${U.length} mercados · saldo ${S.lastEq} € · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · gen ${S.lab.gen} · ${S.diag.seg} s`);
 }
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.log("Bitvavo: " + (e.message || e)); process.exit(0); });
