@@ -172,8 +172,22 @@ async function exchange(ex, tick, io) {
   const OK = await import("./okx.mjs"), I = io.okxI || (await OK.instrumentos());
   return OK.adaptador(OK.cliente(key, secret, pass), I, tick);
 }
+// v239 · 🔌 prueba de conexión (cada 5 min, y siempre que cambien las claves): ¿hay clave?, ¿funciona?, ¿cuánto hay libre? (el saldo solo va cifrado)
+export async function probar(S, tick, now, io) {
+  const huella = ["BITVAVO_KEY", "BITVAVO_SECRET", "OKX_KEY", "OKX_SECRET", "OKX_PASSPHRASE"].map((k) => (env(k) ? env(k).length : 0)).join(".");
+  if (S.conex && S.conex.h === huella && now - Date.parse(S.conex.t) < 5 * 60000) return S.conex;
+  const out = { t: now.toISOString(), h: huella };
+  for (const ex of EXS) {
+    let X = null; try { X = await exchange(ex, tick, io); } catch (e) { out[ex] = { estado: "error", txt: "no pude preparar la conexión" }; continue; }
+    if (!X) { out[ex] = { estado: "sin clave" }; continue; }
+    try { const eur = await X.saldoEur(); out[ex] = { estado: "ok", eur: Math.floor(eur * 100) / 100 }; }
+    catch (e) { out[ex] = { estado: (X.errClave || errClave)(e) ? "clave mala" : "error", txt: String(e.message).slice(0, 90) }; }
+  }
+  S.conex = out; return out;
+}
 export async function paso(S, tick, now, io) {
   const pw = env("REAL_VIEW_PASS");
+  try { const c = await probar(S, tick, now, io); console.log(`Conexión: Bitvavo ${c.bitvavo.estado} · OKX ${c.okx.estado}`); } catch (e) {}
   if (!(env("BITVAVO_KEY") && env("BITVAVO_SECRET")) && !(env("OKX_KEY") && env("OKX_SECRET") && env("OKX_PASSPHRASE"))) { S.real = { estado: "sin clave" }; return; }
   let ctl = await io.leer("ctl.json", "bitvavo-ctl"); if (!ctl) { ctl = { copia: "mix", parado: false, capital: CAPITAL, ex: "bitvavo", t: now.toISOString() }; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
   const activo = EXS.includes(ctl.ex) ? ctl.ex : "bitvavo";

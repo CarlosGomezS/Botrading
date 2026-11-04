@@ -301,7 +301,8 @@ export async function leerEstado() {
 export async function publicarEstado(S) {
   if (!PW()) { publicar("bitvavo.json", S, RAMA); return; }
   const enc = await encrypt(JSON.stringify(S), PW());
-  publicar("bitvavo.json", { enc: 1, v: 1, ...enc, meta: { t: S.last, vivo: 1, seg: S.diag ? S.diag.seg : null } }, RAMA);
+  const cx = S.conex ? Object.fromEntries(["bitvavo", "okx"].map((k) => [k, S.conex[k] ? S.conex[k].estado : null])) : null;   /* solo si hay clave y si funciona: nunca importes */
+  publicar("bitvavo.json", { enc: 1, v: 1, ...enc, meta: { t: S.last, vivo: 1, seg: S.diag ? S.diag.seg : null, conex: cx } }, RAMA);
 }
 
 async function main() {
