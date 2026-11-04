@@ -122,8 +122,11 @@ export function backtest(g, H, desde = 0, hasta = Infinity) {
 export function robusta(g, H) {
   const ts = Object.values(H.m || {}).flatMap((m) => m.c.slice(48).map((x) => x[0])).sort((a, b) => a - b); if (!ts.length) return { s: -99 };
   const corte = ts[Math.floor(ts.length / 2)], a = backtest(g, H, 0, corte), b = backtest(g, H, corte);
-  if (!(a.n >= 10 && b.n >= 10)) return { s: -99, a, b };
-  return { s: r2(Math.min(a.t, b.t) + Math.min(a.med, b.med) * 2), a, b, ok: a.med > 0 && b.med > 0 && a.pf > 1.15 && b.pf > 1.15 };
+  // v222 · contra la sobreoptimización: con pocas operaciones cualquier regla «gana» por casualidad. Se exigen ≥ 20 por mitad,
+  // la nota se rebaja si hay pocas (hasta 60 por mitad para nota completa) y «ganadora» exige ≥ 25 por mitad
+  if (!(a.n >= 20 && b.n >= 20)) return { s: -99, a, b };
+  const conf = Math.min(1, Math.sqrt(Math.min(a.n, b.n) / 60));
+  return { s: r2((Math.min(a.t, b.t) + Math.min(a.med, b.med) * 2) * conf), a, b, ok: a.n >= 25 && b.n >= 25 && a.med > 0 && b.med > 0 && a.pf > 1.15 && b.pf > 1.15 };
 }
 
 // ---- estado
@@ -136,7 +139,7 @@ const equity = (S, px) => S.cash + Object.entries(S.pos).reduce((t, [m, p]) => t
 function cerrar(S, m, now, bid, why) {
   const p = S.pos[m], got = p.q * bid * (1 - FEE), gotT = got + (p.cob || 0), pnl = gotT - p.cost;
   S.cash += got; S.st.pnl += pnl; S.st.fees += p.q * bid * FEE; if (pnl >= 0) S.st.wins++; else S.st.losses++;
-  S.closed.unshift({ m, sym: m.replace("-EUR", ""), t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(gotT), pnl: r2(pnl), pc: r2((gotT / p.cost - 1) * 100), why: p.cob ? why + " (tras vender parte con ganancia)" : why, h: (p.h || []).slice(-120), px0: p.px, peak: p.peak, out: bid });
+  S.closed.unshift({ m, gid: p.gid || null, sym: m.replace("-EUR", ""), t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(gotT), pnl: r2(pnl), pc: r2((gotT / p.cost - 1) * 100), why: p.cob ? why + " (tras vender parte con ganancia)" : why, h: (p.h || []).slice(-120), px0: p.px, peak: p.peak, out: bid });
   S.closed = S.closed.slice(0, 500); S.cool[m] = now.getTime(); delete S.pos[m];
   L(S, now, pnl >= 0 ? "WIN" : "LOSS", m.replace("-EUR", ""), `${pnl >= 0 ? "+" : ""}${r2(pnl)} € · ${r2((gotT / p.cost - 1) * 100)} % · ${why}`);
 }
@@ -159,7 +162,7 @@ export function paso(S, tick, F, now = new Date()) {
     if (Object.keys(S.pos).length >= g.maxPos) break;
     const eq = equity(S, tick), amt = Math.min(S.cash, eq * g.size * (S.prueba ? 0.5 : 1)); if (amt < 2) break;
     const ask = tick[m].ask, q = amt * (1 - FEE) / ask; S.cash -= amt; S.st.trades++; S.st.fees += amt * FEE;
-    S.pos[m] = { sym: m.replace("-EUR", ""), q, px: ask, cost: amt, cost0: amt, t0: now.toISOString(), peak: ask, last: ask, h: [[now.toISOString(), ask]], f: { m15: r4(f.m15), m60: r4(f.m60), m240: r4(f.m240), vol: r2(f.vol) } };
+    S.pos[m] = { gid: S.genomeId || "base", sym: m.replace("-EUR", ""), q, px: ask, cost: amt, cost0: amt, t0: now.toISOString(), peak: ask, last: ask, h: [[now.toISOString(), ask]], f: { m15: r4(f.m15), m60: r4(f.m60), m240: r4(f.m240), vol: r2(f.vol) } };
     L(S, now, "ENTER", m.replace("-EUR", ""), `${r2(amt)} € · sube ${r2(f.m60 * 100)} % en 1 h · volumen ×${r2(f.vol)}${S.prueba ? " · modo prueba (mitad)" : ""}`);
   }
 }
@@ -176,13 +179,23 @@ export function evolucionar(S, H, now = new Date(), rnd = Math.random, budgetMs 
     else { g = aleatorio(rnd); why = "inventada"; }
     const k = gkey(g); if (seen.has(k)) continue; seen.add(k); cand.push({ g, why, ...robustaV(g, H) });
   }
+  // v222 · variedad: dos reglas que hacen exactamente las mismas operaciones son la misma regla (se queda una)
+  const huella = (v) => (v.a && v.b ? [v.a.n, v.a.med, v.b.n, v.b.med].join("|") : "x" + Math.random());
+  const vet = B.vetadas || {}, vistasH = new Set();
   const todos = B.pop.concat(cand.map((c) => ({ id: "b" + (B.next = (B.next || 0) + 1), g: c.g, born: now.toISOString(), why: c.why, s: c.s, ok: c.ok, a: c.a, b: c.b })))
-    .sort((a, b) => b.s - a.s);
+    .filter((v) => !vet[gkey(v.g)]).sort((a, b) => b.s - a.s).filter((v) => { if (v.id === "base" || v.id === S.genomeId) return true; const h = huella(v); if (vistasH.has(h)) return false; vistasH.add(h); return true; });
   const keep = todos.filter((v) => v.id === "base" || v.id === S.genomeId).concat(todos.filter((v) => v.id !== "base" && v.id !== S.genomeId)).slice(0, POP);
   const nuevos = keep.filter((v) => !B.pop.includes(v)).length; B.pop = keep; B.probadas = cand.length;
   ev(`🔬 generación ${B.gen}: ${cand.length} reglas probadas en ${Object.keys(H.m || {}).length} mercados · entran ${nuevos} nuevas`);
   // adopción: la mejor que gane en las DOS mitades; si ninguna, la mejor en «modo prueba»
-  const best = B.pop.slice().sort((a, b) => b.s - a.s)[0], ganadora = B.pop.filter((v) => v.ok).sort((a, b) => b.s - a.s)[0];
+  // v222 · 🩺 PRUEBA EN VIVO: si con las reglas en uso las últimas ≥ 6 operaciones reales pierden de media más de un 1 %, esas reglas
+  // quedan vetadas (no vuelven a adoptarse) aunque en el pasado ganaran: lo que manda es lo que pasa de verdad
+  { const vivas = (S.closed || []).filter((c) => c.gid === S.genomeId).slice(0, 12), med = vivas.length ? vivas.reduce((x, c) => x + (+c.pc || 0), 0) / vivas.length : 0;
+    if (S.genomeId && S.genomeId !== "base" && vivas.length >= 6 && med < -1) { B.vetadas = B.vetadas || {}; B.vetadas[gkey(S.genome)] = now.toISOString(); B.pop = B.pop.filter((v) => v.id !== S.genomeId); ev(`🩺 ${S.genomeId} queda vetada: en vivo pierde ${r2(med)} % de media en ${vivas.length} operaciones aunque en el pasado ganaba`); S.genomeId = null; }
+    const ks = Object.keys(B.vetadas || {}); if (ks.length > 300) for (const k of ks.slice(0, ks.length - 300)) delete B.vetadas[k]; }
+  const cur = B.pop.find((v) => v.id === S.genomeId), best = B.pop.slice().sort((a, b) => b.s - a.s)[0], ganadora0 = B.pop.filter((v) => v.ok).sort((a, b) => b.s - a.s)[0];
+  // v222 · estabilidad: no cambia de reglas cada 10 min por diferencias mínimas; solo si la nueva es claramente mejor (+0,5) o la actual ya no vale
+  const ganadora = ganadora0 && cur && cur.ok && cur.id !== ganadora0.id && ganadora0.s < cur.s + 0.5 ? cur : ganadora0;
   const elegida = ganadora || best;
   if (elegida && (elegida.id !== S.genomeId || S.prueba !== !ganadora)) {
     S.genome = { ...elegida.g }; S.genomeId = elegida.id; S.prueba = !ganadora;
@@ -227,7 +240,7 @@ async function main() {
   uni.sort((a, b) => tick[b].vq - tick[a].vq); const U = uni.slice(0, MAX_MKT);
   // 2) velas de 5 min de los mercados líquidos (y de lo abierto) → rasgos
   const F = {}, quiero = [...new Set([...U, ...Object.keys(S.pos)])];
-  await enParalelo(quiero, 8, async (m) => { try { const c = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)); const f = rasgos(c); F[m] = f[f.length - 1]; } catch (e) { S.err = String(e.message).slice(0, 60); } });
+  await enParalelo(quiero, 8, async (m) => { try { const c0 = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)), c = c0.length && c0[c0.length - 1][0] + 300e3 > Date.now() ? c0.slice(0, -1) : c0; const f = rasgos(c); F[m] = f[f.length - 1]; /* v222 · solo velas CERRADAS (igual que en las pruebas): la vela en curso engañaba al volumen y al impulso */ } catch (e) { S.err = String(e.message).slice(0, 60); } });
   { const vs = Object.values(F).filter(Boolean).sort((x, y) => y.m240 - x.m240); vs.forEach((f, i) => { f.rk = vs.length > 4 ? i / (vs.length - 1) : null; }); }
   // 👑 lo que hacen ahora los mejores traders de Hyperliquid
   try { S.hl = await HLm.actualizar(S.hl, now); } catch (e) {}
