@@ -15,7 +15,7 @@ if (!P) { console.log("Laboratorio: submodo desconocido " + k); process.exit(0);
 
 async function main() {
   const t0 = Date.now();
-  await sleep({ eq: 0, turbo: 75e3, mix: 150e3 }[k] || 0);   // escalonados para no saturar a Bitvavo al descargar
+  await sleep({ eq: 0, turbo: 75e3, mix: 150e3, mixokx: +process.env.LAB_SIN_ESPERA ? 0 : 225e3 }[k] || 0);   // escalonados para no saturar a Bitvavo al descargar
   let St = null; try { St = await B.leer(FILE, RAMA); } catch (e) {}
   if (!St || !St.lab) St = { lab: { gen: 0, lastGen: null, pop: [], log: [], adopt: [] }, genome: { ...P.base }, genomeId: "base", prueba: true };
   St.info = St.info || { reglas: 0 };
@@ -27,6 +27,7 @@ async function main() {
         const ti = Date.now(), UV = await B.universo(); if (!UV) throw new Error("sin precios");
         const H2 = await B.cargarHist(UV.U.slice(0, B.HIST_MKT), UV.tick, PAG, null, new Date(), 3);
         if (Object.keys(H2.m).length >= 10) {
+          if (P.soloOkx) { const OK = await import("./okx.mjs"), set = B.okxSet(await OK.instrumentos()); if (set.size < 10) throw new Error("sin lista de OKX"); const Hf = B.filtraH(H2, set); Object.keys(H2.m).forEach((m) => { if (!Hf.m[m]) delete H2.m[m]; }); St.info.okx = set.size; }
           H = H2; Hat = Date.now();
           const IA = entrenarIA(H); iaM = IA.listo ? IA.modelo : null; delete IA.modelo; ia = { ...IA, dias: 30 };
           if (k === "eq") { rej = {}; for (const r of Object.keys(REJ.PERF)) rej[r] = REJ.aprender(H, REJ.PERF[r]); }

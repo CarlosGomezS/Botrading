@@ -49,6 +49,9 @@ jobs:
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
           BITVAVO_KEY: ${{ secrets.BITVAVO_KEY }}
           BITVAVO_SECRET: ${{ secrets.BITVAVO_SECRET }}
+          OKX_KEY: ${{ secrets.OKX_KEY }}
+          OKX_SECRET: ${{ secrets.OKX_SECRET }}
+          OKX_PASSPHRASE: ${{ secrets.OKX_PASSPHRASE }}
         run: |
           end=$(( $(date +%s) + 28*60 ))
           # una vuelta de Bitvavo por minuto (cada 10 min, además, su generación de aprendizaje)

@@ -107,7 +107,7 @@ test("Real (completo): sin clave no hace nada; con clave guarda el estado CIFRAD
     S.sub.mix.pos = { "A-EUR": { sym: "A", px: 1, cost0: 20, cost: 20, q: 1, q0: 1, t0: new Date().toISOString() } };
     await RL.paso(S, tk(ex.px), new Date(), io);
     const pub = store["bitvavo-real/real.json"], txt = JSON.stringify(pub);
-    assert.equal(pub.enc, 1); assert.ok(!/"cash"|A-EUR|"pos"/.test(txt), "nada legible en público"); assert.deepEqual(Object.keys(pub.meta).sort(), ["copia", "estado", "t"]);
+    assert.equal(pub.enc, 1); assert.ok(!/"cash"|A-EUR|"pos"/.test(txt), "nada legible en público"); assert.deepEqual(Object.keys(pub.meta).sort(), ["copia", "estado", "ex", "t"]);
     assert.equal(store["bitvavo-ctl/ctl.json"].copia, "mix"); assert.equal(ex.orders.length, 1);
     const { openAny } = await import("../runner/real-cfg.mjs"), o = await openAny(pub, ["pw-de-prueba-123"]); assert.ok(o.j.pos["A-EUR"]);
   } finally { globalThis.fetch = f0; for (const k of ["BITVAVO_KEY", "BITVAVO_SECRET", "REAL_VIEW_PASS"]) delete process.env[k]; }
