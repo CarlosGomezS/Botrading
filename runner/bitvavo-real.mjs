@@ -122,7 +122,8 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     const eqSrc = +src.lastEq || 100;
     for (const [m, sp] of Object.entries(src.pos)) {
       const k = m + "|" + sp.t0; if (RS.pos[m] || RS.vistos[k]) continue; RS.vistos[k] = now.toISOString();
-      if (Date.parse(sp.t0) < Date.parse(RS.since) || now - Date.parse(sp.t0) > 5 * 60000) continue;
+      if (Date.parse(sp.t0) < Date.parse(RS.since)) continue;
+      if (now - Date.parse(sp.t0) > 5 * 60000) { L(RS, now, `⏭️ no compra ${sp.sym}: la señal del método llegó tarde (hace más de 5 min)`); continue; }
       const tk = tick[m]; if (!tk || !(tk.ask > 0)) continue;
       if (!X.tiene(m)) { L(RS, now, `⏭️ no compra ${sp.sym}: no está en ${EX}`); RS.saltadas = (RS.saltadas || 0) + 1; continue; }
       if (tk.ask > sp.px * (1 + PERSIGUE)) { L(RS, now, `⏭️ no compra ${sp.sym}: ya ha subido más de un ${PERSIGUE * 100} % desde la señal`); continue; }
