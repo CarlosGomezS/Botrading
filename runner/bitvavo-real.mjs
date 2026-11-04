@@ -181,10 +181,12 @@ export async function probar(S, tick, now, io) {
   const NOMS = { bitvavo: ["BITVAVO_KEY", "BITVAVO_SECRET"], okx: ["OKX_KEY", "OKX_SECRET", "OKX_PASSPHRASE"] };
   for (const ex of EXS) {
     const tiene = Object.fromEntries(NOMS[ex].map((k) => [k, !!env(k)]));   // solo si está puesta o no (nunca el valor)
+    // v243d · diagnóstico SIN el valor: largo, comillas, espacios por dentro, caracteres raros (tildes, ñ, comillas tipográficas…)
+    const diag = Object.fromEntries(NOMS[ex].map((k) => { const v = env(k); return [k, v ? { largo: v.length, comillas: /^["'«“‘]|["'»”’]$/.test(v), espacios: /\s/.test(v), raros: /[^\x21-\x7e]/.test(v) } : null]; }));
     let X = null; try { X = await exchange(ex, tick, io); } catch (e) { out[ex] = { estado: "error", txt: "no pude preparar la conexión" }; continue; }
-    if (!X) { out[ex] = { estado: "sin clave", tiene }; continue; }
-    try { const eur = await X.saldoEur(); out[ex] = { estado: "ok", eur: Math.floor(eur * 100) / 100, tiene }; }
-    catch (e) { out[ex] = { estado: (X.errClave || errClave)(e) ? "clave mala" : "error", txt: String(e.message).slice(0, 90), tiene }; }
+    if (!X) { out[ex] = { estado: "sin clave", tiene, diag }; continue; }
+    try { const eur = await X.saldoEur(); out[ex] = { estado: "ok", eur: Math.floor(eur * 100) / 100, tiene, diag }; }
+    catch (e) { out[ex] = { estado: (X.errClave || errClave)(e) ? "clave mala" : "error", txt: String(e.message).slice(0, 90), tiene, diag }; }
   }
   S.conex = out; return out;
 }
