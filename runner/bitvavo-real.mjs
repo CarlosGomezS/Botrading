@@ -174,7 +174,8 @@ async function exchange(ex, tick, io) {
 }
 // v239 · 🔌 prueba de conexión (cada 5 min, y siempre que cambien las claves): ¿hay clave?, ¿funciona?, ¿cuánto hay libre? (el saldo solo va cifrado)
 export async function probar(S, tick, now, io) {
-  const huella = ["BITVAVO_KEY", "BITVAVO_SECRET", "OKX_KEY", "OKX_SECRET", "OKX_PASSPHRASE"].map((k) => (env(k) ? env(k).length : 0)).join(".");
+  // huella: resumen corto de las claves (solo para notar que han cambiado y volver a probar al momento; va cifrada y no permite recuperarlas)
+  const huella = createHmac("sha256", "huella").update(["BITVAVO_KEY", "BITVAVO_SECRET", "OKX_KEY", "OKX_SECRET", "OKX_PASSPHRASE"].map(env).join("\n")).digest("hex").slice(0, 10);
   if (S.conex && S.conex.h === huella && now - Date.parse(S.conex.t) < 5 * 60000) return S.conex;
   const out = { t: now.toISOString(), h: huella };
   const NOMS = { bitvavo: ["BITVAVO_KEY", "BITVAVO_SECRET"], okx: ["OKX_KEY", "OKX_SECRET", "OKX_PASSPHRASE"] };
