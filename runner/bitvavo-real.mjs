@@ -28,8 +28,8 @@ export function cliente(key, secret, fx = fetch) {
 // errores de clave: no tiene sentido reintentar (clave mal puesta, sin permiso de operar, etc.)
 export const errClave = (e) => e && (e.status === 401 || e.status === 403 || [105, 107, 108, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 317].includes(+e.code));
 
-export function fresh(now = new Date(), copia = "mix") {
-  return { v: 1, start: CAPITAL, cash: CAPITAL, pos: {}, closed: [], log: [], eq: [], st: { trades: 0, wins: 0, losses: 0, fees: 0, pnl: 0 }, since: now.toISOString(), copia, vistos: {} };
+export function fresh(now = new Date(), copia = "mix", capital = CAPITAL) {
+  return { v: 1, start: capital, cash: capital, capital, pos: {}, closed: [], log: [], eq: [], st: { trades: 0, wins: 0, losses: 0, fees: 0, pnl: 0 }, since: now.toISOString(), copia, vistos: {} };
 }
 const L = (RS, now, txt) => { RS.log.unshift({ t: now.toISOString(), txt }); RS.log = RS.log.slice(0, 200); };
 export const valor = (RS, tick) => RS.cash + Object.entries(RS.pos).reduce((s, [m, p]) => s + p.q * ((tick[m] && tick[m].bid) || p.last || p.px) * (1 - FEE), 0);
@@ -51,8 +51,17 @@ async function vender(api, m, q, dec) {
 // fuentes = { eq: S, turbo: S.sub.turbo, mix: S.sub.mix } · ctl = { copia, parado } · deps = { api, tg, mercados(m) → {min, dec} }
 export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   const { api, tg = async () => {}, mercado } = deps, msgs = [];
-  const copia = SUBS_OK.includes(ctl.copia) ? ctl.copia : "mix";
-  if (!RS || RS.v !== 1) { RS = fresh(now, copia); L(RS, now, `💶 empieza con ${CAPITAL} € reales copiando a «${copia}»`); msgs.push(`💶 Bitvavo REAL empieza: ${CAPITAL} € copiando al submodo «${nombre(copia)}». Frenos: nada de más de ${CAPITAL} €, órdenes de ≤ ${MAX_ORDEN} €, se para sola si cae un ${FRENO * 100} %. /parar cuando quieras.`); }
+  const copia = SUBS_OK.includes(ctl.copia) ? ctl.copia : "mix", objetivo = Math.max(10, Math.round(+ctl.capital || CAPITAL));
+  // saldo libre en euros en la cuenta de Bitvavo (una consulta por vuelta, solo si hace falta)
+  let libre0 = null; const libre = async () => (libre0 != null ? libre0 : (libre0 = deps.saldoEur ? await deps.saldoEur() : Infinity));
+  if (!RS || RS.v !== 1) {
+    const hay = await libre().catch(() => 0), cap = Math.min(objetivo, Math.floor(hay * 100) / 100);
+    if (!(cap >= 10)) { return { RS: RS && RS.v === 1 ? RS : null, msgs: ctl.avisoSinSaldo ? [] : [`💶 ⚠️ Bitvavo REAL: en tu cuenta hay ${r2(hay)} € libres; hacen falta al menos 10 € para empezar.`], ctl: { ...ctl, avisoSinSaldo: 1 }, ctlCambia: !ctl.avisoSinSaldo, sinEmpezar: true }; }
+    RS = fresh(now, copia, cap); L(RS, now, `💶 empieza con ${cap} € reales copiando a «${copia}»`);
+    msgs.push(`💶 Bitvavo REAL empieza: ${cap} € copiando al submodo «${nombre(copia)}»${cap < objetivo ? ` (pediste ${objetivo} €, pero en Bitvavo solo hay ${r2(hay)} € libres)` : ""}. Frenos: nunca más de esa cantidad, se para sola si cae un ${FRENO * 100} %. /parar cuando quieras.`);
+  }
+  RS.capital = RS.capital ?? RS.start;
+  const maxOrden = () => Math.max(MAX_ORDEN, RS.start * 0.6);
   RS.vistos = RS.vistos || {};
   const vendeTodo = async (por) => { for (const m of Object.keys(RS.pos)) await cerrar(m, por); };
   async function cerrar(m, por, frac = 1) {
@@ -71,6 +80,15 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   try {
     // 1) ¿parado? ¿cambio de submodo?
     if (ctl.parado) { if (Object.keys(RS.pos).length) { await vendeTodo("parado: " + (ctl.motivo || "lo has parado tú")); } RS.estado = "parado"; return { RS, msgs, ctl }; }
+    // al reanudar tras una parada, el freno se mide desde lo que hay ahora (si no, volvería a saltar al momento)
+    if (RS.estado === "parado") { const e0 = valor(RS, tick); RS.start = e0; L(RS, now, `▶️ reanuda con ${r2(e0)} € (el freno se mide desde aquí; no repone lo perdido)`); }
+    // 💰 cuánto dinero usar (lo eliges en la app): nunca más de lo que haya libre de verdad en tu cuenta de Bitvavo
+    if (Math.abs(objetivo - RS.capital) >= 1) {
+      let d = objetivo - RS.capital;
+      if (d > 0) { const hay = await libre(); const max = Math.max(0, Math.floor((hay - RS.cash) * 100) / 100); if (max < d) { d = max; if (!RS.avisoSaldo || now - Date.parse(RS.avisoSaldo) > 6 * 3600e3) { RS.avisoSaldo = now.toISOString(); msgs.push(`💶 ⚠️ Pediste usar ${objetivo} € pero en tu cuenta de Bitvavo solo hay ${r2(hay)} € libres: usa ${r2(RS.capital + d)} €. Si ingresas más, lo cogerá solo.`); } } }
+      else d = -Math.min(-d, RS.cash);
+      if (Math.abs(d) >= 0.01) { RS.cash += d; RS.start += d; RS.capital += d; L(RS, now, `💰 ${d > 0 ? "añade" : "retira"} ${r2(Math.abs(d))} €: ahora usa ${r2(RS.capital)} €`); if (Math.abs(objetivo - RS.capital) < 1) msgs.push(`💶 💰 REAL: ahora usa ${r2(RS.capital)} €${d < 0 ? " (lo que se quita, cuando esté libre)" : ""}.`); }
+    }
     if (RS.copia !== copia) { await vendeTodo(`cambias de método: ahora copia a «${nombre(copia)}»`); L(RS, now, `🔁 ahora copia a «${copia}»`); msgs.push(`💶 🔁 REAL: ahora copia a «${nombre(copia)}» (lo abierto del método anterior se ha vendido)`); RS.copia = copia; RS.since = now.toISOString(); }
     const src = fuentes[copia]; if (!src) { RS.estado = "esperando"; return { RS, msgs, ctl }; }
     // 2) freno: si el saldo cae un 25 %, vende todo y se para
@@ -81,7 +99,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       const sp = src.pos[m]; if (tick[m]) p.last = tick[m].bid;
       if (!sp || sp.t0 !== p.srcT0) { await cerrar(m, "el método ficticio ha vendido"); continue; }
       if (sp.cob > 0 && !p.tp && sp.q0 > 0) { const frac = 1 - sp.q / sp.q0; if (frac > 0.05) await cerrar(m, "venta parcial con ganancia (como el método)", frac); }
-      if (sp.pir && !p.pir && sp.cost0 > 0) { const add = Math.min(RS.cash, p.cost0 * (sp.cost - sp.cost0) / sp.cost0, MAX_ORDEN), mk = await mercado(m); p.pir = 1; if (add >= mk.min) { const r = await comprar(api, m, add); RS.cash -= r.coste; RS.st.fees += r.fee; p.q += r.q; p.cost += r.coste; L(RS, now, `➕ añade ${r2(r.coste)} € a ${p.sym} (como el método)`); } }
+      if (sp.pir && !p.pir && sp.cost0 > 0) { const add = Math.min(RS.cash, p.cost0 * (sp.cost - sp.cost0) / sp.cost0, maxOrden(), Math.max(0, (await libre()) - 0.5)), mk = await mercado(m); p.pir = 1; if (add >= mk.min) { const r = await comprar(api, m, add); RS.cash -= r.coste; RS.st.fees += r.fee; p.q += r.q; p.cost += r.coste; L(RS, now, `➕ añade ${r2(r.coste)} € a ${p.sym} (como el método)`); } }
     }
     // 4) compras nuevas del submodo (de menos de 5 min) en la misma proporción
     const eqSrc = +src.lastEq || 100;
@@ -90,7 +108,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (Date.parse(sp.t0) < Date.parse(RS.since) || now - Date.parse(sp.t0) > 5 * 60000) continue;
       const tk = tick[m]; if (!tk || !(tk.ask > 0)) continue;
       if (tk.ask > sp.px * (1 + PERSIGUE)) { L(RS, now, `⏭️ no compra ${sp.sym}: ya ha subido más de un ${PERSIGUE * 100} % desde la señal`); continue; }
-      const mk = await mercado(m), quiere = Math.min(RS.cash, MAX_ORDEN, valor(RS, tick) * (sp.cost0 || sp.cost) / eqSrc);
+      const mk = await mercado(m), quiere = Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) / eqSrc, Math.max(0, (await libre()) - 0.5));
       if (quiere < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ no compra ${sp.sym}: tocarían ${r2(quiere)} € y el mínimo de Bitvavo es ${mk.min} €`); continue; }
       const r = await comprar(api, m, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++;
       RS.pos[m] = { sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid };
@@ -113,13 +131,15 @@ export async function paso(S, tick, now, io) {
   const key = env("BITVAVO_KEY"), secret = env("BITVAVO_SECRET"), pw = env("REAL_VIEW_PASS");
   if (!key || !secret) { S.real = { estado: "sin clave" }; return; }
   if (!pw) { S.real = { estado: "sin REAL_VIEW_PASS" }; console.log("Real: falta REAL_VIEW_PASS (no se guarda nada sin cifrar)"); return; }
-  let ctl = await io.leer("ctl.json", "bitvavo-ctl"); if (!ctl) { ctl = { copia: "mix", parado: false, t: now.toISOString() }; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
+  let ctl = await io.leer("ctl.json", "bitvavo-ctl"); if (!ctl) { ctl = { copia: "mix", parado: false, capital: CAPITAL, t: now.toISOString() }; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
   let RS = null; const j = await io.leer("real.json", "bitvavo-real");
   if (j) { const o = await openAny(j, [pw, env("REAL_VIEW_PASS_OLD")]); if (o.error) { console.log("Real: no puedo descifrar el estado; no opero"); S.real = { estado: "error" }; return; } RS = o.j; }
   const api = cliente(key, secret), cache = {};
   const mercado = async (m) => { if (cache[m]) return cache[m]; const [mk] = await api("GET", "/markets?market=" + m).then((x) => (Array.isArray(x) ? x : [x])); const sym = m.replace("-EUR", ""), [as] = await api("GET", "/assets?symbol=" + sym).then((x) => (Array.isArray(x) ? x : [x])); return (cache[m] = { min: +(mk && mk.minOrderInQuoteAsset) || 5, dec: as && as.decimals != null ? +as.decimals : 8 }); };
   const fuentes = { eq: S, turbo: S.sub && S.sub.turbo, mix: S.sub && S.sub.mix };
-  const out = await vuelta(RS, fuentes, ctl, tick, now, { api, mercado });
+  const saldoEur = async () => { const b = await api("GET", "/balance?symbol=EUR"), x = (Array.isArray(b) ? b : [b]).find((y) => y && y.symbol === "EUR"); return x ? +x.available || 0 : 0; };
+  const out = await vuelta(RS, fuentes, ctl, tick, now, { api, mercado, saldoEur });
+  if (out.sinEmpezar) { if (out.ctlCambia) io.publicar("ctl.json", { ...out.ctl, t: now.toISOString() }, "bitvavo-ctl"); S.real = { estado: "sin saldo", t: now.toISOString() }; for (const m of out.msgs) await io.tg(m); console.log("Real: sin saldo suficiente"); return; }
   if (out.ctlCambia) io.publicar("ctl.json", { ...out.ctl, t: now.toISOString() }, "bitvavo-ctl");
   out.RS.savedAt = Date.now(); const enc = await encrypt(JSON.stringify(out.RS), pw);
   io.publicar("real.json", { enc: 1, v: 1, ...enc, meta: { estado: out.RS.estado || "activo", copia: out.RS.copia, t: now.toISOString() } }, "bitvavo-real");

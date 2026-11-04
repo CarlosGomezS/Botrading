@@ -13,6 +13,7 @@ function exchange(px, opts = {}) {
     if (!ok || o.headers["Bitvavo-Access-Key"] !== "CLAVE") return R(403, { errorCode: 105, error: "firma" });
     if (ex.fallo) return R(ex.fallo.status, ex.fallo.j);
     if (u.pathname === "/v2/markets") return R(200, { market: u.searchParams.get("market"), minOrderInQuoteAsset: "5" });
+    if (u.pathname === "/v2/balance") return R(200, [{ symbol: "EUR", available: String(ex.eur), inOrder: "0" }]);
     if (u.pathname === "/v2/assets") return R(200, { symbol: u.searchParams.get("symbol"), decimals: 4 });
     if (u.pathname === "/v2/order" && o.method === "POST") {
       const b = JSON.parse(o.body); assert.equal(typeof b.operatorId, "number"); assert.equal(b.orderType, "market"); ex.orders.push(b); const p = ex.px[b.market];
@@ -110,4 +111,21 @@ test("Real (completo): sin clave no hace nada; con clave guarda el estado CIFRAD
     assert.equal(store["bitvavo-ctl/ctl.json"].copia, "mix"); assert.equal(ex.orders.length, 1);
     const { openAny } = await import("../runner/real-cfg.mjs"), o = await openAny(pub, ["pw-de-prueba-123"]); assert.ok(o.j.pos["A-EUR"]);
   } finally { globalThis.fetch = f0; for (const k of ["BITVAVO_KEY", "BITVAVO_SECRET", "REAL_VIEW_PASS"]) delete process.env[k]; }
+});
+
+test("Real: el dinero a usar se elige, nunca pasa de lo que hay libre en Bitvavo, y se puede subir o bajar", async () => {
+  const ex = exchange({ "A-EUR": 1 }); let hay = 80; const deps = { api: ex.api, mercado: ex.mercado, saldoEur: async () => hay };
+  let o = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 150 }, tk(ex.px), T(0), deps);
+  assert.equal(o.RS.start, 80, "pide 150 pero solo hay 80"); assert.ok(o.msgs[0].includes("solo hay"));
+  hay = 300; o = await RL.vuelta(o.RS, { mix: fuente() }, { copia: "mix", capital: 150 }, tk(ex.px), T(1), deps);
+  assert.equal(o.RS.capital, 150); assert.equal(o.RS.cash, 150, "al ingresar más, lo coge solo");
+  o = await RL.vuelta(o.RS, { mix: fuente() }, { copia: "mix", capital: 100 }, tk(ex.px), T(2), deps);
+  assert.equal(o.RS.capital, 100); assert.equal(o.RS.cash, 100);
+  // con 100 €, una compra del 60 % ya puede ser de 60 € (el tope por orden crece con el dinero)
+  const sp = { sym: "A", px: 1, cost0: 60, cost: 60, q: 1, q0: 1, t0: T(3).toISOString() };
+  o = await RL.vuelta(o.RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100 }, tk(ex.px), T(3), deps);
+  assert.equal(ex.orders[0].amountQuote, "60.00");
+  // si en la cuenta hay menos de 10 €, no empieza
+  const o2 = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 50 }, tk(ex.px), T(0), { ...deps, saldoEur: async () => 4 });
+  assert.ok(o2.sinEmpezar); assert.equal(o2.RS, null);
 });
