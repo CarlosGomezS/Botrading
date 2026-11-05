@@ -84,6 +84,9 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   }
   RS.capital = RS.capital ?? RS.start; RS.fee = X.fee ?? FEE; RS.ex = RS.ex || (EX === "OKX" ? "okx" : "bitvavo");
   const maxOrden = () => Math.max(MAX_ORDEN, RS.start * 0.6);
+  // v255 · con poco dinero, la parte proporcional de una compra del método (p. ej. 4 €) queda por debajo del mínimo del exchange (~5 €) y se saltaba
+  // todo. Ahora se compra el mínimo, siempre que no pase del 25 % de lo que vale la cuenta ni de lo que haya libre.
+  const alMinimo = async (quiere, mk) => { const need = Math.max(mk.min, 5) * 1.02; if (quiere >= need) return quiere; const tope = Math.min(RS.cash, valor(RS, tick) * 0.25, Math.max(0, (await libre()) - 0.5)); return need <= tope ? need : quiere; };
   RS.vistos = RS.vistos || {};
   const vendeTodo = async (por) => { for (const m of Object.keys(RS.pos)) await cerrar(m, por); };
   async function cerrar(m, por, frac = 1) {
@@ -140,7 +143,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       for (const [m, sp] of Object.entries(src.pos)) { if (RS.pos[m]) continue; const tk = tick[m]; if (!tk || !(tk.ask > 0)) continue;
         RS.vistos[m + "|" + sp.t0] = now.toISOString();
         if (!X.tiene(m)) { L(RS, now, `⏭️ no copia ${sp.sym} (abierta): no está en ${EX}`); continue; }
-        const frac = sp.q0 > 0 ? sp.q / sp.q0 : 1, mk = await mercado(m), quiere = Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) * frac / eqSrc, Math.max(0, (await libre()) - 0.5));
+        const frac = sp.q0 > 0 ? sp.q / sp.q0 : 1, mk = await mercado(m), quiere = await alMinimo(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) * frac / eqSrc, Math.max(0, (await libre()) - 0.5)), mk);
         if (quiere < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ no copia ${sp.sym} (abierta): tocarían ${r2(quiere)} € y el mínimo de ${EX} es ${r2(mk.min)} €`); continue; }
         const r = await X.comprar(m, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nA++;
         RS.pos[m] = { sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid, tp: sp.cob > 0 ? 1 : 0, pir: sp.pir ? 1 : 0 };
@@ -153,7 +156,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       const tk = tick[m]; if (!tk || !(tk.ask > 0)) continue;
       if (!X.tiene(m)) { L(RS, now, `⏭️ no compra ${sp.sym}: no está en ${EX}`); RS.saltadas = (RS.saltadas || 0) + 1; continue; }
       if (tk.ask > sp.px * (1 + PERSIGUE)) { L(RS, now, `⏭️ no compra ${sp.sym}: ya ha subido más de un ${PERSIGUE * 100} % desde la señal`); continue; }
-      const mk = await mercado(m), quiere = Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) / eqSrc, Math.max(0, (await libre()) - 0.5));
+      const mk = await mercado(m), quiere = await alMinimo(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) / eqSrc, Math.max(0, (await libre()) - 0.5)), mk);
       if (quiere < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ no compra ${sp.sym}: tocarían ${r2(quiere)} € y el mínimo de ${EX} es ${r2(mk.min)} €`); continue; }
       const r = await X.comprar(m, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++;
       RS.pos[m] = { sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid };

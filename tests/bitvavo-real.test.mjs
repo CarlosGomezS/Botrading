@@ -53,10 +53,11 @@ test("Real: no persigue el precio, no copia compras viejas, respeta el mínimo y
   let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix" }, tk(ex.px), T(0), deps);
   const pos = { "A-EUR": { sym: "A", px: 0.95, cost0: 20, cost: 20, q: 1, q0: 1, t0: T(1).toISOString() },   // ya subió > 1,5 %
     "B-EUR": { sym: "B", px: 1, cost0: 20, cost: 20, q: 1, q0: 1, t0: T(-30).toISOString() },                      // compra vieja
-    "C-EUR": { sym: "C", px: 1, cost0: 5, cost: 5, q: 1, q0: 1, t0: T(1).toISOString() },                          // 5 % de 50 € = 2,5 € < mínimo
+    "C-EUR": { sym: "C", px: 1, cost0: 5, cost: 5, q: 1, q0: 1, t0: T(1).toISOString() },                          // 5 % de 50 € = 2,5 € < mínimo → compra el mínimo
     "D-EUR": { sym: "D", px: 1, cost0: 90, cost: 90, q: 1, q0: 1, t0: T(1).toISOString() } };                      // 90 % → tope de 30 €
   ({ RS } = await RL.vuelta(RS, { mix: fuente(pos) }, { copia: "mix" }, tk(ex.px), T(1), deps));
-  assert.deepEqual(ex.orders.map((o) => o.market), ["D-EUR"]); assert.equal(ex.orders[0].amountQuote, "30.00");
+  // v255 · lo que queda bajo el mínimo se compra al mínimo (5,10 €) si no pasa del 25 % de la cuenta
+  assert.deepEqual(ex.orders.map((o) => o.market), ["C-EUR", "D-EUR"]); assert.equal(ex.orders[0].amountQuote, "5.10"); assert.equal(ex.orders[1].amountQuote, "30.00");
 });
 
 test("Real: cambiar de método vende lo abierto; /parar vende todo y no compra; el freno del −25 % para solo", async () => {
@@ -189,4 +190,14 @@ test("Real v253: «copiar ya lo abierto» compra lo que el método ya tenía (un
   o = await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": viejo }) }, { copia: "eq", adoptarAt: "x1" }, tk(ex.px), T(7), deps); assert.equal(ex.orders.length, 1); assert.ok(o.RS.pos["A-EUR"]);
   o = await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": viejo }) }, { copia: "eq", adoptarAt: "x1" }, tk(ex.px), T(8), deps); assert.equal(ex.orders.length, 1, "no repite");
   o = await RL.vuelta(o.RS, { eq: fuente({}) }, { copia: "eq", adoptarAt: "x1" }, tk(ex.px), T(9), deps); assert.equal(ex.orders[1].side, "sell", "y vende cuando el método vende");
+});
+
+test("Real v255: si la parte proporcional queda bajo el mínimo del exchange, compra el mínimo (sin pasar del 25 % de la cuenta)", async () => {
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let o = await RL.vuelta(null, { eq: fuente() }, { copia: "eq", capital: 50 }, tk(ex.px), T(0), deps);
+  const sp = { sym: "A", px: 1, cost0: 6, cost: 6, q: 6, q0: 6, t0: T(1).toISOString() };   // el método compra 6 € de 100 → tocarían 3 € de 50
+  o = await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": sp }) }, { copia: "eq", capital: 50 }, tk(ex.px), T(1), deps);
+  assert.equal(ex.orders.length, 1); assert.equal(ex.orders[0].amountQuote, "5.10");
+  const o2 = await RL.vuelta(null, { eq: fuente() }, { copia: "eq", capital: 15 }, tk(ex.px), T(0), deps), sp2 = { ...sp, t0: T(2).toISOString() };
+  await RL.vuelta(o2.RS, { eq: fuente({ "A-EUR": sp2 }) }, { copia: "eq", capital: 15 }, tk(ex.px), T(2), deps); assert.equal(ex.orders.length, 1, "con 15 €, 5,10 € pasaría del 25 %: no compra");
 });
