@@ -72,7 +72,8 @@ async function vender(api, m, q, dec) {
 
 // v236 · adaptador de Bitvavo (misma forma que el de OKX: comprar, vender, mercado, saldoEur, tiene)
 export function bitvavoEx(api, mercado, saldoEur) {
-  return { nombre: "Bitvavo", fee: FEE, tiene: () => true, comprar: (m, eur) => comprar(api, m, eur), vender: async (m, q) => { const mk = await mercado(m); return vender(api, m, q, mk.dec); }, mercado, saldoEur, errClave };
+  const saldo = async (sym) => { const b = await api("GET", "/balance?symbol=" + sym), x = (Array.isArray(b) ? b : [b]).find((y) => y && y.symbol === sym); return x ? +x.available || 0 : 0; };
+  return { nombre: "Bitvavo", fee: FEE, tiene: () => true, comprar: (m, eur) => comprar(api, m, eur), vender: async (m, q) => { const mk = await mercado(m); return vender(api, m, q, mk.dec); }, mercado, saldoEur, saldo, errClave };
 }
 
 // ---- una vuelta (cada minuto, justo después de que los submodos ficticios hayan comprado o vendido)
@@ -235,7 +236,7 @@ export function cuentas(ctl) {
   const c = ctl.cuentas && typeof ctl.cuentas === "object" ? ctl.cuentas : null, act = EXS.includes(ctl.ex) ? ctl.ex : "bitvavo";
   return Object.fromEntries(EXS.map((ex) => { const x = (c && c[ex]) || {}; return [ex, {
     on: c ? !!x.on : ex === act, copia: SUBS_OK.includes(x.copia) || x.copia === "auto" ? x.copia : def.copia, capital: x.capital ? Math.max(10, Math.round(+x.capital)) : def.capital,
-    parado: !!x.parado, motivo: x.motivo || null, avisoSinSaldo: x.avisoSinSaldo || 0, auto: x.copia === "auto", adoptarAt: x.adoptarAt || null, espejo: !!x.espejo }]; }));
+    parado: !!x.parado, motivo: x.motivo || null, avisoSinSaldo: x.avisoSinSaldo || 0, auto: x.copia === "auto", adoptarAt: x.adoptarAt || null, espejo: !!x.espejo, convertir: x.convertir || null }]; }));
 }
 const NOMBRE_EX = { bitvavo: "Bitvavo", okx: "OKX" };
 export async function paso(S, tick, now, io) {
@@ -257,6 +258,15 @@ export async function paso(S, tick, now, io) {
     let RS = null; const j = await io.leer("real.json", RAMAS[ex]);
     if (j) { const o = await openAny(j, [pw, env("REAL_VIEW_PASS_OLD")]); if (o.error) { console.log("Real: no puedo descifrar el estado de " + ex + "; no opero"); R0.estado = "error"; continue; } RS = o.j; }
     if (!cfg.on && (!RS || !Object.keys(RS.pos || {}).length)) continue;   // apagada y sin nada abierto: no se toca
+    // v260 · 💱 convertir a euros lo que tengas en otra cripto (lo pides tú desde la app, una vez): vende TODO ese saldo a mercado
+    if (cfg.on && cfg.convertir && cfg.convertir.at && cfg.convertir.hecho !== cfg.convertir.at && X.saldo) {
+      const sym = String(cfg.convertir.sym || "").toUpperCase(), m = sym + "-EUR"; let txt;
+      try { const q = await X.saldo(sym), bid = (tick[m] && tick[m].bid) || 0, mk = await X.mercado(m);
+        if (!(q * bid >= Math.max(5, mk.min))) txt = `💶 ${N} · 💱 no había ${sym} suficiente para vender (hacen falta al menos ${Math.max(5, mk.min).toFixed(2)} €).`;
+        else { const r = await X.vender(m, q); txt = `💶 ${N} · 💱 vendido tu ${sym}: ${r.q} ${sym} → ${r.got.toFixed(2)} € (ya en euros para el bot).`; } }
+      catch (e) { txt = `💶 ${N} · ⚠️ no pude vender tu ${sym}: ${String(e.message).slice(0, 100)}`; }
+      await io.tg(txt); console.log(`Real (${ex}): conversión a euros pedida · ${/vendido/.test(txt) ? "hecha" : "no hecha"}`);
+      const k = (ctl.cuentas = ctl.cuentas || {}); k[ex] = { ...(k[ex] || {}), convertir: { ...cfg.convertir, hecho: cfg.convertir.at, txt: txt.replace(/^💶 \S+ · /, "") } }; ctlMod = true; }
     let copia = cfg.copia;
     if (cfg.auto) { const A = autoElige(fuentes, RS && RS.copia, !!(RS && Object.keys(RS.pos || {}).length), S.muyDesde, now); copia = A.copia; R0.auto = A;
       if (RS && RS.copia && RS.copia !== copia) await io.tg(`💶 ${N} · 🤖 AUTOMÁTICO: ahora copia a «${nombre(copia)}» (${A.motivo}).`); }

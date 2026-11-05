@@ -220,3 +220,18 @@ test("Real v259: un ⭐⭐ solo cuenta si lleva ≥ 60 min siéndolo (el automá
   const t1 = new Date(t0.getTime() + 61 * 60000); RL.marcaMuy(S, F, t1); assert.equal(RL.autoElige(F, "eq", true, S.muyDesde, t1).copia, "mixokx", "tras 1 h siendo ⭐⭐, cambia");
   RL.marcaMuy(S, { ...F, mixokx: fuente(2.5, true, T2(0.3, 40, 2)) }, t1); assert.ok(!S.muyDesde.mixokx, "si deja de serlo, se reinicia la cuenta");
 });
+
+test("Real v260: 💱 convertir a euros: vende TODO el saldo de esa cripto una sola vez y luego empieza con euros", async () => {
+  const S = { pos: {}, lastEq: 100, sub: {} }, store = {}, msgs = [], io = { leer: async (f, r) => store[r + "/" + f] || null, publicar: (f, o, r) => { store[r + "/" + f] = JSON.parse(JSON.stringify(o)); }, tg: async (m) => { msgs.push(m); } };
+  Object.assign(process.env, { BITVAVO_KEY: "CLAVE", BITVAVO_SECRET: "SECRETO", REAL_VIEW_PASS: "pw-de-prueba-123" });
+  const ex = exchange({ "BTC-EUR": 60000 }, { eur: 0 }), f0 = globalThis.fetch; let btc = 0.002;
+  globalThis.fetch = async (u, o) => { const x = new URL(u); if (x.pathname === "/v2/balance" && x.searchParams.get("symbol") === "BTC") return { ok: true, status: 200, json: async () => [{ symbol: "BTC", available: String(btc) }] };
+    const r = await ex.fx(u, o); if (x.pathname === "/v2/order" && o.method === "POST") { ex.eur += 0.002 * 60000 * 0.9975; btc = 0; } return r; };
+  try {
+    store["bitvavo-ctl/ctl.json"] = { copia: "eq", cuentas: { bitvavo: { on: true, copia: "eq", capital: 50, convertir: { sym: "BTC", at: "c1" } }, okx: { on: false } } };
+    await RL.paso(S, tk(ex.px), new Date(), io);
+    assert.equal(ex.orders.length, 1); assert.equal(ex.orders[0].side, "sell"); assert.equal(ex.orders[0].market, "BTC-EUR");
+    assert.ok(msgs.some((m) => /vendido tu BTC/.test(m))); assert.equal(store["bitvavo-ctl/ctl.json"].cuentas.bitvavo.convertir.hecho, "c1");
+    delete S.conex; await RL.paso(S, tk(ex.px), new Date(), io); assert.equal(ex.orders.length, 1, "no lo repite");
+  } finally { globalThis.fetch = f0; for (const k of ["BITVAVO_KEY", "BITVAVO_SECRET", "REAL_VIEW_PASS"]) delete process.env[k]; }
+});

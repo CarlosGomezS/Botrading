@@ -12,7 +12,8 @@ if (c.cuenta != null) {
   const k = (ctl.cuentas[c.cuenta] = ctl.cuentas[c.cuenta] || {});
   if (c.on != null) k.on = !!c.on;
   if (c.adoptar === true) k.adoptarAt = new Date().toISOString();
-  if (c.espejo != null) k.espejo = !!c.espejo;   // v256 · 🪞 copiar SIEMPRE todo lo que el método tenga abierto   // v253 · copiar ya lo que el método tiene abierto
+  if (c.espejo != null) k.espejo = !!c.espejo;
+  if (c.convertir != null) { const sym = String(c.convertir).toUpperCase(); if (!/^[A-Z0-9]{2,10}$/.test(sym) || sym === "EUR") throw new Error("cripto no válida"); k.convertir = { sym, at: new Date().toISOString() }; }   // v260 · vender a euros TODO lo de esa cripto   // v256 · 🪞 copiar SIEMPRE todo lo que el método tenga abierto   // v253 · copiar ya lo que el método tiene abierto
   if (c.copia != null) { if (!SUBS.includes(c.copia)) throw new Error("método no válido"); k.copia = c.copia; }
   if (c.capital != null) { const v = Math.round(+c.capital); if (!(v >= 10 && v <= 100000)) throw new Error("cantidad no válida"); k.capital = v; }
   if (c.parado === false || c.on === true) { k.parado = false; k.motivo = null; }
