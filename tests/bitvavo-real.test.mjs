@@ -201,3 +201,13 @@ test("Real v255: si la parte proporcional queda bajo el mínimo del exchange, co
   const o2 = await RL.vuelta(null, { eq: fuente() }, { copia: "eq", capital: 15 }, tk(ex.px), T(0), deps), sp2 = { ...sp, t0: T(2).toISOString() };
   await RL.vuelta(o2.RS, { eq: fuente({ "A-EUR": sp2 }) }, { copia: "eq", capital: 15 }, tk(ex.px), T(2), deps); assert.equal(ex.orders.length, 1, "con 15 €, 5,10 € pasaría del 25 %: no compra");
 });
+
+test("Real v256: 🪞 espejo: compra siempre lo que el método tenga abierto (aunque sea antiguo), cada posición una vez", async () => {
+  const ex = exchange({ "A-EUR": 1.3, "B-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let o = await RL.vuelta(null, { eq: fuente() }, { copia: "eq", espejo: true }, tk(ex.px), T(5), deps);
+  const viejo = { sym: "A", px: 1, cost0: 30, cost: 30, q: 30, q0: 30, t0: T(0).toISOString() };
+  o = await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": viejo }) }, { copia: "eq", espejo: true }, tk(ex.px), T(6), deps); assert.equal(ex.orders.length, 1, "compra la antigua aunque ya subió");
+  o = await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": viejo }) }, { copia: "eq", espejo: true }, tk(ex.px), T(7), deps); assert.equal(ex.orders.length, 1, "no la repite");
+  const nueva = { sym: "B", px: 1, cost0: 30, cost: 30, q: 30, q0: 30, t0: T(1).toISOString() };
+  o = await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": viejo, "B-EUR": nueva }) }, { copia: "eq", espejo: true }, tk(ex.px), T(30), deps); assert.equal(ex.orders.length, 2, "y la que llegue después también, aunque sea tarde");
+});

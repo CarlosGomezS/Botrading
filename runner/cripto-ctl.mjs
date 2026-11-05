@@ -11,7 +11,8 @@ if (c.cuenta != null) {
   if (!EXS.includes(c.cuenta)) throw new Error("cuenta no válida");
   const k = (ctl.cuentas[c.cuenta] = ctl.cuentas[c.cuenta] || {});
   if (c.on != null) k.on = !!c.on;
-  if (c.adoptar === true) k.adoptarAt = new Date().toISOString();   // v253 · copiar ya lo que el método tiene abierto
+  if (c.adoptar === true) k.adoptarAt = new Date().toISOString();
+  if (c.espejo != null) k.espejo = !!c.espejo;   // v256 · 🪞 copiar SIEMPRE todo lo que el método tenga abierto   // v253 · copiar ya lo que el método tiene abierto
   if (c.copia != null) { if (!SUBS.includes(c.copia)) throw new Error("método no válido"); k.copia = c.copia; }
   if (c.capital != null) { const v = Math.round(+c.capital); if (!(v >= 10 && v <= 100000)) throw new Error("cantidad no válida"); k.capital = v; }
   if (c.parado === false || c.on === true) { k.parado = false; k.motivo = null; }
