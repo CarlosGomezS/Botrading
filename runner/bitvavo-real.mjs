@@ -24,7 +24,8 @@ export function autoElige(fuentes, actual, abiertas) {
   const c = SUBS_OK.map((k) => { const v = reglaEnUso(fuentes[k]); return v ? { k, s: +v.s || 0, muy: esMuy(v) } : null; }).filter(Boolean).sort((a, b) => (b.muy - a.muy) || b.s - a.s);
   const cur = c.find((x) => x.k === actual), best = c[0];
   if (!best) return { copia: SUBS_OK.includes(actual) ? actual : "eq", muy: false, motivo: "ningún método tiene regla ganadora ahora" };
-  if (abiertas && SUBS_OK.includes(actual)) return { copia: actual, muy: !!(cur && cur.muy), motivo: "espera a cerrar lo abierto para cambiar" };
+  // v258 · con algo abierto solo espera si el cambio no es urgente: si aparece uno ⭐⭐ muy bueno (y el actual no lo es) o el actual pierde la 🏆, cambia ya
+  if (abiertas && SUBS_OK.includes(actual) && cur && !(best.muy && !cur.muy)) return { copia: actual, muy: !!cur.muy, motivo: "espera a cerrar lo abierto para cambiar" };
   if (cur && !(best.muy && !cur.muy) && best.s < cur.s + 1) return { copia: actual, muy: cur.muy, motivo: "sigue siendo de los mejores" };
   return { copia: best.k, muy: best.muy, motivo: best.muy ? "⭐ muy ganadora" : "la de regla ganadora más fuerte" };
 }

@@ -27,24 +27,27 @@ export function rasgosCuant(c, out) {
     let lo24 = Infinity; for (let j = i - 24; j < i; j++) lo24 = Math.min(lo24, c[j][3]);
     const dentro = ma + 2 * sd < e20 + 1.5 * atr && ma - 2 * sd > e20 - 1.5 * atr;
     // ruptura tras ≥ 8 velas comprimidas, con volumen ≥ 2 ×
-    if (!dentro && sq >= 8 && cc > ma + 2 * sd && v >= 2 * va) brk = { i, mid: (h + l) / 2 };
+    if (!dentro && sq >= 5 && cc > ma + 2 * sd && v >= 1.3 * va) brk = { i, mid: (h + l) / 2, sq, vr: va > 0 ? v / va : 0 };   // v258 · se guardan largo y volumen (el laboratorio aprende cuánto exigir)
     sq = dentro ? sq + 1 : 0;
     const rng = h - l, f = out[i]; if (!f) continue;
     Object.assign(f, { cz: sd > 0 ? (cc - ma) / sd : 0, rsi14: al + ag > 0 ? 100 * ag / (ag + al) : 50, atr, vwap: vv > 0 ? pv / vv : cc, ema9: e9, vr20: va > 0 ? v / va : 0,
       mechaL: rng > 0 ? (Math.min(o, cc) - l) / rng : 0, lo: l, cl: cc, lo24, sqzPull: 0, brkMid: null });
-    if (brk && i - brk.i >= 1 && i - brk.i <= 12 && usado !== brk.i && l <= e9 && cc >= e9) { f.sqzPull = 1; f.brkMid = brk.mid; usado = brk.i; }
+    if (brk && i - brk.i >= 1 && i - brk.i <= 12 && usado !== brk.i && l <= e9 && cc >= e9) { f.sqzPull = 1; f.brkMid = brk.mid; f.sqLen = brk.sq; f.brkVr = brk.vr; usado = brk.i; }
     if (brk && i - brk.i > 12) brk = null;
   }
   return out;
 }
 // plan de la operación si alguno de los tres pilares da señal (precios absolutos, entrando a «px»)
-export function plan(f, px, pil = "ABC") {
-  if (!f || f.atr == null || !(px > 0)) return null; const ev = EV_X * COSTE; let P = null;
-  if (pil.includes("A") && f.cz <= -2.2 && f.rsi14 < 20 && f.mechaL >= 0.5 && f.vr20 >= 1.6) { const sl = f.lo - 1.3 * f.atr; P = { pilar: "A", sl, tp1: f.vwap, f1: 0.7, tp2: null, trail: "atr", atr: f.atr }; }
-  else if (pil.includes("B") && f.lo < f.lo24 && f.cl > f.lo24) { const sl = f.lo * (1 - 0.003); P = { pilar: "B", sl, tp1: px + 3 * (px - sl), f1: 1, tp2: null, trail: null, atr: f.atr }; }
-  else if (pil.includes("C") && f.sqzPull) { let sl = f.brkMid != null && f.brkMid < px ? f.brkMid : px - 1.5 * f.atr; const r = px - sl; P = { pilar: "C", sl, tp1: px + 2 * r, f1: 0.5, tp2: px + 4 * r, trail: "ema9", atr: f.atr }; }
+// v258 · 🧪 los números del método son ahora «genes» que su laboratorio ajusta (sin salirse de tus tres pilares). Si no se dan, son los tuyos.
+export const DEF = { aZ: 2.2, aRsi: 20, aMecha: 0.5, aVol: 1.6, aSl: 1.3, aF1: 0.7, bBuf: 0.003, bRR: 3, cSq: 8, cVol: 2, cR1: 2, cR2: 4, evX: EV_X, usaA: 1, usaB: 1, usaC: 1 };
+export const RANG_CU = { aZ: [1.5, 3], aRsi: [8, 35], aMecha: [0.2, 0.8], aVol: [1, 3], aSl: [0.6, 2.5], aF1: [0.3, 1], bBuf: [0.001, 0.012], bRR: [1.5, 5], cSq: [5, 16], cVol: [1.3, 3.5], cR1: [1, 3], cR2: [2, 6], evX: [2, 7], usaA: [0, 1], usaB: [0, 1], usaC: [0, 1] };
+export function plan(f, px, pil = "ABC", g = null) {
+  if (!f || f.atr == null || !(px > 0)) return null; const q = { ...DEF, ...(g || {}) }; const ev = q.evX * COSTE; let P = null; const usa = (k) => pil.includes(k) && q["usa" + k] >= 0.5;
+  if (usa("A") && f.cz <= -q.aZ && f.rsi14 < q.aRsi && f.mechaL >= q.aMecha && f.vr20 >= q.aVol) { const sl = f.lo - q.aSl * f.atr; P = { pilar: "A", sl, tp1: f.vwap, f1: q.aF1, tp2: null, trail: "atr", atr: f.atr }; }
+  else if (usa("B") && f.lo < f.lo24 && f.cl > f.lo24) { const sl = f.lo * (1 - q.bBuf); P = { pilar: "B", sl, tp1: px + q.bRR * (px - sl), f1: 1, tp2: null, trail: null, atr: f.atr }; }
+  else if (usa("C") && f.sqzPull && (f.sqLen ?? 99) >= q.cSq && (f.brkVr ?? 99) >= q.cVol) { let sl = f.brkMid != null && f.brkMid < px ? f.brkMid : px - 1.5 * f.atr; const r = px - sl; P = { pilar: "C", sl, tp1: px + q.cR1 * r, f1: 0.5, tp2: px + Math.max(q.cR2, q.cR1 + 0.5) * r, trail: "ema9", atr: f.atr }; }
   if (!P || !(P.sl < px) || !(P.tp1 > px)) return null;
-  if ((P.tp1 - px) / px < ev) return null;   // filtro de coste real: el objetivo tiene que pagar ≥ 4,5 × las comisiones
+  if ((P.tp1 - px) / px < ev) return null;   // filtro de coste real: el objetivo tiene que pagar ≥ «evX» veces las comisiones (tú: 4,5)
   return P;
 }
 export const NOMBRE_PILAR = { A: "reversión a la media", B: "caza de stops", C: "compresión y ruptura" };

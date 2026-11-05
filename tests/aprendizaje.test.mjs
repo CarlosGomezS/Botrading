@@ -51,3 +51,12 @@ test("v257 · 🧬 consenso: vota el comité y solo compra cuando coinciden ≥ 
   const S = { lab: { gen: 0, pop: [], log: [], adopt: [] }, genome: { ...B.PERF.consenso.base }, genomeId: "base", prueba: true };
   B.evolucionar(S, H, new Date(), Math.random, 1500, B.PERF.consenso); assert.ok(S.lab.pop.every((v) => v.g.estilo === "consenso"));
 });
+
+test("v258 · 🩹 aprende de sus errores reales: baja la nota a las reglas que habrían repetido las compras perdedoras", () => {
+  const malo = { m15: 0.02, m60: 0.04, m240: 0.05, sobre: 1, hl: 1, vol: 3, pull: 0.01 }, bueno = { m15: -0.001, m60: 0.001, m240: -0.02, sobre: 0, hl: 0, vol: 0.8, pull: 0.05 };
+  const S = { closed: [...Array(6)].map(() => ({ fx: malo, pc: -2 })).concat([...Array(4)].map(() => ({ fx: bueno, pc: 1.5 }))) }, Lc = B.lecciones(S);
+  const persigue = { ...B.BASE, m15Min: 0.01, m60Min: 0.02, m60Max: 0.1, m240Min: 0, ema: 1, hlMin: 0.5, volMin: 2, pullMax: 0.03 };
+  const evita = { ...B.BASE, m15Min: -0.01, m60Min: -0.01, m60Max: 0.01, m240Min: -0.1, ema: 0, hlMin: 0, volMin: 0.5, pullMax: 0.1 };
+  assert.ok(B.ajusteErrores(persigue, Lc).d < 0, "repetiría los errores"); assert.ok(B.ajusteErrores(evita, Lc).d > 0, "los evita");
+  assert.deepEqual(Object.keys(B.foto({ a: 1.234567, b: "x", c: null })), ["a", "c"]);
+});

@@ -92,7 +92,7 @@ export function entra(g, f) {
   // v219 · 🧠 la IA como filtro de cualquier estilo (si la regla lo pide) y como estilo propio («ia»: compra lo que la IA ve más probable)
   if (g.iaMin > 0 && !(f.ia >= g.iaMin)) return false;
   // v220 · «copia»: comprar lo que los mejores traders de Hyperliquid tienen claramente en largo (y no están soltando)
-  if (g.estilo === "cuant") return !!CU.plan(f, f.cl, g.pil || "ABC");
+  if (g.estilo === "cuant") return !!CU.plan(f, f.cl, g.pil || "ABC", g);
   // v257 · 🧬 «consenso»: compra solo cuando VARIOS de los mejores métodos (sus reglas en uso) quieren comprar a la vez la misma cripto,
   // con la IA de acuerdo; además aprende sus propias salidas, tamaño y filtros de mercado
   if (g.estilo === "consenso") return f.votos != null && f.votos >= Math.round(g.vmin || 2) && (f.ia == null || f.ia >= (g.iaMin || 0)) && f.m15 > -0.02;
@@ -147,7 +147,7 @@ export function backtestTramos(g, H, cortes) {
         if (out != null) { RS[pos.k].push((pos.cob + ven(out)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; }
         continue;
       }
-      if (t >= cool && entra(g, F[i]) && i + 1 < c.length && tramo(c[i + 1][0]) === k) { const px = c[i + 1][1] * (1 + sp / 2), P = g.estilo === "cuant" ? CU.plan(F[i], px, g.pil || "ABC") : null; if (g.estilo === "cuant" && !P) continue; pos = { k, px, q: (1 - FEE) / px, cob: 0, cost: 1, peak: px, t: c[i + 1][0], plan: P }; }   // v228 · la vela de entrada también se revisa
+      if (t >= cool && entra(g, F[i]) && i + 1 < c.length && tramo(c[i + 1][0]) === k) { const px = c[i + 1][1] * (1 + sp / 2), P = g.estilo === "cuant" ? CU.plan(F[i], px, g.pil || "ABC", g) : null; if (g.estilo === "cuant" && !P) continue; pos = { k, px, q: (1 - FEE) / px, cob: 0, cost: 1, peak: px, t: c[i + 1][0], plan: P }; }   // v228 · la vela de entrada también se revisa
     }
     if (pos) { const x = c[c.length - 1]; RS[pos.k].push((pos.cob + pos.q * x[4] * (1 - sp / 2) * (1 - FEE)) / pos.cost - 1); }
   }
@@ -190,8 +190,9 @@ export const PERF = {
 PERF.mixokx = { ...PERF.mix, nombre: "🧠 IA + los mejores · solo OKX", txt: "como «IA + los mejores», pero solo con criptos que también están en OKX: lo que compre aquí se puede copiar 1 a 1 con dinero real en OKX", soloOkx: true };
 for (const P of Object.values(PERF)) P.base = ajustar({ ...BASE }, P);
 // v251 · 📐 el método cuantitativo que pediste (fijo: no lo cambia la evolución; el laboratorio solo le hace el examen de 90 días)
-PERF.cuant = { nombre: "📐 Cuantitativo", txt: "tu método: reversión a la media (Bollinger + RSI), caza de stops y compresión de volatilidad; arriesga el 1,5 % por operación y se frena si cae un 8 %", ests: ["cuant"], rang: {}, fijo: { estilo: "cuant", maxPos: CU.MAX_POS, cooldownH: 1 }, robusta, fijoTotal: true, siempre: true };
-PERF.cuant.base = { ...BASE, estilo: "cuant", maxPos: CU.MAX_POS, cooldownH: 1 };
+// v258 · ahora también APRENDE: su laboratorio ajusta los números de tus tres pilares (empieza exactamente con los tuyos)
+PERF.cuant = { nombre: "📐 Cuantitativo", txt: "tu método: reversión a la media (Bollinger + RSI), caza de stops y compresión de volatilidad; arriesga el 1,5 % por operación y se frena si cae un 8 %; su laboratorio ajusta los números de cada pilar", ests: ["cuant"], rang: CU.RANG_CU, fijo: { estilo: "cuant", maxPos: CU.MAX_POS, cooldownH: 1 }, robusta };
+PERF.cuant.base = { ...BASE, ...CU.DEF, estilo: "cuant", maxPos: CU.MAX_POS, cooldownH: 1 };
 // v257 · 🧬 CONSENSO DE LOS MEJORES (método propio): un «comité» con las reglas en uso de Equilibrado, Turbo, IA + los mejores y su versión OKX.
 // Solo entra cuando al menos «vmin» de ellas coinciden en la misma cripto en la misma vela (y la IA lo ve probable). La idea, de los
 // «ensembles» que usan los equipos cuantitativos: los fallos de cada regla se parecen poco entre sí, así que cuando varias coinciden
@@ -215,10 +216,18 @@ export function fresh(now = new Date()) {
 const L = (S, now, ev, sym, txt) => { S.log.unshift({ t: now.toISOString(), ev, sym, txt }); S.log = S.log.slice(0, 200); };
 // v229 · el saldo cuenta lo que se cobraría si se vendiera ahora (precio de compra del libro MENOS la comisión de venta), igual que en la pantalla
 const equity = (S, px) => S.cash + Object.entries(S.pos).reduce((t, [m, p]) => t + p.q * ((px[m] && px[m].bid) || p.last || p.px) * (1 - FEE), 0);
+// v258 · 📸 «foto» de todos los rasgos en el momento de comprar: así el laboratorio puede aprender de cada error real (qué había cuando falló)
+export function foto(f) { const o = {}; for (const [k, v] of Object.entries(f || {})) if (typeof v === "number" && isFinite(v)) o[k] = Math.abs(v) >= 100 ? Math.round(v * 100) / 100 : r4(v); else if (v == null) o[k] = null; return o; }
+// v258 · 🩹 APRENDER DE LOS ERRORES: con las fotos de las últimas operaciones reales de la cuenta, cada regla candidata se mira contra ellas:
+// si habría vuelto a comprar en los momentos en que se perdió dinero (y no en los que se ganó), baja su nota; si los habría evitado, sube.
+export function lecciones(S) { const cl = (S.closed || []).filter((c) => c.fx).slice(0, 80); return { L: cl.filter((c) => +c.pc < 0).map((c) => ({ f: c.fx, pc: +c.pc })), W: cl.filter((c) => +c.pc >= 0).map((c) => ({ f: c.fx, pc: +c.pc })) }; }
+export function ajusteErrores(g, Lc) { if (!Lc || Lc.L.length + Lc.W.length < 5) return { d: 0 }; let pl = 0, pw = 0, hL = 0, hW = 0;
+  for (const x of Lc.L) if (entra(g, x.f)) { hL++; pl += Math.abs(x.pc); } for (const x of Lc.W) if (entra(g, x.f)) { hW++; pw += x.pc; }
+  const n = Lc.L.length + Lc.W.length, d = r2(Math.max(-2, Math.min(1, (pw - pl) / Math.max(10, n)))); return { d, hL, hW }; }
 function cerrar(S, m, now, bid, why) {
   const p = S.pos[m], got = p.q * bid * (1 - FEE), gotT = got + (p.cob || 0), pnl = gotT - p.cost;
   S.cash += got; S.st.pnl += pnl; S.st.fees += p.q * bid * FEE; if (pnl >= 0) S.st.wins++; else S.st.losses++;
-  S.closed.unshift({ m, gid: p.gid || null, sym: m.replace("-EUR", ""), t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(gotT), pnl: r2(pnl), pc: r2((gotT / p.cost - 1) * 100), why: p.cob ? why + " (tras vender parte con ganancia)" : why, h: (p.h || []).slice(-120), px0: p.px, peak: p.peak, out: bid });
+  S.closed.unshift({ m, gid: p.gid || null, ...(p.fx ? { fx: p.fx } : {}), sym: m.replace("-EUR", ""), t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(gotT), pnl: r2(pnl), pc: r2((gotT / p.cost - 1) * 100), why: p.cob ? why + " (tras vender parte con ganancia)" : why, h: (p.h || []).slice(-120), px0: p.px, peak: p.peak, out: bid });
   S.closed = S.closed.slice(0, 500); for (let i = 40; i < S.closed.length && S.closed[i].h; i++) delete S.closed[i].h; S.cool[m] = now.getTime(); delete S.pos[m];
   L(S, now, pnl >= 0 ? "WIN" : "LOSS", m.replace("-EUR", ""), `${pnl >= 0 ? "+" : ""}${r2(pnl)} € · ${r2((gotT / p.cost - 1) * 100)} % · ${why}`);
 }
@@ -242,19 +251,19 @@ export function paso(S, tick, F, now = new Date()) {
     .sort((a, b) => b[1].m60 - a[1].m60);
   for (const [m, f] of cand) {
     if (Object.keys(S.pos).length >= g.maxPos) break;
-    if (S.prueba && g.estilo !== "cuant") break;   // v223 · REGLA ESTRICTA: sin reglas con ventaja demostrada (pruebas + vida real), NO compra; solo observa y aprende (el cuantitativo es tu método fijo: opera siempre en ficticio)
+    if (S.prueba) break;   // v223 · REGLA ESTRICTA: sin reglas con ventaja demostrada (pruebas + vida real), NO compra; solo observa y aprende (el cuantitativo es tu método fijo: opera siempre en ficticio)
     const eq = equity(S, tick); let amt = Math.min(S.cash, eq * g.size), P = null;
     if (g.estilo === "cuant") { S.pico = Math.max(S.pico || S.start || 100, eq); if (S.pausaDD && tnow < S.pausaDD) break; if (eq < S.pico * (1 - CU.DD_MAX)) { S.pausaDD = tnow + 86400e3; S.pico = eq; L(S, now, "INFO", "", `🛑 ha caído un ${CU.DD_MAX * 100} % desde su máximo: no compra en 24 h`); break; }
-      P = CU.plan(f, tick[m].ask); if (!P) continue; amt = CU.tamano(eq, S.cash, tick[m].ask, P); }
+      P = CU.plan(f, tick[m].ask, "ABC", g); if (!P) continue; amt = CU.tamano(eq, S.cash, tick[m].ask, P); }
     if (amt < 2) break;
     const ask = tick[m].ask, q = amt * (1 - FEE) / ask; S.cash -= amt; S.st.trades++; S.st.fees += amt * FEE;
-    S.pos[m] = { gid: S.genomeId || "base", sym: m.replace("-EUR", ""), q, q0: q, px: ask, cost: amt, cost0: amt, t0: now.toISOString(), peak: ask, last: ask, h: [[now.toISOString(), ask]], f: { m15: r4(f.m15), m60: r4(f.m60), m240: r4(f.m240), vol: r2(f.vol) }, ...(P ? { plan: P } : {}) };
+    S.pos[m] = { gid: S.genomeId || "base", sym: m.replace("-EUR", ""), q, q0: q, px: ask, cost: amt, cost0: amt, t0: now.toISOString(), peak: ask, last: ask, h: [[now.toISOString(), ask]], f: { m15: r4(f.m15), m60: r4(f.m60), m240: r4(f.m240), vol: r2(f.vol) }, fx: foto(f), ...(P ? { plan: P } : {}) };
     L(S, now, "ENTER", m.replace("-EUR", ""), P ? `${r2(amt)} € · pilar ${P.pilar} (${CU.NOMBRE_PILAR[P.pilar]}) · stop ${r2((1 - P.sl / ask) * 100)} % · objetivo +${r2((P.tp1 / ask - 1) * 100)} % · arriesga ${r2(amt * (1 - P.sl / ask))} €` : `${r2(amt)} € · sube ${r2(f.m60 * 100)} % en 1 h · volumen ×${r2(f.vol)}${S.prueba ? " · modo prueba (mitad)" : ""}`);
   }
 }
 // ---- laboratorio: búsqueda dirigida con backtest robusto
 export function evolucionar(S, H, now = new Date(), rnd = Math.random, budgetMs = 20e3, P = PERF.eq, fuera = []) {
-  const BASE = P.base, robustaV = (g, H) => { const r = P.robusta(g, H); return { s: r.s, ok: !!r.ok, a: r.a || null, b: r.b || null, c: r.c || null }; };
+  const Lc = lecciones(S), BASE = P.base, robustaV = (g, H) => { const r = P.robusta(g, H), e = r.s > -99 ? ajusteErrores(g, Lc) : { d: 0 }; return { s: r2(r.s + e.d), s0: r.s, err: e.d ? { d: e.d, hL: e.hL, hW: e.hW } : null, ok: !!r.ok && !(e.d <= -1), a: r.a || null, b: r.b || null, c: r.c || null }; };
   const mutarP = (g, rnd) => mutar(g, rnd, P), aleatorioP = (rnd) => aleatorio(rnd, P), cruzarP = (a, b, rnd) => ajustar(cruzar(a, b, rnd), P);
   const B = S.lab; B.gen++; B.lastGen = now.toISOString(); const t0 = Date.now(), ev = (txt) => { B.log.unshift({ t: now.toISOString(), txt }); B.log = B.log.slice(0, 120); };
   for (const v of B.pop) Object.assign(v, robustaV(v.g, H));
@@ -273,7 +282,7 @@ export function evolucionar(S, H, now = new Date(), rnd = Math.random, budgetMs 
   // v222 · variedad: dos reglas que hacen exactamente las mismas operaciones son la misma regla (se queda una)
   const huella = (v) => (v.a && v.b ? [v.a.n, v.a.med, v.b.n, v.b.med, v.c ? v.c.n : "", v.c ? v.c.med : ""].join("|") : "x" + Math.random());
   const vet = B.vetadas || {}, vistasH = new Set();
-  const todos = B.pop.concat(cand.map((c) => ({ id: "b" + (B.next = (B.next || 0) + 1), g: c.g, born: now.toISOString(), why: c.why, s: c.s, ok: c.ok, a: c.a, b: c.b, c: c.c })))
+  const todos = B.pop.concat(cand.map((c) => ({ id: "b" + (B.next = (B.next || 0) + 1), g: c.g, born: now.toISOString(), why: c.why, s: c.s, s0: c.s0, err: c.err, ok: c.ok, a: c.a, b: c.b, c: c.c })))
     .filter((v) => !vet[gkey(v.g)]).sort((a, b) => b.s - a.s).filter((v) => { if (v.id === "base" || v.id === S.genomeId) return true; const h = huella(v); if (vistasH.has(h)) return false; vistasH.add(h); return true; });
   const keep = todos.filter((v) => v.id === "base" || v.id === S.genomeId).concat(todos.filter((v) => v.id !== "base" && v.id !== S.genomeId)).slice(0, POP);
   const nuevos = keep.filter((v) => !B.pop.includes(v)).length; B.pop = keep; B.probadas = cand.length;
@@ -460,11 +469,10 @@ async function main() {
   for (const v of S.lab.pop) { delete v.c; }
   // 🔔 avisos por Telegram cuando algo es MUY efectivo
   try {
-    const AV = await import("./avisos.mjs"); S.av = S.av || {}; const msgs = AV.avisosCuenta(S.av, "bv", "🇪🇺 Bitvavo", S, now, { med: 1, big: 5 });
-    for (const k of SUBS) msgs.push(...AV.avisosCuenta(S.av, "bv" + k, "🧠 " + PERF[k].nombre, S.sub[k], now, { med: 1, big: 5 }));
-    for (const [k, X] of Object.entries(S.fins)) if (X) msgs.push(...AV.avisosCuenta(S.av, "bvfin" + k, "💸 Financiación " + FIN.PERF[k].nombre, X, now, { med: 0.3, big: 2 }));
-    for (const [k, X] of Object.entries(S.rejs)) if (X) msgs.push(...AV.avisosCuenta(S.av, "bvrej" + k, "🪜 Rejilla " + REJ.PERF[k].nombre, X, now, { med: 0.5, big: 3 }));
-    for (const [k, C] of [["eq", S], ...SUBS.map((k) => [k, S.sub[k]])]) { const ad = ((C.lab || {}).adopt || [])[0]; if (ad && ad.ok && now - Date.parse(ad.t) < 60 * 60000) { const m = AV.avisoReglas(S.av, "bv-adopta:" + k + ":" + ad.id, `🏆 Bitvavo ${PERF[k].nombre} ha encontrado reglas que GANAN tanto en los días antiguos como en los recientes (${ad.id}) y empieza a operar con ellas (dinero ficticio).`, now); if (m) msgs.push(m); } }
+    // v258 · 🔕 Telegram sin ruido: ya no avisa de cada regla nueva ni de cada buena operación en ficticio. Solo cuando un método pasa a ser
+    // ⭐⭐ MUY BUENO (gana ≥ 0,6 % por operación en los tres tramos de 90 días, con ≥ 30 operaciones en cada uno), como mucho una vez al día por método.
+    const AV = await import("./avisos.mjs"), RL0 = await import("./bitvavo-real.mjs"); S.av = S.av || {}; const msgs = [];
+    for (const [k, C] of [["eq", S], ...SUBS.map((k) => [k, S.sub[k]])]) { const v = RL0.reglaEnUso(C); if (v && RL0.esMuy(v)) { const t3 = [v.a, v.b, v.c].map((x) => `${x.med >= 0 ? "+" : ""}${x.med} % en ${x.n} ops`).join(" · "), m = AV.avisoReglas(S.av, "bv-muy:" + k, `⭐⭐ ${PERF[k].nombre} es ahora MUY BUENO\n• Examen de 90 días (por operación, con comisiones): ${t3}\n• Si tu cuenta real está en 🤖 Automático, pasará a seguirlo sola.`, now); if (m) msgs.push(m); } }
     // v238 · 📊 resumen diario por Telegram (21:00 en España): como los datos van cifrados, así te llegan los números sin abrir la app
     { const hES = +now.toLocaleString("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hour12: false }), dES = now.toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
       if (hES >= 21 && S.resumenDia !== dES) { S.resumenDia = dES; const f = (n, C) => { if (!C) return null; const cl = C.closed || [], w = cl.filter((c) => c.pnl > 0).length; return `• ${n}: ${r2(C.lastEq)} € (${C.lastEq >= (C.start || 100) ? "+" : ""}${r2((C.lastEq / (C.start || 100) - 1) * 100)} %) · ${cl.length} cerradas (${w} G / ${cl.length - w} P)${C.prueba === true ? " · sin regla ganadora" : C.prueba === false ? " · 🏆 regla ganadora" : ""}`; };

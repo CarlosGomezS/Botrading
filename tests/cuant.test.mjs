@@ -28,10 +28,15 @@ test("salidas: stop primero; pilar C vende la mitad en 2R, el resto en 4R o si c
   assert.equal(CU.salida(p, 103, 101, 101, { ema9: 102 }).por, "cierra bajo la EMA(9)");
   assert.equal(CU.salida(p, 108.5, 103, 108, { ema9: 102 }).por, "objetivo 4R");
 });
-test("backtest y bot: el método opera con su plan (en el bot, aunque el laboratorio aún no le dé la 🏆)", () => {
+test("backtest y bot: el método opera con su plan (con 🏆)", () => {
   const c = base(400); for (const i of [150, 250, 350]) { const lo24 = Math.min(...c.slice(i - 24, i).map((x) => x[3])), p = c[i - 1][4]; c[i] = [c[i][0], p, p * 1.001, lo24 * 0.97, p * 0.999, 300]; for (let j = i + 1; j < i + 30; j++) { const q = p * (1 + (j - i) * 0.006); c[j] = [c[j][0], q, q * 1.002, q * 0.998, q, 100]; } }
   const H = { m: { "A-EUR": { c, f: B.rasgos(c), sp: 0.001 } } }, r = B.backtest(B.PERF.cuant.base, H); assert.ok(r.n >= 2, "opera: " + r.n); assert.ok(r.med > 0);
-  const S = B.fresh(new Date()); S.genome = { ...B.PERF.cuant.base }; S.prueba = true; const i = 150, f = H.m["A-EUR"].f[i];
+  const S = B.fresh(new Date()); S.genome = { ...B.PERF.cuant.base }; S.prueba = false; /* v258 · ahora también necesita 🏆 para comprar */ const i = 150, f = H.m["A-EUR"].f[i];
   B.paso(S, { "A-EUR": { bid: f.cl, ask: f.cl * 1.0005 } }, { "A-EUR": f }, new Date(c[i][0])); const p = S.pos["A-EUR"];
   assert.ok(p && p.plan && p.plan.pilar === "B", "compra con plan"); assert.ok(p.cost * (1 - p.plan.sl / p.px) <= 1.5 + 1e-6, "arriesga ≤ 1,5 €");
+});
+test("v258 · los números de los pilares son genes (por defecto, los tuyos) y el laboratorio los puede cambiar", () => {
+  const f = { atr: 1, cz: -2.5, rsi14: 18, mechaL: 0.6, vr20: 1.7, lo: 95, lo24: 90, cl: 96, vwap: 100, sqzPull: 0 };
+  assert.equal(CU.plan(f, 96).pilar, "A"); assert.equal(CU.plan(f, 96, "ABC", { aZ: 2.8 }), null, "más exigente: no entra");
+  assert.equal(B.PERF.cuant.base.aZ, 2.2); assert.equal(B.PERF.cuant.base.bRR, 3);
 });

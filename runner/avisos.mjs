@@ -37,5 +37,5 @@ export function avisosCuenta(A, clave, nombre, C, now, umbrales) {
   return out;
 }
 export function avisoReglas(A, clave, texto, now) {
-  A.k = A.k || {}; const t = now.getTime(); if (A.k[clave] && t - A.k[clave] < 12 * 3600e3) return null; A.k[clave] = t; return texto;
+  A.k = A.k || {}; const t = now.getTime(); if (A.k[clave] && t - A.k[clave] < 24 * 3600e3) return null; A.k[clave] = t; return texto;
 }
