@@ -500,7 +500,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .mt-cmp>div,.mt-foot{background:color-mix(in srgb,var(--line) 20%,transparent);border:0;border-radius:12px}
 .mt-log,.mt-kv,.mt-rule,.mt-node{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v260</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v261</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2604,7 +2604,7 @@ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest
  else if(v==="convertir"){let c=prompt("¿Qué cripto tienes en "+BVN[ex]+" que quieras pasar a euros para el bot? (se vende TODO lo que haya de esa cripto)","BTC");if(c==null)return;c=String(c).trim().toUpperCase();if(!/^[A-Z0-9]{2,10}$/.test(c)||c==="EUR"){alert("Escribe el símbolo, por ejemplo BTC o ETH.");return}if(confirm("¿Vender TODO tu "+c+" de "+BVN[ex]+" a euros, a precio de mercado? No se puede deshacer."))bvCtlSet({cuenta:ex,convertir:c})}
  else if(v==="adoptar"){if(confirm("¿Comprar YA con dinero real en "+BVN[ex]+" lo que el método tiene abierto ahora (solo lo que esté en "+BVN[ex]+")? Se compra al precio de ahora, que puede ser peor que el que tuvo el método. Luego venderá cuando el método venda."))bvCtlSet({cuenta:ex,adoptar:true})}
  else if(v==="auto"){if(confirm("¿Poner "+BVN[ex]+" en 🤖 AUTOMÁTICO? Copiará solo al método con la regla ganadora más fuerte (primero las ⭐ muy ganadoras) y cambiará solo cuando no tenga nada abierto. Te avisará por Telegram de cada cambio."))bvCtlSet({cuenta:ex,copia:"auto"})}
- else if(confirm("¿Copiar en "+BVN[ex]+" a «"+(b.dataset.n||v)+"»? Lo que tenga abierto ahí del método actual se vende."))bvCtlSet({cuenta:ex,copia:v})});
+ else if(confirm("¿Copiar en "+BVN[ex]+" a «"+(b.dataset.n||v)+"»? Lo que ya tenga abierto NO se vende: sigue con su método y se venderá cuando él lo venda."))bvCtlSet({cuenta:ex,copia:v})});
 /* v244 · 📜 REGISTRO DE TODO: lo que hace (y lo que se salta) el dinero real y cada método ficticio, en una sola lista */
 function bvRegistroHtml(){const X=MM.bvX||{},CU=bvCuentas(MM.bvCtl||{}),fil=(()=>{try{return localStorage.getItem("pbbvreg")||"todo"}catch(e){return"todo"}})(),n=MM.bvRegN||60,E=[];
  for(const ex of ["okx","bitvavo"]){const R=(X[ex]||{}).R;if(R)for(const x of R.log||[])E.push({t:x.t,real:1,src:"💶 "+BVN[ex]+" REAL",txt:x.txt})}
