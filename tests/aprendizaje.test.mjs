@@ -40,3 +40,14 @@ test("cruce entre laboratorios: las reglas de otros se prueban (adaptadas a sus 
   assert.ok(S.lab.log.some((l) => /generación/.test(l.txt)));
   const adapt = B.ajustar({ ...deTurbo }, B.PERF.mix); assert.ok(["ia", "copia"].includes(adapt.estilo), "se adapta a los estilos del que la recibe");
 });
+
+test("v257 · 🧬 consenso: vota el comité y solo compra cuando coinciden ≥ vmin reglas (y aprende con el laboratorio)", () => {
+  const H = Hde([serie(3000, 23), serie(3000, 29)]);
+  const g1 = { ...B.BASE, volMin: 0.5, hlMin: 0, m15Min: -0.002, m60Min: -0.01, ema: 0, pullMax: 0.1 }, g2 = { ...g1, m15Min: 0.001 }, g3 = { ...B.BASE, estilo: "connors", rsiMax: 30 };
+  B.ponVotos(H, [g1, g2, g3]); const fs = Object.values(H.m).flatMap((x) => x.f).filter(Boolean);
+  assert.ok(fs.some((f) => f.votos >= 2) && fs.some((f) => f.votos === 0));
+  const n1 = B.backtest({ ...B.PERF.consenso.base, vmin: 1, iaMin: 0 }, H).n, n2 = B.backtest({ ...B.PERF.consenso.base, vmin: 2, iaMin: 0 }, H).n;
+  assert.ok(n1 >= n2 && n1 > 0, `más exigente, menos operaciones (${n1} ≥ ${n2})`);
+  const S = { lab: { gen: 0, pop: [], log: [], adopt: [] }, genome: { ...B.PERF.consenso.base }, genomeId: "base", prueba: true };
+  B.evolucionar(S, H, new Date(), Math.random, 1500, B.PERF.consenso); assert.ok(S.lab.pop.every((v) => v.g.estilo === "consenso"));
+});

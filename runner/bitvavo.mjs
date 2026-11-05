@@ -24,7 +24,7 @@ const cl = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---- reglas (genoma). Estilos: «tendencia» (sube con fuerza y sin pasarse) o «rebote» (cayó mucho y empieza a girarse)
 export const BASE = { estilo: "tendencia", m15Min: 0.002, m60Min: 0.006, m60Max: 0.05, m240Min: -0.01, ema: 1, hlMin: 0.5, volMin: 1.2, pullMax: 0.03,
-  stop: 0.025, tp: 0.03, tpFrac: 0.5, trailOn: 0.015, trail: 0.012, maxHoldH: 6, size: 0.15, maxPos: 6, cooldownH: 1, k: 0.5, rsiMax: 10, rkMax: 0.1, pir: 0, pirOn: 0.04, iaMin: 0, regimen: 0, fgLo: 0, fgHi: 100, fundMax: 0.0002 };
+  stop: 0.025, tp: 0.03, tpFrac: 0.5, trailOn: 0.015, trail: 0.012, maxHoldH: 6, size: 0.15, maxPos: 6, cooldownH: 1, k: 0.5, rsiMax: 10, rkMax: 0.1, pir: 0, pirOn: 0.04, iaMin: 0, regimen: 0, fgLo: 0, fgHi: 100, fundMax: 0.0002, vmin: 2, ventaV: 0 };
 // v206 · 🏛️ MÉTODOS DE GRANDES TRADERS (la bola los prueba, los mezcla y se queda con los que ganen aquí y ahora):
 //  · «tortuga»: las Tortugas de Richard Dennis (años 80): comprar cuando el precio rompe el máximo de las últimas 20 velas (aquí, 20 h)
 //  · «williams»: ruptura de volatilidad de Larry Williams (ganó la Robbins World Cup de 1987 pasando de 10.000 $ a más de 1,1 M$):
@@ -39,7 +39,9 @@ export const BASE = { estilo: "tendencia", m15Min: 0.002, m60Min: 0.006, m60Max:
 export const RANG = { m15Min: [-0.01, 0.01], m60Min: [-0.02, 0.03], m60Max: [0.01, 0.12], m240Min: [-0.15, 0.03], hlMin: [0, 1], volMin: [0.5, 4], pullMax: [0.005, 0.1],
   stop: [0.008, 0.08], tp: [0.006, 0.12], tpFrac: [0, 0.8], trailOn: [0.004, 0.06], trail: [0.003, 0.05], maxHoldH: [0.5, 48], size: [0.05, 0.25], cooldownH: [0.25, 12], k: [0.15, 1.2], rsiMax: [2, 30], rkMax: [0.03, 0.35], pir: [0, 1], pirOn: [0.01, 0.1], iaMin: [0, 0.8],
   // v245 · 🌡️ termómetro del mercado: miedo/codicia (0-100) y financiación de los futuros de BTC (si los profesionales están muy comprados)
-  fgLo: [0, 60], fgHi: [40, 100], fundMax: [-0.00002, 0.0002] };
+  fgLo: [0, 60], fgHi: [40, 100], fundMax: [-0.00002, 0.0002],
+  // v257 · 🧬 consenso: cuántos de los otros métodos tienen que coincidir (vmin) y si sale cuando ya no coincide ninguno (ventaV)
+  vmin: [1, 4], ventaV: [0, 1] };
 // v225 · 🎛️ SUBMODOS: cada uno con sus 100 €, su propio laboratorio y sus propios límites (lo que la bola puede tocar)
 const rangos = (P) => ({ ...RANG, ...((P && P.rang) || {}) });
 export function ajustar(g, P) {
@@ -91,6 +93,9 @@ export function entra(g, f) {
   if (g.iaMin > 0 && !(f.ia >= g.iaMin)) return false;
   // v220 · «copia»: comprar lo que los mejores traders de Hyperliquid tienen claramente en largo (y no están soltando)
   if (g.estilo === "cuant") return !!CU.plan(f, f.cl, g.pil || "ABC");
+  // v257 · 🧬 «consenso»: compra solo cuando VARIOS de los mejores métodos (sus reglas en uso) quieren comprar a la vez la misma cripto,
+  // con la IA de acuerdo; además aprende sus propias salidas, tamaño y filtros de mercado
+  if (g.estilo === "consenso") return f.votos != null && f.votos >= Math.round(g.vmin || 2) && (f.ia == null || f.ia >= (g.iaMin || 0)) && f.m15 > -0.02;
   if (g.estilo === "copia") return f.smart != null && f.smart >= 0.2 + g.k * 0.5 && (f.smartD == null || f.smartD >= 0) && f.m60 > -0.02;
   if (g.estilo === "ia") return f.ia != null && f.ia >= Math.max(0.25, g.iaMin) && f.m15 > -0.01;
   // ruptura: supera el máximo de las últimas ~24 h con volumen; media: en tendencia de fondo, compra una bajada corta
@@ -138,6 +143,7 @@ export function backtestTramos(g, H, cortes) {
         if (g.tpFrac > 0 && !pos.tp && h >= pos.px * (1 + g.tp)) { pos.cob += pos.q * g.tpFrac * pos.px * (1 + g.tp) * (1 - sp / 2) * (1 - FEE); pos.q *= 1 - g.tpFrac; pos.tp = 1; }
         if (pos.peak >= pos.px * (1 + g.trailOn) && l <= pos.peak * (1 - g.trail)) out = Math.min(c[i][1], pos.peak * (1 - g.trail));
         else if ((t - pos.t) / 3600e3 >= g.maxHoldH) out = cc;
+        else if (g.estilo === "consenso" && g.ventaV >= 0.5 && F[i] && F[i].votos === 0 && cc > pos.px * (1 + 2 * FEE)) out = cc;   // v257 · el comité ya no la quiere
         if (out != null) { RS[pos.k].push((pos.cob + ven(out)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; }
         continue;
       }
@@ -186,7 +192,16 @@ for (const P of Object.values(PERF)) P.base = ajustar({ ...BASE }, P);
 // v251 · 📐 el método cuantitativo que pediste (fijo: no lo cambia la evolución; el laboratorio solo le hace el examen de 90 días)
 PERF.cuant = { nombre: "📐 Cuantitativo", txt: "tu método: reversión a la media (Bollinger + RSI), caza de stops y compresión de volatilidad; arriesga el 1,5 % por operación y se frena si cae un 8 %", ests: ["cuant"], rang: {}, fijo: { estilo: "cuant", maxPos: CU.MAX_POS, cooldownH: 1 }, robusta, fijoTotal: true, siempre: true };
 PERF.cuant.base = { ...BASE, estilo: "cuant", maxPos: CU.MAX_POS, cooldownH: 1 };
-export const SUBS = ["turbo", "mix", "mixokx", "cuant"];
+// v257 · 🧬 CONSENSO DE LOS MEJORES (método propio): un «comité» con las reglas en uso de Equilibrado, Turbo, IA + los mejores y su versión OKX.
+// Solo entra cuando al menos «vmin» de ellas coinciden en la misma cripto en la misma vela (y la IA lo ve probable). La idea, de los
+// «ensembles» que usan los equipos cuantitativos: los fallos de cada regla se parecen poco entre sí, así que cuando varias coinciden
+// las falsas alarmas se filtran. El laboratorio aprende cuántas tienen que coincidir, el filtro de IA, las salidas y el tamaño.
+export const COMITE = ["eq", "turbo", "mix", "mixokx"];
+PERF.consenso = { nombre: "🧬 Consenso", txt: "compra solo cuando varios de los mejores métodos coinciden a la vez en la misma cripto (y la IA está de acuerdo); aprende cuántos tienen que coincidir y cuándo vender", ests: ["consenso"], rang: { iaMin: [0, 0.6] }, fijo: {}, robusta };
+PERF.consenso.base = ajustar({ ...BASE, estilo: "consenso", vmin: 2 }, PERF.consenso);
+// votos de cada vela: cuántas reglas del comité darían compra ahí
+export function ponVotos(H, genomas) { const gs = genomas.filter(Boolean); for (const x of Object.values(H.m || {})) for (const f of x.f) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
+export const SUBS = ["turbo", "mix", "mixokx", "cuant", "consenso"];
 // filtros para «solo OKX»: okx = lista de criptos (símbolos) que se pueden operar en OKX contra euros (directo o pasando por USDC)
 export const enOkx = (okx, m) => !!okx && okx.has(String(m).replace(/-EUR$/, ""));
 export function filtraH(H, okx) { const m = {}; for (const [k, x] of Object.entries(H.m || {})) if (enOkx(okx, k)) m[k] = x; return { m }; }
@@ -217,6 +232,7 @@ export function paso(S, tick, F, now = new Date()) {
       if (x.sale >= 1) { cerrar(S, m, now, bid, x.por); continue; } const qv = p.q * x.sale, got = qv * bid * (1 - FEE); S.cash += got; p.cob = (p.cob || 0) + got; p.q -= qv; p.tp = 1; S.st.fees += qv * bid * FEE; L(S, now, "TP", p.sym, `${x.por}: vende el ${Math.round(x.sale * 100)} %`); continue; }
     if (g.tpFrac > 0 && !p.tp && bid >= p.px * (1 + g.tp)) { const qv = p.q * g.tpFrac, got = qv * bid * (1 - FEE); S.cash += got; p.cob = (p.cob || 0) + got; p.q -= qv; p.tp = 1; S.st.fees += qv * bid * FEE; L(S, now, "TP", m.replace("-EUR", ""), `+${r2(g.tp * 100)} %: vende el ${Math.round(g.tpFrac * 100)} %`); }
     if (g.pir > 0 && !p.pir && bid >= p.px * (1 + g.pirOn) && tick[m].ask > 0) { const add = Math.min(S.cash, (p.cost0 || p.cost) * g.pir); if (add >= 2) { const q2 = add * (1 - FEE) / tick[m].ask; S.cash -= add; S.st.fees += add * FEE; p.q += q2; p.cost += add; p.pir = 1; p.be = (p.cost - (p.cob || 0)) / (p.q * (1 - FEE)); L(S, now, "ENTER", m.replace("-EUR", ""), `piramida: +${r2(add)} € (ya gana ${r2(g.pirOn * 100)} %) · stop a «sin pérdidas»`); } }
+    if (g.estilo === "consenso" && g.ventaV >= 0.5 && F && F[m] && F[m].votos === 0 && bid > p.px * (1 + 2 * FEE)) { cerrar(S, m, now, bid, "el comité ya no la quiere (y va ganando)"); continue; }
     if (bid <= Math.max(p.px * (1 - g.stop), p.be || 0)) cerrar(S, m, now, bid, p.be && bid > p.px * (1 - g.stop) ? "stop sin pérdidas (tras piramidar)" : `stop −${r2(g.stop * 100)} %`);
     else if (p.peak >= p.px * (1 + g.trailOn) && bid <= p.peak * (1 - g.trail)) cerrar(S, m, now, bid, `stop móvil (${r2(g.trail * 100)} % bajo el máximo)`);
     else if ((tnow - Date.parse(p.t0)) / 3600e3 >= g.maxHoldH) cerrar(S, m, now, bid, `tiempo máximo (${g.maxHoldH} h)`);
@@ -404,6 +420,8 @@ async function main() {
   if (!S.termo || now - S.termo.t > 30 * 60000) try { const TM = await termometro(2); if (TM.fg || TM.fund) S.termo = { t: TM.t, fg: TM.fg ? TM.fg.slice(-3) : (S.termo && S.termo.fg) || null, fund: TM.fund ? TM.fund.slice(-3) : (S.termo && S.termo.fund) || null }; } catch (e) {}
   if (S.termo) for (const f of Object.values(F)) ponTermometro(f, S.termo);
   if (S.iaM) for (const f of Object.values(F)) if (f) f.ia = predecir(S.iaM, vector(f));
+  // v257 · 🧬 votos del comité para el método «consenso» (las reglas en uso de los 4 métodos, igual que en el laboratorio)
+  { const gs = COMITE.map((k) => { const C = k === "eq" ? S : S.sub && S.sub[k]; return C && C.genome ? { ...BASE, ...C.genome } : null; }).filter(Boolean); for (const f of Object.values(F)) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
   paso(S, tick, F, now);
   for (const k of SUBS) paso(S.sub[k], tick, PERF[k].soloOkx ? Object.fromEntries(Object.entries(F).filter(([m]) => enOkx(OKX, m))) : F, now);
   // v224/v225 · cobrar financiación y rejilla: tres submodos cada uno, con sus propios 100 € ficticios

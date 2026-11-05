@@ -38,16 +38,16 @@ jobs:
         if: steps.dup.outputs.go == 'true'
         with:
           node-version: 22
-      - name: Laboratorio (5 procesos en paralelo, ~50 min)
+      - name: Laboratorio (6 procesos en paralelo, ~50 min)
         if: steps.dup.outputs.go == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
           REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
         run: |
-          for k in eq turbo mix mixokx cuant; do (timeout 3240 node --max-old-space-size=3072 runner/bitvavo-lab.mjs $k 48 > /tmp/lab-$k.log 2>&1 || true) & done
+          for k in eq turbo mix mixokx cuant consenso; do (timeout 3240 node --max-old-space-size=3072 runner/bitvavo-lab.mjs $k 48 > /tmp/lab-$k.log 2>&1 || true) & done
           wait || true
-          for k in eq turbo mix mixokx cuant; do echo "=== $k"; tail -n 60 /tmp/lab-$k.log; done
+          for k in eq turbo mix mixokx cuant consenso; do echo "=== $k"; tail -n 60 /tmp/lab-$k.log; done
       - name: Siguiente tramo (en cadena)
         if: always() && steps.dup.outputs.go == 'true'
         env:

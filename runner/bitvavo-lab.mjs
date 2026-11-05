@@ -18,11 +18,11 @@ if (!P) { console.log("Laboratorio: submodo desconocido " + k); process.exit(0);
 
 async function main() {
   const t0 = Date.now();
-  await sleep(+process.env.LAB_SIN_ESPERA ? 0 : { eq: 0, turbo: 20e3, mix: 40e3, mixokx: 60e3, cuant: 80e3 }[k] || 0);
+  await sleep(+process.env.LAB_SIN_ESPERA ? 0 : { eq: 0, turbo: 20e3, mix: 40e3, mixokx: 60e3, cuant: 80e3, consenso: 100e3 }[k] || 0);
   let St = null; try { St = await B.leer(FILE, RAMA); } catch (e) {}
   if (!St || !St.lab) St = { lab: { gen: 0, lastGen: null, pop: [], log: [], adopt: [] }, genome: { ...P.base }, genomeId: "base", prueba: true };
   St.info = St.info || { reglas: 0 };
-  let H = null, Hat = 0, ia = null, iaM = null, rej = null, vivoAt = 0, rondas = 0, raw = null, TM = null, fueraAt = 0;
+  let H = null, Hat = 0, ia = null, iaM = null, rej = null, vivoAt = 0, rondas = 0, raw = null, TM = null, fueraAt = 0, comiteAt = 0, comiteK = "";
   while (Date.now() - t0 < MIN * 60e3) {
     // v245 · datos: UNA descarga de 90 días compartida por los 4 laboratorios (la hace «eq», despacio para no pasarse del límite de Bitvavo);
     // luego cada uno solo pide lo nuevo cada 30 min. Se aceptan criptos con ≥ 70 % de las velas (los huecos se rellenan con velas planas).
@@ -41,7 +41,8 @@ async function main() {
         if (Object.keys(H2.m).length >= 10) {
           if (P.soloOkx) { const OK = await import("./okx.mjs"), set = B.okxSet(await OK.instrumentos()); if (set.size < 10) throw new Error("sin lista de OKX"); const Hf = B.filtraH(H2, set); Object.keys(H2.m).forEach((m) => { if (!Hf.m[m]) delete H2.m[m]; }); St.info.okx = set.size; }
           H = H2; Hat = Date.now();
-          const IA = entrenarIA(H); iaM = IA.listo ? IA.modelo : null; delete IA.modelo; ia = { ...IA, dias: Math.round(PAG * 1000 * 300 / 86400) };
+          if (k === "consenso") { comiteAt = 0; }   // votos con los datos nuevos
+          const IA = P.fijoTotal ? { listo: false } : entrenarIA(H); iaM = IA.listo ? IA.modelo : null; delete IA.modelo; ia = { ...IA, dias: Math.round(PAG * 1000 * 300 / 86400) };
           if (k === "eq") { rej = {}; for (const r of Object.keys(REJ.PERF)) rej[r] = REJ.aprender(H, REJ.PERF[r]); }
           const dias = Math.round(Math.max(...Object.values(H.m).map((x) => (x.c[x.c.length - 1][0] - x.c[0][0]) / 86400e3)));
           St.info.dias = dias; St.info.mercados = Object.keys(H.m).length; St.info.termo = { fg: !!(TM && TM.fg), fund: !!(TM && TM.fund) };
@@ -49,6 +50,10 @@ async function main() {
         }
       } catch (e) { console.log(`Laboratorio ${k}: datos: ${String(e.message).slice(0, 80)}`); if (!H) { await sleep(60e3); continue; } }
     }
+    // v257 · 🧬 consenso: cada 10 min lee las reglas en uso del comité y recalcula los votos de cada vela (si han cambiado, se reexamina todo)
+    if (k === "consenso" && H && Date.now() - comiteAt > 10 * 60e3) { comiteAt = Date.now(); try { const gs = []; for (const o of B.COMITE) { const Lo = await B.leer(`lab-${o}.json`, `bitvavo-lab-${o}`); if (Lo && Lo.genome) gs.push({ ...B.BASE, ...Lo.genome }); }
+      const kk = JSON.stringify(gs); if (gs.length && kk !== comiteK) { comiteK = kk; B.ponVotos(H, gs); St.info.comite = gs.length; console.log(`Laboratorio consenso: comité de ${gs.length} reglas`); } } catch (e) { console.log("Laboratorio consenso: comité: " + String(e.message).slice(0, 60)); } }
+    if (k === "consenso" && !comiteK) { await sleep(30e3); continue; }
     // v245 · 🧬 cada 10 min trae las mejores reglas de los otros laboratorios para probarlas y cruzarlas con las suyas
     let fuera = [];
     if (Date.now() - fueraAt > 10 * 60e3) { fueraAt = Date.now(); for (const o of OTROS) try { const Lo = await B.leer(`lab-${o}.json`, `bitvavo-lab-${o}`); if (!Lo || !Lo.lab) continue;

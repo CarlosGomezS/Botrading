@@ -12,7 +12,7 @@ import { encrypt, openAny } from "./real-cfg.mjs";
 
 export const FRENO_DIA = 0.10;   // v235 · si en un mismo día pierde un 10 %, vende todo y descansa hasta el día siguiente
 export const API = "https://api.bitvavo.com", CAPITAL = 50, FRENO = 0.25, MAX_ORDEN = 30, PERSIGUE = 0.015, OPERADOR = 224224, FEE = 0.0025;
-export const SUBS_OK = ["mix", "eq", "turbo", "mixokx", "cuant"];
+export const SUBS_OK = ["mix", "eq", "turbo", "mixokx", "cuant", "consenso"];
 // v247 · ⭐ «MUY GANADORA»: además de ganar en los tres tramos de 90 días, gana ≥ 0,6 % por operación en CADA tramo,
 // con ≥ 30 operaciones en cada uno y un factor de beneficio ≥ 1,4 (gana 1,4 € por cada € que pierde)
 export const MUY = { med: 0.6, n: 30, pf: 1.4 };
@@ -186,7 +186,7 @@ export function retomar(RS, src, now) {
     { ok: now - desde >= 2 * 86400e3, txt: `han pasado al menos 2 días (${r2((now - desde) / 86400e3)} días)` }];
   return { ok: c.every((x) => x.ok), c };
 }
-export const nombre = (k) => ({ mix: "🧠 IA + los mejores", eq: "⚖️ Equilibrado", turbo: "⚡ Turbo", mixokx: "🧠 IA + los mejores · solo OKX", cuant: "📐 Cuantitativo" })[k] || k;
+export const nombre = (k) => ({ mix: "🧠 IA + los mejores", eq: "⚖️ Equilibrado", turbo: "⚡ Turbo", mixokx: "🧠 IA + los mejores · solo OKX", cuant: "📐 Cuantitativo", consenso: "🧬 Consenso" })[k] || k;
 
 // ---- todo junto, llamado desde bitvavo.mjs (lee/guarda control y estado cifrado; nunca escribe importes en los registros)
 // v236 · dos exchanges posibles (Bitvavo u OKX), cada uno con su estado cifrado en su rama. Solo opera el elegido en la app;
@@ -238,7 +238,7 @@ export async function paso(S, tick, now, io) {
   if (!(env("BITVAVO_KEY") && env("BITVAVO_SECRET")) && !(env("OKX_KEY") && env("OKX_SECRET") && env("OKX_PASSPHRASE"))) { S.real = { estado: "sin clave" }; return; }
   let ctl = await io.leer("ctl.json", "bitvavo-ctl"); if (!ctl) { ctl = { copia: "mix", parado: false, capital: CAPITAL, ex: "bitvavo", t: now.toISOString() }; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
   const CU = cuentas(ctl); let ctlMod = false;
-  const fuentes = { eq: S, turbo: S.sub && S.sub.turbo, mix: S.sub && S.sub.mix, mixokx: S.sub && S.sub.mixokx, cuant: S.sub && S.sub.cuant };
+  const fuentes = { eq: S, turbo: S.sub && S.sub.turbo, mix: S.sub && S.sub.mix, mixokx: S.sub && S.sub.mixokx, cuant: S.sub && S.sub.cuant, consenso: S.sub && S.sub.consenso };
   S.real = { estado: EXS.some((e) => CU[e].on) ? "activo" : "apagado", parado: !!ctl.parado, cuentas: {} };
   for (const ex of EXS) {
     const cfg = CU[ex], N = NOMBRE_EX[ex], R0 = (S.real.cuentas[ex] = { on: cfg.on, copia: cfg.copia, estado: cfg.on ? "sin clave" : "apagada", t: now.toISOString() });
