@@ -60,14 +60,15 @@ test("Real: no persigue el precio, no copia compras viejas, respeta el mínimo y
   assert.deepEqual(ex.orders.map((o) => o.market), ["C-EUR", "D-EUR"]); assert.equal(ex.orders[0].amountQuote, "5.10"); assert.equal(ex.orders[1].amountQuote, "30.00");
 });
 
-test("Real: cambiar de método vende lo abierto; /parar vende todo y no compra; el freno del −25 % para solo", async () => {
+test("Real: cambiar de método NO vende lo abierto (sigue con su método); /parar vende todo y no compra; el freno del −25 % para solo", async () => {
   const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
   const sp = { sym: "A", px: 1, cost0: 40, cost: 40, q: 1, q0: 1, t0: T(1).toISOString() };
   let { RS } = await RL.vuelta(null, { mix: fuente(), eq: fuente() }, { copia: "mix" }, tk(ex.px), T(0), deps);
   ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }), eq: fuente() }, { copia: "mix" }, tk(ex.px), T(1), deps));
   assert.ok(RS.pos["A-EUR"]);
   let o = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }), eq: fuente() }, { copia: "eq" }, tk(ex.px), T(2), deps); RS = o.RS;
-  assert.equal(Object.keys(RS.pos).length, 0, "vende al cambiar"); assert.equal(RS.copia, "eq");
+  assert.equal(Object.keys(RS.pos).length, 1, "v261: al cambiar NO vende"); assert.equal(RS.copia, "eq"); assert.equal(RS.pos["A-EUR"].src, "mix");
+  o = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }), eq: fuente() }, { copia: "eq" }, tk(ex.px), T(2.5), deps); RS = o.RS; assert.equal(Object.keys(RS.pos).length, 1, "sigue mientras su método la tenga");
   // parar
   const sp2 = { ...sp, t0: T(3).toISOString() };
   o = await RL.vuelta(RS, { eq: fuente({ "A-EUR": sp2 }) }, { copia: "eq" }, tk(ex.px), T(3), deps); RS = o.RS; assert.ok(RS.pos["A-EUR"]);

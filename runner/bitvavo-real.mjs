@@ -126,7 +126,8 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       else d = -Math.min(-d, RS.cash);
       if (Math.abs(d) >= 0.01) { RS.cash += d; RS.start += d; RS.capital += d; if (RS.dia) RS.dia.eq0 += d; L(RS, now, `💰 ${d > 0 ? "añade" : "retira"} ${r2(Math.abs(d))} €: ahora usa ${r2(RS.capital)} €`); if (Math.abs(objetivo - RS.capital) < 1) msgs.push(`💶 💰 REAL: ahora usa ${r2(RS.capital)} €${d < 0 ? " (lo que se quita, cuando esté libre)" : ""}.`); }
     }
-    if (RS.copia !== copia) { await vendeTodo(`cambias de método: ahora copia a «${nombre(copia)}»`); L(RS, now, `🔁 ahora copia a «${copia}»`); msgs.push(`💶 🔁 REAL: ahora copia a «${nombre(copia)}» (lo abierto del método anterior se ha vendido)`); RS.copia = copia; RS.since = now.toISOString(); }
+    // v261 · al cambiar de método NO se vende lo abierto: cada posición sigue con el método que la compró y se vende cuando ese método la venda
+    if (RS.copia !== copia) { const ab = Object.values(RS.pos); for (const p of ab) p.src = p.src || RS.copia; L(RS, now, `🔁 ahora copia a «${copia}»${ab.length ? ` (lo abierto sigue con su método hasta que lo venda)` : ""}`); msgs.push(`💶 🔁 REAL: ahora copia a «${nombre(copia)}»${ab.length ? `. Lo que ya tenías abierto (${ab.length}) no se vende: sigue con su método y se venderá cuando él lo venda.` : "."}`); RS.copia = copia; RS.since = now.toISOString(); }
     const src = fuentes[copia]; if (!src) { RS.estado = "esperando"; return { RS, msgs, ctl }; }
     // 2) freno: si el saldo cae un 25 %, vende todo y se para
     const eq = valor(RS, tick);
@@ -138,7 +139,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (eq < RS.dia.eq0 * (1 - FRENO_DIA)) { await vendeTodo(`freno diario: hoy ha perdido un ${FRENO_DIA * 100} %`); RS.pausaDia = d; RS.estado = "pausa"; msgs.push(`💶 ⏸️ REAL: hoy ha perdido más de un ${FRENO_DIA * 100} % (de ${r2(RS.dia.eq0)} € a ${r2(eq)} €). He vendido todo y descansa hasta mañana; mañana vuelve solo.`); return { RS, msgs, ctl }; } }
     // 3) lo que tengo: ¿el submodo lo ha vendido entero, o una parte, o ha añadido (piramidar)?
     for (const [m, p] of Object.entries(RS.pos)) {
-      const sp = src.pos[m]; if (tick[m]) p.last = tick[m].bid;
+      const srcP = (p.src && fuentes[p.src]) || src, sp = srcP && srcP.pos ? srcP.pos[m] : null; if (tick[m]) p.last = tick[m].bid;
       if (!sp || sp.t0 !== p.srcT0) { await cerrar(m, "el método ficticio ha vendido"); continue; }
       if (sp.cob > 0 && !p.tp && sp.q0 > 0) { const frac = 1 - sp.q / sp.q0; if (frac > 0.05) await cerrar(m, "venta parcial con ganancia (como el método)", frac); }
       if (sp.pir && !p.pir && sp.cost0 > 0) { const add = Math.min(RS.cash, p.cost0 * (sp.cost - sp.cost0) / sp.cost0, maxOrden(), Math.max(0, (await libre()) - 0.5)), mk = await mercado(m); p.pir = 1; if (add >= mk.min) { const r = await X.comprar(m, add); RS.cash -= r.coste; RS.st.fees += r.fee; p.q += r.q; p.cost += r.coste; L(RS, now, `➕ añade ${r2(r.coste)} € a ${p.sym} (como el método)`); } }
@@ -155,7 +156,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         const frac = sp.q0 > 0 ? sp.q / sp.q0 : 1, mk = await mercado(m), quiere = await alMinimo(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) * frac / eqSrc, Math.max(0, (await libre()) - 0.5)), mk);
         if (quiere < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ no copia ${sp.sym} (abierta): tocarían ${r2(quiere)} € y el mínimo de ${EX} es ${r2(mk.min)} €`); continue; }
         const r = await X.comprar(m, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nA++;
-        RS.pos[m] = { sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid, tp: sp.cob > 0 ? 1 : 0, pir: sp.pir ? 1 : 0 };
+        RS.pos[m] = { src: copia, sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid, tp: sp.cob > 0 ? 1 : 0, pir: sp.pir ? 1 : 0 };
         L(RS, now, `📥 copia lo abierto: compra ${sp.sym} por ${r2(r.coste)} € (el método la compró a ${sp.px}; ahora ${r.px})`); msgs.push(`💶 📥 REAL: copia lo que ya tenía abierto el método: compra ${sp.sym} por ${r2(r.coste)} €`); }
       if (!nA && pedido) L(RS, now, "📥 copiar lo abierto: no había nada que se pudiera copiar ahora"); void mira; }
     for (const [m, sp] of Object.entries(src.pos)) {
@@ -168,7 +169,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       const mk = await mercado(m), quiere = await alMinimo(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) / eqSrc, Math.max(0, (await libre()) - 0.5)), mk);
       if (quiere < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ no compra ${sp.sym}: tocarían ${r2(quiere)} € y el mínimo de ${EX} es ${r2(mk.min)} €`); continue; }
       const r = await X.comprar(m, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++;
-      RS.pos[m] = { sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid };
+      RS.pos[m] = { src: copia, sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid };
       L(RS, now, `🟢 compra ${sp.sym}: ${r2(r.coste)} € (a ${r.px})`); msgs.push(`💶 🟢 REAL: compra ${sp.sym} por ${r2(r.coste)} € (copiando a «${nombre(copia)}»)`);
     }
     for (const k of Object.keys(RS.vistos)) if (now - Date.parse(RS.vistos[k]) > 3 * 86400e3) delete RS.vistos[k];
