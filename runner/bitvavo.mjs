@@ -90,7 +90,7 @@ export function entra(g, f) {
   // v219 · 🧠 la IA como filtro de cualquier estilo (si la regla lo pide) y como estilo propio («ia»: compra lo que la IA ve más probable)
   if (g.iaMin > 0 && !(f.ia >= g.iaMin)) return false;
   // v220 · «copia»: comprar lo que los mejores traders de Hyperliquid tienen claramente en largo (y no están soltando)
-  if (g.estilo === "cuant") return !!CU.plan(f, f.cl);
+  if (g.estilo === "cuant") return !!CU.plan(f, f.cl, g.pil || "ABC");
   if (g.estilo === "copia") return f.smart != null && f.smart >= 0.2 + g.k * 0.5 && (f.smartD == null || f.smartD >= 0) && f.m60 > -0.02;
   if (g.estilo === "ia") return f.ia != null && f.ia >= Math.max(0.25, g.iaMin) && f.m15 > -0.01;
   // ruptura: supera el máximo de las últimas ~24 h con volumen; media: en tendencia de fondo, compra una bajada corta
@@ -141,7 +141,7 @@ export function backtestTramos(g, H, cortes) {
         if (out != null) { RS[pos.k].push((pos.cob + ven(out)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; }
         continue;
       }
-      if (t >= cool && entra(g, F[i]) && i + 1 < c.length && tramo(c[i + 1][0]) === k) { const px = c[i + 1][1] * (1 + sp / 2), P = g.estilo === "cuant" ? CU.plan(F[i], px) : null; if (g.estilo === "cuant" && !P) continue; pos = { k, px, q: (1 - FEE) / px, cob: 0, cost: 1, peak: px, t: c[i + 1][0], plan: P }; }   // v228 · la vela de entrada también se revisa
+      if (t >= cool && entra(g, F[i]) && i + 1 < c.length && tramo(c[i + 1][0]) === k) { const px = c[i + 1][1] * (1 + sp / 2), P = g.estilo === "cuant" ? CU.plan(F[i], px, g.pil || "ABC") : null; if (g.estilo === "cuant" && !P) continue; pos = { k, px, q: (1 - FEE) / px, cob: 0, cost: 1, peak: px, t: c[i + 1][0], plan: P }; }   // v228 · la vela de entrada también se revisa
     }
     if (pos) { const x = c[c.length - 1]; RS[pos.k].push((pos.cob + pos.q * x[4] * (1 - sp / 2) * (1 - FEE)) / pos.cost - 1); }
   }

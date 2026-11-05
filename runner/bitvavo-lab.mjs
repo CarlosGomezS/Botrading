@@ -61,6 +61,8 @@ async function main() {
         St.lab.pop = [{ id: "cuant", g: { ...P.base }, born: now.toISOString(), why: "tu método (fijo)", s: r.s, ok: !!r.ok, a: r.a || null, b: r.b || null, c: r.c || null }];
         const era = St.prueba; St.genome = { ...P.base }; St.genomeId = "cuant"; St.prueba = !r.ok; St.info.ultimas = 1; St.info.reglas = (St.info.reglas || 0) + 1; St.info.t = now.toISOString();
         const tx = [r.a, r.b, r.c].map((x, i) => `tramo ${i + 1}: ${x && x.n ? `${x.med} % en ${x.n} ops` : "sin operaciones"}`).join(" · ");
+        // v252 · cada pilar por separado (para ver qué parte del método funciona y cuál no)
+        St.info.pilares = {}; for (const pl of ["A", "B", "C"]) { const q = P.robusta({ ...P.base, pil: pl }, H); St.info.pilares[pl] = { ok: !!q.ok, t: [q.a, q.b, q.c].map((x) => (x && x.n ? { n: x.n, med: x.med, win: x.win, pf: x.pf } : null)) }; }
         if (era !== St.prueba || !St.lab.log.length) { St.lab.log.unshift({ t: now.toISOString(), txt: (r.ok ? "🏆 tu método gana en los tres tramos de 90 días: " : "📐 examen de 90 días (aún no gana en los tres tramos; en ficticio sigue operando): ") + tx }); St.lab.log = St.lab.log.slice(0, 120); }
         B.publicar(FILE, { t: now.toISOString(), k, lab: St.lab, genome: St.genome, genomeId: St.genomeId, prueba: St.prueba, info: St.info }, RAMA);
         console.log(`Laboratorio ${k}: examen · ${tx} · ${r.ok ? "🏆" : "sin 🏆"}`); }

@@ -38,11 +38,11 @@ export function rasgosCuant(c, out) {
   return out;
 }
 // plan de la operación si alguno de los tres pilares da señal (precios absolutos, entrando a «px»)
-export function plan(f, px) {
+export function plan(f, px, pil = "ABC") {
   if (!f || f.atr == null || !(px > 0)) return null; const ev = EV_X * COSTE; let P = null;
-  if (f.cz <= -2.2 && f.rsi14 < 20 && f.mechaL >= 0.5 && f.vr20 >= 1.6) { const sl = f.lo - 1.3 * f.atr; P = { pilar: "A", sl, tp1: f.vwap, f1: 0.7, tp2: null, trail: "atr", atr: f.atr }; }
-  else if (f.lo < f.lo24 && f.cl > f.lo24) { const sl = f.lo * (1 - 0.003); P = { pilar: "B", sl, tp1: px + 3 * (px - sl), f1: 1, tp2: null, trail: null, atr: f.atr }; }
-  else if (f.sqzPull) { let sl = f.brkMid != null && f.brkMid < px ? f.brkMid : px - 1.5 * f.atr; const r = px - sl; P = { pilar: "C", sl, tp1: px + 2 * r, f1: 0.5, tp2: px + 4 * r, trail: "ema9", atr: f.atr }; }
+  if (pil.includes("A") && f.cz <= -2.2 && f.rsi14 < 20 && f.mechaL >= 0.5 && f.vr20 >= 1.6) { const sl = f.lo - 1.3 * f.atr; P = { pilar: "A", sl, tp1: f.vwap, f1: 0.7, tp2: null, trail: "atr", atr: f.atr }; }
+  else if (pil.includes("B") && f.lo < f.lo24 && f.cl > f.lo24) { const sl = f.lo * (1 - 0.003); P = { pilar: "B", sl, tp1: px + 3 * (px - sl), f1: 1, tp2: null, trail: null, atr: f.atr }; }
+  else if (pil.includes("C") && f.sqzPull) { let sl = f.brkMid != null && f.brkMid < px ? f.brkMid : px - 1.5 * f.atr; const r = px - sl; P = { pilar: "C", sl, tp1: px + 2 * r, f1: 0.5, tp2: px + 4 * r, trail: "ema9", atr: f.atr }; }
   if (!P || !(P.sl < px) || !(P.tp1 > px)) return null;
   if ((P.tp1 - px) / px < ev) return null;   // filtro de coste real: el objetivo tiene que pagar ≥ 4,5 × las comisiones
   return P;
