@@ -20,8 +20,13 @@ export function reglaEnUso(C) { if (!C || C.prueba !== false || !C.genomeId || !
 export function esMuy(v) { const X = v ? [v.a, v.b, v.c] : []; return !!(v && v.ok && X.every((x) => x && x.n >= MUY.n && x.med >= MUY.med && x.pf >= MUY.pf)); }
 // 🤖 modo automático: copia al método con regla ganadora más fuerte (primero las ⭐, luego la mejor nota). Para no marear:
 // solo cambia cuando no hay nada abierto con dinero real, y solo si el actual ya no gana o el nuevo es claramente mejor (+1 de nota o ⭐ frente a no ⭐)
-export function autoElige(fuentes, actual, abiertas) {
-  const c = SUBS_OK.map((k) => { const v = reglaEnUso(fuentes[k]); return v ? { k, s: +v.s || 0, muy: esMuy(v) } : null; }).filter(Boolean).sort((a, b) => (b.muy - a.muy) || b.s - a.s);
+// v259 · ⭐⭐ ESTABLE: los laboratorios cambian de regla cada pocos minutos, y un método podía ser ⭐⭐ un rato y dejar de serlo al siguiente.
+// Para que el dinero real no salte de uno a otro (vendiendo y comprando, pagando comisiones), solo cuenta como ⭐⭐ si lleva ≥ 60 min siéndolo.
+export const MUY_ESTABLE_MS = 60 * 60000;
+export function marcaMuy(S, fuentes, now) { S.muyDesde = S.muyDesde || {}; for (const k of SUBS_OK) { const v = reglaEnUso(fuentes[k]); if (v && esMuy(v)) S.muyDesde[k] = S.muyDesde[k] || now.toISOString(); else delete S.muyDesde[k]; } return S.muyDesde; }
+export function autoElige(fuentes, actual, abiertas, muyDesde = null, now = new Date()) {
+  const estable = (k, v) => esMuy(v) && (!muyDesde || (muyDesde[k] && now - Date.parse(muyDesde[k]) >= MUY_ESTABLE_MS));
+  const c = SUBS_OK.map((k) => { const v = reglaEnUso(fuentes[k]); return v ? { k, s: +v.s || 0, muy: estable(k, v) } : null; }).filter(Boolean).sort((a, b) => (b.muy - a.muy) || b.s - a.s);
   const cur = c.find((x) => x.k === actual), best = c[0];
   if (!best) return { copia: SUBS_OK.includes(actual) ? actual : "eq", muy: false, motivo: "ningún método tiene regla ganadora ahora" };
   // v258 · con algo abierto solo espera si el cambio no es urgente: si aparece uno ⭐⭐ muy bueno (y el actual no lo es) o el actual pierde la 🏆, cambia ya
@@ -241,6 +246,7 @@ export async function paso(S, tick, now, io) {
   const CU = cuentas(ctl); let ctlMod = false;
   const fuentes = { eq: S, turbo: S.sub && S.sub.turbo, mix: S.sub && S.sub.mix, mixokx: S.sub && S.sub.mixokx, cuant: S.sub && S.sub.cuant, consenso: S.sub && S.sub.consenso };
   S.real = { estado: EXS.some((e) => CU[e].on) ? "activo" : "apagado", parado: !!ctl.parado, cuentas: {} };
+  marcaMuy(S, fuentes, now);
   for (const ex of EXS) {
     const cfg = CU[ex], N = NOMBRE_EX[ex], R0 = (S.real.cuentas[ex] = { on: cfg.on, copia: cfg.copia, estado: cfg.on ? "sin clave" : "apagada", t: now.toISOString() });
     const cx = S.conex && S.conex[ex];
@@ -252,7 +258,7 @@ export async function paso(S, tick, now, io) {
     if (j) { const o = await openAny(j, [pw, env("REAL_VIEW_PASS_OLD")]); if (o.error) { console.log("Real: no puedo descifrar el estado de " + ex + "; no opero"); R0.estado = "error"; continue; } RS = o.j; }
     if (!cfg.on && (!RS || !Object.keys(RS.pos || {}).length)) continue;   // apagada y sin nada abierto: no se toca
     let copia = cfg.copia;
-    if (cfg.auto) { const A = autoElige(fuentes, RS && RS.copia, !!(RS && Object.keys(RS.pos || {}).length)); copia = A.copia; R0.auto = A;
+    if (cfg.auto) { const A = autoElige(fuentes, RS && RS.copia, !!(RS && Object.keys(RS.pos || {}).length), S.muyDesde, now); copia = A.copia; R0.auto = A;
       if (RS && RS.copia && RS.copia !== copia) await io.tg(`💶 ${N} · 🤖 AUTOMÁTICO: ahora copia a «${nombre(copia)}» (${A.motivo}).`); }
     R0.copia = copia;
     const c2 = { copia, capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,

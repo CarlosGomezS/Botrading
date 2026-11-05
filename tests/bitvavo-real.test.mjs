@@ -212,3 +212,11 @@ test("Real v256: 🪞 espejo: compra siempre lo que el método tenga abierto (au
   const nueva = { sym: "B", px: 1, cost0: 30, cost: 30, q: 30, q0: 30, t0: T(1).toISOString() };
   o = await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": viejo, "B-EUR": nueva }) }, { copia: "eq", espejo: true }, tk(ex.px), T(30), deps); assert.equal(ex.orders.length, 2, "y la que llegue después también, aunque sea tarde");
 });
+
+test("Real v259: un ⭐⭐ solo cuenta si lleva ≥ 60 min siéndolo (el automático no salta de un método a otro)", () => {
+  const T2 = (med, n, pf) => ({ med, n, pf }), fuente = (s, ok, x) => ({ prueba: !ok, genomeId: "g", lab: { pop: [{ id: "g", s, ok, a: x, b: x, c: x }] } });
+  const F = { eq: fuente(4, true, T2(0.5, 60, 1.6)), mixokx: fuente(2.5, true, T2(1, 40, 2)) }, S = {}, t0 = new Date(Date.UTC(2026, 10, 5, 10));
+  RL.marcaMuy(S, F, t0); assert.equal(RL.autoElige(F, "eq", true, S.muyDesde, t0).copia, "eq", "recién llegado a ⭐⭐: aún no cambia");
+  const t1 = new Date(t0.getTime() + 61 * 60000); RL.marcaMuy(S, F, t1); assert.equal(RL.autoElige(F, "eq", true, S.muyDesde, t1).copia, "mixokx", "tras 1 h siendo ⭐⭐, cambia");
+  RL.marcaMuy(S, { ...F, mixokx: fuente(2.5, true, T2(0.3, 40, 2)) }, t1); assert.ok(!S.muyDesde.mixokx, "si deja de serlo, se reinicia la cuenta");
+});
