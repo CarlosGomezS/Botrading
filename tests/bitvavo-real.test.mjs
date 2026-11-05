@@ -170,3 +170,13 @@ test("Real v243: cada cuenta se enciende o apaga por separado (ninguna, una o la
     await RL.paso(S, tk(ex.px), new Date(), io); assert.equal(ex.orders.length, 2, "apagada: vende lo abierto"); assert.equal(ex.orders[1].side, "sell"); assert.equal(S.real.cuentas.bitvavo.estado, "apagada");
   } finally { globalThis.fetch = f0; for (const k of ["BITVAVO_KEY", "BITVAVO_SECRET", "REAL_VIEW_PASS"]) delete process.env[k]; }
 });
+
+test("Real v247: ⭐ muy ganadora y 🤖 automático (elige la más fuerte, no cambia con algo abierto)", () => {
+  const T = (med, n, pf) => ({ med, n, pf }), fuente = (s, ok, x) => ({ prueba: !ok, genomeId: "g", lab: { pop: [{ id: "g", s, ok, a: x, b: x, c: x }] } });
+  const F = { eq: fuente(4.9, true, T(1, 60, 1.6)), turbo: fuente(1, false, T(0.5, 20, 1.1)), mix: fuente(2, true, T(0.4, 40, 1.2)), mixokx: fuente(3.5, true, T(1.2, 25, 1.5)) };
+  assert.ok(RL.esMuy(RL.reglaEnUso(F.eq))); assert.ok(!RL.esMuy(RL.reglaEnUso(F.mixokx)), "pocas operaciones: no es ⭐"); assert.equal(RL.reglaEnUso(F.turbo), null, "sin 🏆 no cuenta");
+  assert.equal(RL.autoElige(F, "mix", false).copia, "eq", "se va a la ⭐");
+  assert.equal(RL.autoElige(F, "mix", true).copia, "mix", "con algo abierto espera");
+  assert.equal(RL.autoElige({ ...F, eq: fuente(4.9, false, T(1, 60, 1.6)) }, "mix", false).copia, "mixokx", "sin ⭐, la de mejor nota (+1 sobre la actual)");
+  assert.equal(RL.autoElige({ eq: fuente(1, false, T(1, 1, 1)) }, "mixokx", false).copia, "mixokx", "si nadie gana, no cambia");
+});

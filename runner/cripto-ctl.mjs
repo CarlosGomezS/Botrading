@@ -1,7 +1,7 @@
 // v240 · guarda lo que eliges en la tarjeta 💶 Dinero real (método, dónde opera, cuánto dinero, parar/seguir) en la rama «bitvavo-ctl».
 // Lo lanza la app (cripto-ctl.yml): así basta con que tu token pueda lanzar flujos; no necesita permiso para escribir en el repositorio.
 import { leer, publicar } from "./bitvavo.mjs";
-const SUBS = ["mix", "eq", "turbo", "mixokx"], EXS = ["bitvavo", "okx"];
+const SUBS = ["mix", "eq", "turbo", "mixokx", "auto"], EXS = ["bitvavo", "okx"];
 let c = {}; try { c = JSON.parse(process.env.CAMBIO || "{}"); } catch (e) { console.log("Cambio no válido"); process.exit(1); }
 const ctl = (await leer("ctl.json", "bitvavo-ctl")) || { copia: "mix", parado: false, capital: 50, ex: "bitvavo" };
 // v243 · cada cuenta por separado: { cuenta: "okx", on, copia, capital, parado }

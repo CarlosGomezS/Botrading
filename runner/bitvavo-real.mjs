@@ -13,6 +13,21 @@ import { encrypt, openAny } from "./real-cfg.mjs";
 export const FRENO_DIA = 0.10;   // v235 · si en un mismo día pierde un 10 %, vende todo y descansa hasta el día siguiente
 export const API = "https://api.bitvavo.com", CAPITAL = 50, FRENO = 0.25, MAX_ORDEN = 30, PERSIGUE = 0.015, OPERADOR = 224224, FEE = 0.0025;
 export const SUBS_OK = ["mix", "eq", "turbo", "mixokx"];
+// v247 · ⭐ «MUY GANADORA»: además de ganar en los tres tramos de 90 días, gana ≥ 0,6 % por operación en CADA tramo,
+// con ≥ 30 operaciones en cada uno y un factor de beneficio ≥ 1,4 (gana 1,4 € por cada € que pierde)
+export const MUY = { med: 0.6, n: 30, pf: 1.4 };
+export function reglaEnUso(C) { if (!C || C.prueba !== false || !C.genomeId || !C.lab) return null; return (C.lab.pop || []).find((v) => v.id === C.genomeId) || null; }
+export function esMuy(v) { const X = v ? [v.a, v.b, v.c] : []; return !!(v && v.ok && X.every((x) => x && x.n >= MUY.n && x.med >= MUY.med && x.pf >= MUY.pf)); }
+// 🤖 modo automático: copia al método con regla ganadora más fuerte (primero las ⭐, luego la mejor nota). Para no marear:
+// solo cambia cuando no hay nada abierto con dinero real, y solo si el actual ya no gana o el nuevo es claramente mejor (+1 de nota o ⭐ frente a no ⭐)
+export function autoElige(fuentes, actual, abiertas) {
+  const c = SUBS_OK.map((k) => { const v = reglaEnUso(fuentes[k]); return v ? { k, s: +v.s || 0, muy: esMuy(v) } : null; }).filter(Boolean).sort((a, b) => (b.muy - a.muy) || b.s - a.s);
+  const cur = c.find((x) => x.k === actual), best = c[0];
+  if (!best) return { copia: SUBS_OK.includes(actual) ? actual : "eq", muy: false, motivo: "ningún método tiene regla ganadora ahora" };
+  if (abiertas && SUBS_OK.includes(actual)) return { copia: actual, muy: !!(cur && cur.muy), motivo: "espera a cerrar lo abierto para cambiar" };
+  if (cur && !(best.muy && !cur.muy) && best.s < cur.s + 1) return { copia: actual, muy: cur.muy, motivo: "sigue siendo de los mejores" };
+  return { copia: best.k, muy: best.muy, motivo: best.muy ? "⭐ muy ganadora" : "la de regla ganadora más fuerte" };
+}
 export const EXS = ["bitvavo", "okx"];
 const env = (k) => (process.env[k] || "").trim(), r2 = (x) => Math.round(x * 100) / 100;
 
@@ -197,8 +212,8 @@ export function cuentas(ctl) {
   const def = { copia: SUBS_OK.includes(ctl.copia) ? ctl.copia : "mix", capital: Math.max(10, Math.round(+ctl.capital || CAPITAL)) };
   const c = ctl.cuentas && typeof ctl.cuentas === "object" ? ctl.cuentas : null, act = EXS.includes(ctl.ex) ? ctl.ex : "bitvavo";
   return Object.fromEntries(EXS.map((ex) => { const x = (c && c[ex]) || {}; return [ex, {
-    on: c ? !!x.on : ex === act, copia: SUBS_OK.includes(x.copia) ? x.copia : def.copia, capital: x.capital ? Math.max(10, Math.round(+x.capital)) : def.capital,
-    parado: !!x.parado, motivo: x.motivo || null, avisoSinSaldo: x.avisoSinSaldo || 0 }]; }));
+    on: c ? !!x.on : ex === act, copia: SUBS_OK.includes(x.copia) || x.copia === "auto" ? x.copia : def.copia, capital: x.capital ? Math.max(10, Math.round(+x.capital)) : def.capital,
+    parado: !!x.parado, motivo: x.motivo || null, avisoSinSaldo: x.avisoSinSaldo || 0, auto: x.copia === "auto" }]; }));
 }
 const NOMBRE_EX = { bitvavo: "Bitvavo", okx: "OKX" };
 export async function paso(S, tick, now, io) {
@@ -219,7 +234,11 @@ export async function paso(S, tick, now, io) {
     let RS = null; const j = await io.leer("real.json", RAMAS[ex]);
     if (j) { const o = await openAny(j, [pw, env("REAL_VIEW_PASS_OLD")]); if (o.error) { console.log("Real: no puedo descifrar el estado de " + ex + "; no opero"); R0.estado = "error"; continue; } RS = o.j; }
     if (!cfg.on && (!RS || !Object.keys(RS.pos || {}).length)) continue;   // apagada y sin nada abierto: no se toca
-    const c2 = { copia: cfg.copia, capital: cfg.capital, avisoSinSaldo: cfg.avisoSinSaldo,
+    let copia = cfg.copia;
+    if (cfg.auto) { const A = autoElige(fuentes, RS && RS.copia, !!(RS && Object.keys(RS.pos || {}).length)); copia = A.copia; R0.auto = A;
+      if (RS && RS.copia && RS.copia !== copia) await io.tg(`💶 ${N} · 🤖 AUTOMÁTICO: ahora copia a «${nombre(copia)}» (${A.motivo}).`); }
+    R0.copia = copia;
+    const c2 = { copia, capital: cfg.capital, avisoSinSaldo: cfg.avisoSinSaldo,
       parado: !cfg.on || !!ctl.parado || cfg.parado, motivo: !cfg.on ? `has apagado ${N}` : ctl.parado ? ctl.motivo || "lo has parado tú" : cfg.motivo };
     const out = await vuelta(RS, fuentes, c2, tick, now, { ex: X });
     const msgs = out.msgs.map((m) => (m.includes(N) ? m : m.replace(/^💶 /, `💶 ${N} · `)));
