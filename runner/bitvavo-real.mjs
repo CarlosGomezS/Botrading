@@ -262,7 +262,11 @@ export async function paso(S, tick, now, io) {
     io.publicar("real.json", { enc: 1, v: 1, ...enc, meta: { estado: out.RS.estado || "activo", copia: out.RS.copia, ex, t: now.toISOString() } }, RAMAS[ex]);
     R0.estado = cfg.on ? out.RS.estado : "apagada"; R0.copia = out.RS.copia;
     for (const m of msgs.slice(0, 6)) await io.tg(m);
-    console.log(`Real (${ex}): ${out.RS.estado}${out.RS.err ? " (con avisos)" : ""}`);   // sin importes ni criptos: el registro es público
+    // v254 · diagnóstico público SIN criptos ni importes: qué ha hecho en esta vuelta (cuántas compras, ventas y saltos, y por qué)
+    { const nuevos = (out.RS.log || []).filter((x) => x.t === now.toISOString()), cat = {};
+      for (const x of nuevos) { const k = /^🟢|^📥 copia lo abierto: compra|^➕/.test(x.txt) ? "compra" : /^✅|^🔻|vende/.test(x.txt) ? "venta" : /no está en/.test(x.txt) ? "salta: no está en el exchange" : /mínimo/.test(x.txt) ? "salta: menos que el mínimo" : /subido más/.test(x.txt) ? "salta: ya subió" : /tarde/.test(x.txt) ? "salta: señal tarde" : /nada que se pudiera copiar/.test(x.txt) ? "copiar abierto: nada" : /^⚠️/.test(x.txt) ? "aviso/error" : "otro"; cat[k] = (cat[k] || 0) + 1; }
+      const pos = Object.keys(out.RS.pos || {}).length, fuente = fuentes[out.RS.copia], abiertasM = fuente ? Object.keys(fuente.pos || {}).length : null;
+      console.log(`Real (${ex}): ${out.RS.estado}${out.RS.err ? " (con avisos: " + String(out.RS.err).replace(/[A-Z0-9]{2,10}-EUR|\d+[.,]?\d*\s*€/g, "·").slice(0, 80) + ")" : ""} · copia ${out.RS.copia} (el método tiene ${abiertasM} abiertas) · abiertas reales ${pos}${Object.keys(cat).length ? " · " + Object.entries(cat).map(([k, v]) => k + " ×" + v).join(", ") : ""}`); }
   }
   if (ctlMod) { ctl.t = now.toISOString(); delete ctl.avisoSinSaldo; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
   // compatibilidad: el estado «principal» es el de la primera cuenta encendida
