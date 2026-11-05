@@ -12,13 +12,13 @@ import * as REJ from "./rejilla.mjs";
 
 const k = process.argv[2] || "eq", MIN = +process.argv[3] || 50, PAG = +process.env.LAB_PAG || 26, P = B.PERF[k];   // v245 · 26 páginas de 1.000 velas de 5 min ≈ 90 días
 import { existsSync, readFileSync, writeFileSync, renameSync, statSync } from "node:fs";
-const CACHE = (process.env.LAB_CACHE || "/tmp") + "/bv-raw.json", OTROS = ["eq", "turbo", "mix", "mixokx"].filter((x) => x !== k);
+const CACHE = (process.env.LAB_CACHE || "/tmp") + "/bv-raw.json", OTROS = ["eq", "turbo", "mix", "mixokx"].filter((x) => x !== k);   // (el cuantitativo es fijo: ni presta ni recibe reglas)
 const RAMA = "bitvavo-lab-" + k, FILE = "lab-" + k + ".json", sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 if (!P) { console.log("Laboratorio: submodo desconocido " + k); process.exit(0); }
 
 async function main() {
   const t0 = Date.now();
-  await sleep(+process.env.LAB_SIN_ESPERA ? 0 : { eq: 0, turbo: 20e3, mix: 40e3, mixokx: 60e3 }[k] || 0);
+  await sleep(+process.env.LAB_SIN_ESPERA ? 0 : { eq: 0, turbo: 20e3, mix: 40e3, mixokx: 60e3, cuant: 80e3 }[k] || 0);
   let St = null; try { St = await B.leer(FILE, RAMA); } catch (e) {}
   if (!St || !St.lab) St = { lab: { gen: 0, lastGen: null, pop: [], log: [], adopt: [] }, genome: { ...P.base }, genomeId: "base", prueba: true };
   St.info = St.info || { reglas: 0 };
@@ -55,6 +55,18 @@ async function main() {
       for (const v of Lo.lab.pop.filter((v) => v.g && v.s > -99).sort((a, b) => (b.ok - a.ok) || b.s - a.s).slice(0, 6)) fuera.push({ g: v.g, de: B.PERF[o].nombre + " (" + v.id + ")" }); } catch (e) {} }
     // resultados reales de su cuenta (cada 5 min) para el veto en vivo
     if (Date.now() - vivoAt > 5 * 60e3) { try { const S0 = await B.leerEstado(); const C = k === "eq" ? S0 : S0 && S0.sub && S0.sub[k]; St.closed = (C && C.closed) || []; vivoAt = Date.now(); } catch (e) {} }
+    // v251 · método fijo (el cuantitativo): no se cambia; solo se examina con los 90 días (tres tramos) cada vez que llegan datos nuevos
+    if (P.fijoTotal) {
+      if (St.examAt !== Hat) { St.examAt = Hat; const r = P.robusta(P.base, H), now = new Date(); St.lab.gen++; St.lab.lastGen = now.toISOString();
+        St.lab.pop = [{ id: "cuant", g: { ...P.base }, born: now.toISOString(), why: "tu método (fijo)", s: r.s, ok: !!r.ok, a: r.a || null, b: r.b || null, c: r.c || null }];
+        const era = St.prueba; St.genome = { ...P.base }; St.genomeId = "cuant"; St.prueba = !r.ok; St.info.ultimas = 1; St.info.reglas = (St.info.reglas || 0) + 1; St.info.t = now.toISOString();
+        const tx = [r.a, r.b, r.c].map((x, i) => `tramo ${i + 1}: ${x && x.n ? `${x.med} % en ${x.n} ops` : "sin operaciones"}`).join(" · ");
+        if (era !== St.prueba || !St.lab.log.length) { St.lab.log.unshift({ t: now.toISOString(), txt: (r.ok ? "🏆 tu método gana en los tres tramos de 90 días: " : "📐 examen de 90 días (aún no gana en los tres tramos; en ficticio sigue operando): ") + tx }); St.lab.log = St.lab.log.slice(0, 120); }
+        B.publicar(FILE, { t: now.toISOString(), k, lab: St.lab, genome: St.genome, genomeId: St.genomeId, prueba: St.prueba, info: St.info }, RAMA);
+        console.log(`Laboratorio ${k}: examen · ${tx} · ${r.ok ? "🏆" : "sin 🏆"}`); }
+      else { B.publicar(FILE, { t: new Date().toISOString(), k, lab: St.lab, genome: St.genome, genomeId: St.genomeId, prueba: St.prueba, info: St.info }, RAMA); }
+      rondas++; await sleep(60e3); continue;
+    }
     // una generación (~1 min de búsqueda)
     const now = new Date(), e = B.evolucionar(St, H, now, Math.random, 55e3, P, fuera); rondas++; St.info.reglas = (St.info.reglas || 0) + e.probadas;
     St.info.ultimas = e.probadas; St.info.t = now.toISOString();
