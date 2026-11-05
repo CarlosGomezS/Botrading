@@ -180,3 +180,13 @@ test("Real v247: ⭐ muy ganadora y 🤖 automático (elige la más fuerte, no c
   assert.equal(RL.autoElige({ ...F, eq: fuente(4.9, false, T(1, 60, 1.6)) }, "mix", false).copia, "mixokx", "sin ⭐, la de mejor nota (+1 sobre la actual)");
   assert.equal(RL.autoElige({ eq: fuente(1, false, T(1, 1, 1)) }, "mixokx", false).copia, "mixokx", "si nadie gana, no cambia");
 });
+
+test("Real v253: «copiar ya lo abierto» compra lo que el método ya tenía (una sola vez por petición)", async () => {
+  const ex = exchange({ "A-EUR": 1.2, "B-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let o = await RL.vuelta(null, { eq: fuente() }, { copia: "eq" }, tk(ex.px), T(5), deps);
+  const viejo = { sym: "A", px: 1, cost0: 30, cost: 30, q: 30, q0: 30, t0: T(0).toISOString() };
+  o = await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": viejo }) }, { copia: "eq" }, tk(ex.px), T(6), deps); assert.equal(ex.orders.length, 0, "sin pedirlo, lo antiguo no se copia");
+  o = await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": viejo }) }, { copia: "eq", adoptarAt: "x1" }, tk(ex.px), T(7), deps); assert.equal(ex.orders.length, 1); assert.ok(o.RS.pos["A-EUR"]);
+  o = await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": viejo }) }, { copia: "eq", adoptarAt: "x1" }, tk(ex.px), T(8), deps); assert.equal(ex.orders.length, 1, "no repite");
+  o = await RL.vuelta(o.RS, { eq: fuente({}) }, { copia: "eq", adoptarAt: "x1" }, tk(ex.px), T(9), deps); assert.equal(ex.orders[1].side, "sell", "y vende cuando el método vende");
+});
