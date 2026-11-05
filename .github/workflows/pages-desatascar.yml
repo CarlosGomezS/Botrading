@@ -1,0 +1,22 @@
+name: Web · desatascar la publicación (GitHub Pages)
+
+# v260 · si una publicación de la web se queda «en curso» y bloquea las siguientes, esto la cancela.
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "commit de la publicación atascada"
+        required: true
+
+permissions:
+  pages: write
+  deployments: write
+
+jobs:
+  cancelar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancelar la publicación atascada
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/deployments/${{ inputs.sha }}/cancel" && echo "cancelada" || echo "no se pudo (quizá ya terminó)"
