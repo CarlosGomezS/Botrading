@@ -439,7 +439,9 @@ async function main() {
   // v257 · 🧬 votos del comité para el método «consenso» (las reglas en uso de los 4 métodos, igual que en el laboratorio)
   { const gs = COMITE.map((k) => { const C = k === "eq" ? S : S.sub && S.sub[k]; return C && C.genome ? { ...BASE, ...C.genome } : null; }).filter(Boolean); for (const f of Object.values(F)) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
   paso(S, tick, F, now);
-  for (const k of SUBS) paso(S.sub[k], tick, PERF[k].soloOkx ? Object.fromEntries(Object.entries(F).filter(([m]) => enOkx(OKX, m))) : F, now);
+  const FO = Object.fromEntries(Object.entries(F).filter(([m]) => enOkx(OKX, m)));
+  if (!S.dbgOkx || now - Date.parse(S.dbgOkx) > 30 * 60000) { S.dbgOkx = now.toISOString(); console.log(`OKX: lista ${OKX ? OKX.size : "SIN LISTA"} criptos · con datos ahora ${Object.keys(FO).length} de ${Object.keys(F).length}` + SUBS.filter((k) => PERF[k].soloOkx).map((k) => { const C = S.sub[k], g = { ...BASE, ...C.genome }; return ` · ${k}: ${Object.values(FO).filter((f) => f && entra(g, f)).length} señales, ${C.prueba ? "práctica" : "🏆"}`; }).join("")); }
+  for (const k of SUBS) paso(S.sub[k], tick, PERF[k].soloOkx ? FO : F, now);
   // v224/v225 · cobrar financiación y rejilla: tres submodos cada uno, con sus propios 100 € ficticios
   { const u = T.find((x) => x.market === "USDC-EUR"), ue = u ? +u.last || (+u.bid + +u.ask) / 2 : 0;
     try { const D = await FIN.datos(S.finD, tick, now, fetch, Object.values(S.fins).flatMap((f) => Object.keys((f && f.pos) || {})));
