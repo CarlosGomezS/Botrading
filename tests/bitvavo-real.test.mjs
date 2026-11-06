@@ -273,3 +273,17 @@ test("Real v278: 🔍 cuadra con la cuenta real: incorpora lo que hay sin apunta
   ex.px["Z-EUR"] = 1.8; o = await RL.vuelta(o.RS, { eq: fuente() }, { copia: "eq" }, tk(ex.px), T(1), deps);
   assert.ok(!o.RS.pos["Z-EUR"], "stop −6 % de lo incorporado"); assert.equal(ex.orders.at(-1).side, "sell");
 });
+
+test("Real v282: 📒 el libro casa compras y ventas del historial real del exchange (FIFO, comisiones incluidas)", async () => {
+  const { libro } = await import("../runner/bitvavo-real.mjs");
+  const L = libro([
+    { t: 1000, sym: "RAY", side: "buy", q: 10, eur: 10, fee: 0.02 },
+    { t: 2000, sym: "RAY", side: "sell", q: 10, eur: 11, fee: 0.02 },
+    { t: 3000, sym: "UNI", side: "buy", q: 2, eur: 20, fee: 0.05 },
+    { t: 4000, sym: "UNI", side: "sell", q: 1, eur: 9, fee: 0.02 },
+  ]);
+  assert.equal(L.cerradas.length, 2);
+  const ray = L.cerradas.find((c) => c.sym === "RAY"); assert.equal(ray.pnl, 0.96); assert.equal(ray.cost, 10.02);
+  const uni = L.cerradas.find((c) => c.sym === "UNI"); assert.ok(Math.abs(uni.cost - 10.025) < 0.01); assert.ok(Math.abs(uni.pnl + 1.045) < 0.01);
+  assert.equal(L.abiertas.UNI.q, 1); assert.ok(Math.abs(L.abiertas.UNI.cost - 10.025) < 0.01); assert.ok(!L.abiertas.RAY);
+});

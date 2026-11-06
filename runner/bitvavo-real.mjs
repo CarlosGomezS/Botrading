@@ -81,7 +81,24 @@ async function vender(api, m, q, dec) {
 export function bitvavoEx(api, mercado, saldoEur) {
   const saldo = async (sym) => { const b = await api("GET", "/balance?symbol=" + sym), x = (Array.isArray(b) ? b : [b]).find((y) => y && y.symbol === sym); return x ? +x.available || 0 : 0; };
   const saldos = async () => { const b = await api("GET", "/balance"), o = {}; for (const x of Array.isArray(b) ? b : []) { const q = (+x.available || 0) + (+x.inOrder || 0); if (q > 0) o[x.symbol] = q; } return o; };   // v278
-  return { nombre: "Bitvavo", fee: FEE, tiene: () => true, comprar: (m, eur) => comprar(api, m, eur), vender: async (m, q) => { const mk = await mercado(m); return vender(api, m, q, mk.dec); }, mercado, saldoEur, saldo, saldos, errClave };
+  // v282 · operaciones REALES de la cuenta (las mismas del historial de Bitvavo), cripto a cripto
+  const operaciones = async (syms) => { const out = []; for (const sym of syms) { if (/^(EUR|USDC|USDT|EURC)$/.test(sym)) continue; let d; try { d = await api("GET", `/trades?market=${sym}-EUR&limit=500`); } catch { continue; }
+    for (const x of Array.isArray(d) ? d : []) { const q = +x.amount || 0, px = +x.price || 0, fee = +x.fee || 0, feeE = !x.feeCurrency || x.feeCurrency === "EUR" ? fee : fee * px; out.push({ t: +x.timestamp, sym, side: x.side, q: q - (x.side === "buy" && x.feeCurrency === sym ? fee : 0), eur: q * px, fee: feeE }); } } return out; };
+  return { nombre: "Bitvavo", fee: FEE, tiene: () => true, comprar: (m, eur) => comprar(api, m, eur), vender: async (m, q) => { const mk = await mercado(m); return vender(api, m, q, mk.dec); }, mercado, saldoEur, saldo, saldos, operaciones, errClave };
+}
+// v282 · 📒 LIBRO REAL: con las operaciones del exchange, casa compras y ventas (la primera que entra es la primera que sale) y saca
+// las cerradas con su % de verdad (comisiones incluidas) y el coste de lo que sigue abierto. Es lo mismo que verías haciendo las cuentas en la app del exchange.
+export function libro(ops) {
+  const cola = {}, cerradas = [];
+  for (const o of [...ops].sort((a, b) => a.t - b.t)) { const c = cola[o.sym] || (cola[o.sym] = []);
+    if (o.side === "buy") { if (o.q > 0) c.push({ q: o.q, cost: o.eur + o.fee, t: o.t }); continue; }
+    let q = o.q, cost = 0, qm = 0, t0 = null; const got = o.eur - o.fee;
+    while (q > 1e-12 && c.length) { const l = c[0], u = Math.min(q, l.q), part = l.cost * (u / l.q); cost += part; l.cost -= part; l.q -= u; q -= u; qm += u; t0 = t0 ?? l.t; if (l.q <= 1e-12) c.shift(); }
+    if (qm > 0) { const g = got * (qm / o.q), pnl = g - cost; const prev = cerradas[cerradas.length - 1];
+      if (prev && prev.sym === o.sym && o.t - prev.t1 < 5 * 60000) { prev.cost += cost; prev.got += g; prev.pnl += pnl; prev.t1 = o.t; prev.pc = (prev.got / prev.cost - 1) * 100; }   // ventas troceadas de la misma orden → una
+      else cerradas.push({ sym: o.sym, t0, t1: o.t, cost, got: g, pnl, pc: (g / cost - 1) * 100 }); } }
+  const abiertas = {}; for (const [sym, c] of Object.entries(cola)) { const q = c.reduce((s, l) => s + l.q, 0), cost = c.reduce((s, l) => s + l.cost, 0); if (q > 0 && cost > 0.01) abiertas[sym] = { q, cost: r2(cost), px: cost / q, t0: c[0].t }; }
+  return { cerradas: cerradas.reverse().slice(0, 100).map((x) => ({ ...x, cost: r2(x.cost), got: r2(x.got), pnl: r2(x.pnl), pc: r2(x.pc), t0: x.t0 ? new Date(x.t0).toISOString() : null, t1: new Date(x.t1).toISOString() })), abiertas };
 }
 
 // ---- una vuelta (cada minuto, justo después de que los submodos ficticios hayan comprado o vendido)
@@ -145,14 +162,20 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     //  · si de una cripto hay menos de lo apuntado (comisiones en la propia cripto, ventas fuera del bot…), se apunta lo que hay de verdad
     //  · si hay una cripto en la cuenta que el bot no tenía apuntada (≥ 2 €), se incorpora y se vigila con stop (−6 %), stop móvil y 72 h máx.
     //  · se guarda la foto EXACTA de la cuenta (euros + cada cripto a precio de ahora) para enseñarla en la app
-    if (X.saldos) { try { const B = await X.saldos(), act = []; let tot = +(B.EUR || 0);
-      for (const [sym, q] of Object.entries(B)) { if (sym === "EUR") continue; const m = sym + "-EUR", bid = tick[m] ? tick[m].bid : 0, v = q * bid; tot += v; if (v >= 0.01) act.push({ sym, q, eur: r2(v), px: bid });
+    if (X.saldos) { try { const B = await X.saldos(), act = [], PX = X.precios ? await X.precios().catch(() => null) : null; let tot = +(B.EUR || 0);
+      for (const [sym, q] of Object.entries(B)) { if (sym === "EUR") continue; const m = sym + "-EUR", bid = (PX && PX[sym]) || (tick[m] ? tick[m].bid : 0), v = q * bid; tot += v; if (v >= 0.01) act.push({ sym, q, eur: r2(v), px: bid });
         const p = RS.pos[m];
         if (p && q < p.q * 0.999) { p.q = q; if (q * bid < 0.5) { L(RS, now, `🔍 ${sym}: en la cuenta ya no queda; se da por cerrada`); delete RS.pos[m]; } }
         else if (!p && v >= 2 && !/^(USDC|USDT|EURC|EUR)$/.test(sym)) { RS.pos[m] = { sym, q, q0: q, px: bid, cost: r2(v), cost0: r2(v), t0: now.toISOString(), last: bid, peak: bid, huerfana: 1, src: null }; L(RS, now, `🔍 ${sym}: estaba en tu cuenta sin apuntar (${r2(v)} €); ahora la vigila (stop −6 %, stop móvil, 72 h máx.)`); } }
       for (const m of Object.keys(RS.pos)) { const sym = RS.pos[m].sym; if (!(B[sym] > 0)) { L(RS, now, `🔍 ${sym}: no está en la cuenta; se quita del apunte`); delete RS.pos[m]; } }
       if (B.EUR != null && RS.cash > +B.EUR + 0.01) RS.cash = +B.EUR;
-      RS.cuenta = { t: now.toISOString(), eur: r2(+(B.EUR || 0)), total: r2(tot), activos: act.sort((a, b) => b.eur - a.eur) }; } catch (e) { L(RS, now, "⚠️ no pude leer los saldos de la cuenta: " + String(e.message).slice(0, 80)); } }
+      RS.cuenta = { t: now.toISOString(), eur: r2(+(B.EUR || 0)), total: r2(tot), activos: act.sort((a, b) => b.eur - a.eur) };
+      // v282 · 📒 el historial real del exchange, cada 10 min o en cuanto cambian las monedas de la cuenta
+      const firmaB = Object.keys(B).sort().join(",");
+      if (X.operaciones && (!RS.libro || RS.libro.firma !== firmaB || now - Date.parse(RS.libro.t) > 10 * 60000)) { try {
+        const syms = [...new Set([...Object.keys(B), ...(RS.closed || []).map((c) => c.sym), ...((RS.libro && RS.libro.cerradas) || []).map((c) => c.sym)])];
+        RS.libro = { t: now.toISOString(), firma: firmaB, ...libro(await X.operaciones(syms)) }; } catch (e) { L(RS, now, "⚠️ no pude leer el historial del exchange: " + String(e.message).slice(0, 80)); } }
+      } catch (e) { L(RS, now, "⚠️ no pude leer los saldos de la cuenta: " + String(e.message).slice(0, 80)); } }
     // 2) freno: si el saldo cae un 25 %, vende todo y se para
     const eq = valor(RS, tick);
     if (eq < RS.start * (1 - FRENO)) { await vendeTodo(`freno: el saldo ha caído un ${FRENO * 100} %`); ctl = { ...ctl, parado: true, motivo: `freno automático: el saldo cayó un ${FRENO * 100} %` }; RS.estado = "parado"; RS.paradaAt = now.toISOString(); msgs.push(`💶 🛑 REAL PARADO por el freno: el saldo ha caído por debajo de ${r2(RS.start * (1 - FRENO))} €. He vendido todo y no compraré más. Te avisaré cuando se cumplan las condiciones para retomar (el método se recupera en ficticio, vuelve a tener regla ganadora y pasan 2 días). Para volver antes: /seguir`); return { RS, msgs, ctl, ctlCambia: true }; }

@@ -63,5 +63,16 @@ export function adaptador(api, I, tick = {}) {
   // v278 · saldo REAL de todas las monedas de la cuenta (para reflejar exactamente lo que hay y vender lo que de verdad queda)
   async function saldos() { const [d] = await api("GET", "/api/v5/account/balance"); const o = {}; for (const x of (d && d.details) || []) { const q = +(x.cashBal || x.availBal || 0); if (q > 0) o[x.ccy] = q; } return o; }
   async function saldo(sym) { const o = await saldos(); return o[sym] || 0; }
-  return { nombre: "OKX", fee: FEE, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, saldos, saldo, errClave };
+  // v282 · precios de OKX (no de Bitvavo) en euros para valorar la cuenta igual que la app de OKX: par en EUR, o en USDC × USDC-EUR
+  async function precios() { const d = await api("GET", "/api/v5/market/tickers?instType=SPOT"), eur = {}, usdc = {}; for (const x of d) { const [b, q] = String(x.instId).split("-"), px = +x.bidPx || +x.last || 0; if (!(px > 0)) continue; if (q === "EUR") eur[b] = px; else if (q === "USDC") usdc[b] = px; }
+    const u = eur.USDC || 0; for (const [b, px] of Object.entries(usdc)) if (!eur[b] && u > 0) eur[b] = px * u; eur.EUR = 1; return eur; }
+  // v282 · operaciones REALES de la cuenta (lo mismo que sale en «historial de órdenes» de OKX, últimos 3 meses)
+  async function operaciones() { const out = [], P = await precios().catch(() => ({})), u = P.USDC || 1; let after = "";
+    for (let i = 0; i < 5; i++) { const d = await api("GET", "/api/v5/trade/fills-history?instType=SPOT&limit=100" + (after ? "&after=" + after : "")); if (!d.length) break;
+      for (const x of d) { const [b, q] = String(x.instId).split("-"); if (b === "USDC" || b === "USDT" || b === "EURC") continue; const k = q === "EUR" ? 1 : q === "USDC" ? u : 0; if (!k) continue;
+        const sz = +x.fillSz || 0, px = (+x.fillPx || 0) * k, fee = Math.abs(+x.fee || 0), feeE = x.feeCcy === b ? fee * px : x.feeCcy === "EUR" ? fee : fee * k;
+        out.push({ t: +x.ts, sym: b, side: x.side, q: sz - (x.side === "buy" && x.feeCcy === b ? fee : 0), eur: sz * px, fee: feeE }); }
+      after = d[d.length - 1].billId; if (d.length < 100) break; }
+    return out; }
+  return { nombre: "OKX", fee: FEE, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, saldos, saldo, precios, operaciones, errClave };
 }
