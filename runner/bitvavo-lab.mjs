@@ -12,13 +12,13 @@ import * as REJ from "./rejilla.mjs";
 
 const k = process.argv[2] || "eq", MIN = +process.argv[3] || 50, PAG = +process.env.LAB_PAG || 26, P = B.PERF[k];   // v245 · 26 páginas de 1.000 velas de 5 min ≈ 90 días
 import { existsSync, readFileSync, writeFileSync, renameSync, statSync } from "node:fs";
-const CACHE = (process.env.LAB_CACHE || "/tmp") + "/bv-raw.json", OTROS = ["eq", "turbo", "mix", "tend", "mixokx", "eqokx", "turbookx", "tendokx"].filter((x) => x !== k);   // (el cuantitativo es fijo: ni presta ni recibe reglas)
+const CACHE = (process.env.LAB_CACHE || "/tmp") + "/bv-raw.json", OTROS = ["eq", "turbo", "mix", "tend", "mixokx", "eqokx", "turbookx", "tendokx", "explora", "exploraokx"].filter((x) => x !== k);   // (el cuantitativo es fijo: ni presta ni recibe reglas)
 const RAMA = "bitvavo-lab-" + k, FILE = "lab-" + k + ".json", sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 if (!P) { console.log("Laboratorio: submodo desconocido " + k); process.exit(0); }
 
 async function main() {
   const t0 = Date.now();
-  await sleep(+process.env.LAB_SIN_ESPERA ? 0 : { eq: 0, turbo: 20e3, mix: 40e3, cuant: 60e3, consenso: 80e3, tend: 100e3, mixokx: 0, eqokx: 20e3, turbookx: 40e3, cuantokx: 60e3, consensookx: 80e3, tendokx: 100e3 }[k] || 0);
+  await sleep(+process.env.LAB_SIN_ESPERA ? 0 : { eq: 0, turbo: 20e3, mix: 40e3, cuant: 60e3, consenso: 80e3, tend: 100e3, mixokx: 0, eqokx: 20e3, turbookx: 40e3, cuantokx: 60e3, consensookx: 80e3, tendokx: 100e3, explora: 120e3, exploraokx: 120e3 }[k] || 0);
   let St = null; try { St = await B.leer(FILE, RAMA); } catch (e) {}
   if (!St || !St.lab) St = { lab: { gen: 0, lastGen: null, pop: [], log: [], adopt: [] }, genome: { ...P.base }, genomeId: "base", prueba: true };
   St.info = St.info || { reglas: 0 };

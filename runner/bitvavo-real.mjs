@@ -12,7 +12,7 @@ import { encrypt, openAny } from "./real-cfg.mjs";
 
 export const FRENO_DIA = 0.10;   // v235 · si en un mismo día pierde un 10 %, vende todo y descansa hasta el día siguiente
 export const API = "https://api.bitvavo.com", CAPITAL = 50, FRENO = 0.25, MAX_ORDEN = 30, PERSIGUE = 0.015, OPERADOR = 224224, FEE = 0.0025;
-export const SUBS_OK = ["eq", "turbo", "mix", "cuant", "consenso", "tend", "mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx"];
+export const SUBS_OK = ["eq", "turbo", "mix", "cuant", "consenso", "tend", "mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx", "explora", "exploraokx"];
 // v266 · cada exchange elige SOLO entre sus métodos: OKX entre los hechos con criptos de OKX (lo que compran se copia 1 a 1); Bitvavo, entre los de todas
 export const FAMILIA = { okx: ["mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx"], bitvavo: ["eq", "turbo", "mix", "cuant", "consenso", "tend"] };
 // v266 · un cambio de método automático cada 6 h como mucho (salvo que el actual pierda la 🏆): cambiar a menudo es la forma más fácil de perder
@@ -204,7 +204,7 @@ export function retomar(RS, src, now) {
     { ok: now - desde >= 2 * 86400e3, txt: `han pasado al menos 2 días (${r2((now - desde) / 86400e3)} días)` }];
   return { ok: c.every((x) => x.ok), c };
 }
-export const nombre = (k) => ({ mix: "🧠 IA + los mejores", eq: "⚖️ Equilibrado", turbo: "⚡ Turbo", mixokx: "🧠 IA + los mejores · solo OKX", cuant: "📐 Cuantitativo", consenso: "🧬 Consenso", eqokx: "⚖️ Equilibrado · OKX", turbookx: "⚡ Turbo · OKX", tend: "📈 Tendencia", cuantokx: "📐 Cuantitativo · OKX", consensookx: "🧬 Consenso · OKX", tendokx: "📈 Tendencia · OKX" })[k] || k;
+export const nombre = (k) => ({ mix: "🧠 IA + los mejores", eq: "⚖️ Equilibrado", turbo: "⚡ Turbo", mixokx: "🧠 IA + los mejores · solo OKX", cuant: "📐 Cuantitativo", consenso: "🧬 Consenso", eqokx: "⚖️ Equilibrado · OKX", turbookx: "⚡ Turbo · OKX", tend: "📈 Tendencia", cuantokx: "📐 Cuantitativo · OKX", consensookx: "🧬 Consenso · OKX", tendokx: "📈 Tendencia · OKX", explora: "🚀 Explorador", exploraokx: "🚀 Explorador · OKX" })[k] || k;
 
 // ---- todo junto, llamado desde bitvavo.mjs (lee/guarda control y estado cifrado; nunca escribe importes en los registros)
 // v236 · dos exchanges posibles (Bitvavo u OKX), cada uno con su estado cifrado en su rama. Solo opera el elegido en la app;
@@ -279,11 +279,11 @@ export async function paso(S, tick, now, io) {
       await io.tg(txt); console.log(`Real (${ex}): conversión a euros pedida · ${/vendido/.test(txt) ? "hecha" : "no hecha"}`);
       const k = (ctl.cuentas = ctl.cuentas || {}); k[ex] = { ...(k[ex] || {}), convertir: { ...cfg.convertir, hecho: cfg.convertir.at, txt: txt.replace(/^💶 \S+ · /, "") } }; ctlMod = true; }
     let copia = cfg.copia;
-    if (cfg.auto) { const A = autoElige(fuentes, RS && RS.copia, !!(RS && Object.keys(RS.pos || {}).length), S.muyDesde, now, FAMILIA[ex], RS && RS.copiaDesde); copia = A.copia; R0.auto = A;
+    if (cfg.auto) { const A = autoElige(fuentes, RS && RS.copia, !!(RS && Object.keys(RS.pos || {}).length), S.muyDesde, now, ((S.visibles && S.visibles[ex]) || FAMILIA[ex]), RS && RS.copiaDesde); copia = A.copia; R0.auto = A;
       if (RS && RS.copia && RS.copia !== copia) await io.tg(`💶 ${N} · 🤖 AUTOMÁTICO: ahora copia a «${nombre(copia)}» (${A.motivo}).`); }
     R0.copia = copia;
     // v269/v270 · los demás ganadores: primero los de su exchange y luego TODOS los demás con 🏆 (lo que no esté en el exchange se salta solo)
-    const extra = cfg.auto ? [...FAMILIA[ex], ...SUBS_OK].filter((k, i, a) => a.indexOf(k) === i && k !== copia && reglaEnUso(fuentes[k])) : [];
+    const extra = cfg.auto ? [...((S.visibles && S.visibles[ex]) || FAMILIA[ex]), ...SUBS_OK].filter((k, i, a) => a.indexOf(k) === i && k !== copia && reglaEnUso(fuentes[k])) : [];
     if (cfg.auto) R0.extra = extra;
     const c2 = { copia, extra, capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
       parado: !cfg.on || !!ctl.parado || cfg.parado, motivo: !cfg.on ? `has apagado ${N}` : ctl.parado ? ctl.motivo || "lo has parado tú" : cfg.motivo };

@@ -60,3 +60,11 @@ test("v258 · 🩹 aprende de sus errores reales: baja la nota a las reglas que 
   assert.ok(B.ajusteErrores(persigue, Lc).d < 0, "repetiría los errores"); assert.ok(B.ajusteErrores(evita, Lc).d > 0, "los evita");
   assert.deepEqual(Object.keys(B.foto({ a: 1.234567, b: "x", c: null })), ["a", "c"]);
 });
+
+test("v272 · 🔄 rotación: un 💎 de fuera que supera en ≥ 1 al peor de los 6 entra y el peor sale (como mucho cada 12 h)", () => {
+  const S = {}, now = new Date(Date.UTC(2026, 10, 6, 12)), notas = { eq: 4, turbo: null, mix: 2, cuant: 0.5, consenso: 3, tend: 1, explora: 5, mixokx: 1, eqokx: 5, turbookx: 0, cuantokx: 0, consensookx: 0, tendokx: 0, exploraokx: 0.5 };
+  const m = B.rotar(S, now, notas, (k) => k === "explora");
+  assert.equal(m.length, 1); assert.ok(S.visibles.bitvavo.includes("explora")); assert.ok(!S.visibles.bitvavo.includes("turbo"), "sale el peor (sin regla)");
+  assert.equal(B.rotar(S, new Date(now.getTime() + 3600e3), { ...notas, eq: 1 }, (k) => k === "eq" || k === "turbo").length, 0, "no rota otra vez antes de 12 h");
+  assert.deepEqual(S.visibles.okx, B.FAMILIA.okx, "OKX sin cambios: su explorador no es 💎");
+});

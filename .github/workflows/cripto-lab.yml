@@ -42,10 +42,10 @@ jobs:
       matrix:
         include:
           - grupo: bitvavo
-            labs: "eq turbo mix cuant consenso tend"
+            labs: "eq turbo mix cuant consenso tend explora"
             baja: eq
           - grupo: okx
-            labs: "mixokx eqokx turbookx cuantokx consensookx tendokx"
+            labs: "mixokx eqokx turbookx cuantokx consensookx tendokx exploraokx"
             baja: mixokx
     steps:
       - uses: actions/checkout@v5

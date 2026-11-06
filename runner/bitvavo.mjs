@@ -208,13 +208,30 @@ PERF.cuantokx = { ...PERF.cuant, nombre: "📐 Cuantitativo · OKX", txt: "tu m�
 PERF.consensookx = { ...PERF.consenso, nombre: "🧬 Consenso · OKX", txt: "compra cuando varios métodos de OKX coinciden a la vez en la misma cripto (y la IA está de acuerdo)", soloOkx: true, comite: "okx" };
 PERF.tendokx = { ...PERF.tend, nombre: "📈 Tendencia · OKX", txt: "seguir la tendencia (tortugas, rupturas, rotación) solo con criptos de OKX", soloOkx: true };
 export const COMITE_OKX = ["mixokx", "eqokx", "turbookx", "tendokx"];
+// v272 · 🚀 EXPLORADORES: buscan sin parar reglas de CUALQUIER estilo (sobre todo inventadas). Si encuentran una 💎 muy buena que supera
+// claramente al peor de los 6 métodos visibles, la sustituyen (el peor sigue aprendiendo por detrás y puede volver).
+PERF.explora = { ...PERF.eq, nombre: "🚀 Explorador", txt: "busca sin parar reglas nuevas de cualquier estilo; cuando encuentra una muy buena, entra en lugar del peor método", explora: true };
+PERF.exploraokx = { ...PERF.eq, nombre: "🚀 Explorador · OKX", txt: "busca sin parar reglas nuevas solo con criptos de OKX; cuando encuentra una muy buena, entra en lugar del peor método de OKX", explora: true, soloOkx: true };
 export const FAMILIA = { okx: ["mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx"], bitvavo: ["eq", "turbo", "mix", "cuant", "consenso", "tend"] };
 export const COMITE = ["eq", "turbo", "mix", "mixokx"];
 PERF.consenso = { nombre: "🧬 Consenso", txt: "compra solo cuando varios de los mejores métodos coinciden a la vez en la misma cripto (y la IA está de acuerdo); aprende cuántos tienen que coincidir y cuándo vender", ests: ["consenso"], rang: { iaMin: [0, 0.6] }, fijo: {}, robusta };
 PERF.consenso.base = ajustar({ ...BASE, estilo: "consenso", vmin: 2 }, PERF.consenso);
 // votos de cada vela: cuántas reglas del comité darían compra ahí
 export function ponVotos(H, genomas) { const gs = genomas.filter(Boolean); for (const x of Object.values(H.m || {})) for (const f of x.f) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
-export const SUBS = ["turbo", "mix", "cuant", "consenso", "tend", "mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx"];
+export const SUBS = ["turbo", "mix", "cuant", "consenso", "tend", "mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx", "explora", "exploraokx"];
+export const EXPLORA = { bitvavo: "explora", okx: "exploraokx" };
+// v272 · 🔄 ROTACIÓN: los 6 métodos que se ven (y que puede seguir el dinero real) por exchange. Si un método fuera de la lista (el explorador o
+// uno que salió) es 💎 desde hace ≥ 1 h y su nota supera en ≥ 1 punto a la del peor de la lista, entra y el peor sale. Como mucho un cambio cada 12 h.
+export function rotar(S, now, notas, muy) {
+  S.visibles = S.visibles || { bitvavo: [...FAMILIA.bitvavo], okx: [...FAMILIA.okx] }; S.rotAt = S.rotAt || {}; const msgs = [];
+  for (const ex of ["bitvavo", "okx"]) {
+    const vis = S.visibles[ex], cands = [...new Set([...FAMILIA[ex], EXPLORA[ex]])].filter((k) => !vis.includes(k) && muy(k) && notas[k] != null);
+    if (!cands.length || (S.rotAt[ex] && now - Date.parse(S.rotAt[ex]) < 12 * 3600e3)) continue;
+    const mejor = cands.sort((a, b) => notas[b] - notas[a])[0], peor = vis.slice().sort((a, b) => (notas[a] ?? -99) - (notas[b] ?? -99))[0];
+    if (notas[mejor] >= (notas[peor] ?? -99) + 1) { S.visibles[ex] = vis.map((k) => (k === peor ? mejor : k)); S.rotAt[ex] = now.toISOString();
+      msgs.push(`🔄💎 ${ex === "okx" ? "OKX" : "Bitvavo"}: entra «${PERF[mejor].nombre}» (MUY BUENO, nota ${notas[mejor]}) y sale «${PERF[peor].nombre}» (nota ${notas[peor] ?? "sin regla"}). Si el dinero real está en 🤖 Automático, ya puede seguirlo.`); } }
+  return msgs;
+}
 // filtros para «solo OKX»: okx = lista de criptos (símbolos) que se pueden operar en OKX contra euros (directo o pasando por USDC)
 export const enOkx = (okx, m) => !!okx && okx.has(String(m).replace(/-EUR$/, ""));
 export function filtraH(H, okx) { const m = {}; for (const [k, x] of Object.entries(H.m || {})) if (enOkx(okx, k)) m[k] = x; return { m }; }
@@ -292,7 +309,9 @@ export function evolucionar(S, H, now = new Date(), rnd = Math.random, budgetMs 
     if (top.length) { const p = top[Math.floor(rnd() * top.length)], gx = cruzarP(gi, p.g, rnd), k1 = gkey(gx); if (!seen.has(k1)) { seen.add(k1); cand.push({ g: gx, why: `cruce de ${x.de} con ${p.id}`, ...robustaV(gx, H) }); } } }
   for (let i = 0; i < 2000 && Date.now() - t0 < budgetMs; i++) {
     const r = rnd(); let g, why;
-    if (r < 0.5 && top.length) { const p = top[Math.floor(rnd() * top.length)]; g = mutarP(p.g, rnd); why = "mutación de " + p.id; }
+    const inv = P.explora ? 0.55 : 0;   // v272 · 🚀 el explorador inventa mucho más (reglas nuevas de cualquier estilo)
+    if (r < inv) { g = aleatorioP(rnd); why = "inventada"; }
+    else if (r < 0.5 + inv * 0.4 && top.length) { const p = top[Math.floor(rnd() * top.length)]; g = mutarP(p.g, rnd); why = "mutación de " + p.id; }
     else if (r < 0.7 && top.length > 1) { const a = top[Math.floor(rnd() * top.length)], b = top[Math.floor(rnd() * top.length)]; if (a === b) continue; g = cruzarP(a.g, b.g, rnd); why = `cruce de ${a.id} y ${b.id}`; }
     else { g = aleatorioP(rnd); why = "inventada"; }
     const k = gkey(g); if (seen.has(k)) continue; seen.add(k); cand.push({ g, why, ...robustaV(g, H) });
@@ -494,7 +513,11 @@ async function main() {
     // v258 · 🔕 Telegram sin ruido: ya no avisa de cada regla nueva ni de cada buena operación en ficticio. Solo cuando un método pasa a ser
     // ⭐⭐ MUY BUENO (gana ≥ 0,6 % por operación en los tres tramos de 90 días, con ≥ 30 operaciones en cada uno), como mucho una vez al día por método.
     const AV = await import("./avisos.mjs"), RL0 = await import("./bitvavo-real.mjs"); S.av = S.av || {}; const msgs = [];
-    for (const [k, C] of [["eq", S], ...SUBS.map((k) => [k, S.sub[k]])]) { const v = RL0.reglaEnUso(C), dd = S.muyDesde && S.muyDesde[k]; if (v && RL0.esMuy(v) && dd && now - Date.parse(dd) >= RL0.MUY_ESTABLE_MS) {   /* v259 · solo si lleva ≥ 1 h siendo ⭐⭐ */ const t3 = [v.a, v.b, v.c].map((x) => `${x.med >= 0 ? "+" : ""}${x.med} % en ${x.n} ops`).join(" · "), m = AV.avisoReglas(S.av, "bv-muy:" + k, `⭐⭐ ${PERF[k].nombre} es ahora MUY BUENO\n• Examen de 90 días (por operación, con comisiones): ${t3}\n• Si tu cuenta real está en 🤖 Automático, pasará a seguirlo sola.`, now); if (m) msgs.push(m); } }
+    // v272 · 🔄 rotación de los 6 visibles (solo entra un 💎 que supere claramente al peor) + aviso SOLO de lo muy bueno
+    { const fu = { eq: S, ...S.sub }, notas = {}, muyE = (k) => { const v = RL0.reglaEnUso(fu[k]), dd = S.muyDesde && S.muyDesde[k]; return !!(v && RL0.esMuy(v) && dd && now - Date.parse(dd) >= RL0.MUY_ESTABLE_MS); };
+      for (const k of ["eq", ...SUBS]) { const v = RL0.reglaEnUso(fu[k]); notas[k] = v ? +v.s : null; }
+      for (const m of rotar(S, now, notas, muyE)) msgs.push(m);
+      for (const k of ["eq", ...SUBS]) { if (!muyE(k)) continue; const v = RL0.reglaEnUso(fu[k]), t3 = [v.a, v.b, v.c].map((x) => `${x.med >= 0 ? "+" : ""}${x.med} % en ${x.n} ops`).join(" · "), m = AV.avisoReglas(S.av, "bv-muy:" + k, `💎 ${PERF[k].nombre} es MUY BUENO\n• Examen de 90 días (por operación, con comisiones y deslizamiento): ${t3}${S.visibles && !Object.values(S.visibles).flat().includes(k) ? "\n• Aún no está entre los 6: entrará si supera claramente al peor." : "\n• Si tu cuenta real está en 🤖 Automático, ya lo sigue."}`, now); if (m) msgs.push(m); } }
     // v238 · 📊 resumen diario por Telegram (21:00 en España): como los datos van cifrados, así te llegan los números sin abrir la app
     { const hES = +now.toLocaleString("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hour12: false }), dES = now.toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
       if (hES >= 21 && S.resumenDia !== dES) { S.resumenDia = dES; const f = (n, C) => { if (!C) return null; const cl = C.closed || [], w = cl.filter((c) => c.pnl > 0).length; return `• ${n}: ${r2(C.lastEq)} € (${C.lastEq >= (C.start || 100) ? "+" : ""}${r2((C.lastEq / (C.start || 100) - 1) * 100)} %) · ${cl.length} cerradas (${w} G / ${cl.length - w} P)${C.prueba === true ? " · sin regla ganadora" : C.prueba === false ? " · 🏆 regla ganadora" : ""}`; };
