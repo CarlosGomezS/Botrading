@@ -77,3 +77,18 @@ test("OKX v287: precios y velas DE OKX en euros (también criptos que no están 
   assert.equal(c.length, 600); assert.ok(c[0][0] < c[599][0], "de antigua a reciente"); assert.ok(Math.abs(c[0][4] - 1.8) < 1e-9);
   const c2 = await OK.velasOkx("XYZ-USDC", 0.9, cache, fx); assert.equal(c2.length, 600, "la segunda vez solo añade lo nuevo (sin duplicar)");
 });
+
+test("OKX v288: el historial propio de OKX se guarda, se completa hacia atrás y sale en euros para el laboratorio", async () => {
+  const OK = await import("../runner/okx.mjs"), fs = await import("node:fs"), os = await import("node:os"), path = await import("node:path");
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "okxh-")), "hist.json"), I = { ABC: { EUR: { instId: "ABC-EUR" } }, XYZ: { USDC: { instId: "XYZ-USDC" } }, USDC: { EUR: { instId: "USDC-EUR" } } };
+  const now = Date.now() - (Date.now() % 300e3), lim = now - 5 * 86400e3, vel = (n, t1) => Array.from({ length: n }, (_, i) => t1 - i * 300e3).filter((t) => t >= lim).map((t) => [String(t), "2", "2.1", "1.9", "2", "100", "0", "0", "1"]);
+  const fx = async (u) => ({ json: async () => {
+    if (u.includes("/market/tickers")) return { code: "0", data: [{ instId: "ABC-EUR", bidPx: "1", askPx: "1.002", last: "1", volCcy24h: "1e6", open24h: "1" }, { instId: "XYZ-USDC", bidPx: "2", askPx: "2.002", last: "2", volCcy24h: "5e5", open24h: "2" }, { instId: "USDC-EUR", bidPx: "0.9", askPx: "0.9", last: "0.9" }] };
+    if (u.includes("history-candles")) return { code: "0", data: vel(100, +u.match(/after=(\d+)/)[1] - 300e3) };
+    if (u.includes("/market/candles")) return { code: "0", data: vel(300, now) };
+    return { code: "0", data: [] }; } });
+  const st = await OK.mantenerHistoria(file, I, { dias: 90, hasta: Date.now() + 3000, ritmo: 0, fx, margen: 0 });
+  assert.ok(st.m["XYZ-EUR"].c.length > 5 * 288 - 5, "completa hacia atrás todo lo que hay: " + st.m["XYZ-EUR"].c.length); assert.ok(fs.existsSync(file));
+  const { tick, ue } = await OK.preciosOkx(I, fx), raw = OK.rawDeHistoria(JSON.parse(fs.readFileSync(file, "utf8")), { tick, ue });
+  assert.ok(raw.m["XYZ-EUR"] && Math.abs(raw.m["XYZ-EUR"][0][4] - 1.8) < 1e-9, "USDC → euros"); assert.ok(raw.paginas > 1.3 && raw.paginas < 1.5);
+});

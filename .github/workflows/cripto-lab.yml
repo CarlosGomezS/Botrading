@@ -54,6 +54,14 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+      # v288 · 📚 historial propio de OKX: se conserva entre tramos con la caché de GitHub (se va completando hasta 90 días)
+      - name: Recuperar el historial de OKX
+        if: matrix.grupo == 'okx'
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/okxh
+          key: okx-hist-${{ github.run_id }}
+          restore-keys: okx-hist-
       - name: Laboratorios ${{ matrix.grupo }} (en paralelo, ~50 min)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -64,6 +72,12 @@ jobs:
           for k in ${{ matrix.labs }}; do (timeout 3240 node --max-old-space-size=3072 runner/bitvavo-lab.mjs $k 48 > /tmp/lab-$k.log 2>&1 || true) & done
           wait || true
           for k in ${{ matrix.labs }}; do echo "=== $k"; tail -n 60 /tmp/lab-$k.log; done
+      - name: Guardar el historial de OKX
+        if: always() && matrix.grupo == 'okx'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/okxh
+          key: okx-hist-${{ github.run_id }}
   siguiente:
     needs: [check, lab]
     if: always() && needs.check.outputs.go == 'true'

@@ -45,6 +45,44 @@ export async function velasOkx(par, k, cache, fx = fetch) {
   const m = new Map(); for (const x of c) m.set(x[0], x); c = [...m.values()].sort((a, b) => a[0] - b[0]).slice(-1000);
   if (cache) cache[par] = c; return c;
 }
+// v288 · 📚 FASE 2: HISTORIAL PROPIO DE OKX (90 días de velas de 5 min) para que los laboratorios de OKX aprendan con datos DE OKX.
+// La API de OKX da el pasado de 100 en 100 velas, así que se guarda en disco (la máquina lo conserva entre tramos con la caché de GitHub)
+// y se va completando: primero lo reciente de todas (para empezar ya) y luego hacia atrás hasta 90 días. Precios en la moneda del par (EUR o USDC).
+const leerJ = async (f) => { try { const fs = await import("node:fs"); return JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { return null; } };
+const guardaJ = async (f, o) => { const fs = await import("node:fs"), path = await import("node:path"); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f + ".tmp", JSON.stringify(o)); fs.renameSync(f + ".tmp", f); };
+export async function mantenerHistoria(file, I, { dias = 90, hasta = Date.now() + 40 * 60e3, ritmo = 120, n = 40, fx = fetch, log = () => {}, margen = 60e3 } = {}) {
+  const get = async (u) => { await sleep(ritmo); const r = await fx(BASE + u, { signal: AbortSignal.timeout(15000) }); const j = await r.json(); if (j.code && j.code !== "0") { if (String(j.code) === "50011") await sleep(2000); throw new Error("OKX " + j.code); } return j.data || []; };
+  const conv = (a) => a.filter((x) => x[8] === "1" || x[8] == null).map((x) => [+x[0], +x[1], +x[2], +x[3], +x[4], +x[5]]);
+  const st = (await leerJ(file)) || { m: {} }; let ciclo = 0;
+  while (Date.now() < hasta) {
+    let PO = null; try { PO = await preciosOkx(I, fx); } catch (e) { await sleep(30e3); continue; }
+    const lista = Object.keys(PO.tick).filter((m) => PO.tick[m].sp < 0.012).sort((a, b) => PO.tick[b].vq - PO.tick[a].vq).slice(0, n); if (PO.tick["BTC-EUR"] && !lista.includes("BTC-EUR")) lista.push("BTC-EUR");
+    const desde = Date.now() - dias * 86400e3, ahora = Date.now();
+    // 1) lo nuevo de todas (y lo reciente de las que acaban de entrar)
+    for (const m of lista) { if (Date.now() > hasta) break; const par = PO.tick[m].par, x = st.m[m] || (st.m[m] = { par, c: [] }); x.par = par;
+      try { let c = x.c, ult = c.length ? c[c.length - 1][0] : 0, nu = conv(await get(`/api/v5/market/candles?instId=${par}&bar=5m&limit=300`));
+        let viejo = nu.length ? Math.min(...nu.map((y) => y[0])) : ahora;
+        for (let p = 0; p < 40 && viejo > Math.max(ult, ahora - 3 * 86400e3); p++) { const o = conv(await get(`/api/v5/market/history-candles?instId=${par}&bar=5m&limit=100&after=${viejo}`)); if (!o.length) break; nu = nu.concat(o); viejo = Math.min(...o.map((y) => y[0])); }
+        const mp = new Map(c.map((y) => [y[0], y])); for (const y of nu) mp.set(y[0], y); x.c = [...mp.values()].filter((y) => y[0] >= desde).sort((a, b) => a[0] - b[0]); x.t = ahora; } catch (e) {} }
+    st.t = Date.now(); st.lista = lista; await guardaJ(file, st); log(`OKX historial: ${lista.length} criptos al día`);
+    // 2) hacia atrás, de la que menos tenga a la que más, hasta 90 días (se guarda cada 4 criptos)
+    let hechas = 0;
+    for (const m of [...lista].sort((a, b) => (st.m[a] ? st.m[a].c.length : 0) - (st.m[b] ? st.m[b].c.length : 0))) { if (Date.now() > hasta - margen) break; const x = st.m[m]; if (!x || !x.c.length) continue;
+      try { let viejo = x.c[0][0], add = []; for (let p = 0; p < 300 && viejo > desde && Date.now() < hasta - margen; p++) { const o = conv(await get(`/api/v5/market/history-candles?instId=${x.par}&bar=5m&limit=100&after=${viejo}`)); if (!o.length) { x.inicio = viejo; break; } add = add.concat(o); viejo = Math.min(...o.map((y) => y[0])); }
+        if (add.length) { const mp = new Map(x.c.map((y) => [y[0], y])); for (const y of add) mp.set(y[0], y); x.c = [...mp.values()].filter((y) => y[0] >= desde).sort((a, b) => a[0] - b[0]); } } catch (e) {}
+      if (++hechas % 4 === 0) { st.t = Date.now(); await guardaJ(file, st); } }
+    for (const m of Object.keys(st.m)) if (!lista.includes(m) && Date.now() - (st.m[m].t || 0) > 3 * 86400e3) delete st.m[m];   // las que ya no están entre las elegidas, fuera a los 3 días
+    st.t = Date.now(); await guardaJ(file, st); log(`OKX historial: vuelta ${++ciclo} · ${Object.values(st.m).map((x) => Math.round(x.c.length / 288)).join("/")} días`);
+    await sleep(Math.max(0, Math.min(10 * 60e3, hasta - Date.now())));   // cada 10 min, lo nuevo
+  }
+  return st;
+}
+// historial guardado → mismo formato que la descarga de Bitvavo ({ paginas, m: { "SYM-EUR": velas en euros } }) para el laboratorio
+export function rawDeHistoria(st, PO) {
+  const m = {}; for (const [k, x] of Object.entries((st && st.m) || {})) { const t = PO.tick[k]; if (!t || !x.c || x.c.length < 600) continue; const f = x.par.endsWith("-EUR") ? 1 : PO.ue; if (!(f > 0)) continue; m[k] = x.c.filter((y) => y[0] + 300e3 <= Date.now()).map((y) => [y[0], y[1] * f, y[2] * f, y[3] * f, y[4] * f, y[5]]); }
+  const L = Object.values(m).map((c) => c.length).sort((a, b) => a - b), med = L.length ? L[Math.floor(L.length / 2)] : 0;
+  return { t: Date.now(), paginas: Math.max(0.6, Math.min(26, med / 1000)), m };
+}
 // lista de criptos al contado (pública): { BASE: { EUR: {instId, lot, min}, USDC: {...} } }
 export async function instrumentos(fx = fetch) {
   const r = await fx(BASE + "/api/v5/public/instruments?instType=SPOT", { signal: AbortSignal.timeout(20000) }); const j = await r.json();
