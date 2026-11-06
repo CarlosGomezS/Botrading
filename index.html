@@ -500,7 +500,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .mt-cmp>div,.mt-foot{background:color-mix(in srgb,var(--line) 20%,transparent);border:0;border-radius:12px}
 .mt-log,.mt-kv,.mt-rule,.mt-node{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v263</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag">v265</span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1958,8 +1958,9 @@ function btmDraw(){btmDraw0()}
 /* v68 · lanzar cualquier proceso de GitHub desde la web pública (con el token cifrado y la clave de ajustes) */
 async function wfCloud(wf,label,st,bt,pw,after){if(!st)return;const c=window.__CLOUD;if(!c){st.textContent="Abre la web publicada en GitHub Pages para lanzarlo.";return}
  if(!c.tok()){if(!c.hasEnc()){st.innerHTML="Para lanzarlo hace falta tu token de GitHub: pégalo una vez en <b>⚙️ Ajustes → Ajustes de la nube</b>.";return}
+  if(!pw&&window.abrirNube){await window.abrirNube();if(c.tok())pw="__ok"}
   if(!pw){const id="wfpw"+Math.random().toString(36).slice(2,7);st.innerHTML='Escribe tu clave de ajustes: <input id="'+id+'" type="password" autocomplete="current-password" style="width:150px"> <button id="'+id+'b">Lanzar</button><label class="m" style="display:block;margin-top:4px"><input type="checkbox" class="pwrem" checked style="width:auto"> Recordarla en este dispositivo</label>';const go=()=>wfCloud(wf,label,st,bt,(document.getElementById(id)||{}).value||"",after);document.getElementById(id+"b").onclick=go;document.getElementById(id).onkeydown=e=>{if(e.key==="Enter")go()};document.getElementById(id).focus();return}
-  try{st.textContent="Comprobando la clave…";await c.unlock(pw)}catch(e){st.textContent="Clave incorrecta.";return}}
+  try{if(pw!=="__ok"){st.textContent="Comprobando la clave…";await c.unlock(pw)}}catch(e){st.textContent="Clave incorrecta.";return}}
  const ri=c.ri();if(!ri){st.textContent="No reconozco el repositorio de esta web.";return}
  if(wfCloud.on)return;wfCloud.on=true;if(bt)bt.disabled=true;
  try{c.touch();const since=Date.now();st.textContent="Enviando a GitHub…";const r=await c.dispatch(ri,wf,{});
@@ -1972,8 +1973,9 @@ async function wfCloud(wf,label,st,bt,pw,after){if(!st)return;const c=window.__C
 /* v67 · «Actualizar precios y que el bot decida» desde la web pública: lanza en GitHub la actualización diaria (diario.yml) */
 async function dailyCloud(pw){const st=$("#st"),bt=$("#run"),c=window.__CLOUD;if(!c){st.textContent="Abre la web publicada en GitHub Pages para lanzarlo.";return}
  if(!c.tok()){if(!c.hasEnc()){st.innerHTML="Para lanzarlo hace falta tu token de GitHub: pégalo una vez en <b>⚙️ Ajustes → Ajustes de la nube</b>. También puedes lanzarlo en GitHub: Actions → «Actualización de precios» → Run workflow.";return}
+  if(!pw&&window.abrirNube){await window.abrirNube();if(c.tok())pw="__ok"}
   if(!pw){st.innerHTML='Escribe tu clave de ajustes: <input id="dcpw" type="password" autocomplete="current-password" style="width:150px"> <button id="dcgo">Lanzar</button>';const go=()=>dailyCloud(($("#dcpw")||{}).value||"");$("#dcgo").onclick=go;$("#dcpw").onkeydown=e=>{if(e.key==="Enter")go()};$("#dcpw").focus();return}
-  try{st.textContent="Comprobando la clave…";await c.unlock(pw)}catch(e){st.textContent="Clave incorrecta.";setTimeout(()=>dailyCloud(),1500);return}}
+  try{if(pw!=="__ok"){st.textContent="Comprobando la clave…";await c.unlock(pw)}}catch(e){st.textContent="Clave incorrecta.";setTimeout(()=>dailyCloud(),1500);return}}
  const ri=c.ri();if(!ri){st.textContent="No reconozco el repositorio de esta web.";return}
  if(dailyCloud.on)return;dailyCloud.on=true;if(bt)bt.disabled=true;
  try{c.touch();const since=Date.now();st.textContent="Enviando a GitHub…";
@@ -1986,8 +1988,9 @@ async function dailyCloud(pw){const st=$("#st"),bt=$("#run"),c=window.__CLOUD;if
  }catch(e){st.textContent="No se pudo: "+(e.message||e)}finally{dailyCloud.on=false;if(bt)bt.disabled=false}}
 async function btCloud(pw){const st=$("#btst"),c=window.__CLOUD;if(!pw&&!btCloud.saved){const nc=btFormRead();if(JSON.stringify(nc)!==JSON.stringify(BTC)){btCloud.saved=true;const ok=await btSaveCfg(nc,"Guardando los ajustes antes de lanzar…");btCloud.saved=false;if(!ok)return}}if(!c){st.textContent="Abre la web publicada en GitHub Pages para lanzarla.";return}
  if(!c.tok()){if(!c.hasEnc()){st.innerHTML="Para lanzarla hace falta tu token de GitHub: pégalo una vez en <b>⚙️ Ajustes → Ajustes de la nube</b>. También puedes lanzarla en GitHub: Actions → «Prueba histórica diaria» → Run workflow.";return}
+  if(!pw&&window.abrirNube){await window.abrirNube();if(c.tok())pw="__ok"}
   if(!pw){st.innerHTML='Escribe tu clave de ajustes: <input id="btpw" type="password" autocomplete="current-password" style="width:150px"> <button id="btgo">Lanzar</button>';const go=()=>btCloud(($("#btpw")||{}).value||"");$("#btgo").onclick=go;$("#btpw").onkeydown=e=>{if(e.key==="Enter")go()};$("#btpw").focus();return}
-  try{st.textContent="Comprobando la clave…";await c.unlock(pw)}catch(e){st.textContent="Clave incorrecta.";setTimeout(()=>btCloud(),1500);return}}
+  try{if(pw!=="__ok"){st.textContent="Comprobando la clave…";await c.unlock(pw)}}catch(e){st.textContent="Clave incorrecta.";setTimeout(()=>btCloud(),1500);return}}
  const ri=c.ri();if(!ri){st.textContent="No reconozco el repositorio de esta web.";return}
  $("#btr").disabled=true;try{c.touch();const since=Date.now();st.textContent="Enviando a GitHub…";
   const r=await c.dispatch(ri,"historico.yml",{});
@@ -2084,7 +2087,7 @@ function btFormRead(){const g=id=>$("#"+id),v=id=>g(id)?(g(id).type==="checkbox"
 async function btFormInit(){if(BTFI)return;BTFI=true;if(S.btc)BTC=btcClean(S.btc);if(Array.isArray(S.simx))BTC.sim=[...S.simx];btForm(BTC);
  const b=$("#btcb");if(b)b.onclick=()=>{const f=$("#btcf");f.hidden=!f.hidden};const sv=$("#btsv");if(sv)sv.onclick=()=>btSaveCfg(btFormRead(),"Guardando…");
  if(window.__VIEWER){try{const r=await fetch("ajustes.json?t="+Date.now(),{cache:"no-store"});if(r.ok){const a=await r.json();if(a&&a.bt){BTC=btcClean(a.bt);btForm(BTC);btmDraw0()}}}catch{}}}
-async function btUnlock(stEl){const c=window.__CLOUD;if(!c){stEl.textContent="Abre la web publicada en GitHub Pages.";return null}if(c.tok())return c;
+async function btUnlock(stEl){const c=window.__CLOUD;if(!c){stEl.textContent="Abre la web publicada en GitHub Pages.";return null}if(c.tok())return c;if(window.abrirNube){await window.abrirNube();if(c.tok())return c}
  if(!c.hasEnc()){stEl.innerHTML="Hace falta tu token de GitHub: pégalo una vez en <b>⚙️ Ajustes → Ajustes de la nube</b>.";return null}
  return await new Promise(res=>{stEl.innerHTML='Tu clave de ajustes: <input id="btpw" type="password" autocomplete="current-password" style="width:140px"> <button id="btgo">OK</button><label class="m" style="display:block;margin-top:4px"><input type="checkbox" class="pwrem" checked style="width:auto"> Recordarla en este dispositivo</label>';const go=async()=>{const pw=($("#btpw")||{}).value||"";try{stEl.textContent="Comprobando…";await c.unlock(pw);res(c)}catch(e){stEl.textContent="Clave incorrecta.";res(null)}};$("#btgo").onclick=go;$("#btpw").onkeydown=e=>{if(e.key==="Enter")go()};$("#btpw").focus()})}
 async function btSaveCfg(nc,msg){const stEl=$("#btsvst")&&!$("#btcf").hidden?$("#btsvst"):$("#btst");nc=btcClean(nc);
@@ -2581,7 +2584,7 @@ async function bvRealLoad(){if(MM.bvBusy)return;if(MM.bvAt&&Date.now()-MM.bvAt<3
   for(const [ex,rama] of [["bitvavo","bitvavo-real"],["okx","okx-real"]]){const j=await memeGet(rama,"real.json"),o={meta:j&&!j.nada?(j.meta||null):null,R:null,err:null};
    if(j&&!j.nada&&j.enc){if(pw){try{o.R=JSON.parse(await decrypt(j,pw))}catch(e){o.err="clave"}}else o.err="sinclave"}MM.bvX[ex]=o}
   MM.bvAt=Date.now()}finally{MM.bvBusy=false}}
-async function bvCtlSet(cambio){const c=window.__CLOUD;if(!c||!c.tok||!c.tok()){alert("Para cambiar esto desde aquí desbloquea primero con tu clave en ⚙️ Ajustes. Para parar también puedes escribir /parar a tu bot de Telegram.");return}
+async function bvCtlSet(cambio){const c=window.__CLOUD;if(c&&c.tok&&!c.tok()&&window.abrirNube)await window.abrirNube();if(!c||!c.tok||!c.tok()){alert("Para cambiar esto desde aquí desbloquea primero con tu clave en ⚙️ Ajustes. Para parar también puedes escribir /parar a tu bot de Telegram.");return}
  /* v240 · se guarda lanzando un flujo (tu token puede lanzar flujos; no hace falta permiso de escritura en el repositorio) */
  const r=c.ri(),u=`https://api.github.com/repos/${r.o}/${r.r}/actions/workflows/cripto-ctl.yml/dispatches`;
  try{const w=await fetch(u,{method:"POST",headers:{Authorization:"Bearer "+c.tok(),Accept:"application/vnd.github+json","Content-Type":"application/json"},body:JSON.stringify({ref:"main",inputs:{cambio:JSON.stringify(cambio)}})});
@@ -2663,7 +2666,7 @@ async function memeRealLoad(){if(MM.rBusy||memeCh()[0]!=="solana")return;if(MM.r
   const j=await memeGet("meme-real","meme-real.json");MM.rMeta=j&&!j.nada?(j.meta||null):null;
   if(j&&!j.nada&&j.enc){const pw=(typeof pwGet==="function"&&pwGet())||"";if(pw){try{MM.R=JSON.parse(await decrypt(j,pw))}catch(e){MM.R=null;MM.rErr="clave"}}else{MM.R=null;MM.rErr="sinclave"}}
   MM.rAt=Date.now()}finally{MM.rBusy=false}}
-async function memeCtlSet(cambio){const c=window.__CLOUD;if(!c||!c.tok||!c.tok()){alert("Para pararlo desde aquí desbloquea primero con tu clave de ⚙️ Ajustes. También puedes escribir /parar (o /seguir) a tu bot de Telegram.");return}
+async function memeCtlSet(cambio){const c=window.__CLOUD;if(c&&c.tok&&!c.tok()&&window.abrirNube)await window.abrirNube();if(!c||!c.tok||!c.tok()){alert("Para pararlo desde aquí desbloquea primero con tu clave de ⚙️ Ajustes. También puedes escribir /parar (o /seguir) a tu bot de Telegram.");return}
  const r=c.ri(),u=`https://api.github.com/repos/${r.o}/${r.r}/contents/ctl.json`,H={Authorization:"Bearer "+c.tok(),Accept:"application/vnd.github+json","Content-Type":"application/json"};
  try{const g=await fetch(u+"?ref=meme-ctl",{headers:H});const cur=g.ok?await g.json():null;let o={aprobado:null,parado:false};try{if(cur&&cur.content)o=JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\n/g,"")))))}catch(e){}
   Object.assign(o,cambio,{t:new Date().toISOString()});const w=await fetch(u,{method:"PUT",headers:H,body:JSON.stringify({message:"memes: orden desde la app",content:btoa(unescape(encodeURIComponent(JSON.stringify(o)))),branch:"meme-ctl",...(cur&&cur.sha?{sha:cur.sha}:{})})});
@@ -3863,7 +3866,8 @@ function readCfg(){const g=id=>$r("#rl-c-"+id),a0=A(),o={on:+g("on").value,env:g
  const mapEl=g("map"),mapTyped=mapEl&&mapEl.dataset.typed==="1"&&(!mapEl.value.trim()||mapEl.value.includes("="));const m=mapTyped?{}:{...(a0.mapa||{})};if(mapTyped)for(const l of mapEl.value.split("\n").map(x=>x.trim()).filter(Boolean)){const p=l.split("=").map(x=>x.trim());if(p.length!==2||!/^[A-Z0-9.\-]{1,12}$/.test(p[0].toUpperCase())||!(p[1]==="-"||/^[A-Za-z0-9._-]{2,40}$/.test(p[1])))return{err:"Sustitución no válida: «"+l+"» (formato XLK=TICKER_EQ o XLC=-)"};m[p[0].toUpperCase()]=p[1]}
  o.mapa=m;if(o.on&&o.env==="live"&&!o.aceptoReal)return{err:"Para activar la cartera con dinero real marca la casilla «Entiendo que…»."};return{cfg:o}}
 async function onSave(){const c0=C(),pwI=$r("#rl-c-pw");
- if(c0&&!c0.tok()){const pw=pwI&&pwI.value||"";if(!pw){say("🔒 Escribe tu clave de ⚙️ Ajustes encima del botón «Guardar» para poder guardar.");if(pwI)pwI.focus();return}
+ if(c0&&!c0.tok()&&window.abrirNube)await window.abrirNube();
+ if(c0&&!c0.tok()){const pw=pwI&&pwI.value||pwGet()||"";if(!pw){say("🔒 Escribe tu clave de ⚙️ Ajustes encima del botón «Guardar» para poder guardar.");if(pwI)pwI.focus();return}
   say("Comprobando la clave…");try{await c0.unlock(pw)}catch(e){say("✖ Clave incorrecta: no se ha guardado nada.");return}}
  const r=readCfg();if(r.err){say("✖ "+r.err);return}const a=A(),c=r.cfg,secs=[],dels=[];
  let autoF=0;document.querySelectorAll("#t-real [data-rk]").forEach(e=>{const v=(e.value||"").trim();if(v&&e.dataset.typed!=="1"){autoF++;e.value="";return}if(v){if(/[\r\n]/.test(v)){say("✖ La clave "+e.dataset.rk+" no puede tener saltos de línea.");secs.length=0;return}secs.push([e.dataset.rk,v])}});
@@ -4118,8 +4122,8 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
 (function(){
  const RAW="https://raw.githubusercontent.com/CarlosGomezS/Botrading/bitvavo/bitvavo.json";
  function css(){if(document.getElementById("gate-css"))return;const st=document.createElement("style");st.id="gate-css";st.textContent=`#gate{position:fixed;inset:0;z-index:99999;background:var(--bg,#0b0f14);display:flex;align-items:center;justify-content:center;padding:16px}
-  #gate .gx{width:100%;max-width:360px;background:var(--card,#141a22);border:1px solid #8884;border-radius:16px;padding:22px;box-shadow:0 10px 40px #0006}
-  #gate h2{margin:0 0 6px;font-size:22px}#gate p{margin:0 0 14px;opacity:.75;font-size:14px}#gate input{width:100%;box-sizing:border-box;font-size:17px;padding:12px;border-radius:10px;margin-bottom:10px}
+  #gate .gx{width:100%;max-width:360px;background:#141a22;color:#f2f5f9;border:1px solid #ffffff22;border-radius:16px;padding:22px;box-shadow:0 10px 40px #0008}
+  #gate{background:#0b0f14!important}#gate h2{margin:0 0 6px;font-size:24px;color:#ffffff;font-weight:800;line-height:1.2}#gate p{margin:0 0 14px;color:#c9d2dc;font-size:14px}#gate input{background:#0b0f14;color:#fff;border:1px solid #ffffff33}#gate button{background:#2563eb;color:#fff;border:0;font-weight:700}#gate input{width:100%;box-sizing:border-box;font-size:17px;padding:12px;border-radius:10px;margin-bottom:10px}
   #gate button{width:100%;font-size:17px;padding:12px;border-radius:10px}#gate .er{color:#ff5d73;min-height:20px;font-size:14px;margin-top:8px}`;document.head.appendChild(st)}
  async function valida(pw){let ok=false,red=false;
   try{const r=await fetch(RAW+"?t="+Date.now(),{cache:"no-store"});if(r.ok){const j=await r.json();if(j&&j.enc){try{await decrypt(j,pw);ok=true}catch(e){}}else red=true}else red=true}catch(e){red=true}
@@ -4136,7 +4140,10 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
    try{if(typeof RL!=="undefined")RL.noAuto=false}catch(e){}location.reload()};
   b.onclick=go;i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();go()}};setTimeout(()=>{try{i.focus()}catch(e){}},50)}
  window.pedirClave=muestra;
- async function inicio(){try{await remLoad()}catch(e){}if(!(typeof pwGet==="function"&&pwGet()))muestra()}
+ /* con la clave de la entrada se abren también los ajustes de la nube (token cifrado): ya no se pide en ningún otro sitio */
+ async function nube(){const pw=typeof pwGet==="function"&&pwGet();if(!pw)return;for(let i=0;i<20&&!window.__CLOUD;i++)await new Promise(r=>setTimeout(r,250));const c=window.__CLOUD;if(c&&c.hasEnc()&&!c.tok()){try{const x=document.createElement("input");x.type="checkbox";x.className="pwrem";x.checked=true;x.style.display="none";document.body.appendChild(x);await c.unlock(pw);x.remove()}catch(e){}}}
+ window.abrirNube=nube;
+ async function inicio(){try{await remLoad()}catch(e){}if(!(typeof pwGet==="function"&&pwGet())){muestra();return}nube()}
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",inicio);else inicio();
 })();
 </script>
