@@ -494,7 +494,23 @@ async function main() {
   // v257 · 🧬 votos del comité para el método «consenso» (las reglas en uso de los 4 métodos, igual que en el laboratorio)
   { const gs = COMITE.map((k) => { const C = k === "eq" ? S : S.sub && S.sub[k]; return C && C.genome ? { ...BASE, ...C.genome } : null; }).filter(Boolean); for (const f of Object.values(F)) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
   paso(S, tick, F, now);
-  const FO = Object.fromEntries(Object.entries(F).filter(([m]) => enOkx(OKX, m)).map(([m, f]) => [m, f ? { ...f } : f]));
+  let FO = Object.fromEntries(Object.entries(F).filter(([m]) => enOkx(OKX, m)).map(([m, f]) => [m, f ? { ...f } : f]));
+  // v287 · 🟦 OKX CON SUS PROPIOS OJOS: los métodos de OKX miran las velas y los precios DE OKX y TODAS sus criptos (no solo las que comparte con Bitvavo)
+  let tickO = tick; const HFO = {};
+  if (okxI || OKX) try { const OK = await import("./okx.mjs"), fs = await import("node:fs"), I = okxI || (okxI = await OK.instrumentos()), PO = await OK.preciosOkx(I);
+    const cand = Object.keys(PO.tick).filter((m) => PO.tick[m].vq >= MIN_VOL / 2 && PO.tick[m].sp < 0.012).sort((a, b) => PO.tick[b].vq - PO.tick[a].vq).slice(0, 60);
+    const abiertas = SUBS.filter((k) => PERF[k].soloOkx).flatMap((k) => Object.keys(S.sub[k].pos || {})).filter((m) => PO.tick[m]);
+    const CF = "/tmp/okx-velas.json"; let cache = {}; try { cache = JSON.parse(fs.readFileSync(CF, "utf8")); } catch (e) {}
+    const FO2 = {}; let ok = 0;
+    await enParalelo([...new Set([...cand, ...abiertas])], 6, async (m) => { if (Date.now() - t0 > 40e3) return; try { const t = PO.tick[m], c0 = await OK.velasOkx(t.par, t.k, cache), c = c0.length && c0[c0.length - 1][0] + 300e3 > Date.now() ? c0.slice(0, -1) : c0; if (c.length < 320) return;
+      const f = rasgos(c); FO2[m] = f[f.length - 1]; HFO[m] = f.slice(-288); ok++; } catch (e) {} });
+    try { fs.writeFileSync(CF, JSON.stringify(cache)); } catch (e) {}
+    if (ok >= 10) { const sn = (S.hl && S.hl.snap) || {}, pv = (S.hl && HLm.hace(S.hl, S.hl.at || now.getTime(), 3600e3)) || {};
+      const vs = Object.values(FO2).filter(Boolean).sort((x, y) => y.m240 - x.m240); vs.forEach((f, i) => { f.rk = vs.length > 4 ? i / (vs.length - 1) : null; });
+      for (const [m, f] of Object.entries(FO2)) if (f) { const c = m.replace("-EUR", ""); f.smart = sn[c] ? sn[c].s : null; f.smartD = sn[c] && pv[c] ? sn[c].s - pv[c].s : null; f.reg = S.regimen; if (S.termo) ponTermometro(f, S.termo); if (S.iaM) f.ia = predecir(S.iaM, vector(f)); }
+      FO = FO2; tickO = { ...tick, ...PO.tick }; S.okxVivo = { t: now.toISOString(), n: ok, solo: Object.keys(FO2).filter((m) => !tick[m]).length }; }
+    console.log(`OKX con sus datos: ${ok} criptos con velas de OKX (${S.okxVivo ? S.okxVivo.solo : 0} que no están en Bitvavo)`);
+  } catch (e) { console.log("OKX con sus datos: " + String(e.message).slice(0, 60) + " (sigue con los de Bitvavo)"); }
   { const gs = COMITE_OKX.map((k) => S.sub[k] && S.sub[k].genome ? { ...BASE, ...S.sub[k].genome } : null).filter(Boolean); for (const f of Object.values(FO)) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
   if (!S.dbg24 || now - Date.parse(S.dbg24) > 15 * 60000) { S.dbg24 = now.toISOString();   // v273 · diagnóstico: señales que habría dado cada método en las últimas 24 h con los datos de ahora
     const bt = HF["BTC-EUR"] || [], regAt = new Map(bt.filter(Boolean).map((f) => [f.t, f.m240 > 0 && f.sobre200 ? 1 : 0])), TMx = S.termo;
@@ -503,12 +519,12 @@ async function main() {
     for (const k of SUBS) { const C = S.sub[k]; if (!C || !C.prueba) { if (C) delete C.practG; continue; }
       const n = (v) => (v.a ? v.a.n : 0) + (v.b ? v.b.n : 0) + (v.c ? v.c.n : 0), med = (v) => ((v.a ? v.a.med * v.a.n : 0) + (v.b ? v.b.med * v.b.n : 0) + (v.c ? v.c.med * v.c.n : 0)) / Math.max(1, n(v));
       const cands = ((C.lab && C.lab.pop) || []).filter((v) => v.g && v.a && v.b && v.c && n(v) > 0 && med(v) > -0.15).sort((a, b) => b.s - a.s).slice(0, 20); if (!cands.length) continue;
-      const ms = Object.keys(HF).filter((m) => !PERF[k].soloOkx || enOkx(OKX, m)); let best = null, bn = -1;
-      for (const v of cands) { const g = { ...BASE, ...v.g }; let c = 0; for (const m of ms) { for (const f of HF[m]) if (f && entra(g, f)) { c++; if (c > 300) break; } } if (c > bn) { bn = c; best = v; } }
+      const HX = PERF[k].soloOkx && Object.keys(HFO).length ? HFO : HF, ms = Object.keys(HX).filter((m) => !PERF[k].soloOkx || HX === HFO || enOkx(OKX, m)); let best = null, bn = -1;   // v287 · OKX: sus propias velas
+      for (const v of cands) { const g = { ...BASE, ...v.g }; let c = 0; for (const m of ms) { for (const f of HX[m]) if (f && entra(g, f)) { c++; if (c > 300) break; } } if (c > bn) { bn = c; best = v; } }
       if (best) { C.practG = best.g; C.practAt = now.toISOString(); C.practN = bn; } }
     console.log(`Señales en 24 h (fg ${TMx && TMx.fg ? TMx.fg[TMx.fg.length - 1][1] : "?"}, fund ${TMx && TMx.fund ? TMx.fund[TMx.fund.length - 1][1] : "?"}):` + SUBS.concat(["eq"]).map((k) => { const C = k === "eq" ? S : S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, ms = Object.keys(HF).filter((m) => !PERF[k] || !PERF[k].soloOkx || enOkx(OKX, m)); let n = 0; for (const m of ms) for (const f of HF[m]) if (f && entra(g, f)) n++; return ` ${k} ${n}`; }).join(",")); }
   { console.log(`Señales ahora (OKX: ${OKX ? OKX.size : "SIN LISTA"} criptos, ${Object.keys(FO).length} con datos):` + SUBS.map((k) => { const C = S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, FF = PERF[k].soloOkx ? FO : F; return ` ${k} ${Object.values(FF).filter((f) => f && entra(g, f)).length}${C.prueba ? "🧪" : "⭐"}`; }).join(",")); }
-  for (const k of SUBS) paso(S.sub[k], tick, PERF[k].soloOkx ? FO : F, now);
+  for (const k of SUBS) paso(S.sub[k], PERF[k].soloOkx ? tickO : tick, PERF[k].soloOkx ? FO : F, now);
   // v224/v225 · cobrar financiación y rejilla: tres submodos cada uno, con sus propios 100 € ficticios
   // v271 · «Cobrar financiación» y «Rejilla» QUITADOS (no aportaban; necesitaban futuros o perdían): el código queda, pero ya no se ejecuta
   if (false) { const u = T.find((x) => x.market === "USDC-EUR"), ue = u ? +u.last || (+u.bid + +u.ask) / 2 : 0;
@@ -563,7 +579,7 @@ async function main() {
   } catch (e) { console.log("Bitvavo: avisos no enviados"); }
   // v233 · 💶 dinero real (50 €) copiando al submodo elegido; sin clave de Bitvavo no hace nada
   /* solo si queda tiempo de sobra en esta vuelta: así nunca se corta a medias entre una orden real y el guardado */
-  if (Date.now() - t0 < 55e3) try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI }); } catch (e) { console.log("Real: error"); } else console.log("Real: vuelta larga, espera a la siguiente");
+  if (Date.now() - t0 < 55e3) try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI, tickOkx: tickO }); } catch (e) { console.log("Real: error"); } else console.log("Real: vuelta larga, espera a la siguiente");
   await publicarEstado(S);
   console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + Object.keys(S.sub[k].pos).length + " abiertas, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);
   console.log(`Financiación: ${Object.entries(S.fins).map(([k, X]) => k + " " + (X ? X.lastEq + " € · " + Object.keys(X.pos).length + " abiertas" + (X.err ? " · " + X.err : "") : "—")).join(" · ")}`);

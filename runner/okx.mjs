@@ -22,6 +22,29 @@ export function cliente(key, secret, pass, fx = fetch) {
 // errores de clave (no se reintenta): 501xx = autenticación/permisos (50111 clave inválida, 50113 firma, 50105 frase de paso, 50119 no existe…)
 export const errClave = (e) => e && (e.status === 401 || /^501\d\d$/.test(String(e.code)));
 
+// v287 · 🟦 OKX CON SUS PROPIOS OJOS: precios y velas de 5 min DE OKX (públicos), en euros. Las criptos con par en USDC se pasan a euros con USDC-EUR.
+// tick: { "SYM-EUR": { bid, ask, last, vq, ch24, sp } } con TODAS las criptos de OKX (también las que no están en Bitvavo)
+export async function preciosOkx(I, fx = fetch) {
+  const r = await fx(BASE + "/api/v5/market/tickers?instType=SPOT", { signal: AbortSignal.timeout(15000) }), j = await r.json(), d = j.data || [], by = {};
+  for (const x of d) by[x.instId] = x; const u = by["USDC-EUR"], ue = u ? +u.bidPx || +u.last : 0, tick = {};
+  for (const [b, x] of Object.entries(I || {})) { if (/^(USDC|USDT|EURC|EUR)$/.test(b)) continue; const par = x.EUR ? x.EUR.instId : x.USDC && ue > 0 ? x.USDC.instId : null, t = par && by[par]; if (!t) continue;
+    const k = par.endsWith("-EUR") ? 1 : ue, bid = +t.bidPx * k, ask = +t.askPx * k, last = +t.last * k; if (!(bid > 0 && ask > 0)) continue;
+    tick[b + "-EUR"] = { bid, ask, last, vq: (+t.volCcy24h || 0) * k, ch24: +t.open24h > 0 ? +t.last / +t.open24h - 1 : 0, sp: (ask - bid) / ((ask + bid) / 2), par, k }; }
+  return { tick, ue };
+}
+// velas de 5 min de un par de OKX → [[t,o,h,l,c,v]] de antigua a reciente, en euros. Con caché en disco (cada vuelta es un proceso nuevo):
+// la primera vez baja ~600 velas (300 + 3 páginas de 100) y después solo las últimas.
+export async function velasOkx(par, k, cache, fx = fetch) {
+  const get = async (u) => { const r = await fx(BASE + u, { signal: AbortSignal.timeout(12000) }); const j = await r.json(); if (j.code && j.code !== "0") throw new Error("OKX velas " + j.code); return j.data || []; };
+  const conv = (a) => a.filter((x) => x[8] === "1" || x[8] == null).map((x) => [+x[0], +x[1] * k, +x[2] * k, +x[3] * k, +x[4] * k, +x[5]]);
+  let c = (cache && cache[par]) || [];
+  const nuevas = conv(await get(`/api/v5/market/candles?instId=${par}&bar=5m&limit=${c.length ? 50 : 300}`));
+  if (!c.length || nuevas.length && c[c.length - 1][0] < nuevas[nuevas.length - 1][0] - 290 * 300e3) { c = nuevas.slice();
+    for (let p = 0; p < 3 && c.length; p++) { const old = conv(await get(`/api/v5/market/history-candles?instId=${par}&bar=5m&limit=100&after=${Math.min(...c.map((x) => x[0]))}`)); if (!old.length) break; c = c.concat(old); } }
+  else c = c.concat(nuevas);
+  const m = new Map(); for (const x of c) m.set(x[0], x); c = [...m.values()].sort((a, b) => a[0] - b[0]).slice(-1000);
+  if (cache) cache[par] = c; return c;
+}
 // lista de criptos al contado (pública): { BASE: { EUR: {instId, lot, min}, USDC: {...} } }
 export async function instrumentos(fx = fetch) {
   const r = await fx(BASE + "/api/v5/public/instruments?instType=SPOT", { signal: AbortSignal.timeout(20000) }); const j = await r.json();

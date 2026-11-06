@@ -299,7 +299,7 @@ export function cuentas(ctl) {
     parado: !!x.parado, motivo: x.motivo || null, avisoSinSaldo: x.avisoSinSaldo || 0, auto: x.copia === "auto", adoptarAt: x.adoptarAt || null, espejo: !!x.espejo, convertir: x.convertir || null }]; }));
 }
 const NOMBRE_EX = { bitvavo: "Bitvavo", okx: "OKX" };
-export async function paso(S, tick, now, io) {
+export async function paso(S, tick, now, io) { const tick0 = tick;
   const pw = env("REAL_VIEW_PASS");
   try { const c = await probar(S, tick, now, io); console.log(`Conexión: Bitvavo ${c.bitvavo.estado} · OKX ${c.okx.estado}`); } catch (e) {}
   if (!(env("BITVAVO_KEY") && env("BITVAVO_SECRET")) && !(env("OKX_KEY") && env("OKX_SECRET") && env("OKX_PASSPHRASE"))) { S.real = { estado: "sin clave" }; return; }
@@ -312,6 +312,7 @@ export async function paso(S, tick, now, io) {
     const cfg = CU[ex], N = NOMBRE_EX[ex], R0 = (S.real.cuentas[ex] = { on: cfg.on, copia: cfg.copia, estado: cfg.on ? "sin clave" : "apagada", t: now.toISOString() });
     const cx = S.conex && S.conex[ex];
     if (cfg.on && cx && ["clave mala", "error"].includes(cx.estado)) { R0.estado = cx.estado === "clave mala" ? "clave" : "error"; console.log("Real: la conexión con " + ex + " no funciona"); continue; }
+    const tick = ex === "okx" && io.tickOkx ? io.tickOkx : tick0;   // v287 · OKX con precios de OKX
     let X = null; try { X = await exchange(ex, tick, io); } catch (e) { console.log("Real: no pude preparar " + ex); }
     if (!X) continue;
     if (!pw) { R0.estado = "sin REAL_VIEW_PASS"; console.log("Real: falta REAL_VIEW_PASS (no se guarda nada sin cifrar)"); continue; }

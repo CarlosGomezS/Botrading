@@ -61,3 +61,19 @@ test("Real con OKX: copia al método, salta las criptos que no están en OKX y o
   o = await RL.vuelta(o.RS, { mix: { pos: {}, lastEq: 100 } }, { copia: "mix" }, tick, T(2), { ex: X });
   assert.equal(Object.keys(o.RS.pos).length, 0); assert.equal(o.RS.closed.length, 1);
 });
+
+test("OKX v287: precios y velas DE OKX en euros (también criptos que no están en Bitvavo; USDC se pasa a euros)", async () => {
+  const OK = await import("../runner/okx.mjs");
+  const I = { ABC: { EUR: { instId: "ABC-EUR", lot: 4, min: 1 } }, XYZ: { USDC: { instId: "XYZ-USDC", lot: 4, min: 1 } }, USDC: { EUR: { instId: "USDC-EUR", lot: 2, min: 1 } } };
+  const now = Date.now() - (Date.now() % 300e3), vel = (n, t1) => Array.from({ length: n }, (_, i) => [String(t1 - i * 300e3), "2", "2.1", "1.9", "2", "100", "0", "0", "1"]);
+  const fx = async (u) => ({ json: async () => {
+    if (u.includes("/market/tickers")) return { code: "0", data: [{ instId: "ABC-EUR", bidPx: "1", askPx: "1.002", last: "1", volCcy24h: "1000000", open24h: "1" }, { instId: "XYZ-USDC", bidPx: "2", askPx: "2.002", last: "2", volCcy24h: "500000", open24h: "1.9" }, { instId: "USDC-EUR", bidPx: "0.9", askPx: "0.9", last: "0.9" }] };
+    if (u.includes("history-candles")) { const a = +u.match(/after=(\d+)/)[1]; return { code: "0", data: vel(100, a - 300e3) }; }
+    if (u.includes("/market/candles")) return { code: "0", data: vel(+u.match(/limit=(\d+)/)[1], now) };
+    return { code: "0", data: [] }; } });
+  const { tick } = await OK.preciosOkx(I, fx);
+  assert.ok(tick["ABC-EUR"] && tick["XYZ-EUR"]); assert.ok(Math.abs(tick["XYZ-EUR"].bid - 1.8) < 1e-9, "USDC × 0,9"); assert.equal(tick["XYZ-EUR"].par, "XYZ-USDC");
+  const cache = {}; const c = await OK.velasOkx("XYZ-USDC", 0.9, cache, fx);
+  assert.equal(c.length, 600); assert.ok(c[0][0] < c[599][0], "de antigua a reciente"); assert.ok(Math.abs(c[0][4] - 1.8) < 1e-9);
+  const c2 = await OK.velasOkx("XYZ-USDC", 0.9, cache, fx); assert.equal(c2.length, 600, "la segunda vez solo añade lo nuevo (sin duplicar)");
+});
