@@ -17,6 +17,7 @@ import * as REJ from "./rejilla.mjs";
 
 const API = "https://api.bitvavo.com/v2", REPO = process.env.GITHUB_REPOSITORY || "", TOKEN = process.env.GITHUB_TOKEN || "";
 const RAMA = "bitvavo", RAMA_H = "bitvavo-hist";
+export const SLIP = 0.0005;   // v271 · deslizamiento por orden en las pruebas (además de comisión y spread)
 export const FEE = 0.0025, START = 100, MIN_VOL = 2e5, MAX_MKT = 50, HIST_MKT = 40, GEN_MIN = 15, POP = 60, ESTS = ["tendencia", "rebote", "ruptura", "media", "tortuga", "williams", "connors", "rotacion", "capitulacion", "fade", "maximos", "ia", "copia"];   // v205 · aprende cada 10 min, con 7 días y 4 estilos
 export const NO = /^(USDC|USDT|EURC|EURT|DAI|PYUSD|TUSD|FDUSD|USDE|EURI|XAUT|PAXG)-/;   // estables y oro: no se mueven
 const r2 = (x) => Math.round(x * 100) / 100, r4 = (x) => Math.round(x * 1e4) / 1e4, sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -122,7 +123,7 @@ export function backtest(g, H, desde = 0, hasta = Infinity) { return backtestTra
 export function backtestTramos(g, H, cortes) {
   const T = cortes.length - 1, RS = Array.from({ length: T }, () => []), tramo = (t) => { if (t < cortes[0] || t >= cortes[T]) return -1; let k = 0; while (k < T - 1 && t >= cortes[k + 1]) k++; return k; };
   for (const m of Object.values(H.m || {})) {
-    const c = m.c, F = m.f, sp = m.sp || 0.001; let pos = null, cool = 0;
+    const c = m.c, F = m.f, sp = (m.sp || 0.001) + 2 * SLIP; let pos = null, cool = 0;   // v271 · spread + deslizamiento (ida y vuelta)
     for (let i = 48; i < c.length; i++) {
       const t = c[i][0], k = tramo(t);
       if (pos && k !== pos.k) { RS[pos.k].push((pos.cob + pos.q * c[i][4] * (1 - sp / 2) * (1 - FEE)) / pos.cost - 1); pos = null; }
@@ -200,13 +201,20 @@ PERF.cuant.base = { ...BASE, ...CU.DEF, estilo: "cuant", maxPos: CU.MAX_POS, coo
 // v266 · 🟦 métodos propios de OKX: cada familia también con solo las criptos que hay en OKX (lo que compran se puede copiar 1 a 1 allí)
 PERF.eqokx = { ...PERF.eq, nombre: "⚖️ Equilibrado · OKX", txt: "como «Equilibrado», pero solo con criptos que están en OKX: su laboratorio busca la regla ganadora para ESAS criptos", soloOkx: true };
 PERF.turbookx = { ...PERF.turbo, nombre: "⚡ Turbo · OKX", txt: "como «Turbo», pero solo con criptos que están en OKX", soloOkx: true };
-export const FAMILIA = { okx: ["mixokx", "eqokx", "turbookx"], bitvavo: ["eq", "turbo", "mix", "cuant", "consenso"] };
+// v271 · 📈 TENDENCIA (lo que hacen los traders de tendencia profesionales: tortugas, rupturas, máximos, rotación hacia lo más fuerte)
+PERF.tend = { ...PERF.eq, nombre: "📈 Tendencia", txt: "seguir la tendencia como los traders profesionales: rupturas de máximos (tortugas), rotación hacia lo más fuerte y cortar pérdidas rápido; su laboratorio aprende cuándo entrar y salir", ests: ["tendencia", "ruptura", "tortuga", "maximos", "rotacion"] };
+PERF.tend.base = ajustar({ ...BASE, estilo: "tortuga" }, PERF.tend);
+PERF.cuantokx = { ...PERF.cuant, nombre: "📐 Cuantitativo · OKX", txt: "tu método cuantitativo (Bollinger, caza de stops, compresión) solo con criptos de OKX", soloOkx: true };
+PERF.consensookx = { ...PERF.consenso, nombre: "🧬 Consenso · OKX", txt: "compra cuando varios métodos de OKX coinciden a la vez en la misma cripto (y la IA está de acuerdo)", soloOkx: true, comite: "okx" };
+PERF.tendokx = { ...PERF.tend, nombre: "📈 Tendencia · OKX", txt: "seguir la tendencia (tortugas, rupturas, rotación) solo con criptos de OKX", soloOkx: true };
+export const COMITE_OKX = ["mixokx", "eqokx", "turbookx", "tendokx"];
+export const FAMILIA = { okx: ["mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx"], bitvavo: ["eq", "turbo", "mix", "cuant", "consenso", "tend"] };
 export const COMITE = ["eq", "turbo", "mix", "mixokx"];
 PERF.consenso = { nombre: "🧬 Consenso", txt: "compra solo cuando varios de los mejores métodos coinciden a la vez en la misma cripto (y la IA está de acuerdo); aprende cuántos tienen que coincidir y cuándo vender", ests: ["consenso"], rang: { iaMin: [0, 0.6] }, fijo: {}, robusta };
 PERF.consenso.base = ajustar({ ...BASE, estilo: "consenso", vmin: 2 }, PERF.consenso);
 // votos de cada vela: cuántas reglas del comité darían compra ahí
 export function ponVotos(H, genomas) { const gs = genomas.filter(Boolean); for (const x of Object.values(H.m || {})) for (const f of x.f) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
-export const SUBS = ["turbo", "mix", "mixokx", "cuant", "consenso", "eqokx", "turbookx"];
+export const SUBS = ["turbo", "mix", "cuant", "consenso", "tend", "mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx"];
 // filtros para «solo OKX»: okx = lista de criptos (símbolos) que se pueden operar en OKX contra euros (directo o pasando por USDC)
 export const enOkx = (okx, m) => !!okx && okx.has(String(m).replace(/-EUR$/, ""));
 export function filtraH(H, okx) { const m = {}; for (const [k, x] of Object.entries(H.m || {})) if (enOkx(okx, k)) m[k] = x; return { m }; }
@@ -236,8 +244,11 @@ function cerrar(S, m, now, bid, why) {
   L(S, now, pnl >= 0 ? "WIN" : "LOSS", m.replace("-EUR", ""), `${pnl >= 0 ? "+" : ""}${r2(pnl)} € · ${r2((gotT / p.cost - 1) * 100)} % · ${why}`);
 }
 // una vuelta: vigila lo abierto y compra lo que diga el genoma
+// v271 · 🧪 práctica: sin 🏆, en vez de su regla (que puede no dar señales en días) usa la más ACTIVA de sus 10 mejores candidatas
+export function reglaPractica(S) { const pop = ((S.lab && S.lab.pop) || []).filter((v) => v.g && v.s > -99 && v.a && v.b && v.c).sort((a, b) => b.s - a.s).slice(0, 10);
+  if (!pop.length) return null; const n = (v) => v.a.n + v.b.n + v.c.n; return pop.sort((a, b) => n(b) - n(a))[0].g; }
 export function paso(S, tick, F, now = new Date()) {
-  const g = { ...BASE, ...S.genome }, tnow = now.getTime(), px = tick;
+  const gp = S.prueba ? reglaPractica(S) : null, g = { ...BASE, ...S.genome, ...(gp || {}) }, tnow = now.getTime(), px = tick;
   for (const [m, p] of Object.entries(S.pos)) {
     const t = tick[m]; if (!t || !(t.bid > 0)) continue; const bid = t.bid;
     p.last = bid; p.peak = Math.max(p.peak, bid); p.h = (p.h || []).concat([[now.toISOString(), bid]]).slice(-200);
@@ -439,11 +450,13 @@ async function main() {
   // v257 · 🧬 votos del comité para el método «consenso» (las reglas en uso de los 4 métodos, igual que en el laboratorio)
   { const gs = COMITE.map((k) => { const C = k === "eq" ? S : S.sub && S.sub[k]; return C && C.genome ? { ...BASE, ...C.genome } : null; }).filter(Boolean); for (const f of Object.values(F)) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
   paso(S, tick, F, now);
-  const FO = Object.fromEntries(Object.entries(F).filter(([m]) => enOkx(OKX, m)));
+  const FO = Object.fromEntries(Object.entries(F).filter(([m]) => enOkx(OKX, m)).map(([m, f]) => [m, f ? { ...f } : f]));
+  { const gs = COMITE_OKX.map((k) => S.sub[k] && S.sub[k].genome ? { ...BASE, ...S.sub[k].genome } : null).filter(Boolean); for (const f of Object.values(FO)) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
   if (!S.dbgOkx || now - Date.parse(S.dbgOkx) > 30 * 60000) { S.dbgOkx = now.toISOString(); console.log(`OKX: lista ${OKX ? OKX.size : "SIN LISTA"} criptos · con datos ahora ${Object.keys(FO).length} de ${Object.keys(F).length}` + SUBS.filter((k) => PERF[k].soloOkx).map((k) => { const C = S.sub[k], g = { ...BASE, ...C.genome }; return ` · ${k}: ${Object.values(FO).filter((f) => f && entra(g, f)).length} señales, ${C.prueba ? "práctica" : "🏆"}`; }).join("")); }
   for (const k of SUBS) paso(S.sub[k], tick, PERF[k].soloOkx ? FO : F, now);
   // v224/v225 · cobrar financiación y rejilla: tres submodos cada uno, con sus propios 100 € ficticios
-  { const u = T.find((x) => x.market === "USDC-EUR"), ue = u ? +u.last || (+u.bid + +u.ask) / 2 : 0;
+  // v271 · «Cobrar financiación» y «Rejilla» QUITADOS (no aportaban; necesitaban futuros o perdían): el código queda, pero ya no se ejecuta
+  if (false) { const u = T.find((x) => x.market === "USDC-EUR"), ue = u ? +u.last || (+u.bid + +u.ask) / 2 : 0;
     try { const D = await FIN.datos(S.finD, tick, now, fetch, Object.values(S.fins).flatMap((f) => Object.keys((f && f.pos) || {})));
       if (D.series) for (const k of Object.keys(FIN.PERF)) try { const ti = Date.now(), A = FIN.aprender(D.series, (c) => (tick[FIN.moneda(c) + "-EUR"] || {}).sp || 0.003, k); A.seg = Math.round((Date.now() - ti) / 1000); S.fins[k] = S.fins[k] || FIN.fresh(now); S.fins[k].apr = A; } catch (e) { console.log("Financiación (aprender): " + String(e.message).slice(0, 80)); }
       delete D.series;
@@ -463,7 +476,7 @@ async function main() {
   if (!labVivo && (!S.lab.lastGen || !(now - Date.parse(S.lab.lastGen) < GEN_MIN * 60000 && now - Date.parse(S.lab.lastGen) >= 0))) {
     H = await cargarHist(U.slice(0, HIST_MKT), tick, 4, S, now, 6, { termo: await termometro(15).catch(() => null) });
     try { const ti = Date.now(), IA = entrenarIA(H); S.iaM = IA.listo ? IA.modelo : null; delete IA.modelo; S.ia = { ...IA, seg: Math.round((Date.now() - ti) / 1000) }; if (IA.listo) L(S, now, "INFO", "", `🧠 IA reentrenada con ${IA.n} momentos: con días que no ha visto ordena bien subidas y caídas ${Math.round(IA.auc * 100)} de cada 100`); } catch (e) { S.ia = { listo: false, err: String(e.message).slice(0, 60) }; }
-    if (Object.keys(H.m).length >= 10) for (const k of Object.keys(REJ.PERF)) try { const R0 = S.rejs[k]; if (!R0) continue; const ti = Date.now(); R0.apr = REJ.aprender(H, REJ.PERF[k]); R0.aprAt = now.toISOString(); R0.aprSeg = Math.round((Date.now() - ti) / 1000); } catch (e) { console.log("Rejilla (aprender): " + String(e.message).slice(0, 80)); }
+    if (false && Object.keys(H.m).length >= 10) for (const k of Object.keys(REJ.PERF)) try { const R0 = S.rejs[k]; if (!R0) continue; const ti = Date.now(); R0.apr = REJ.aprender(H, REJ.PERF[k]); R0.aprAt = now.toISOString(); R0.aprSeg = Math.round((Date.now() - ti) / 1000); } catch (e) { console.log("Rejilla (aprender): " + String(e.message).slice(0, 80)); }
     // v228 · por turnos (equilibrado → turbo → IA + los mejores): cada generación examina un submodo para no pasar nunca de ~75 s
     if (Object.keys(H.m).length >= 10 && Date.now() - t0 < 60e3) { const PR = +process.env.BV_PRISA || 1, ks = ["eq", ...SUBS.filter((x) => !PERF[x].fijoTotal)], k = ks[(S.labTurno = ((S.labTurno || 0) + 1) % ks.length)], C = k === "eq" ? S : S.sub[k];
       try { if (PERF[k].soloOkx && !OKX) throw new Error("sin lista de OKX todavía"); const e2 = evolucionar(C, PERF[k].soloOkx ? filtraH(H, OKX) : H, now, Math.random, Math.max(4e3, 70e3 - (Date.now() - t0) - 25e3) * PR, PERF[k]); L(C, now, "INFO", "", `🔬 generación ${e2.gen}: ${e2.probadas} reglas probadas en ${Object.keys(H.m).length} mercados`); for (const v of C.lab.pop) delete v.c; if (k !== "eq") S.lab.lastGen = now.toISOString(); } catch (e) { console.log("Laboratorio " + k + ": " + String(e.message).slice(0, 80)); } }
@@ -485,7 +498,7 @@ async function main() {
     // v238 · 📊 resumen diario por Telegram (21:00 en España): como los datos van cifrados, así te llegan los números sin abrir la app
     { const hES = +now.toLocaleString("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hour12: false }), dES = now.toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
       if (hES >= 21 && S.resumenDia !== dES) { S.resumenDia = dES; const f = (n, C) => { if (!C) return null; const cl = C.closed || [], w = cl.filter((c) => c.pnl > 0).length; return `• ${n}: ${r2(C.lastEq)} € (${C.lastEq >= (C.start || 100) ? "+" : ""}${r2((C.lastEq / (C.start || 100) - 1) * 100)} %) · ${cl.length} cerradas (${w} G / ${cl.length - w} P)${C.prueba === true ? " · sin regla ganadora" : C.prueba === false ? " · 🏆 regla ganadora" : ""}`; };
-        const L2 = [`📊 Cripto · resumen del día (dinero ficticio, 100 € por submodo)`, "🧠 IA y laboratorio", f("⚖️ Equilibrado", S), ...SUBS.map((k) => f(PERF[k].nombre, S.sub[k])), "💸 Cobrar financiación", ...Object.entries(S.fins).map(([k, X]) => f(FIN.PERF[k].nombre, X)), "🪜 Rejilla", ...Object.entries(S.rejs).map(([k, X]) => f(REJ.PERF[k].nombre, X)), `🧠 IA de predicción: acierta ${S.ia && S.ia.auc ? Math.round(S.ia.auc * 100) : "—"} de cada 100`].filter(Boolean);
+        const L2 = [`📊 Cripto · resumen del día (dinero ficticio, 100 € por submodo)`, "🧠 IA y laboratorio", f("⚖️ Equilibrado", S), ...SUBS.map((k) => f(PERF[k].nombre, S.sub[k])), ...[], "Rejilla", ...Object.entries(S.rejs).map(([k, X]) => f(REJ.PERF[k].nombre, X)), `🧠 IA de predicción: acierta ${S.ia && S.ia.auc ? Math.round(S.ia.auc * 100) : "—"} de cada 100`].filter(Boolean);
         msgs.unshift(L2.join("\n")); } }
     for (const m of msgs.slice(0, 4)) await AV.tg(m);
   } catch (e) { console.log("Bitvavo: avisos no enviados"); }

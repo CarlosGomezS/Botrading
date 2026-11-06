@@ -12,9 +12,9 @@ import { encrypt, openAny } from "./real-cfg.mjs";
 
 export const FRENO_DIA = 0.10;   // v235 · si en un mismo día pierde un 10 %, vende todo y descansa hasta el día siguiente
 export const API = "https://api.bitvavo.com", CAPITAL = 50, FRENO = 0.25, MAX_ORDEN = 30, PERSIGUE = 0.015, OPERADOR = 224224, FEE = 0.0025;
-export const SUBS_OK = ["mix", "eq", "turbo", "mixokx", "cuant", "consenso", "eqokx", "turbookx"];
+export const SUBS_OK = ["eq", "turbo", "mix", "cuant", "consenso", "tend", "mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx"];
 // v266 · cada exchange elige SOLO entre sus métodos: OKX entre los hechos con criptos de OKX (lo que compran se copia 1 a 1); Bitvavo, entre los de todas
-export const FAMILIA = { okx: ["mixokx", "eqokx", "turbookx"], bitvavo: ["eq", "turbo", "mix", "cuant", "consenso"] };
+export const FAMILIA = { okx: ["mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx"], bitvavo: ["eq", "turbo", "mix", "cuant", "consenso", "tend"] };
 // v266 · un cambio de método automático cada 6 h como mucho (salvo que el actual pierda la 🏆): cambiar a menudo es la forma más fácil de perder
 // v247 · ⭐ «MUY GANADORA»: además de ganar en los tres tramos de 90 días, gana ≥ 0,6 % por operación en CADA tramo,
 // con ≥ 30 operaciones en cada uno y un factor de beneficio ≥ 1,4 (gana 1,4 € por cada € que pierde)
@@ -204,7 +204,7 @@ export function retomar(RS, src, now) {
     { ok: now - desde >= 2 * 86400e3, txt: `han pasado al menos 2 días (${r2((now - desde) / 86400e3)} días)` }];
   return { ok: c.every((x) => x.ok), c };
 }
-export const nombre = (k) => ({ mix: "🧠 IA + los mejores", eq: "⚖️ Equilibrado", turbo: "⚡ Turbo", mixokx: "🧠 IA + los mejores · solo OKX", cuant: "📐 Cuantitativo", consenso: "🧬 Consenso", eqokx: "⚖️ Equilibrado · OKX", turbookx: "⚡ Turbo · OKX" })[k] || k;
+export const nombre = (k) => ({ mix: "🧠 IA + los mejores", eq: "⚖️ Equilibrado", turbo: "⚡ Turbo", mixokx: "🧠 IA + los mejores · solo OKX", cuant: "📐 Cuantitativo", consenso: "🧬 Consenso", eqokx: "⚖️ Equilibrado · OKX", turbookx: "⚡ Turbo · OKX", tend: "📈 Tendencia", cuantokx: "📐 Cuantitativo · OKX", consensookx: "🧬 Consenso · OKX", tendokx: "📈 Tendencia · OKX" })[k] || k;
 
 // ---- todo junto, llamado desde bitvavo.mjs (lee/guarda control y estado cifrado; nunca escribe importes en los registros)
 // v236 · dos exchanges posibles (Bitvavo u OKX), cada uno con su estado cifrado en su rama. Solo opera el elegido en la app;
@@ -256,7 +256,7 @@ export async function paso(S, tick, now, io) {
   if (!(env("BITVAVO_KEY") && env("BITVAVO_SECRET")) && !(env("OKX_KEY") && env("OKX_SECRET") && env("OKX_PASSPHRASE"))) { S.real = { estado: "sin clave" }; return; }
   let ctl = await io.leer("ctl.json", "bitvavo-ctl"); if (!ctl) { ctl = { copia: "mix", parado: false, capital: CAPITAL, ex: "bitvavo", t: now.toISOString() }; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
   const CU = cuentas(ctl); let ctlMod = false;
-  const fuentes = { eq: S, turbo: S.sub && S.sub.turbo, mix: S.sub && S.sub.mix, mixokx: S.sub && S.sub.mixokx, cuant: S.sub && S.sub.cuant, consenso: S.sub && S.sub.consenso, eqokx: S.sub && S.sub.eqokx, turbookx: S.sub && S.sub.turbookx };
+  const fuentes = { eq: S, ...Object.fromEntries(SUBS_OK.filter((k) => k !== "eq").map((k) => [k, S.sub && S.sub[k]])) };
   S.real = { estado: EXS.some((e) => CU[e].on) ? "activo" : "apagado", parado: !!ctl.parado, cuentas: {} };
   marcaMuy(S, fuentes, now);
   for (const ex of EXS) {
