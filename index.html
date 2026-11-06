@@ -501,7 +501,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .mt-cmp>div,.mt-foot{background:color-mix(in srgb,var(--line) 20%,transparent);border:0;border-radius:12px}
 .mt-log,.mt-kv,.mt-rule,.mt-node{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 282 · viernes 6 de noviembre de 2026">✦ 26.11.6 «Nova» <small>#283</small></span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 282 · viernes 6 de noviembre de 2026">✦ 26.11.6 «Nova» <small>#284</small></span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2669,6 +2669,7 @@ function bvRealHtml(f){const C=MM.bvCtl||{},CU=bvCuentas(C),S=MM.S||{},SR=S.real
  <div class="mt-dim">Enciende ☑️ una cuenta, las dos o ninguna. Cada una tiene su dinero, su método y sus frenos (−10 % en un día: descansa hasta mañana · −25 % en total: se para y te avisa cuando se pueda retomar). La conexión se prueba cada 5 min.</div>
  ${bvModo()==="okx"?cuenta("okx"):cuenta("bitvavo")}
  <button data-bvreal="${parAll?"seguir":"parar"}" ${parAll?'class="go" style="width:100%"':'style="width:100%;background:#ff5d7322;color:#ff5d73;border-color:#ff5d73"'}>${parAll?"▶️ Reanudar dinero real":"🛑 Parar TODO el dinero real (vende todo)"}</button></div>`}
+try{window.__ERRS=window.__ERRS||[];addEventListener("error",e=>{window.__ERRS.push(new Date().toISOString()+" "+String(e.message).slice(0,200))});addEventListener("unhandledrejection",e=>{window.__ERRS.push(new Date().toISOString()+" promesa: "+String(e.reason&&e.reason.message||e.reason).slice(0,200))})}catch(_){}
 /* v283 · 📤 histórico completo de una cuenta real: resumen legible + todos los datos (JSON). Se comparte, se copia o se descarga */
 function bvExport(ex){const R=((MM.bvX||{})[ex]||{}).R;if(!R){alert("Todavía no hay datos de esta cuenta (desbloquea con tu clave).");return}
  const N=ex==="okx"?"OKX":"Bitvavo",d=t=>t?new Date(t).toLocaleString("es-ES",{timeZone:"Europe/Madrid"}):"—",e=x=>(Math.round((+x||0)*100)/100).toLocaleString("es-ES",{minimumFractionDigits:2})+" €",p=x=>(x>=0?"+":"")+(Math.round((+x||0)*100)/100).toLocaleString("es-ES")+" %";
@@ -2680,7 +2681,15 @@ function bvExport(ex){const R=((MM.bvX||{})[ex]||{}).R;if(!R){alert("Todavía no
  L.push(`== CERRADAS SEGÚN EL BOT (${(R.closed||[]).length}) ==`);for(const c of R.closed||[])L.push(`  ${d(c.t0)} → ${d(c.t1)} · ${c.sym} · ${e(c.cost)} → ${e(c.got)} · ${e(c.pnl)} (${p(c.pc)}) · ${c.why||""}`);L.push("");
  L.push(`== DIARIO DEL BOT (${(R.log||[]).length} apuntes, lo más nuevo arriba) ==`);for(const x of R.log||[])L.push(`  ${d(x.t)} · ${x.txt}`);L.push("");
  const S=MM.S||{},sub=S.sub||{};L.push("== MÉTODOS (dinero ficticio, para comparar) ==");for(const [k,o] of Object.entries(sub))if(o&&o.lastEq!=null)L.push(`  ${k}: ${e(o.lastEq)} (${p((o.lastEq/(o.start||100)-1)*100)}) · ${o.st?o.st.trades:0} op${o.prueba?" · practicando":""}`);L.push("");
- L.push("== DATOS COMPLETOS (JSON) ==",JSON.stringify({ex,R},null,1));
+ /* v284 · 🔧 todo lo necesario para diagnosticar cuellos de botella: estado del bot, laboratorios, señales, rotación, conexión, ajustes y el propio móvil.
+    Se recorta lo enorme (listas largas) y NUNCA se incluye nada que parezca una clave, token o contraseña */
+ const limpia=(o,dep=0)=>{if(o==null||typeof o!=="object")return typeof o==="string"&&o.length>600?o.slice(0,600)+"…":o;if(dep>7)return"…";if(Array.isArray(o)){const a2=o.slice(0,dep<=2?150:40).map(x=>limpia(x,dep+1));if(o.length>a2.length)a2.push(`… (${o.length-a2.length} más)`);return a2}
+  const r={};for(const [k,v] of Object.entries(o)){if(/tok|secret|pass|clave|key|pw|sign|auth/i.test(k))continue;r[k]=limpia(v,dep+1)}return r};
+ const subRes={};for(const [k,o] of Object.entries(sub))if(o){const pop=(o.lab&&o.lab.pop)||[];subRes[k]={lastEq:o.lastEq,start:o.start,st:o.st,prueba:o.prueba,genomeId:o.genomeId,practN:o.practN,practAt:o.practAt,practG:o.practG,abiertas:Object.keys(o.pos||{}).length,cerradas:(o.closed||[]).slice(0,30),lab:o.lab?{t:o.lab.t,gen:o.lab.gen,n:pop.length,mejores:pop.slice().sort((x,y)=>(y.s||0)-(x.s||0)).slice(0,5)}:null,log:(o.log||[]).slice(0,40)}}
+ const restoS={};for(const [k,v] of Object.entries(S))if(!["sub","real","pos","closed","log","eq","hist"].includes(k))restoS[k]=v;
+ const app={version:(document.querySelector(".vtag")||{}).textContent||"",ua:navigator.userAgent,pantalla:innerWidth+"x"+innerHeight,online:navigator.onLine,preciosVivoHace:BVPX.t?Math.round((Date.now()-BVPX.t)/1000)+" s":null,datosBotHace:S.last?Math.round((Date.now()-Date.parse(S.last))/1000)+" s":null,errores:(window.__ERRS||[]).slice(-30)};
+ L.push("== DIAGNÓSTICO PARA MEJORAR LA APP ==",JSON.stringify(limpia({app,ctl:MM.bvCtl,cuentasBot:(S.real||{}).cuentas,metodos:subRes,botGeneral:restoS,modoPrincipal:{lastEq:S.lastEq,start:S.start,st:S.st,abiertas:Object.keys(S.pos||{}).length,log:(S.log||[]).slice(0,60)}}),null,1),"");
+ L.push("== DATOS COMPLETOS DE LA CUENTA REAL (JSON) ==",JSON.stringify(limpia({ex,R}),null,1));
  const txt=L.join("\n"),nombre=`historico-${ex}-${new Date().toLocaleDateString("sv-SE")}.txt`;
  (async()=>{try{const f=new File([txt],nombre,{type:"text/plain"});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:"Histórico "+N});return}}catch(_){}
   let copiado=false;try{await navigator.clipboard.writeText(txt);copiado=true}catch(_){}
