@@ -227,7 +227,19 @@ PERF.consenso = { nombre: "🧬 Consenso", txt: "compra solo cuando varios de lo
 PERF.consenso.base = ajustar({ ...BASE, estilo: "consenso", vmin: 2 }, PERF.consenso);
 // votos de cada vela: cuántas reglas del comité darían compra ahí
 export function ponVotos(H, genomas) { const gs = genomas.filter(Boolean); for (const x of Object.values(H.m || {})) for (const f of x.f) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
-export const SUBS = ["turbo", "mix", "cuant", "consenso", "tend", "mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx", "explora", "exploraokx"];
+// v276 · 🎢 ALTO RIESGO (solo ficticio; el dinero real nunca lo sigue solo): busca subidas explosivas (impulso, rupturas, máximos) con
+// MUCHO dinero por operación (40-90 %), 1-2 posiciones, objetivos grandes (15-60 %) y stop rápido. Se puntúa por lo que GANA EN TOTAL en cada tramo.
+export function robustaRiesgo(g, H) {
+  const cs = cortesH(H); if (!cs) return { s: -99 }; const X = backtestTramos(g, H, cs), [a, b, c] = X;
+  if (!X.every((x) => x.n >= 6)) return { s: -99, a, b, c };
+  const tot = (x) => x.med * x.n * (g.size || 0.5), w = ultimos7(g, H, cs);
+  const s = r2(Math.min(...X.map(tot)) / 10 * Math.min(1, Math.sqrt(peor(X, "n") / 20)) * Math.min(1, ((w.n || 0) + 1) / 2));
+  return { s, a, b, c, w, ok: X.every((x) => x.n >= 8 && x.med > 0 && x.pf > 1.2) && (w.n || 0) >= 1 };
+}
+PERF.riesgo = { nombre: "🎢 Alto riesgo", txt: "busca subidas explosivas (impulso, rupturas, máximos) metiendo mucho en cada operación, con objetivos grandes y stop rápido; solo ficticio: el dinero real no lo sigue", ests: ["ruptura", "maximos", "tendencia", "rotacion", "tortuga"],
+  rang: { size: [0.4, 0.9], maxPos: [1, 2], stop: [0.03, 0.12], tp: [0.15, 0.6], tpFrac: [0, 0.6], trailOn: [0.08, 0.3], trail: [0.04, 0.15], maxHoldH: [6, 96], cooldownH: [0.5, 12] }, fijo: {}, robusta: robustaRiesgo, soloFicticio: true };
+PERF.riesgo.base = ajustar({ ...BASE, estilo: "ruptura", size: 0.6, maxPos: 1, stop: 0.06, tp: 0.3, trailOn: 0.12, trail: 0.07, maxHoldH: 48 }, PERF.riesgo);
+export const SUBS = ["turbo", "mix", "cuant", "consenso", "tend", "mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx", "explora", "exploraokx", "riesgo"];
 export const EXPLORA = { bitvavo: "explora", okx: "exploraokx" };
 // v272 · 🔄 ROTACIÓN: los 6 métodos que se ven (y que puede seguir el dinero real) por exchange. Si un método fuera de la lista (el explorador o
 // uno que salió) es 💎 desde hace ≥ 1 h y su nota supera en ≥ 1 punto a la del peor de la lista, entra y el peor sale. Como mucho un cambio cada 12 h.

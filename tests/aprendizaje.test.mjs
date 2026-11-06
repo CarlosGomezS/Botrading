@@ -68,3 +68,9 @@ test("v272 · 🔄 rotación: un 💎 de fuera que supera en ≥ 1 al peor de lo
   assert.equal(B.rotar(S, new Date(now.getTime() + 3600e3), { ...notas, eq: 1 }, (k) => k === "eq" || k === "turbo").length, 0, "no rota otra vez antes de 12 h");
   assert.deepEqual(S.visibles.okx, B.FAMILIA.okx, "OKX sin cambios: su explorador no es 💎");
 });
+
+test("v276 · 🎢 alto riesgo: aprende con su propia nota (lo que gana en total) y mete mucho por operación", () => {
+  const H = Hde([serie(4000, 31), serie(4000, 37)]), S = { lab: { gen: 0, pop: [], log: [], adopt: [] }, genome: { ...B.PERF.riesgo.base }, genomeId: "base", prueba: true };
+  B.evolucionar(S, H, new Date(), Math.random, 1500, B.PERF.riesgo);
+  assert.ok(S.lab.pop.every((v) => v.g.size >= 0.4 && v.g.maxPos <= 2 && ["ruptura", "maximos", "tendencia", "rotacion", "tortuga"].includes(v.g.estilo)));
+});

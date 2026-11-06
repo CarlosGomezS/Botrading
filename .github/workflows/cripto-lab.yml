@@ -42,7 +42,7 @@ jobs:
       matrix:
         include:
           - grupo: bitvavo
-            labs: "eq turbo mix cuant consenso tend explora"
+            labs: "eq turbo mix cuant consenso tend explora riesgo"
             baja: eq
           - grupo: okx
             labs: "mixokx eqokx turbookx cuantokx consensookx tendokx exploraokx"
