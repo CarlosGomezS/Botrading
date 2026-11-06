@@ -252,3 +252,14 @@ test("Real v267: lo que un método compra en 🧪 práctica (sin 🏆) nunca se 
   const sp = { sym: "A", px: 1, cost0: 30, cost: 30, q: 30, q0: 30, t0: T(1).toISOString(), practica: 1 };
   await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": sp }) }, { copia: "eq", espejo: true }, tk(ex.px), T(1), deps); assert.equal(ex.orders.length, 0);
 });
+
+test("Real v269: en automático copia a la vez a todos los ganadores de su exchange, repartiendo el dinero", async () => {
+  const ex = exchange({ "A-EUR": 1, "B-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let o = await RL.vuelta(null, { eqokx: fuente(), mixokx: fuente() }, { copia: "eqokx", extra: ["mixokx"], capital: 100 }, tk(ex.px), T(0), deps);
+  const a = { sym: "A", px: 1, cost0: 40, cost: 40, q: 40, q0: 40, t0: T(1).toISOString() }, b = { ...a, sym: "B" };
+  o = await RL.vuelta(o.RS, { eqokx: fuente({ "A-EUR": a }), mixokx: fuente({ "B-EUR": b }) }, { copia: "eqokx", extra: ["mixokx"], capital: 100 }, tk(ex.px), T(1), deps);
+  assert.equal(ex.orders.length, 2, "compra lo de los dos"); assert.equal(o.RS.pos["B-EUR"].src, "mixokx");
+  assert.ok(+ex.orders[0].amountQuote <= 20.01, "cada uno con la mitad del tamaño");
+  o = await RL.vuelta(o.RS, { eqokx: fuente({ "A-EUR": a }), mixokx: fuente({}) }, { copia: "eqokx", extra: ["mixokx"], capital: 100 }, tk(ex.px), T(2), deps);
+  assert.ok(!o.RS.pos["B-EUR"], "vende cuando su método vende");
+});

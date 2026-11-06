@@ -152,32 +152,35 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (sp.pir && !p.pir && sp.cost0 > 0) { const add = Math.min(RS.cash, p.cost0 * (sp.cost - sp.cost0) / sp.cost0, maxOrden(), Math.max(0, (await libre()) - 0.5)), mk = await mercado(m); p.pir = 1; if (add >= mk.min) { const r = await X.comprar(m, add); RS.cash -= r.coste; RS.st.fees += r.fee; p.q += r.q; p.cost += r.coste; L(RS, now, `➕ añade ${r2(r.coste)} € a ${p.sym} (como el método)`); } }
     }
     // 4) compras nuevas del submodo (de menos de 5 min) en la misma proporción
-    const eqSrc = +src.lastEq || 100;
+    // v269 · en 🤖 Automático copia a la vez a TODOS los métodos con 🏆 de su exchange (más operaciones, siempre ganadores), repartiendo el dinero
+    const lista = [copia, ...(ctl.extra || [])].filter((k, i, a) => fuentes[k] && a.indexOf(k) === i), w = 1 / Math.max(1, lista.length);
+    for (const kS of lista) { const srcK = fuentes[kS], eqSrc = +srcK.lastEq || 100;
     // v253 · «📥 Copiar ya lo abierto» (lo pides tú): compra ahora lo que el método YA tiene abierto (lo que esté en este exchange), a precio de ahora
     // v256 · «🪞 espejo» (siempre): en cada vuelta compra todo lo que el método tenga abierto y aún no tenga la cuenta real (cada posición una sola vez)
     const pedido = ctl.adoptarAt && RS.adoptAt !== ctl.adoptarAt;
     if (pedido || ctl.espejo) { if (pedido) RS.adoptAt = ctl.adoptarAt; let nA = 0, mira = 0;
-      for (const [m, sp] of Object.entries(src.pos)) { if (RS.pos[m] || sp.practica) continue; const tk = tick[m]; if (!tk || !(tk.ask > 0)) continue;   /* lo de 🧪 práctica no se copia */ if (!pedido && RS.vistos[m + "|" + sp.t0]) continue; mira++;
+      for (const [m, sp] of Object.entries(srcK.pos)) { if (RS.pos[m] || sp.practica) continue; const tk = tick[m]; if (!tk || !(tk.ask > 0)) continue;   /* lo de 🧪 práctica no se copia */ if (!pedido && RS.vistos[m + "|" + sp.t0]) continue; mira++;
         RS.vistos[m + "|" + sp.t0] = now.toISOString();
         if (!X.tiene(m)) { L(RS, now, `⏭️ no copia ${sp.sym} (abierta): no está en ${EX}`); continue; }
-        const frac = sp.q0 > 0 ? sp.q / sp.q0 : 1, mk = await mercado(m), quiere = await alMinimo(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) * frac / eqSrc, Math.max(0, (await libre()) - 0.5)), mk);
+        const frac = sp.q0 > 0 ? sp.q / sp.q0 : 1, mk = await mercado(m), quiere = await alMinimo(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) * frac * w / eqSrc, Math.max(0, (await libre()) - 0.5)), mk);
         if (quiere < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ no copia ${sp.sym} (abierta): tocarían ${r2(quiere)} € y el mínimo de ${EX} es ${r2(mk.min)} €`); continue; }
         const r = await X.comprar(m, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nA++;
-        RS.pos[m] = { src: copia, sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid, tp: sp.cob > 0 ? 1 : 0, pir: sp.pir ? 1 : 0 };
+        RS.pos[m] = { src: kS, sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid, tp: sp.cob > 0 ? 1 : 0, pir: sp.pir ? 1 : 0 };
         L(RS, now, `📥 copia lo abierto: compra ${sp.sym} por ${r2(r.coste)} € (el método la compró a ${sp.px}; ahora ${r.px})`); msgs.push(`💶 📥 REAL: copia lo que ya tenía abierto el método: compra ${sp.sym} por ${r2(r.coste)} €`); }
       if (!nA && pedido) L(RS, now, "📥 copiar lo abierto: no había nada que se pudiera copiar ahora"); void mira; }
-    for (const [m, sp] of Object.entries(src.pos)) {
+    for (const [m, sp] of Object.entries(srcK.pos)) {
       const k = m + "|" + sp.t0; if (RS.pos[m] || RS.vistos[k] || sp.practica) continue; RS.vistos[k] = now.toISOString();   // v267 · 🧪 práctica (sin 🏆): nunca con dinero real
       if (Date.parse(sp.t0) < Date.parse(RS.since)) continue;
       if (now - Date.parse(sp.t0) > 5 * 60000) { L(RS, now, `⏭️ no compra ${sp.sym}: la señal del método llegó tarde (hace más de 5 min)`); continue; }
       const tk = tick[m]; if (!tk || !(tk.ask > 0)) continue;
       if (!X.tiene(m)) { L(RS, now, `⏭️ no compra ${sp.sym}: no está en ${EX}`); RS.saltadas = (RS.saltadas || 0) + 1; continue; }
       if (tk.ask > sp.px * (1 + PERSIGUE)) { L(RS, now, `⏭️ no compra ${sp.sym}: ya ha subido más de un ${PERSIGUE * 100} % desde la señal`); continue; }
-      const mk = await mercado(m), quiere = await alMinimo(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) / eqSrc, Math.max(0, (await libre()) - 0.5)), mk);
+      const mk = await mercado(m), quiere = await alMinimo(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) * w / eqSrc, Math.max(0, (await libre()) - 0.5)), mk);
       if (quiere < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ no compra ${sp.sym}: tocarían ${r2(quiere)} € y el mínimo de ${EX} es ${r2(mk.min)} €`); continue; }
       const r = await X.comprar(m, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++;
-      RS.pos[m] = { src: copia, sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid };
-      L(RS, now, `🟢 compra ${sp.sym}: ${r2(r.coste)} € (a ${r.px})`); msgs.push(`💶 🟢 REAL: compra ${sp.sym} por ${r2(r.coste)} € (copiando a «${nombre(copia)}»)`);
+      RS.pos[m] = { src: kS, sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid };
+      L(RS, now, `🟢 compra ${sp.sym}: ${r2(r.coste)} € (a ${r.px})`); msgs.push(`💶 🟢 REAL: compra ${sp.sym} por ${r2(r.coste)} € (copiando a «${nombre(kS)}»)`);
+    }
     }
     for (const k of Object.keys(RS.vistos)) if (now - Date.parse(RS.vistos[k]) > 3 * 86400e3) delete RS.vistos[k];
     RS.estado = "activo"; delete RS.err;
@@ -279,7 +282,9 @@ export async function paso(S, tick, now, io) {
     if (cfg.auto) { const A = autoElige(fuentes, RS && RS.copia, !!(RS && Object.keys(RS.pos || {}).length), S.muyDesde, now, FAMILIA[ex], RS && RS.copiaDesde); copia = A.copia; R0.auto = A;
       if (RS && RS.copia && RS.copia !== copia) await io.tg(`💶 ${N} · 🤖 AUTOMÁTICO: ahora copia a «${nombre(copia)}» (${A.motivo}).`); }
     R0.copia = copia;
-    const c2 = { copia, capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
+    const extra = cfg.auto ? FAMILIA[ex].filter((k) => k !== copia && reglaEnUso(fuentes[k])) : [];   // v269 · los demás ganadores de su exchange
+    if (cfg.auto) R0.extra = extra;
+    const c2 = { copia, extra, capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
       parado: !cfg.on || !!ctl.parado || cfg.parado, motivo: !cfg.on ? `has apagado ${N}` : ctl.parado ? ctl.motivo || "lo has parado tú" : cfg.motivo };
     const out = await vuelta(RS, fuentes, c2, tick, now, { ex: X });
     const msgs = out.msgs.map((m) => (m.includes(N) ? m : m.replace(/^💶 /, `💶 ${N} · `)));
