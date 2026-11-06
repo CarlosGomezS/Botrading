@@ -36,12 +36,12 @@ test("Real: firma bien, copia una compra nueva en la misma proporción y vende c
   assert.equal(RS.cash, 50); assert.ok(msgs[0].includes("empieza"));
   const sp = { sym: "AAA", q: 10, q0: 10, px: 2.002, cost: 60, cost0: 60, t0: T(1).toISOString() };   // el método mete el 60 % de 100 €
   ({ RS, msgs } = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), T(1), deps));
-  assert.equal(ex.orders.length, 1); assert.equal(ex.orders[0].amountQuote, "30.00", "60 % de 50 € = 30 € (el tope)"); assert.ok(RS.pos["AAA-EUR"]); assert.ok(Math.abs(RS.cash - 20) < 1e-9);
+  assert.equal(ex.orders.length, 1); assert.equal(ex.orders[0].amountQuote, "12.50", "v286: como mucho 25 % de 50 € por compra"); assert.ok(RS.pos["AAA-EUR"]); assert.ok(Math.abs(RS.cash - 37.5) < 1e-9);
   ({ RS } = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), T(2), deps));
   assert.equal(ex.orders.length, 1, "no compra dos veces lo mismo");
-  // venta parcial del método (vende el 80 %) → aquí también
-  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": { ...sp, q: 2, cob: 17 } }) }, { copia: "mix" }, tk((ex.px["AAA-EUR"] = 2.1, ex.px)), T(3), deps));
-  assert.equal(ex.orders[1].side, "sell"); assert.ok(Math.abs(+ex.orders[1].amount - RS.pos["AAA-EUR"].q * 4) < 0.01, "vende ~80 %"); assert.ok(RS.pos["AAA-EUR"].tp);
+  // venta parcial del método (vende la mitad) → aquí también
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": { ...sp, q: 5, cob: 10.5 } }) }, { copia: "mix" }, tk((ex.px["AAA-EUR"] = 2.1, ex.px)), T(3), deps));
+  assert.equal(ex.orders[1].side, "sell"); assert.ok(Math.abs(+ex.orders[1].amount - RS.pos["AAA-EUR"].q) < 0.01, "vende ~50 % (v286: con 12,50 € el 80 % dejaría menos del mínimo)"); assert.ok(RS.pos["AAA-EUR"].tp);
   // el método cierra → vende el resto, con ganancia
   ({ RS, msgs } = await RL.vuelta(RS, { mix: fuente({}) }, { copia: "mix" }, tk(ex.px), T(4), deps));
   assert.equal(Object.keys(RS.pos).length, 0); assert.equal(RS.closed.length, 1); assert.ok(RS.closed[0].pnl > 0, JSON.stringify(RS.closed[0])); assert.ok(msgs.some((x) => x.includes("vende AAA")));
@@ -58,7 +58,7 @@ test("Real: no persigue el precio, no copia compras viejas, respeta el mínimo y
   ({ RS } = await RL.vuelta(RS, { mix: fuente(pos) }, { copia: "mix" }, tk(ex.px), T(1), deps));
   // v255 · lo que queda bajo el mínimo se compra al mínimo (5,10 €) si no pasa del 25 % de la cuenta
   assert.deepEqual(ex.orders.map((o) => o.market), ["C-EUR", "D-EUR"]); assert.equal(ex.orders[0].amountQuote, "5.10"); // v285 · tope del 60 % invertido: 50 € × 60 % − 5,10 € ya invertidos ≈ 24,9 € (antes 30 €)
-  assert.ok(Math.abs(+ex.orders[1].amountQuote - 24.9) < 0.1, ex.orders[1].amountQuote);
+  assert.ok(Math.abs(+ex.orders[1].amountQuote - 12.5) < 0.1, ex.orders[1].amountQuote);   // v286 · tope del 25 % por compra
 });
 
 test("Real: cambiar de método NO vende lo abierto (sigue con su método); /parar vende todo y no compra; el freno del −25 % para solo", async () => {
@@ -75,10 +75,10 @@ test("Real: cambiar de método NO vende lo abierto (sigue con su método); /para
   o = await RL.vuelta(RS, { eq: fuente({ "A-EUR": sp2 }) }, { copia: "eq" }, tk(ex.px), T(3), deps); RS = o.RS; assert.ok(RS.pos["A-EUR"]);
   const n = ex.orders.length; o = await RL.vuelta(RS, { eq: fuente({ "A-EUR": sp2 }) }, { copia: "eq", parado: true }, tk(ex.px), T(4), deps); RS = o.RS;
   assert.equal(Object.keys(RS.pos).length, 0); assert.equal(RS.estado, "parado"); assert.equal(ex.orders.length, n + 1);
-  // freno: compra y el precio se hunde un 60 %
-  const sp3 = { ...sp, t0: T(5).toISOString() };
-  o = await RL.vuelta(RS, { eq: fuente({ "A-EUR": sp3 }) }, { copia: "eq" }, tk(ex.px), T(5), deps); RS = o.RS; assert.ok(RS.pos["A-EUR"]);
-  ex.px["A-EUR"] = 0.1; o = await RL.vuelta(RS, { eq: fuente({ "A-EUR": sp3 }) }, { copia: "eq" }, tk(ex.px), T(6), deps);
+  // freno: compra dos (25 % cada una, v286) y los precios se hunden un 90 %
+  const sp3 = { ...sp, t0: T(5).toISOString() }, sp4 = { ...sp3, sym: "B" }; ex.px["B-EUR"] = 1;
+  o = await RL.vuelta(RS, { eq: fuente({ "A-EUR": sp3, "B-EUR": sp4 }) }, { copia: "eq" }, tk(ex.px), T(5), deps); RS = o.RS; assert.ok(RS.pos["A-EUR"] && RS.pos["B-EUR"]);
+  ex.px["A-EUR"] = 0.1; ex.px["B-EUR"] = 0.1; o = await RL.vuelta(RS, { eq: fuente({ "A-EUR": sp3, "B-EUR": sp4 }) }, { copia: "eq" }, tk(ex.px), T(6), deps);
   assert.ok(o.ctl.parado && o.ctlCambia, "se para solo"); assert.equal(Object.keys(o.RS.pos).length, 0); assert.ok(o.msgs.some((x) => x.includes("PARADO")));
 });
 
@@ -127,7 +127,7 @@ test("Real: el dinero a usar se elige, nunca pasa de lo que hay libre en Bitvavo
   // con 100 €, una compra del 60 % ya puede ser de 60 € (el tope por orden crece con el dinero)
   const sp = { sym: "A", px: 1, cost0: 60, cost: 60, q: 1, q0: 1, t0: T(3).toISOString() };
   o = await RL.vuelta(o.RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100 }, tk(ex.px), T(3), deps);
-  assert.equal(ex.orders[0].amountQuote, "60.00");
+  assert.equal(ex.orders[0].amountQuote, "25.00");   // v286 · como mucho el 25 % por compra
   // si en la cuenta hay menos de 10 €, no empieza
   const o2 = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 50 }, tk(ex.px), T(0), { ...deps, saldoEur: async () => 4 });
   assert.ok(o2.sinEmpezar); assert.equal(o2.RS, null);
@@ -138,7 +138,7 @@ test("Real: freno diario del 10 % (descansa hasta mañana y vuelve solo) y aviso
   const D = (h) => new Date(Date.UTC(2026, 10, 4, h)), sp = (h) => ({ sym: "A", px: 1, cost0: 60, cost: 60, q: 1, q0: 1, t0: D(h).toISOString() });
   let o = await RL.vuelta(null, { mix: fuente() }, { copia: "mix" }, tk(ex.px), D(8), deps);
   o = await RL.vuelta(o.RS, { mix: fuente({ "A-EUR": sp(9) }) }, { copia: "mix" }, tk(ex.px), D(9), deps); assert.ok(o.RS.pos["A-EUR"]);
-  ex.px["A-EUR"] = 0.75;   // 30 € invertidos caen un 25 % → el total cae ~15 % (más que el 10 % diario, menos que el 25 % grande)
+  ex.px["A-EUR"] = 0.5;   // v286 · 12,50 € invertidos (25 %) caen a la mitad → el total cae ~12,5 % (más que el 10 % diario, menos que el 25 % grande)
   o = await RL.vuelta(o.RS, { mix: fuente({ "A-EUR": sp(9) }) }, { copia: "mix" }, tk(ex.px), D(10), deps);
   assert.equal(o.RS.estado, "pausa"); assert.equal(Object.keys(o.RS.pos).length, 0); assert.ok(o.msgs.some((x) => x.includes("descansa hasta mañana")));
   const n = ex.orders.length; o = await RL.vuelta(o.RS, { mix: fuente({ "A-EUR": sp(11) }) }, { copia: "mix" }, tk(ex.px), D(11), deps);
@@ -260,7 +260,7 @@ test("Real v269: en automático copia a la vez a todos los ganadores de su excha
   const a = { sym: "A", px: 1, cost0: 40, cost: 40, q: 40, q0: 40, t0: T(1).toISOString() }, b = { ...a, sym: "B" };
   o = await RL.vuelta(o.RS, { eqokx: fuente({ "A-EUR": a }), mixokx: fuente({ "B-EUR": b }) }, { copia: "eqokx", extra: ["mixokx"], capital: 100 }, tk(ex.px), T(1), deps);
   assert.equal(ex.orders.length, 2, "compra lo de los dos"); assert.equal(o.RS.pos["B-EUR"].src, "mixokx");
-  assert.ok(+ex.orders[0].amountQuote <= 20.01, "cada uno con la mitad del tamaño");
+  assert.ok(+ex.orders[0].amountQuote <= 25.01, "v286: cada uno con su tamaño, como mucho 25 %");
   o = await RL.vuelta(o.RS, { eqokx: fuente({ "A-EUR": a }), mixokx: fuente({}) }, { copia: "eqokx", extra: ["mixokx"], capital: 100 }, tk(ex.px), T(2), deps);
   assert.ok(!o.RS.pos["B-EUR"], "vende cuando su método vende");
 });

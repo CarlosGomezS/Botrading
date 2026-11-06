@@ -25,7 +25,7 @@ export function esMuy(v) { const X = v ? [v.a, v.b, v.c] : []; return !!(v && v.
 // solo cambia cuando no hay nada abierto con dinero real, y solo si el actual ya no gana o el nuevo es claramente mejor (+1 de nota o ⭐ frente a no ⭐)
 // v259 · ⭐⭐ ESTABLE: los laboratorios cambian de regla cada pocos minutos, y un método podía ser ⭐⭐ un rato y dejar de serlo al siguiente.
 // Para que el dinero real no salte de uno a otro (vendiendo y comprando, pagando comisiones), solo cuenta como ⭐⭐ si lleva ≥ 60 min siéndolo.
-export const TAM_COMPRA = 0.10, TOPE_INV = 0.60;   // v285 · cada compra ≥ 10 % de la cuenta · nunca más del 60 % invertido
+export const TAM_COMPRA = 0.10, TAM_MUY = 0.15, TAM_MAX = 0.25, TOPE_INV = 0.60;   // v285 · cada compra ≥ 10 % de la cuenta · nunca más del 60 % invertido
 export const MUY_ESTABLE_MS = 60 * 60000;
 export function marcaMuy(S, fuentes, now) { S.muyDesde = S.muyDesde || {}; for (const k of SUBS_OK) { const v = reglaEnUso(fuentes[k]); if (v && esMuy(v)) S.muyDesde[k] = S.muyDesde[k] || now.toISOString(); else delete S.muyDesde[k]; } return S.muyDesde; }
 export const PERMANENCIA_MS = 6 * 3600e3;
@@ -122,8 +122,10 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   const alMinimo = async (quiere, mk) => { const need = Math.max(mk.min, 5) * 1.02; if (quiere >= need) return quiere; const tope = Math.min(RS.cash, valor(RS, tick) * 0.25, Math.max(0, (await libre()) - 0.5)); return need <= tope ? need : quiere; };
   // v285 · 💶 TAMAÑO DE CADA COMPRA (lo eliges tú: 10 %): repartir cada compra entre 7 métodos dejaba compras de céntimos (subidas al mínimo de 5 €)
   // y el 80-90 % del dinero parado. Ahora cada compra es al menos el 10 % de lo que vale la cuenta, sin pasar nunca del 60 % invertido en total.
-  const tam = async (quiere, mk, frac = 1) => { const V = valor(RS, tick), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash)), tope = Math.min(RS.cash, maxOrden(), hueco, Math.max(0, (await libre()) - 0.5));
-    const q = Math.min(Math.max(quiere, V * TAM_COMPRA * frac), tope); return alMinimo(q, mk); };
+  // v286 · respeta el % que decide el método (su tamaño aprendido / su fórmula de riesgo), sin dividirlo entre los métodos copiados;
+  // mínimo 10 % (15 % si el método es 💎) y como mucho 25 % por compra
+  const tam = async (quiere, mk, frac = 1, muy = false) => { const V = valor(RS, tick), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash)), tope = Math.min(RS.cash, maxOrden(), hueco, V * TAM_MAX * frac, Math.max(0, (await libre()) - 0.5));
+    const q = Math.min(Math.max(quiere, V * (muy ? TAM_MUY : TAM_COMPRA) * frac), tope); return alMinimo(q, mk); };
   RS.vistos = RS.vistos || {};
   const vendeTodo = async (por) => { for (const m of Object.keys(RS.pos)) await cerrar(m, por); };
   async function cerrar(m, por, frac = 1) {
@@ -209,7 +211,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       for (const [m, sp] of Object.entries(srcK.pos)) { if (RS.pos[m] || sp.practica) continue; const tk = tick[m]; if (!tk || !(tk.ask > 0)) continue;   /* lo de 🧪 práctica no se copia */ if (!pedido && RS.vistos[m + "|" + sp.t0]) continue; mira++;
         RS.vistos[m + "|" + sp.t0] = now.toISOString();
         if (!X.tiene(m)) { L(RS, now, `⏭️ no copia ${sp.sym} (abierta): no está en ${EX}`); continue; }
-        const frac = sp.q0 > 0 ? sp.q / sp.q0 : 1, mk = await mercado(m), quiere = await tam(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) * frac * w / eqSrc, Math.max(0, (await libre()) - 0.5)), mk, frac);
+        const frac = sp.q0 > 0 ? sp.q / sp.q0 : 1, mk = await mercado(m), quiere = await tam(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) * frac / eqSrc, Math.max(0, (await libre()) - 0.5)), mk, frac, esMuy(reglaEnUso(srcK)));
         if (quiere < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ no copia ${sp.sym} (abierta): tocarían ${r2(quiere)} € y el mínimo de ${EX} es ${r2(mk.min)} €`); continue; }
         const r = await X.comprar(m, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nA++;
         RS.pos[m] = { src: kS, sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid, tp: sp.cob > 0 ? 1 : 0, pir: sp.pir ? 1 : 0 };
@@ -222,7 +224,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       const tk = tick[m]; if (!tk || !(tk.ask > 0)) continue;
       if (!X.tiene(m)) { L(RS, now, `⏭️ no compra ${sp.sym}: no está en ${EX}`); RS.saltadas = (RS.saltadas || 0) + 1; continue; }
       if (tk.ask > sp.px * (1 + PERSIGUE)) { L(RS, now, `⏭️ no compra ${sp.sym}: ya ha subido más de un ${PERSIGUE * 100} % desde la señal`); continue; }
-      const mk = await mercado(m), quiere = await tam(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) * w / eqSrc, Math.max(0, (await libre()) - 0.5)), mk);
+      const mk = await mercado(m), quiere = await tam(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) / eqSrc, Math.max(0, (await libre()) - 0.5)), mk, 1, esMuy(reglaEnUso(srcK)));
       if (quiere < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ no compra ${sp.sym}: tocarían ${r2(quiere)} € y el mínimo de ${EX} es ${r2(mk.min)} €`); continue; }
       const r = await X.comprar(m, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++;
       RS.pos[m] = { src: kS, sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid };
