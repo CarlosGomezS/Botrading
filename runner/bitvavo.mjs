@@ -262,8 +262,10 @@ function cerrar(S, m, now, bid, why) {
 }
 // una vuelta: vigila lo abierto y compra lo que diga el genoma
 // v271 · 🧪 práctica: sin 🏆, en vez de su regla (que puede no dar señales en días) usa la más ACTIVA de sus 10 mejores candidatas
-export function reglaPractica(S) { const pop = ((S.lab && S.lab.pop) || []).filter((v) => v.g && v.s > -99 && v.a && v.b && v.c).sort((a, b) => b.s - a.s).slice(0, 10);
-  if (!pop.length) return null; const n = (v) => v.a.n + v.b.n + v.c.n; return pop.sort((a, b) => n(b) - n(a))[0].g; }
+// v273 · entre TODAS sus candidatas que no pierden en conjunto, la que más opera (≥ 5 al día si la hay): así siempre hay movimiento para aprender
+export function reglaPractica(S) { const n = (v) => (v.a ? v.a.n : 0) + (v.b ? v.b.n : 0) + (v.c ? v.c.n : 0), med = (v) => ((v.a ? v.a.med * v.a.n : 0) + (v.b ? v.b.med * v.b.n : 0) + (v.c ? v.c.med * v.c.n : 0)) / Math.max(1, n(v));
+  const pop = ((S.lab && S.lab.pop) || []).filter((v) => v.g && v.a && v.b && v.c && n(v) > 0); if (!pop.length) return null;
+  const buenas = pop.filter((v) => med(v) > -0.15), L = (buenas.length ? buenas : pop).sort((a, b) => n(b) - n(a)); return L[0].g; }
 export function paso(S, tick, F, now = new Date()) {
   const gp = S.prueba ? reglaPractica(S) : null, g = { ...BASE, ...S.genome, ...(gp || {}) }, tnow = now.getTime(), px = tick;
   for (const [m, p] of Object.entries(S.pos)) {
@@ -285,7 +287,7 @@ export function paso(S, tick, F, now = new Date()) {
     if (Object.keys(S.pos).length >= g.maxPos) break;
     // v267 · 🧪 PRÁCTICA (solo dinero ficticio): sin 🏆 ya no se queda quieto; prueba su mejor regla con poco dinero (¼ del tamaño, máx. 2 a la vez)
     // para tener operaciones REALES de las que aprender (🩹). Lo de práctica nunca lo copia el dinero real.
-    if (S.prueba && Object.values(S.pos).filter((p) => p.practica).length >= 2) break;
+    if (S.prueba && Object.values(S.pos).filter((p) => p.practica).length >= 3) break;
     if (false && S.prueba) break;   // v223 · REGLA ESTRICTA: sin reglas con ventaja demostrada (pruebas + vida real), NO compra; solo observa y aprende (el cuantitativo es tu método fijo: opera siempre en ficticio)
     const eq = equity(S, tick); let amt = Math.min(S.cash, eq * g.size * (S.prueba ? 0.25 : 1)), P = null;
     if (g.estilo === "cuant") { S.pico = Math.max(S.pico || S.start || 100, eq); if (S.pausaDD && tnow < S.pausaDD) break; if (eq < S.pico * (1 - CU.DD_MAX)) { S.pausaDD = tnow + 86400e3; S.pico = eq; L(S, now, "INFO", "", `🛑 ha caído un ${CU.DD_MAX * 100} % desde su máximo: no compra en 24 h`); break; }
@@ -471,7 +473,7 @@ async function main() {
   paso(S, tick, F, now);
   const FO = Object.fromEntries(Object.entries(F).filter(([m]) => enOkx(OKX, m)).map(([m, f]) => [m, f ? { ...f } : f]));
   { const gs = COMITE_OKX.map((k) => S.sub[k] && S.sub[k].genome ? { ...BASE, ...S.sub[k].genome } : null).filter(Boolean); for (const f of Object.values(FO)) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
-  if (!S.dbgOkx || now - Date.parse(S.dbgOkx) > 30 * 60000) { S.dbgOkx = now.toISOString(); console.log(`OKX: lista ${OKX ? OKX.size : "SIN LISTA"} criptos · con datos ahora ${Object.keys(FO).length} de ${Object.keys(F).length}` + SUBS.filter((k) => PERF[k].soloOkx).map((k) => { const C = S.sub[k], g = { ...BASE, ...C.genome }; return ` · ${k}: ${Object.values(FO).filter((f) => f && entra(g, f)).length} señales, ${C.prueba ? "práctica" : "🏆"}`; }).join("")); }
+  if (!S.dbgOkx || now - Date.parse(S.dbgOkx) > 10 * 60000) { S.dbgOkx = now.toISOString(); console.log(`Señales ahora (OKX: ${OKX ? OKX.size : "SIN LISTA"} criptos, ${Object.keys(FO).length} con datos):` + SUBS.map((k) => { const C = S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, FF = PERF[k].soloOkx ? FO : F; return ` ${k} ${Object.values(FF).filter((f) => f && entra(g, f)).length}${C.prueba ? "🧪" : "⭐"}`; }).join(",")); }
   for (const k of SUBS) paso(S.sub[k], tick, PERF[k].soloOkx ? FO : F, now);
   // v224/v225 · cobrar financiación y rejilla: tres submodos cada uno, con sus propios 100 € ficticios
   // v271 · «Cobrar financiación» y «Rejilla» QUITADOS (no aportaban; necesitaban futuros o perdían): el código queda, pero ya no se ejecuta
@@ -529,7 +531,7 @@ async function main() {
   /* solo si queda tiempo de sobra en esta vuelta: así nunca se corta a medias entre una orden real y el guardado */
   if (Date.now() - t0 < 55e3) try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI }); } catch (e) { console.log("Real: error"); } else console.log("Real: vuelta larga, espera a la siguiente");
   await publicarEstado(S);
-  console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);
+  console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + Object.keys(S.sub[k].pos).length + " abiertas, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);
   console.log(`Financiación: ${Object.entries(S.fins).map(([k, X]) => k + " " + (X ? X.lastEq + " € · " + Object.keys(X.pos).length + " abiertas" + (X.err ? " · " + X.err : "") : "—")).join(" · ")}`);
   console.log(`Rejilla: ${Object.entries(S.rejs).map(([k, X]) => k + " " + (X ? X.lastEq + " € · " + Object.keys(X.g).length + " rejillas · aptas " + Object.values(X.apr || {}).filter((a) => a.ok).length : "—")).join(" · ")}`);
   console.log(`Bitvavo: ${U.length} mercados · saldo ${S.lastEq} € · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · gen ${S.lab.gen} · ${S.diag.seg} s`);
