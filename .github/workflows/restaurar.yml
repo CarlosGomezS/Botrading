@@ -1,0 +1,68 @@
+name: Restaurar una copia de seguridad
+
+# v264 · ⏪ vuelve atrás a la copia del día que elijas. NO borra historia: añade un commit nuevo con el contenido de ese día
+# (así también se puede deshacer la restauración). Para el bot y los laboratorios mientras restaura y luego los vuelve a encender.
+on:
+  workflow_dispatch:
+    inputs:
+      fecha:
+        description: "Día de la copia (AAAA-MM-DD)"
+        required: true
+      que:
+        description: "Qué restaurar: datos (los bots), codigo (la app y el bot) o todo"
+        required: true
+        default: datos
+        type: choice
+        options: [datos, codigo, todo]
+      ramas:
+        description: "(Opcional) solo estas ramas, separadas por espacios"
+        required: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: restaurar
+  cancel-in-progress: false
+
+jobs:
+  restaurar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Parar el bot y los laboratorios
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for w in meme.yml cripto-lab.yml; do for id in $(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?status=in_progress" -q '.workflow_runs[].id'); do gh api -X POST "repos/${{ github.repository }}/actions/runs/$id/cancel" || true; done; done
+          sleep 60
+      - name: Restaurar
+        run: |
+          set -e
+          git config user.name "restaurar"; git config user.email "restaurar@users.noreply.github.com"
+          git fetch --prune origin "+refs/heads/*:refs/remotes/origin/*" --tags -f
+          d="${{ inputs.fecha }}"; que="${{ inputs.que }}"; solo="${{ inputs.ramas }}"
+          ts=$(git tag -l "copia/$d/*"); [ -z "$ts" ] && { echo "❌ No hay copia del $d. Copias: $(git tag -l 'copia/*' | cut -d/ -f2 | sort -u | tail -15 | tr '\n' ' ')"; exit 1; }
+          for t in $ts; do b=${t#copia/$d/}
+            [ -n "$solo" ] && ! echo " $solo " | grep -q " $b " && continue
+            [ "$que" = "datos" ] && [ "$b" = "main" ] && continue
+            [ "$que" = "codigo" ] && [ "$b" != "main" ] && continue
+            if ! git show-ref -q "refs/remotes/origin/$b"; then git push -q origin "$t^{commit}:refs/heads/$b"; echo "♻️ $b recreada desde la copia"; continue; fi
+            git checkout -q -B "r-$b" "refs/remotes/origin/$b"
+            git read-tree -u --reset "$t"
+            if git diff --cached --quiet; then echo "= $b ya estaba igual"; continue; fi
+            git commit -q -m "⏪ Restaura $b a la copia del $d"; git push -q origin "HEAD:$b"; echo "⏪ $b restaurada al $d"
+          done
+      - name: Volver a encender el bot y los laboratorios
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # lo que arrancó durante la restauración cargó los datos viejos: se cancela y se arranca limpio
+          for w in meme.yml cripto-lab.yml; do for id in $(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?status=in_progress" -q '.workflow_runs[].id'); do gh api -X POST "repos/${{ github.repository }}/actions/runs/$id/cancel" || true; done; done
+          sleep 45
+          for w in meme.yml cripto-lab.yml; do n=$(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?per_page=5" -q '[.workflow_runs[]|select(.status=="in_progress" or .status=="queued")]|length'); [ "$n" != "0" ] && { echo "$w ya está en marcha"; continue; }; gh api -X POST "repos/${{ github.repository }}/actions/workflows/$w/dispatches" -f ref=main && echo "encendido $w" || true; done
