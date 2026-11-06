@@ -283,7 +283,7 @@ export async function paso(S, tick, now, io) {
       if (RS && RS.copia && RS.copia !== copia) await io.tg(`💶 ${N} · 🤖 AUTOMÁTICO: ahora copia a «${nombre(copia)}» (${A.motivo}).`); }
     R0.copia = copia;
     // v269/v270 · los demás ganadores: primero los de su exchange y luego TODOS los demás con 🏆 (lo que no esté en el exchange se salta solo)
-    const extra = cfg.auto ? [...((S.visibles && S.visibles[ex]) || FAMILIA[ex]), ...SUBS_OK].filter((k) => k !== "riesgo").filter((k, i, a) => a.indexOf(k) === i && k !== copia && reglaEnUso(fuentes[k])) : [];
+    const extra = cfg.auto ? [...((S.visibles && S.visibles[ex]) || FAMILIA[ex]), ...SUBS_OK].filter((k) => !/^riesgo/.test(k)).filter((k, i, a) => a.indexOf(k) === i && k !== copia && reglaEnUso(fuentes[k])) : [];
     if (cfg.auto) R0.extra = extra;
     const c2 = { copia, extra, capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
       parado: !cfg.on || !!ctl.parado || cfg.parado, motivo: !cfg.on ? `has apagado ${N}` : ctl.parado ? ctl.motivo || "lo has parado tú" : cfg.motivo };

@@ -45,7 +45,7 @@ jobs:
             labs: "eq turbo mix cuant consenso tend explora riesgo"
             baja: eq
           - grupo: okx
-            labs: "mixokx eqokx turbookx cuantokx consensookx tendokx exploraokx"
+            labs: "mixokx eqokx turbookx cuantokx consensookx tendokx exploraokx riesgookx"
             baja: mixokx
     steps:
       - uses: actions/checkout@v5

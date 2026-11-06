@@ -18,7 +18,7 @@ if (!P) { console.log("Laboratorio: submodo desconocido " + k); process.exit(0);
 
 async function main() {
   const t0 = Date.now();
-  await sleep(+process.env.LAB_SIN_ESPERA ? 0 : { eq: 0, turbo: 20e3, mix: 40e3, cuant: 60e3, consenso: 80e3, tend: 100e3, mixokx: 0, eqokx: 20e3, turbookx: 40e3, cuantokx: 60e3, consensookx: 80e3, tendokx: 100e3, explora: 120e3, exploraokx: 120e3, riesgo: 140e3 }[k] || 0);
+  await sleep(+process.env.LAB_SIN_ESPERA ? 0 : { eq: 0, turbo: 20e3, mix: 40e3, cuant: 60e3, consenso: 80e3, tend: 100e3, mixokx: 0, eqokx: 20e3, turbookx: 40e3, cuantokx: 60e3, consensookx: 80e3, tendokx: 100e3, explora: 120e3, exploraokx: 120e3, riesgo: 140e3, riesgookx: 140e3 }[k] || 0);
   let St = null; try { St = await B.leer(FILE, RAMA); } catch (e) {}
   if (!St || !St.lab) St = { lab: { gen: 0, lastGen: null, pop: [], log: [], adopt: [] }, genome: { ...P.base }, genomeId: "base", prueba: true };
   St.info = St.info || { reglas: 0 };

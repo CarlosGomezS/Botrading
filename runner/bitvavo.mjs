@@ -239,7 +239,8 @@ export function robustaRiesgo(g, H) {
 PERF.riesgo = { nombre: "🎢 Alto riesgo", txt: "busca subidas explosivas (impulso, rupturas, máximos) metiendo mucho en cada operación, con objetivos grandes y stop rápido; solo ficticio: el dinero real no lo sigue", ests: ["ruptura", "maximos", "tendencia", "rotacion", "tortuga"],
   rang: { size: [0.4, 0.9], maxPos: [1, 2], stop: [0.03, 0.12], tp: [0.15, 0.6], tpFrac: [0, 0.6], trailOn: [0.08, 0.3], trail: [0.04, 0.15], maxHoldH: [6, 96], cooldownH: [0.5, 12] }, fijo: {}, robusta: robustaRiesgo, soloFicticio: true };
 PERF.riesgo.base = ajustar({ ...BASE, estilo: "ruptura", size: 0.6, maxPos: 1, stop: 0.06, tp: 0.3, trailOn: 0.12, trail: 0.07, maxHoldH: 48 }, PERF.riesgo);
-export const SUBS = ["turbo", "mix", "cuant", "consenso", "tend", "mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx", "explora", "exploraokx", "riesgo"];
+PERF.riesgookx = { ...PERF.riesgo, nombre: "🎢 Alto riesgo · OKX", txt: "como «Alto riesgo», pero solo con criptos de OKX; solo ficticio: el dinero real no lo sigue", soloOkx: true };
+export const SUBS = ["turbo", "mix", "cuant", "consenso", "tend", "mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx", "explora", "exploraokx", "riesgo", "riesgookx"];
 export const EXPLORA = { bitvavo: "explora", okx: "exploraokx" };
 // v272 · 🔄 ROTACIÓN: los 6 métodos que se ven (y que puede seguir el dinero real) por exchange. Si un método fuera de la lista (el explorador o
 // uno que salió) es 💎 desde hace ≥ 1 h y su nota supera en ≥ 1 punto a la del peor de la lista, entra y el peor sale. Como mucho un cambio cada 12 h.
