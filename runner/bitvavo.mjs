@@ -166,14 +166,23 @@ function cortesH(H) { if (H._cortes) return H._cortes; const ts = Object.values(
   const cs = [ts[0]]; for (let k = 1; k < TRAMOS; k++) cs.push(ts[Math.floor(ts.length * k / TRAMOS)]); cs.push(ts[ts.length - 1] + 1); return (H._cortes = cs); }
 const peor = (xs, k) => Math.min(...xs.map((x) => x[k]));
 // ⚡ turbo: se puntúa por lo que gana EN TOTAL cada tramo (muchas operaciones pequeñas ganadoras valen más que pocas grandes)
+// v274 · 📅 ¿OPERA EN EL MERCADO DE AHORA? Operaciones en los últimos 7 días (una regla que solo ganaba en otra fase del mercado no sirve hoy)
+function ultimos7(g, H, cs) { const fin = cs[cs.length - 1]; return backtestTramos(g, H, [fin - 7 * 86400e3, fin])[0]; }
+const AHORA = 3;   // mínimo de operaciones en los últimos 7 días para dar la ⭐
 export function robustaTurbo(g, H) {
-  const cs = cortesH(H); if (!cs) return { s: -99 }; const X = backtestTramos(g, H, cs), [a, b, c] = X;
-  if (!X.every((x) => x.n >= 12)) return { s: -99, a, b, c };
+  const cs = cortesH(H); if (!cs) return { s: -99 }; const X = backtestTramos(g, H, cs), [a, b, c] = X, r = robustaTurbo0(X, a, b, c); if (r.s <= -99) return r;
+  const w = ultimos7(g, H, cs); return { ...r, w, s: r2(r.s * Math.min(1, ((w.n || 0) + 1) / (AHORA + 1))), ok: !!r.ok && (w.n || 0) >= AHORA && !((w.n || 0) >= 5 && w.med < -0.5) };
+}
+function robustaTurbo0(X, a, b, c) {
+  if (!X.every((x) => x.n >= 12)) return { s: -99, a, b, c };   // (v274: g, H en la envoltura)
   const conf = Math.min(1, Math.sqrt(peor(X, "n") / 40));
   return { s: r2((Math.min(...X.map((x) => x.med * x.n)) / 20 + peor(X, "t")) * conf), a, b, c, ok: X.every((x) => x.n >= 20 && x.med > 0 && x.pf > 1.1) };
 }
 export function robusta(g, H) {
-  const cs = cortesH(H); if (!cs) return { s: -99 }; const X = backtestTramos(g, H, cs), [a, b, c] = X;
+  const cs = cortesH(H); if (!cs) return { s: -99 }; const X = backtestTramos(g, H, cs), [a, b, c] = X, r = robusta0(X, a, b, c); if (r.s <= -99) return r;
+  const w = ultimos7(g, H, cs); return { ...r, w, s: r2(r.s * Math.min(1, ((w.n || 0) + 1) / (AHORA + 1))), ok: !!r.ok && (w.n || 0) >= AHORA && !((w.n || 0) >= 5 && w.med < -0.5) };
+}
+function robusta0(X, a, b, c) {
   // v222/v245 · contra la sobreoptimización: con pocas operaciones cualquier regla «gana» por casualidad. ≥ 15 por tramo para puntuar,
   // la nota se rebaja si hay pocas (hasta 60 por tramo para nota completa) y «ganadora» exige ≥ 25 en CADA uno de los tres tramos
   if (!X.every((x) => x.n >= 15)) return { s: -99, a, b, c };
@@ -300,7 +309,7 @@ export function paso(S, tick, F, now = new Date()) {
 }
 // ---- laboratorio: búsqueda dirigida con backtest robusto
 export function evolucionar(S, H, now = new Date(), rnd = Math.random, budgetMs = 20e3, P = PERF.eq, fuera = []) {
-  const Lc = lecciones(S), BASE = P.base, robustaV = (g, H) => { const r = P.robusta(g, H), e = r.s > -99 ? ajusteErrores(g, Lc) : { d: 0 }; return { s: r2(r.s + e.d), s0: r.s, err: e.d ? { d: e.d, hL: e.hL, hW: e.hW } : null, ok: !!r.ok && !(e.d <= -1), a: r.a || null, b: r.b || null, c: r.c || null }; };
+  const Lc = lecciones(S), BASE = P.base, robustaV = (g, H) => { const r = P.robusta(g, H), e = r.s > -99 ? ajusteErrores(g, Lc) : { d: 0 }; return { s: r2(r.s + e.d), s0: r.s, err: e.d ? { d: e.d, hL: e.hL, hW: e.hW } : null, ok: !!r.ok && !(e.d <= -1), a: r.a || null, b: r.b || null, c: r.c || null, w: r.w || null }; };
   const mutarP = (g, rnd) => mutar(g, rnd, P), aleatorioP = (rnd) => aleatorio(rnd, P), cruzarP = (a, b, rnd) => ajustar(cruzar(a, b, rnd), P);
   const B = S.lab; B.gen++; B.lastGen = now.toISOString(); const t0 = Date.now(), ev = (txt) => { B.log.unshift({ t: now.toISOString(), txt }); B.log = B.log.slice(0, 120); };
   for (const v of B.pop) Object.assign(v, robustaV(v.g, H));
@@ -321,7 +330,7 @@ export function evolucionar(S, H, now = new Date(), rnd = Math.random, budgetMs 
   // v222 · variedad: dos reglas que hacen exactamente las mismas operaciones son la misma regla (se queda una)
   const huella = (v) => (v.a && v.b ? [v.a.n, v.a.med, v.b.n, v.b.med, v.c ? v.c.n : "", v.c ? v.c.med : ""].join("|") : "x" + Math.random());
   const vet = B.vetadas || {}, vistasH = new Set();
-  const todos = B.pop.concat(cand.map((c) => ({ id: "b" + (B.next = (B.next || 0) + 1), g: c.g, born: now.toISOString(), why: c.why, s: c.s, s0: c.s0, err: c.err, ok: c.ok, a: c.a, b: c.b, c: c.c })))
+  const todos = B.pop.concat(cand.map((c) => ({ id: "b" + (B.next = (B.next || 0) + 1), g: c.g, born: now.toISOString(), why: c.why, s: c.s, s0: c.s0, err: c.err, ok: c.ok, a: c.a, b: c.b, c: c.c, w: c.w })))
     .filter((v) => !vet[gkey(v.g)]).sort((a, b) => b.s - a.s).filter((v) => { if (v.id === "base" || v.id === S.genomeId) return true; const h = huella(v); if (vistasH.has(h)) return false; vistasH.add(h); return true; });
   const keep = todos.filter((v) => v.id === "base" || v.id === S.genomeId).concat(todos.filter((v) => v.id !== "base" && v.id !== S.genomeId)).slice(0, POP);
   const nuevos = keep.filter((v) => !B.pop.includes(v)).length; B.pop = keep; B.probadas = cand.length;
