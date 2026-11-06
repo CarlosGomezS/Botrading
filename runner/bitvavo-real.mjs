@@ -12,7 +12,10 @@ import { encrypt, openAny } from "./real-cfg.mjs";
 
 export const FRENO_DIA = 0.10;   // v235 · si en un mismo día pierde un 10 %, vende todo y descansa hasta el día siguiente
 export const API = "https://api.bitvavo.com", CAPITAL = 50, FRENO = 0.25, MAX_ORDEN = 30, PERSIGUE = 0.015, OPERADOR = 224224, FEE = 0.0025;
-export const SUBS_OK = ["mix", "eq", "turbo", "mixokx", "cuant", "consenso"];
+export const SUBS_OK = ["mix", "eq", "turbo", "mixokx", "cuant", "consenso", "eqokx", "turbookx"];
+// v266 · cada exchange elige SOLO entre sus métodos: OKX entre los hechos con criptos de OKX (lo que compran se copia 1 a 1); Bitvavo, entre los de todas
+export const FAMILIA = { okx: ["mixokx", "eqokx", "turbookx"], bitvavo: ["eq", "turbo", "mix", "cuant", "consenso"] };
+// v266 · un cambio de método automático cada 6 h como mucho (salvo que el actual pierda la 🏆): cambiar a menudo es la forma más fácil de perder
 // v247 · ⭐ «MUY GANADORA»: además de ganar en los tres tramos de 90 días, gana ≥ 0,6 % por operación en CADA tramo,
 // con ≥ 30 operaciones en cada uno y un factor de beneficio ≥ 1,4 (gana 1,4 € por cada € que pierde)
 export const MUY = { med: 0.6, n: 30, pf: 1.4 };
@@ -24,11 +27,15 @@ export function esMuy(v) { const X = v ? [v.a, v.b, v.c] : []; return !!(v && v.
 // Para que el dinero real no salte de uno a otro (vendiendo y comprando, pagando comisiones), solo cuenta como ⭐⭐ si lleva ≥ 60 min siéndolo.
 export const MUY_ESTABLE_MS = 60 * 60000;
 export function marcaMuy(S, fuentes, now) { S.muyDesde = S.muyDesde || {}; for (const k of SUBS_OK) { const v = reglaEnUso(fuentes[k]); if (v && esMuy(v)) S.muyDesde[k] = S.muyDesde[k] || now.toISOString(); else delete S.muyDesde[k]; } return S.muyDesde; }
-export function autoElige(fuentes, actual, abiertas, muyDesde = null, now = new Date()) {
+export const PERMANENCIA_MS = 6 * 3600e3;
+export function autoElige(fuentes, actual, abiertas, muyDesde = null, now = new Date(), familia = null, desde = null) {
   const estable = (k, v) => esMuy(v) && (!muyDesde || (muyDesde[k] && now - Date.parse(muyDesde[k]) >= MUY_ESTABLE_MS));
-  const c = SUBS_OK.map((k) => { const v = reglaEnUso(fuentes[k]); return v ? { k, s: +v.s || 0, muy: estable(k, v) } : null; }).filter(Boolean).sort((a, b) => (b.muy - a.muy) || b.s - a.s);
+  const lista = familia && familia.length ? familia : SUBS_OK;
+  if (familia && familia.length && actual && !familia.includes(actual)) actual = null;   // si venía de otra familia, elige ya dentro de la suya
+  const c = lista.map((k) => { const v = reglaEnUso(fuentes[k]); return v ? { k, s: +v.s || 0, muy: estable(k, v) } : null; }).filter(Boolean).sort((a, b) => (b.muy - a.muy) || b.s - a.s);
   const cur = c.find((x) => x.k === actual), best = c[0];
-  if (!best) return { copia: SUBS_OK.includes(actual) ? actual : "eq", muy: false, motivo: "ningún método tiene regla ganadora ahora" };
+  if (cur && best && best.k !== actual && desde && now - Date.parse(desde) < PERMANENCIA_MS) return { copia: actual, muy: cur.muy, motivo: "lleva poco con este método (se cambia como mucho cada 6 h)" };
+  if (!best) return { copia: SUBS_OK.includes(actual) ? actual : lista[0], muy: false, motivo: "ningún método tiene regla ganadora ahora" };
   // v258 · con algo abierto solo espera si el cambio no es urgente: si aparece uno ⭐⭐ muy bueno (y el actual no lo es) o el actual pierde la 🏆, cambia ya
   if (abiertas && SUBS_OK.includes(actual) && cur && !(best.muy && !cur.muy)) return { copia: actual, muy: !!cur.muy, motivo: "espera a cerrar lo abierto para cambiar" };
   if (cur && !(best.muy && !cur.muy) && best.s < cur.s + 1) return { copia: actual, muy: cur.muy, motivo: "sigue siendo de los mejores" };
@@ -122,12 +129,12 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     // 💰 cuánto dinero usar (lo eliges en la app): nunca más de lo que haya libre de verdad en tu cuenta
     if (Math.abs(objetivo - RS.capital) >= 1) {
       let d = objetivo - RS.capital;
-      if (d > 0) { const hay = await libre(); const max = Math.max(0, Math.floor((hay - RS.cash) * 100) / 100); if (max < d) { d = max; if (!RS.avisoSaldo || now - Date.parse(RS.avisoSaldo) > 6 * 3600e3) { RS.avisoSaldo = now.toISOString(); msgs.push(`💶 ⚠️ Pediste usar ${objetivo} € pero en tu cuenta de ${EX} solo hay ${r2(hay)} € libres: usa ${r2(RS.capital + d)} €. Si ingresas más, lo cogerá solo.`); } } }
+      if (d > 0) { const hay = await libre(); const max = Math.max(0, Math.floor((hay - RS.cash) * 100) / 100); if (max < d) { d = max; if (objetivo < 100000 && (!RS.avisoSaldo || now - Date.parse(RS.avisoSaldo) > 6 * 3600e3)) {   /* «Todo»: no avisa */ RS.avisoSaldo = now.toISOString(); msgs.push(`💶 ⚠️ Pediste usar ${objetivo} € pero en tu cuenta de ${EX} solo hay ${r2(hay)} € libres: usa ${r2(RS.capital + d)} €. Si ingresas más, lo cogerá solo.`); } } }
       else d = -Math.min(-d, RS.cash);
       if (Math.abs(d) >= 0.01) { RS.cash += d; RS.start += d; RS.capital += d; if (RS.dia) RS.dia.eq0 += d; L(RS, now, `💰 ${d > 0 ? "añade" : "retira"} ${r2(Math.abs(d))} €: ahora usa ${r2(RS.capital)} €`); if (Math.abs(objetivo - RS.capital) < 1) msgs.push(`💶 💰 REAL: ahora usa ${r2(RS.capital)} €${d < 0 ? " (lo que se quita, cuando esté libre)" : ""}.`); }
     }
     // v261 · al cambiar de método NO se vende lo abierto: cada posición sigue con el método que la compró y se vende cuando ese método la venda
-    if (RS.copia !== copia) { const ab = Object.values(RS.pos); for (const p of ab) p.src = p.src || RS.copia; L(RS, now, `🔁 ahora copia a «${copia}»${ab.length ? ` (lo abierto sigue con su método hasta que lo venda)` : ""}`); msgs.push(`💶 🔁 REAL: ahora copia a «${nombre(copia)}»${ab.length ? `. Lo que ya tenías abierto (${ab.length}) no se vende: sigue con su método y se venderá cuando él lo venda.` : "."}`); RS.copia = copia; RS.since = now.toISOString(); }
+    if (RS.copia !== copia) { const ab = Object.values(RS.pos); for (const p of ab) p.src = p.src || RS.copia; L(RS, now, `🔁 ahora copia a «${copia}»${ab.length ? ` (lo abierto sigue con su método hasta que lo venda)` : ""}`); msgs.push(`💶 🔁 REAL: ahora copia a «${nombre(copia)}»${ab.length ? `. Lo que ya tenías abierto (${ab.length}) no se vende: sigue con su método y se venderá cuando él lo venda.` : "."}`); RS.copia = copia; RS.since = now.toISOString(); RS.copiaDesde = now.toISOString(); }
     const src = fuentes[copia]; if (!src) { RS.estado = "esperando"; return { RS, msgs, ctl }; }
     // 2) freno: si el saldo cae un 25 %, vende todo y se para
     const eq = valor(RS, tick);
@@ -178,7 +185,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     RS.err = String(e.message).slice(0, 120); L(RS, now, "⚠️ " + RS.err);
     if ((X.errClave || errClave)(e)) { RS.estado = "clave"; if (!RS.avisoClave || now - Date.parse(RS.avisoClave) > 6 * 3600e3) { RS.avisoClave = now.toISOString(); msgs.push(`💶 ⚠️ ${EX} REAL: la clave no funciona (${RS.err}). Revisa que tenga permiso de OPERAR y que esté bien copiada en Ajustes.`); } }
   }
-  const e2 = valor(RS, tick); RS.eq.push([now.toISOString(), r2(e2)]); if (RS.eq.length > 3000) RS.eq = RS.eq.filter((_, i) => i % 2 === 0 || i > RS.eq.length - 500);
+  const e2 = valor(RS, tick); RS.eq.push([now.toISOString(), r2(e2), r2(RS.start)]);   // v266 · también lo aportado hasta entonces (para no contar ingresos como ganancia) if (RS.eq.length > 3000) RS.eq = RS.eq.filter((_, i) => i % 2 === 0 || i > RS.eq.length - 500);
   RS.lastEq = r2(e2); RS.last = now.toISOString();
   return { RS, msgs, ctl };
 }
@@ -194,7 +201,7 @@ export function retomar(RS, src, now) {
     { ok: now - desde >= 2 * 86400e3, txt: `han pasado al menos 2 días (${r2((now - desde) / 86400e3)} días)` }];
   return { ok: c.every((x) => x.ok), c };
 }
-export const nombre = (k) => ({ mix: "🧠 IA + los mejores", eq: "⚖️ Equilibrado", turbo: "⚡ Turbo", mixokx: "🧠 IA + los mejores · solo OKX", cuant: "📐 Cuantitativo", consenso: "🧬 Consenso" })[k] || k;
+export const nombre = (k) => ({ mix: "🧠 IA + los mejores", eq: "⚖️ Equilibrado", turbo: "⚡ Turbo", mixokx: "🧠 IA + los mejores · solo OKX", cuant: "📐 Cuantitativo", consenso: "🧬 Consenso", eqokx: "⚖️ Equilibrado · OKX", turbookx: "⚡ Turbo · OKX" })[k] || k;
 
 // ---- todo junto, llamado desde bitvavo.mjs (lee/guarda control y estado cifrado; nunca escribe importes en los registros)
 // v236 · dos exchanges posibles (Bitvavo u OKX), cada uno con su estado cifrado en su rama. Solo opera el elegido en la app;
@@ -246,7 +253,7 @@ export async function paso(S, tick, now, io) {
   if (!(env("BITVAVO_KEY") && env("BITVAVO_SECRET")) && !(env("OKX_KEY") && env("OKX_SECRET") && env("OKX_PASSPHRASE"))) { S.real = { estado: "sin clave" }; return; }
   let ctl = await io.leer("ctl.json", "bitvavo-ctl"); if (!ctl) { ctl = { copia: "mix", parado: false, capital: CAPITAL, ex: "bitvavo", t: now.toISOString() }; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
   const CU = cuentas(ctl); let ctlMod = false;
-  const fuentes = { eq: S, turbo: S.sub && S.sub.turbo, mix: S.sub && S.sub.mix, mixokx: S.sub && S.sub.mixokx, cuant: S.sub && S.sub.cuant, consenso: S.sub && S.sub.consenso };
+  const fuentes = { eq: S, turbo: S.sub && S.sub.turbo, mix: S.sub && S.sub.mix, mixokx: S.sub && S.sub.mixokx, cuant: S.sub && S.sub.cuant, consenso: S.sub && S.sub.consenso, eqokx: S.sub && S.sub.eqokx, turbookx: S.sub && S.sub.turbookx };
   S.real = { estado: EXS.some((e) => CU[e].on) ? "activo" : "apagado", parado: !!ctl.parado, cuentas: {} };
   marcaMuy(S, fuentes, now);
   for (const ex of EXS) {
@@ -269,7 +276,7 @@ export async function paso(S, tick, now, io) {
       await io.tg(txt); console.log(`Real (${ex}): conversión a euros pedida · ${/vendido/.test(txt) ? "hecha" : "no hecha"}`);
       const k = (ctl.cuentas = ctl.cuentas || {}); k[ex] = { ...(k[ex] || {}), convertir: { ...cfg.convertir, hecho: cfg.convertir.at, txt: txt.replace(/^💶 \S+ · /, "") } }; ctlMod = true; }
     let copia = cfg.copia;
-    if (cfg.auto) { const A = autoElige(fuentes, RS && RS.copia, !!(RS && Object.keys(RS.pos || {}).length), S.muyDesde, now); copia = A.copia; R0.auto = A;
+    if (cfg.auto) { const A = autoElige(fuentes, RS && RS.copia, !!(RS && Object.keys(RS.pos || {}).length), S.muyDesde, now, FAMILIA[ex], RS && RS.copiaDesde); copia = A.copia; R0.auto = A;
       if (RS && RS.copia && RS.copia !== copia) await io.tg(`💶 ${N} · 🤖 AUTOMÁTICO: ahora copia a «${nombre(copia)}» (${A.motivo}).`); }
     R0.copia = copia;
     const c2 = { copia, capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,

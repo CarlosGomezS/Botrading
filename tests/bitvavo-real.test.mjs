@@ -236,3 +236,12 @@ test("Real v260: 💱 convertir a euros: vende TODO el saldo de esa cripto una s
     delete S.conex; await RL.paso(S, tk(ex.px), new Date(), io); assert.equal(ex.orders.length, 1, "no lo repite");
   } finally { globalThis.fetch = f0; for (const k of ["BITVAVO_KEY", "BITVAVO_SECRET", "REAL_VIEW_PASS"]) delete process.env[k]; }
 });
+
+test("Real v266: cada exchange elige solo entre sus métodos y no cambia más de una vez cada 6 h (salvo que el actual pierda la 🏆)", () => {
+  const T2 = (med, n, pf) => ({ med, n, pf }), f = (s, ok, x) => ({ prueba: !ok, genomeId: "g", lab: { pop: [{ id: "g", s, ok, a: x, b: x, c: x }] } });
+  const F = { eq: f(9, true, T2(1, 60, 2)), mixokx: f(2, true, T2(0.5, 40, 1.3)), eqokx: f(4, true, T2(0.5, 40, 1.3)) }, now = new Date(Date.UTC(2026, 10, 6, 12));
+  assert.equal(RL.autoElige(F, "eq", false, null, now, RL.FAMILIA.okx).copia, "eqokx", "OKX no elige Equilibrado (todas las criptos): elige el suyo");
+  assert.equal(RL.autoElige(F, "mixokx", false, null, now, RL.FAMILIA.okx, new Date(now - 3600e3).toISOString()).copia, "mixokx", "lleva 1 h: espera");
+  assert.equal(RL.autoElige(F, "mixokx", false, null, now, RL.FAMILIA.okx, new Date(now - 7 * 3600e3).toISOString()).copia, "eqokx", "lleva 7 h: cambia");
+  assert.equal(RL.autoElige({ ...F, mixokx: f(2, false, T2(0.5, 40, 1.3)) }, "mixokx", false, null, now, RL.FAMILIA.okx, new Date(now - 600e3).toISOString()).copia, "eqokx", "si pierde la 🏆, cambia aunque lleve poco");
+});

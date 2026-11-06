@@ -12,13 +12,13 @@ import * as REJ from "./rejilla.mjs";
 
 const k = process.argv[2] || "eq", MIN = +process.argv[3] || 50, PAG = +process.env.LAB_PAG || 26, P = B.PERF[k];   // v245 · 26 páginas de 1.000 velas de 5 min ≈ 90 días
 import { existsSync, readFileSync, writeFileSync, renameSync, statSync } from "node:fs";
-const CACHE = (process.env.LAB_CACHE || "/tmp") + "/bv-raw.json", OTROS = ["eq", "turbo", "mix", "mixokx"].filter((x) => x !== k);   // (el cuantitativo es fijo: ni presta ni recibe reglas)
+const CACHE = (process.env.LAB_CACHE || "/tmp") + "/bv-raw.json", OTROS = ["eq", "turbo", "mix", "mixokx", "eqokx", "turbookx"].filter((x) => x !== k);   // (el cuantitativo es fijo: ni presta ni recibe reglas)
 const RAMA = "bitvavo-lab-" + k, FILE = "lab-" + k + ".json", sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 if (!P) { console.log("Laboratorio: submodo desconocido " + k); process.exit(0); }
 
 async function main() {
   const t0 = Date.now();
-  await sleep(+process.env.LAB_SIN_ESPERA ? 0 : { eq: 0, turbo: 20e3, mix: 40e3, mixokx: 60e3, cuant: 80e3, consenso: 100e3 }[k] || 0);
+  await sleep(+process.env.LAB_SIN_ESPERA ? 0 : { eq: 0, turbo: 20e3, mix: 40e3, mixokx: 0, cuant: 80e3, consenso: 100e3, eqokx: 20e3, turbookx: 40e3 }[k] || 0);
   let St = null; try { St = await B.leer(FILE, RAMA); } catch (e) {}
   if (!St || !St.lab) St = { lab: { gen: 0, lastGen: null, pop: [], log: [], adopt: [] }, genome: { ...P.base }, genomeId: "base", prueba: true };
   St.info = St.info || { reglas: 0 };
@@ -31,9 +31,10 @@ async function main() {
         const ti = Date.now(), UV = await B.universo(); if (!UV) throw new Error("sin precios"); const U = UV.U.slice(0, B.HIST_MKT);
         if (!raw) {
           const fresco = () => existsSync(CACHE) && Date.now() - statSync(CACHE).mtimeMs < 45 * 60e3;
-          if (k !== "eq") for (let w = 0; w < 80 && !fresco(); w++) await sleep(10e3);   // espera a la descarga compartida (hasta ~13 min)
+          const BAJA = process.env.LAB_BAJA || "eq";   // v266 · en cada máquina descarga uno y los demás lo esperan
+          if (k !== BAJA) for (let w = 0; w < 80 && !fresco(); w++) await sleep(10e3);   // espera a la descarga compartida (hasta ~13 min)
           if (fresco()) { try { raw = JSON.parse(readFileSync(CACHE, "utf8")); } catch (e) { raw = null; } }
-          if (!raw || raw.paginas !== PAG) { raw = await B.descargar(U, PAG, 3, k === "eq" ? 120 : 600); if (k === "eq") { writeFileSync(CACHE + ".tmp", JSON.stringify(raw)); renameSync(CACHE + ".tmp", CACHE); } }
+          if (!raw || raw.paginas !== PAG) { raw = await B.descargar(U, PAG, 3, k === BAJA ? 120 : 600); if (k === BAJA) { writeFileSync(CACHE + ".tmp", JSON.stringify(raw)); renameSync(CACHE + ".tmp", CACHE); } }
           raw = await B.ponerAlDia(raw, U, 2, 150);
         } else raw = await B.ponerAlDia(raw, U, 2, 150);
         if (!TM || Date.now() - TM.t > 6 * 3600e3) { const T2 = await B.termometro(92); if (T2.fg || T2.fund) TM = T2; }

@@ -197,12 +197,16 @@ PERF.cuant.base = { ...BASE, ...CU.DEF, estilo: "cuant", maxPos: CU.MAX_POS, coo
 // Solo entra cuando al menos «vmin» de ellas coinciden en la misma cripto en la misma vela (y la IA lo ve probable). La idea, de los
 // «ensembles» que usan los equipos cuantitativos: los fallos de cada regla se parecen poco entre sí, así que cuando varias coinciden
 // las falsas alarmas se filtran. El laboratorio aprende cuántas tienen que coincidir, el filtro de IA, las salidas y el tamaño.
+// v266 · 🟦 métodos propios de OKX: cada familia también con solo las criptos que hay en OKX (lo que compran se puede copiar 1 a 1 allí)
+PERF.eqokx = { ...PERF.eq, nombre: "⚖️ Equilibrado · OKX", txt: "como «Equilibrado», pero solo con criptos que están en OKX: su laboratorio busca la regla ganadora para ESAS criptos", soloOkx: true };
+PERF.turbookx = { ...PERF.turbo, nombre: "⚡ Turbo · OKX", txt: "como «Turbo», pero solo con criptos que están en OKX", soloOkx: true };
+export const FAMILIA = { okx: ["mixokx", "eqokx", "turbookx"], bitvavo: ["eq", "turbo", "mix", "cuant", "consenso"] };
 export const COMITE = ["eq", "turbo", "mix", "mixokx"];
 PERF.consenso = { nombre: "🧬 Consenso", txt: "compra solo cuando varios de los mejores métodos coinciden a la vez en la misma cripto (y la IA está de acuerdo); aprende cuántos tienen que coincidir y cuándo vender", ests: ["consenso"], rang: { iaMin: [0, 0.6] }, fijo: {}, robusta };
 PERF.consenso.base = ajustar({ ...BASE, estilo: "consenso", vmin: 2 }, PERF.consenso);
 // votos de cada vela: cuántas reglas del comité darían compra ahí
 export function ponVotos(H, genomas) { const gs = genomas.filter(Boolean); for (const x of Object.values(H.m || {})) for (const f of x.f) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
-export const SUBS = ["turbo", "mix", "mixokx", "cuant", "consenso"];
+export const SUBS = ["turbo", "mix", "mixokx", "cuant", "consenso", "eqokx", "turbookx"];
 // filtros para «solo OKX»: okx = lista de criptos (símbolos) que se pueden operar en OKX contra euros (directo o pasando por USDC)
 export const enOkx = (okx, m) => !!okx && okx.has(String(m).replace(/-EUR$/, ""));
 export function filtraH(H, okx) { const m = {}; for (const [k, x] of Object.entries(H.m || {})) if (enOkx(okx, k)) m[k] = x; return { m }; }
