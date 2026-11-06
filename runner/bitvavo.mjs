@@ -473,7 +473,7 @@ async function main() {
   paso(S, tick, F, now);
   const FO = Object.fromEntries(Object.entries(F).filter(([m]) => enOkx(OKX, m)).map(([m, f]) => [m, f ? { ...f } : f]));
   { const gs = COMITE_OKX.map((k) => S.sub[k] && S.sub[k].genome ? { ...BASE, ...S.sub[k].genome } : null).filter(Boolean); for (const f of Object.values(FO)) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
-  if (!S.dbgOkx || now - Date.parse(S.dbgOkx) > 10 * 60000) { S.dbgOkx = now.toISOString(); console.log(`Señales ahora (OKX: ${OKX ? OKX.size : "SIN LISTA"} criptos, ${Object.keys(FO).length} con datos):` + SUBS.map((k) => { const C = S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, FF = PERF[k].soloOkx ? FO : F; return ` ${k} ${Object.values(FF).filter((f) => f && entra(g, f)).length}${C.prueba ? "🧪" : "⭐"}`; }).join(",")); }
+  { console.log(`Señales ahora (OKX: ${OKX ? OKX.size : "SIN LISTA"} criptos, ${Object.keys(FO).length} con datos):` + SUBS.map((k) => { const C = S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, FF = PERF[k].soloOkx ? FO : F; return ` ${k} ${Object.values(FF).filter((f) => f && entra(g, f)).length}${C.prueba ? "🧪" : "⭐"}`; }).join(",")); }
   for (const k of SUBS) paso(S.sub[k], tick, PERF[k].soloOkx ? FO : F, now);
   // v224/v225 · cobrar financiación y rejilla: tres submodos cada uno, con sus propios 100 € ficticios
   // v271 · «Cobrar financiación» y «Rejilla» QUITADOS (no aportaban; necesitaban futuros o perdían): el código queda, pero ya no se ejecuta
