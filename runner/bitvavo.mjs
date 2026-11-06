@@ -255,14 +255,17 @@ export function paso(S, tick, F, now = new Date()) {
     .sort((a, b) => b[1].m60 - a[1].m60);
   for (const [m, f] of cand) {
     if (Object.keys(S.pos).length >= g.maxPos) break;
-    if (S.prueba) break;   // v223 · REGLA ESTRICTA: sin reglas con ventaja demostrada (pruebas + vida real), NO compra; solo observa y aprende (el cuantitativo es tu método fijo: opera siempre en ficticio)
-    const eq = equity(S, tick); let amt = Math.min(S.cash, eq * g.size), P = null;
+    // v267 · 🧪 PRÁCTICA (solo dinero ficticio): sin 🏆 ya no se queda quieto; prueba su mejor regla con poco dinero (¼ del tamaño, máx. 2 a la vez)
+    // para tener operaciones REALES de las que aprender (🩹). Lo de práctica nunca lo copia el dinero real.
+    if (S.prueba && Object.values(S.pos).filter((p) => p.practica).length >= 2) break;
+    if (false && S.prueba) break;   // v223 · REGLA ESTRICTA: sin reglas con ventaja demostrada (pruebas + vida real), NO compra; solo observa y aprende (el cuantitativo es tu método fijo: opera siempre en ficticio)
+    const eq = equity(S, tick); let amt = Math.min(S.cash, eq * g.size * (S.prueba ? 0.25 : 1)), P = null;
     if (g.estilo === "cuant") { S.pico = Math.max(S.pico || S.start || 100, eq); if (S.pausaDD && tnow < S.pausaDD) break; if (eq < S.pico * (1 - CU.DD_MAX)) { S.pausaDD = tnow + 86400e3; S.pico = eq; L(S, now, "INFO", "", `🛑 ha caído un ${CU.DD_MAX * 100} % desde su máximo: no compra en 24 h`); break; }
-      P = CU.plan(f, tick[m].ask, "ABC", g); if (!P) continue; amt = CU.tamano(eq, S.cash, tick[m].ask, P); }
+      P = CU.plan(f, tick[m].ask, "ABC", g); if (!P) continue; amt = CU.tamano(eq, S.cash, tick[m].ask, P) * (S.prueba ? 0.25 : 1); }
     if (amt < 2) break;
     const ask = tick[m].ask, q = amt * (1 - FEE) / ask; S.cash -= amt; S.st.trades++; S.st.fees += amt * FEE;
-    S.pos[m] = { gid: S.genomeId || "base", sym: m.replace("-EUR", ""), q, q0: q, px: ask, cost: amt, cost0: amt, t0: now.toISOString(), peak: ask, last: ask, h: [[now.toISOString(), ask]], f: { m15: r4(f.m15), m60: r4(f.m60), m240: r4(f.m240), vol: r2(f.vol) }, fx: foto(f), ...(P ? { plan: P } : {}) };
-    L(S, now, "ENTER", m.replace("-EUR", ""), P ? `${r2(amt)} € · pilar ${P.pilar} (${CU.NOMBRE_PILAR[P.pilar]}) · stop ${r2((1 - P.sl / ask) * 100)} % · objetivo +${r2((P.tp1 / ask - 1) * 100)} % · arriesga ${r2(amt * (1 - P.sl / ask))} €` : `${r2(amt)} € · sube ${r2(f.m60 * 100)} % en 1 h · volumen ×${r2(f.vol)}${S.prueba ? " · modo prueba (mitad)" : ""}`);
+    S.pos[m] = { gid: S.genomeId || "base", sym: m.replace("-EUR", ""), q, q0: q, px: ask, cost: amt, cost0: amt, t0: now.toISOString(), peak: ask, last: ask, h: [[now.toISOString(), ask]], f: { m15: r4(f.m15), m60: r4(f.m60), m240: r4(f.m240), vol: r2(f.vol) }, fx: foto(f), ...(P ? { plan: P } : {}), ...(S.prueba ? { practica: 1 } : {}) };
+    L(S, now, "ENTER", m.replace("-EUR", ""), P ? `${r2(amt)} € · pilar ${P.pilar} (${CU.NOMBRE_PILAR[P.pilar]}) · stop ${r2((1 - P.sl / ask) * 100)} % · objetivo +${r2((P.tp1 / ask - 1) * 100)} % · arriesga ${r2(amt * (1 - P.sl / ask))} €` : `${r2(amt)} € · sube ${r2(f.m60 * 100)} % en 1 h · volumen ×${r2(f.vol)}${S.prueba ? " · 🧪 práctica (¼, sin 🏆: no se copia con dinero real)" : ""}`);
   }
 }
 // ---- laboratorio: búsqueda dirigida con backtest robusto

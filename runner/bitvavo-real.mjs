@@ -157,7 +157,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     // v256 · «🪞 espejo» (siempre): en cada vuelta compra todo lo que el método tenga abierto y aún no tenga la cuenta real (cada posición una sola vez)
     const pedido = ctl.adoptarAt && RS.adoptAt !== ctl.adoptarAt;
     if (pedido || ctl.espejo) { if (pedido) RS.adoptAt = ctl.adoptarAt; let nA = 0, mira = 0;
-      for (const [m, sp] of Object.entries(src.pos)) { if (RS.pos[m]) continue; const tk = tick[m]; if (!tk || !(tk.ask > 0)) continue; if (!pedido && RS.vistos[m + "|" + sp.t0]) continue; mira++;
+      for (const [m, sp] of Object.entries(src.pos)) { if (RS.pos[m] || sp.practica) continue; const tk = tick[m]; if (!tk || !(tk.ask > 0)) continue;   /* lo de 🧪 práctica no se copia */ if (!pedido && RS.vistos[m + "|" + sp.t0]) continue; mira++;
         RS.vistos[m + "|" + sp.t0] = now.toISOString();
         if (!X.tiene(m)) { L(RS, now, `⏭️ no copia ${sp.sym} (abierta): no está en ${EX}`); continue; }
         const frac = sp.q0 > 0 ? sp.q / sp.q0 : 1, mk = await mercado(m), quiere = await alMinimo(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) * frac / eqSrc, Math.max(0, (await libre()) - 0.5)), mk);
@@ -167,7 +167,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         L(RS, now, `📥 copia lo abierto: compra ${sp.sym} por ${r2(r.coste)} € (el método la compró a ${sp.px}; ahora ${r.px})`); msgs.push(`💶 📥 REAL: copia lo que ya tenía abierto el método: compra ${sp.sym} por ${r2(r.coste)} €`); }
       if (!nA && pedido) L(RS, now, "📥 copiar lo abierto: no había nada que se pudiera copiar ahora"); void mira; }
     for (const [m, sp] of Object.entries(src.pos)) {
-      const k = m + "|" + sp.t0; if (RS.pos[m] || RS.vistos[k]) continue; RS.vistos[k] = now.toISOString();
+      const k = m + "|" + sp.t0; if (RS.pos[m] || RS.vistos[k] || sp.practica) continue; RS.vistos[k] = now.toISOString();   // v267 · 🧪 práctica (sin 🏆): nunca con dinero real
       if (Date.parse(sp.t0) < Date.parse(RS.since)) continue;
       if (now - Date.parse(sp.t0) > 5 * 60000) { L(RS, now, `⏭️ no compra ${sp.sym}: la señal del método llegó tarde (hace más de 5 min)`); continue; }
       const tk = tick[m]; if (!tk || !(tk.ask > 0)) continue;

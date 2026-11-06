@@ -245,3 +245,10 @@ test("Real v266: cada exchange elige solo entre sus métodos y no cambia más de
   assert.equal(RL.autoElige(F, "mixokx", false, null, now, RL.FAMILIA.okx, new Date(now - 7 * 3600e3).toISOString()).copia, "eqokx", "lleva 7 h: cambia");
   assert.equal(RL.autoElige({ ...F, mixokx: f(2, false, T2(0.5, 40, 1.3)) }, "mixokx", false, null, now, RL.FAMILIA.okx, new Date(now - 600e3).toISOString()).copia, "eqokx", "si pierde la 🏆, cambia aunque lleve poco");
 });
+
+test("Real v267: lo que un método compra en 🧪 práctica (sin 🏆) nunca se copia con dinero real", async () => {
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let o = await RL.vuelta(null, { eq: fuente() }, { copia: "eq", espejo: true }, tk(ex.px), T(0), deps);
+  const sp = { sym: "A", px: 1, cost0: 30, cost: 30, q: 30, q0: 30, t0: T(1).toISOString(), practica: 1 };
+  await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": sp }) }, { copia: "eq", espejo: true }, tk(ex.px), T(1), deps); assert.equal(ex.orders.length, 0);
+});
