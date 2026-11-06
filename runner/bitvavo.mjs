@@ -285,7 +285,8 @@ function cerrar(S, m, now, bid, why) {
 // una vuelta: vigila lo abierto y compra lo que diga el genoma
 // v271 · 🧪 práctica: sin 🏆, en vez de su regla (que puede no dar señales en días) usa la más ACTIVA de sus 10 mejores candidatas
 // v273 · entre TODAS sus candidatas que no pierden en conjunto, la que más opera (≥ 5 al día si la hay): así siempre hay movimiento para aprender
-export function reglaPractica(S) { const n = (v) => (v.a ? v.a.n : 0) + (v.b ? v.b.n : 0) + (v.c ? v.c.n : 0), med = (v) => ((v.a ? v.a.med * v.a.n : 0) + (v.b ? v.b.med * v.b.n : 0) + (v.c ? v.c.med * v.c.n : 0)) / Math.max(1, n(v));
+export function reglaPractica(S) { if (S.practG && S.practAt && Date.now() - Date.parse(S.practAt) < 60 * 60000) return S.practG; return reglaPractica0(S); }
+function reglaPractica0(S) { const n = (v) => (v.a ? v.a.n : 0) + (v.b ? v.b.n : 0) + (v.c ? v.c.n : 0), med = (v) => ((v.a ? v.a.med * v.a.n : 0) + (v.b ? v.b.med * v.b.n : 0) + (v.c ? v.c.med * v.c.n : 0)) / Math.max(1, n(v));
   const pop = ((S.lab && S.lab.pop) || []).filter((v) => v.g && v.a && v.b && v.c && n(v) > 0); if (!pop.length) return null;
   const buenas = pop.filter((v) => med(v) > -0.15), L = (buenas.length ? buenas : pop).sort((a, b) => n(b) - n(a)); return L[0].g; }
 export function paso(S, tick, F, now = new Date()) {
@@ -498,6 +499,13 @@ async function main() {
   if (!S.dbg24 || now - Date.parse(S.dbg24) > 15 * 60000) { S.dbg24 = now.toISOString();   // v273 · diagnóstico: señales que habría dado cada método en las últimas 24 h con los datos de ahora
     const bt = HF["BTC-EUR"] || [], regAt = new Map(bt.filter(Boolean).map((f) => [f.t, f.m240 > 0 && f.sobre200 ? 1 : 0])), TMx = S.termo;
     for (const fs of Object.values(HF)) for (const f of fs) if (f) { f.reg = regAt.has(f.t) ? regAt.get(f.t) : null; if (TMx) { f.fg = TMx.fg && TMx.fg.length ? TMx.fg[TMx.fg.length - 1][1] : null; f.fund = TMx.fund && TMx.fund.length ? TMx.fund[TMx.fund.length - 1][1] : null; } if (S.iaM) f.ia = predecir(S.iaM, vector(f)); }
+    // v278 · 🧪 práctica: de sus 20 mejores candidatas que no pierden, la que MÁS señales habría dado en las últimas 24 h con el mercado de AHORA
+    for (const k of SUBS) { const C = S.sub[k]; if (!C || !C.prueba) { if (C) delete C.practG; continue; }
+      const n = (v) => (v.a ? v.a.n : 0) + (v.b ? v.b.n : 0) + (v.c ? v.c.n : 0), med = (v) => ((v.a ? v.a.med * v.a.n : 0) + (v.b ? v.b.med * v.b.n : 0) + (v.c ? v.c.med * v.c.n : 0)) / Math.max(1, n(v));
+      const cands = ((C.lab && C.lab.pop) || []).filter((v) => v.g && v.a && v.b && v.c && n(v) > 0 && med(v) > -0.15).sort((a, b) => b.s - a.s).slice(0, 20); if (!cands.length) continue;
+      const ms = Object.keys(HF).filter((m) => !PERF[k].soloOkx || enOkx(OKX, m)); let best = null, bn = -1;
+      for (const v of cands) { const g = { ...BASE, ...v.g }; let c = 0; for (const m of ms) { for (const f of HF[m]) if (f && entra(g, f)) { c++; if (c > 300) break; } } if (c > bn) { bn = c; best = v; } }
+      if (best) { C.practG = best.g; C.practAt = now.toISOString(); C.practN = bn; } }
     console.log(`Señales en 24 h (fg ${TMx && TMx.fg ? TMx.fg[TMx.fg.length - 1][1] : "?"}, fund ${TMx && TMx.fund ? TMx.fund[TMx.fund.length - 1][1] : "?"}):` + SUBS.concat(["eq"]).map((k) => { const C = k === "eq" ? S : S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, ms = Object.keys(HF).filter((m) => !PERF[k] || !PERF[k].soloOkx || enOkx(OKX, m)); let n = 0; for (const m of ms) for (const f of HF[m]) if (f && entra(g, f)) n++; return ` ${k} ${n}`; }).join(",")); }
   { console.log(`Señales ahora (OKX: ${OKX ? OKX.size : "SIN LISTA"} criptos, ${Object.keys(FO).length} con datos):` + SUBS.map((k) => { const C = S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, FF = PERF[k].soloOkx ? FO : F; return ` ${k} ${Object.values(FF).filter((f) => f && entra(g, f)).length}${C.prueba ? "🧪" : "⭐"}`; }).join(",")); }
   for (const k of SUBS) paso(S.sub[k], tick, PERF[k].soloOkx ? FO : F, now);

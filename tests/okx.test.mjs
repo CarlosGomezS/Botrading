@@ -13,11 +13,13 @@ function okx(px) {
     assert.equal(u.host, "eea.okx.com", "dominio europeo");
     const ok = createHmac("sha256", "SEC").update(o.headers["OK-ACCESS-TIMESTAMP"] + o.method + ruta + (o.body || "")).digest("base64") === o.headers["OK-ACCESS-SIGN"];
     if (!ok || o.headers["OK-ACCESS-PASSPHRASE"] !== "FRASE") return R({ code: "50113", msg: "Invalid Sign", data: [] });
-    if (u.pathname === "/api/v5/account/balance") return R({ code: "0", data: [{ details: [{ ccy: "EUR", availBal: String(ex.eur) }] }] });
+    ex.bal = ex.bal || {};
+    if (u.pathname === "/api/v5/account/balance") return R({ code: "0", data: [{ details: [{ ccy: "EUR", availBal: String(ex.eur) }, ...Object.entries(ex.bal).filter(([, q]) => q > 1e-12).map(([c, q]) => ({ ccy: c, availBal: String(q), cashBal: String(q) }))] }] });
     if (u.pathname === "/api/v5/trade/order" && o.method === "POST") {
       const b = JSON.parse(o.body); ex.orders.push(b); const [base, quote] = b.instId.split("-"), p = ex.px[b.instId], id = "o" + ++ex.n; let fill, fee, feeCcy;
       assert.equal(b.tdMode, "cash"); assert.equal(b.ordType, "market");
       if (b.side === "buy") { assert.equal(b.tgtCcy, "quote_ccy"); fill = +b.sz / p; fee = fill * 0.002; feeCcy = base; } else { assert.equal(b.tgtCcy, "base_ccy"); fill = +b.sz; fee = fill * p * 0.002; feeCcy = quote; }
+      ex.bal = ex.bal || {}; if (b.side === "buy") { ex.bal[base] = (ex.bal[base] || 0) + fill - (feeCcy === base ? fee : 0); if (quote !== "EUR") ex.bal[quote] = (ex.bal[quote] || 0) - +b.sz; } else { ex.bal[base] = (ex.bal[base] || 0) - fill; if (quote !== "EUR") ex.bal[quote] = (ex.bal[quote] || 0) + fill * p - fee; }
       ex.ords[id] = { ordId: id, state: "filled", accFillSz: String(fill), avgPx: String(p), fee: String(-fee), feeCcy }; return R({ code: "0", data: [{ ordId: id, sCode: "0" }] });
     }
     if (u.pathname === "/api/v5/trade/order" && o.method === "GET") return R({ code: "0", data: [ex.ords[u.searchParams.get("ordId")]] });

@@ -60,5 +60,8 @@ export function adaptador(api, I, tick = {}) {
   // mínimo por orden en euros (aprox.: el mínimo de OKX en cripto × precio), y un suelo de 5 € para no hacer órdenes ridículas
   async function mercado(m) { const R = ruta(I, m), px = (tick[m] && (tick[m].ask || tick[m].bid)) || 0; return { min: Math.max(5, R ? R.par.min * px * 1.05 : 5) }; }
   async function saldoEur() { const [d] = await api("GET", "/api/v5/account/balance?ccy=EUR"); const x = d && (d.details || []).find((y) => y.ccy === "EUR"); return x ? +(x.availBal || x.cashBal) || 0 : 0; }
-  return { nombre: "OKX", fee: FEE, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, errClave };
+  // v278 · saldo REAL de todas las monedas de la cuenta (para reflejar exactamente lo que hay y vender lo que de verdad queda)
+  async function saldos() { const [d] = await api("GET", "/api/v5/account/balance"); const o = {}; for (const x of (d && d.details) || []) { const q = +(x.cashBal || x.availBal || 0); if (q > 0) o[x.ccy] = q; } return o; }
+  async function saldo(sym) { const o = await saldos(); return o[sym] || 0; }
+  return { nombre: "OKX", fee: FEE, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, saldos, saldo, errClave };
 }

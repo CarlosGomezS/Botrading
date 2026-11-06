@@ -13,7 +13,7 @@ function exchange(px, opts = {}) {
     if (!ok || o.headers["Bitvavo-Access-Key"] !== "CLAVE") return R(403, { errorCode: 105, error: "firma" });
     if (ex.fallo) return R(ex.fallo.status, ex.fallo.j);
     if (u.pathname === "/v2/markets") return R(200, { market: u.searchParams.get("market"), minOrderInQuoteAsset: "5" });
-    if (u.pathname === "/v2/balance") return R(200, [{ symbol: "EUR", available: String(ex.eur), inOrder: "0" }]);
+    if (u.pathname === "/v2/balance") { const all = [{ symbol: "EUR", available: String(ex.eur), inOrder: "0" }, ...Object.entries(ex.bal).filter(([, q]) => q > 1e-12).map(([m, q]) => ({ symbol: m.replace("-EUR", ""), available: String(q), inOrder: "0" }))]; const sy = u.searchParams.get("symbol"); return R(200, sy ? all.filter((x) => x.symbol === sy) : all); }
     if (u.pathname === "/v2/assets") return R(200, { symbol: u.searchParams.get("symbol"), decimals: 4 });
     if (u.pathname === "/v2/order" && o.method === "POST") {
       const b = JSON.parse(o.body); assert.equal(typeof b.operatorId, "number"); assert.equal(b.orderType, "market"); ex.orders.push(b); const p = ex.px[b.market];
@@ -262,4 +262,14 @@ test("Real v269: en automático copia a la vez a todos los ganadores de su excha
   assert.ok(+ex.orders[0].amountQuote <= 20.01, "cada uno con la mitad del tamaño");
   o = await RL.vuelta(o.RS, { eqokx: fuente({ "A-EUR": a }), mixokx: fuente({}) }, { copia: "eqokx", extra: ["mixokx"], capital: 100 }, tk(ex.px), T(2), deps);
   assert.ok(!o.RS.pos["B-EUR"], "vende cuando su método vende");
+});
+
+test("Real v278: 🔍 cuadra con la cuenta real: incorpora lo que hay sin apuntar, corrige cantidades y guarda la foto exacta", async () => {
+  const ex = exchange({ "Z-EUR": 2, "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  ex.bal["Z-EUR"] = 5;   // 10 € de Z en la cuenta que el bot no tenía apuntados
+  let o = await RL.vuelta(null, { eq: fuente() }, { copia: "eq" }, tk(ex.px), T(0), deps);
+  assert.ok(o.RS.pos["Z-EUR"] && o.RS.pos["Z-EUR"].huerfana, "la incorpora");
+  assert.equal(o.RS.cuenta.activos[0].sym, "Z"); assert.ok(Math.abs(o.RS.cuenta.total - (1000 + 5 * ex.px["Z-EUR"] * 0.999)) < 0.05, "foto exacta");
+  ex.px["Z-EUR"] = 1.8; o = await RL.vuelta(o.RS, { eq: fuente() }, { copia: "eq" }, tk(ex.px), T(1), deps);
+  assert.ok(!o.RS.pos["Z-EUR"], "stop −6 % de lo incorporado"); assert.equal(ex.orders.at(-1).side, "sell");
 });

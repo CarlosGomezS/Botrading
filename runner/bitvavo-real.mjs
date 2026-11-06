@@ -80,7 +80,8 @@ async function vender(api, m, q, dec) {
 // v236 · adaptador de Bitvavo (misma forma que el de OKX: comprar, vender, mercado, saldoEur, tiene)
 export function bitvavoEx(api, mercado, saldoEur) {
   const saldo = async (sym) => { const b = await api("GET", "/balance?symbol=" + sym), x = (Array.isArray(b) ? b : [b]).find((y) => y && y.symbol === sym); return x ? +x.available || 0 : 0; };
-  return { nombre: "Bitvavo", fee: FEE, tiene: () => true, comprar: (m, eur) => comprar(api, m, eur), vender: async (m, q) => { const mk = await mercado(m); return vender(api, m, q, mk.dec); }, mercado, saldoEur, saldo, errClave };
+  const saldos = async () => { const b = await api("GET", "/balance"), o = {}; for (const x of Array.isArray(b) ? b : []) { const q = (+x.available || 0) + (+x.inOrder || 0); if (q > 0) o[x.symbol] = q; } return o; };   // v278
+  return { nombre: "Bitvavo", fee: FEE, tiene: () => true, comprar: (m, eur) => comprar(api, m, eur), vender: async (m, q) => { const mk = await mercado(m); return vender(api, m, q, mk.dec); }, mercado, saldoEur, saldo, saldos, errClave };
 }
 
 // ---- una vuelta (cada minuto, justo después de que los submodos ficticios hayan comprado o vendido)
@@ -108,7 +109,11 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     if (frac < 1 && p.q * (1 - frac) * bid < mk.min) frac = 1;   // si lo que quedaría es menos que el mínimo, se vende todo
     const qv = frac >= 1 ? p.q : p.q * frac;
     if (qv * bid < mk.min) { if (frac < 1) { p.tp = 1; return; } L(RS, now, `${p.sym}: lo que queda es menos que el mínimo de ${EX} (${r2(mk.min)} €); se queda como «polvo» en la cuenta`); RS.cash += qv * bid * (1 - RS.fee); delete RS.pos[m]; return; }
-    let r; try { r = await X.vender(m, qv); } catch (e) { if (/216|51008|insufficient|saldo/i.test(e.message) && frac >= 1) { L(RS, now, `⚠️ ${p.sym}: no queda saldo que vender; se da por cerrada`); delete RS.pos[m]; return; } throw e; }
+    let r; try { r = await X.vender(m, qv); } catch (e) { if (!/216|51008|insufficient|saldo/i.test(e.message)) throw e;
+      // v278 · lo apuntado era un poco más de lo que hay (la comisión se cobró en la propia cripto): se vende lo que hay DE VERDAD
+      const hay = X.saldo ? await X.saldo(p.sym) : 0, q2 = Math.min(qv, hay);
+      if (!(q2 * bid >= mk.min)) { L(RS, now, `⚠️ ${p.sym}: en la cuenta solo quedan ${hay} (menos que el mínimo); se da por cerrada`); delete RS.pos[m]; return; }
+      r = await X.vender(m, q2); if (frac >= 1) p.q = r.q; }
     RS.cash += r.got; RS.st.fees += r.fee; p.cob = (p.cob || 0) + r.got; p.q -= r.q;
     if (frac >= 1 || p.q * (tick[m] ? tick[m].bid : p.px) < mk.min) {
       const pnl = p.cob - p.cost; RS.st.pnl += pnl; if (pnl >= 0) RS.st.wins++; else RS.st.losses++;
@@ -136,6 +141,18 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     // v261 · al cambiar de método NO se vende lo abierto: cada posición sigue con el método que la compró y se vende cuando ese método la venda
     if (RS.copia !== copia) { const ab = Object.values(RS.pos); for (const p of ab) p.src = p.src || RS.copia; L(RS, now, `🔁 ahora copia a «${copia}»${ab.length ? ` (lo abierto sigue con su método hasta que lo venda)` : ""}`); msgs.push(`💶 🔁 REAL: ahora copia a «${nombre(copia)}»${ab.length ? `. Lo que ya tenías abierto (${ab.length}) no se vende: sigue con su método y se venderá cuando él lo venda.` : "."}`); RS.copia = copia; RS.since = now.toISOString(); RS.copiaDesde = now.toISOString(); }
     const src = fuentes[copia]; if (!src) { RS.estado = "esperando"; return { RS, msgs, ctl }; }
+    // 1b) v278 · 🔍 CUADRE CON LA CUENTA REAL: se leen los saldos de verdad del exchange y se corrige lo apuntado
+    //  · si de una cripto hay menos de lo apuntado (comisiones en la propia cripto, ventas fuera del bot…), se apunta lo que hay de verdad
+    //  · si hay una cripto en la cuenta que el bot no tenía apuntada (≥ 2 €), se incorpora y se vigila con stop (−6 %), stop móvil y 72 h máx.
+    //  · se guarda la foto EXACTA de la cuenta (euros + cada cripto a precio de ahora) para enseñarla en la app
+    if (X.saldos) { try { const B = await X.saldos(), act = []; let tot = +(B.EUR || 0);
+      for (const [sym, q] of Object.entries(B)) { if (sym === "EUR") continue; const m = sym + "-EUR", bid = tick[m] ? tick[m].bid : 0, v = q * bid; tot += v; if (v >= 0.01) act.push({ sym, q, eur: r2(v), px: bid });
+        const p = RS.pos[m];
+        if (p && q < p.q * 0.999) { p.q = q; if (q * bid < 0.5) { L(RS, now, `🔍 ${sym}: en la cuenta ya no queda; se da por cerrada`); delete RS.pos[m]; } }
+        else if (!p && v >= 2 && !/^(USDC|USDT|EURC|EUR)$/.test(sym)) { RS.pos[m] = { sym, q, q0: q, px: bid, cost: r2(v), cost0: r2(v), t0: now.toISOString(), last: bid, peak: bid, huerfana: 1, src: null }; L(RS, now, `🔍 ${sym}: estaba en tu cuenta sin apuntar (${r2(v)} €); ahora la vigila (stop −6 %, stop móvil, 72 h máx.)`); } }
+      for (const m of Object.keys(RS.pos)) { const sym = RS.pos[m].sym; if (!(B[sym] > 0)) { L(RS, now, `🔍 ${sym}: no está en la cuenta; se quita del apunte`); delete RS.pos[m]; } }
+      if (B.EUR != null && RS.cash > +B.EUR + 0.01) RS.cash = +B.EUR;
+      RS.cuenta = { t: now.toISOString(), eur: r2(+(B.EUR || 0)), total: r2(tot), activos: act.sort((a, b) => b.eur - a.eur) }; } catch (e) { L(RS, now, "⚠️ no pude leer los saldos de la cuenta: " + String(e.message).slice(0, 80)); } }
     // 2) freno: si el saldo cae un 25 %, vende todo y se para
     const eq = valor(RS, tick);
     if (eq < RS.start * (1 - FRENO)) { await vendeTodo(`freno: el saldo ha caído un ${FRENO * 100} %`); ctl = { ...ctl, parado: true, motivo: `freno automático: el saldo cayó un ${FRENO * 100} %` }; RS.estado = "parado"; RS.paradaAt = now.toISOString(); msgs.push(`💶 🛑 REAL PARADO por el freno: el saldo ha caído por debajo de ${r2(RS.start * (1 - FRENO))} €. He vendido todo y no compraré más. Te avisaré cuando se cumplan las condiciones para retomar (el método se recupera en ficticio, vuelve a tener regla ganadora y pasan 2 días). Para volver antes: /seguir`); return { RS, msgs, ctl, ctlCambia: true }; }
@@ -146,6 +163,8 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (eq < RS.dia.eq0 * (1 - FRENO_DIA)) { await vendeTodo(`freno diario: hoy ha perdido un ${FRENO_DIA * 100} %`); RS.pausaDia = d; RS.estado = "pausa"; msgs.push(`💶 ⏸️ REAL: hoy ha perdido más de un ${FRENO_DIA * 100} % (de ${r2(RS.dia.eq0)} € a ${r2(eq)} €). He vendido todo y descansa hasta mañana; mañana vuelve solo.`); return { RS, msgs, ctl }; } }
     // 3) lo que tengo: ¿el submodo lo ha vendido entero, o una parte, o ha añadido (piramidar)?
     for (const [m, p] of Object.entries(RS.pos)) {
+      if (p.huerfana) { const b = tick[m] ? tick[m].bid : p.px; p.last = b; p.peak = Math.max(p.peak || p.px, b);
+        if (b <= p.px * 0.94) await cerrar(m, "stop −6 % (cripto que estaba sin apuntar)"); else if (p.peak >= p.px * 1.05 && b <= p.peak * 0.96) await cerrar(m, "stop móvil (cripto que estaba sin apuntar)"); else if (now - Date.parse(p.t0) > 72 * 3600e3) await cerrar(m, "72 h (cripto que estaba sin apuntar)"); continue; }
       const srcP = (p.src && fuentes[p.src]) || src, sp = srcP && srcP.pos ? srcP.pos[m] : null; if (tick[m]) p.last = tick[m].bid;
       if (!sp || sp.t0 !== p.srcT0) { await cerrar(m, "el método ficticio ha vendido"); continue; }
       if (sp.cob > 0 && !p.tp && sp.q0 > 0) { const frac = 1 - sp.q / sp.q0; if (frac > 0.05) await cerrar(m, "venta parcial con ganancia (como el método)", frac); }
