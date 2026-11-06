@@ -457,8 +457,8 @@ async function main() {
   // 1) precios de todo (una petición)
   const UV = await universo(); if (!UV) { console.log("Bitvavo: sin precios"); return; } const { T, tick, U } = UV;
   // 2) velas de 5 min de los mercados líquidos (y de lo abierto) → rasgos
-  const F = {}, LAT = {}, VEL = {}, quiero = [...new Set([...U, ...Object.keys(S.pos), ...SUBS.flatMap((k) => Object.keys(S.sub[k].pos)), ...Object.values(S.rejs).flatMap((r) => Object.keys((r && r.g) || {}))])];
-  await enParalelo(quiero, 8, async (m) => { try { const c0 = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)), c = c0.length && c0[c0.length - 1][0] + 300e3 > Date.now() ? c0.slice(0, -1) : c0; const f = rasgos(c); F[m] = f[f.length - 1]; LAT[m] = REJ.lateral(c); VEL[m] = c.slice(-12); /* v222 · solo velas CERRADAS (igual que en las pruebas): la vela en curso engañaba al volumen y al impulso */ } catch (e) { S.err = String(e.message).slice(0, 60); } });
+  const HF = {}, F = {}, LAT = {}, VEL = {}, quiero = [...new Set([...U, ...Object.keys(S.pos), ...SUBS.flatMap((k) => Object.keys(S.sub[k].pos)), ...Object.values(S.rejs).flatMap((r) => Object.keys((r && r.g) || {}))])];
+  await enParalelo(quiero, 8, async (m) => { try { const c0 = velas(await J(`${API}/${m}/candles?interval=5m&limit=1000`, 2)), c = c0.length && c0[c0.length - 1][0] + 300e3 > Date.now() ? c0.slice(0, -1) : c0; const f = rasgos(c); F[m] = f[f.length - 1]; HF[m] = f.slice(-288); LAT[m] = REJ.lateral(c); VEL[m] = c.slice(-12); /* v222 · solo velas CERRADAS (igual que en las pruebas): la vela en curso engañaba al volumen y al impulso */ } catch (e) { S.err = String(e.message).slice(0, 60); } });
   { const vs = Object.values(F).filter(Boolean).sort((x, y) => y.m240 - x.m240); vs.forEach((f, i) => { f.rk = vs.length > 4 ? i / (vs.length - 1) : null; }); }
   // 👑 lo que hacen ahora los mejores traders de Hyperliquid
   try { S.hl = await HLm.actualizar(S.hl, now); } catch (e) {}
@@ -473,6 +473,10 @@ async function main() {
   paso(S, tick, F, now);
   const FO = Object.fromEntries(Object.entries(F).filter(([m]) => enOkx(OKX, m)).map(([m, f]) => [m, f ? { ...f } : f]));
   { const gs = COMITE_OKX.map((k) => S.sub[k] && S.sub[k].genome ? { ...BASE, ...S.sub[k].genome } : null).filter(Boolean); for (const f of Object.values(FO)) if (f) { let v = 0; for (const g of gs) if (entra(g, f)) v++; f.votos = v; } }
+  if (!S.dbg24 || now - Date.parse(S.dbg24) > 15 * 60000) { S.dbg24 = now.toISOString();   // v273 · diagnóstico: señales que habría dado cada método en las últimas 24 h con los datos de ahora
+    const bt = HF["BTC-EUR"] || [], regAt = new Map(bt.filter(Boolean).map((f) => [f.t, f.m240 > 0 && f.sobre200 ? 1 : 0])), TMx = S.termo;
+    for (const fs of Object.values(HF)) for (const f of fs) if (f) { f.reg = regAt.has(f.t) ? regAt.get(f.t) : null; if (TMx) { f.fg = TMx.fg && TMx.fg.length ? TMx.fg[TMx.fg.length - 1][1] : null; f.fund = TMx.fund && TMx.fund.length ? TMx.fund[TMx.fund.length - 1][1] : null; } if (S.iaM) f.ia = predecir(S.iaM, vector(f)); }
+    console.log(`Señales en 24 h (fg ${TMx && TMx.fg ? TMx.fg[TMx.fg.length - 1][1] : "?"}, fund ${TMx && TMx.fund ? TMx.fund[TMx.fund.length - 1][1] : "?"}):` + SUBS.concat(["eq"]).map((k) => { const C = k === "eq" ? S : S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, ms = Object.keys(HF).filter((m) => !PERF[k] || !PERF[k].soloOkx || enOkx(OKX, m)); let n = 0; for (const m of ms) for (const f of HF[m]) if (f && entra(g, f)) n++; return ` ${k} ${n}`; }).join(",")); }
   { console.log(`Señales ahora (OKX: ${OKX ? OKX.size : "SIN LISTA"} criptos, ${Object.keys(FO).length} con datos):` + SUBS.map((k) => { const C = S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, FF = PERF[k].soloOkx ? FO : F; return ` ${k} ${Object.values(FF).filter((f) => f && entra(g, f)).length}${C.prueba ? "🧪" : "⭐"}`; }).join(",")); }
   for (const k of SUBS) paso(S.sub[k], tick, PERF[k].soloOkx ? FO : F, now);
   // v224/v225 · cobrar financiación y rejilla: tres submodos cada uno, con sus propios 100 € ficticios
