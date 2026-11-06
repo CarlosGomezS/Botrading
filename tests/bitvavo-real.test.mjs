@@ -57,7 +57,8 @@ test("Real: no persigue el precio, no copia compras viejas, respeta el mínimo y
     "D-EUR": { sym: "D", px: 1, cost0: 90, cost: 90, q: 1, q0: 1, t0: T(1).toISOString() } };                      // 90 % → tope de 30 €
   ({ RS } = await RL.vuelta(RS, { mix: fuente(pos) }, { copia: "mix" }, tk(ex.px), T(1), deps));
   // v255 · lo que queda bajo el mínimo se compra al mínimo (5,10 €) si no pasa del 25 % de la cuenta
-  assert.deepEqual(ex.orders.map((o) => o.market), ["C-EUR", "D-EUR"]); assert.equal(ex.orders[0].amountQuote, "5.10"); assert.equal(ex.orders[1].amountQuote, "30.00");
+  assert.deepEqual(ex.orders.map((o) => o.market), ["C-EUR", "D-EUR"]); assert.equal(ex.orders[0].amountQuote, "5.10"); // v285 · tope del 60 % invertido: 50 € × 60 % − 5,10 € ya invertidos ≈ 24,9 € (antes 30 €)
+  assert.ok(Math.abs(+ex.orders[1].amountQuote - 24.9) < 0.1, ex.orders[1].amountQuote);
 });
 
 test("Real: cambiar de método NO vende lo abierto (sigue con su método); /parar vende todo y no compra; el freno del −25 % para solo", async () => {
@@ -286,4 +287,12 @@ test("Real v282: 📒 el libro casa compras y ventas del historial real del exch
   const ray = L.cerradas.find((c) => c.sym === "RAY"); assert.equal(ray.pnl, 0.96); assert.equal(ray.cost, 10.02);
   const uni = L.cerradas.find((c) => c.sym === "UNI"); assert.ok(Math.abs(uni.cost - 10.025) < 0.01); assert.ok(Math.abs(uni.pnl + 1.045) < 0.01);
   assert.equal(L.abiertas.UNI.q, 1); assert.ok(Math.abs(L.abiertas.UNI.cost - 10.025) < 0.01); assert.ok(!L.abiertas.RAY);
+});
+
+test("Real v285: cada compra es al menos el 10 % de la cuenta y nunca pasa del 60 % invertido", async () => {
+  const ex = exchange({ "A-EUR": 1, "B-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 200 }, tk(ex.px), T(0), deps);
+  const pos = { "A-EUR": { sym: "A", px: 1, cost0: 1, cost: 1, q: 1, q0: 1, t0: T(1).toISOString() } };   // el método mete solo el 1 %
+  ({ RS } = await RL.vuelta(RS, { mix: fuente(pos) }, { copia: "mix", capital: 200 }, tk(ex.px), T(1), deps));
+  const v = +ex.orders[0].amountQuote; assert.ok(v >= RS.start * 0.099, `compra ${v} con cuenta de ${RS.start}`);
 });
