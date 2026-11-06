@@ -1,0 +1,33 @@
+name: Vigilante · que el bot y los laboratorios nunca se queden parados
+
+# v262 · cada 10 min: si el bot de cada minuto lleva > 6 min sin publicar, o un laboratorio > 20 min, y no hay ninguna ejecución en marcha, los relanza.
+on:
+  schedule:
+    - cron: "3,13,23,33,43,53 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: vigilante
+  cancel-in-progress: false
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Comprobar y relanzar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          R: ${{ github.repository }}
+        run: |
+          edad() { t=$(gh api "repos/$R/contents/$1?ref=$2" -H "Accept: application/vnd.github.raw" 2>/dev/null | jq -r '.meta.t // .t // empty' 2>/dev/null); [ -z "$t" ] && { echo 99999; return; }; echo $(( $(date -u +%s) - $(date -u -d "$t" +%s) )); }
+          vivo() { gh api "repos/$R/actions/workflows/$1/runs?per_page=10" -q '[.workflow_runs[]|select(.status=="in_progress" or .status=="queued" or .status=="pending")]|length' 2>/dev/null || echo 0; }
+          lanza() { for i in 1 2 3; do gh api -X POST "repos/$R/actions/workflows/$1/dispatches" -f ref=main && { echo "relanzado $1"; return 0; }; sleep 15; done; }
+          e=$(edad bitvavo.json bitvavo); v=$(vivo meme.yml); echo "bot: hace ${e}s · ejecuciones vivas: $v"
+          if [ "$e" -gt 360 ]; then if [ "$v" = "0" ]; then lanza meme.yml; else echo "hay una en marcha; si en 20 min sigue sin publicar, se cancela"; id=$(gh api "repos/$R/actions/workflows/meme.yml/runs?status=in_progress&per_page=1" -q '.workflow_runs[0].id'); if [ -n "$id" ] && [ "$e" -gt 1200 ]; then gh api -X POST "repos/$R/actions/runs/$id/cancel"; sleep 60; lanza meme.yml; fi; fi; fi
+          l=$(edad lab-eq.json bitvavo-lab-eq); w=$(vivo cripto-lab.yml); echo "laboratorio: hace ${l}s · ejecuciones vivas: $w"
+          if [ "$l" -gt 1200 ] && [ "$w" = "0" ]; then lanza cripto-lab.yml; fi
