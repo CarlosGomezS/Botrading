@@ -19,4 +19,7 @@ jobs:
       - name: Cancelar la publicación atascada
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api -X POST "repos/${{ github.repository }}/pages/deployments/${{ inputs.sha }}/cancel" && echo "cancelada" || echo "no se pudo (quizá ya terminó)"
+          IN_SHA: ${{ inputs.sha }}
+        run: |
+          echo "$IN_SHA" | grep -Eq '^[0-9a-fA-F]{7,40}$' || { echo "❌ identificador no válido"; exit 1; }   # v295 · validado (no se ejecuta lo que escribas)
+          gh api -X POST "repos/${{ github.repository }}/pages/deployments/$IN_SHA/cancel" && echo "cancelada" || echo "no se pudo (quizá ya terminó)"

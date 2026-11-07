@@ -482,7 +482,8 @@ export async function leerEstado() {
   const o = await openAny(j, PWS()); if (o.error) throw new Error("no puedo descifrar el estado (¿ha cambiado la clave?)"); return o.j;
 }
 export async function publicarEstado(S) {
-  if (!PW()) { publicar("bitvavo.json", S, RAMA); return; }
+  // v295 · sin contraseña NUNCA se publica nada privado: se quitan el dinero real y la conexión con los exchanges
+  if (!PW()) { const { real, conex, ...pub } = S; void real; void conex; publicar("bitvavo.json", pub, RAMA); return; }
   const enc = await encrypt(JSON.stringify(S), PW());
   const cx = S.conex ? Object.fromEntries(["bitvavo", "okx"].map((k) => [k, S.conex[k] ? S.conex[k].estado : null])) : null; if (cx && S.conex) cx.cod = Object.fromEntries(["bitvavo", "okx"].map((k) => { const t = String((S.conex[k] && S.conex[k].txt) || ""), m = t.match(/código (\w+)/) || t.match(/\b(\d{3,5})\b/); return [k, m ? m[1] : null]; })); if (cx && S.conex) cx.diag = Object.assign({}, ...["bitvavo", "okx"].map((k) => (S.conex[k] && S.conex[k].diag) || {})); if (cx && S.conex) cx.tiene = Object.assign({}, ...["bitvavo", "okx"].map((k) => (S.conex[k] && S.conex[k].tiene) || {}));   /* solo si hay clave y si funciona: nunca importes */
   publicar("bitvavo.json", { enc: 1, v: 1, ...enc, meta: { t: S.last, vivo: 1, seg: S.diag ? S.diag.seg : null, conex: cx } }, RAMA);
@@ -510,11 +511,12 @@ async function main() {
   { const vs = Object.values(F).filter(Boolean).sort((x, y) => y.m240 - x.m240); vs.forEach((f, i) => { f.rk = vs.length > 4 ? i / (vs.length - 1) : null; }); }
   // 👑 lo que hacen ahora los mejores traders de Hyperliquid
   try { S.hl = await HLm.actualizar(S.hl, now); } catch (e) {}
-  { const sn = (S.hl && S.hl.snap) || {}, pv = (S.hl && HLm.hace(S.hl, S.hl.at || now.getTime(), 3600e3)) || {};   /* v228 · cambio en 1 h (como en las pruebas), no en 3 min */ for (const [m, f] of Object.entries(F)) if (f) { const c = m.replace("-EUR", ""); f.smart = sn[c] ? sn[c].s : null; f.smartD = sn[c] && pv[c] ? sn[c].s - pv[c].s : null; } }
+  const hlFresco = !!(S.hl && S.hl.at && now.getTime() - S.hl.at < 30 * 60e3);   // v295 · señal de Hyperliquid de hace más de 30 min: no se usa ni se anota
+  { const sn = (hlFresco && S.hl.snap) || {}, pv = (hlFresco && HLm.hace(S.hl, S.hl.at || now.getTime(), 3600e3)) || {};   /* v228 · cambio en 1 h (como en las pruebas), no en 3 min */ for (const [m, f] of Object.entries(F)) if (f) { const c = m.replace("-EUR", ""); f.smart = sn[c] ? sn[c].s : null; f.smartD = sn[c] && pv[c] ? sn[c].s - pv[c].s : null; } }
   { const b = F["BTC-EUR"], reg = b ? (b.m240 > 0 && b.sobre200 ? 1 : 0) : null; for (const f of Object.values(F)) if (f) f.reg = reg; S.regimen = reg; }
   // v245 · 🌡️ termómetro del mercado ahora (miedo/codicia y financiación de BTC), cada 30 min; igual que en las pruebas
   if (!S.termo || now - S.termo.t > 30 * 60000) try { const TM = await termometro(2); if (TM.fg || TM.fund) S.termo = { t: TM.t, fg: TM.fg ? TM.fg.slice(-3) : (S.termo && S.termo.fg) || null, fund: TM.fund ? TM.fund.slice(-3) : (S.termo && S.termo.fund) || null }; } catch (e) {}
-  if (S.termo) for (const f of Object.values(F)) ponTermometro(f, S.termo);
+  if (S.termo && now - S.termo.t < 48 * 3600e3) for (const f of Object.values(F)) ponTermometro(f, S.termo);   // v295 · un termómetro de hace más de 2 días no se usa
   if (S.iaM) for (const f of Object.values(F)) if (f) f.ia = predecir(S.iaM, vector(f));
   // v257 · 🧬 votos del comité para el método «consenso» (las reglas en uso de los 4 métodos, igual que en el laboratorio)
   // v291 · el comité del Consenso solo vota con reglas VALIDADAS (no las que están en práctica)
@@ -533,7 +535,7 @@ async function main() {
     await enParalelo([...new Set([...cand, ...abiertas])], 6, async (m) => { if (Date.now() - t0 > 40e3) return; try { const t = PO.tick[m], c0 = await OK.velasOkx(t.par, t.k, cache), c = c0.length && c0[c0.length - 1][0] + 300e3 > Date.now() ? c0.slice(0, -1) : c0; if (c.length < 320) return;
       const f = rasgos(c); FO2[m] = f[f.length - 1]; HFO[m] = f.slice(-288); ok++; } catch (e) {} });
     try { fs.writeFileSync(CF, JSON.stringify(cache)); } catch (e) {}
-    if (ok >= 10) { const sn = (S.hl && S.hl.snap) || {}, pv = (S.hl && HLm.hace(S.hl, S.hl.at || now.getTime(), 3600e3)) || {};
+    if (ok >= 10) { const sn = (hlFresco && S.hl.snap) || {}, pv = (hlFresco && HLm.hace(S.hl, S.hl.at || now.getTime(), 3600e3)) || {};
       const vs = Object.values(FO2).filter(Boolean).sort((x, y) => y.m240 - x.m240); vs.forEach((f, i) => { f.rk = vs.length > 4 ? i / (vs.length - 1) : null; });
       for (const [m, f] of Object.entries(FO2)) if (f) { const c = m.replace("-EUR", ""); f.smart = sn[c] ? sn[c].s : null; f.smartD = sn[c] && pv[c] ? sn[c].s - pv[c].s : null; f.reg = S.regimen; if (S.termo) ponTermometro(f, S.termo); if (S.iaM) f.ia = predecir(S.iaM, vector(f)); }
       FO = FO2; tickO = { ...tick, ...PO.tick }; S.okxVivo = { t: now.toISOString(), n: ok, solo: Object.keys(FO2).filter((m) => !tick[m]).length }; }
@@ -562,7 +564,7 @@ async function main() {
       for (const k of Object.keys(FIN.PERF)) S.fins[k] = FIN.vuelta(S.fins[k], D, tick, ue, now, FIN.PERF[k]); S.finD = { fr: D.fr, frAt: D.frAt, err: D.err || null }; } catch (e) { console.log("Financiación: " + String(e.message).slice(0, 80)); }
     for (const k of Object.keys(REJ.PERF)) try { S.rejs[k] = REJ.vuelta(S.rejs[k], tick, LAT, now, REJ.PERF[k], VEL); } catch (e) { console.log("Rejilla: " + String(e.message).slice(0, 80)); } }
   // 👑 apunta la señal de los mejores cada 10 min (7 días) para que la IA y las reglas aprendan de ella
-  if (!S.hlAnotAt || now - S.hlAnotAt >= 10 * 60000) try { let hh = null; try { hh = await leer("hl-hist.json", RAMA_H); } catch (e) {} hh = HLm.anotar(hh, S.hl && S.hl.snap, now.getTime()); publicar("hl-hist.json", hh, RAMA_H); S.hlHist = Object.keys(hh).length; S.hlAnotAt = now.getTime(); } catch (e) { console.log("Bitvavo: historial de los mejores: " + e.message); }
+  if (hlFresco && (!S.hlAnotAt || now - S.hlAnotAt >= 10 * 60000)) try { let hh = null; try { hh = await leer("hl-hist.json", RAMA_H); } catch (e) {} hh = HLm.anotar(hh, S.hl && S.hl.snap, now.getTime()); publicar("hl-hist.json", hh, RAMA_H); S.hlHist = Object.keys(hh).length; S.hlAnotAt = now.getTime(); } catch (e) { console.log("Bitvavo: historial de los mejores: " + e.message); }
   // v227 · 🚀 LABORATORIO DEDICADO: tres procesos en la nube (uno por submodo) que prueban reglas SIN PARAR con 30 días de datos.
   // Cada 3 min se recoge lo que han demostrado (reglas, IA y escalones de rejilla). Si el laboratorio se para, este bot vuelve a aprender solo.
   if (!S.labAt || now - S.labAt >= 3 * 60000) { S.labAt = now.getTime();
