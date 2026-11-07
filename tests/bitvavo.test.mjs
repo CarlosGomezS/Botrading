@@ -87,3 +87,13 @@ test("v293 · 📆 examen largo: aprueba solo si gana el año, en ≥ 3 de 4 tri
   assert.equal(veredicto(X([3, 2, 1, 4], [5, 30, 5, 5])).ok, false, "cae un 30 %");
   assert.equal(veredicto(X([1, 1, 1, 1], undefined, 3)).ok, false, "casi no opera");
 });
+
+test("v294 · 📆 el laboratorio prefiere la regla que aprueba el año y nunca adopta como ganadora una que lo suspende", async () => {
+  const B = await import("../runner/bitvavo.mjs"); const g1 = { ...B.BASE, stop: 0.03 }, g2 = { ...B.BASE, stop: 0.04 }, g3 = { ...B.BASE, stop: 0.05 };
+  const pop = [{ id: "x1", g: g1, s: 9, ok: true }, { id: "x2", g: g2, s: 5, ok: true }, { id: "x3", g: g3, s: 7, ok: true }];
+  const AN = { [B.gkey(g1)]: { ok: false, suave: false }, [B.gkey(g2)]: { ok: true }, [B.gkey(g3)]: { ok: false, suave: true } };
+  assert.equal(B.eligeGanadora(pop, "x1", AN).id, "x2", "la que aprueba el año, aunque tenga menos nota");
+  assert.equal(B.eligeGanadora(pop.filter((v) => v.id !== "x2"), "x1", AN).id, "x3", "si no hay, la «suave»");
+  assert.equal(B.eligeGanadora([pop[0]], "x1", AN), undefined, "la que suspende el año no es ganadora");
+  assert.equal(B.eligeGanadora(pop, "x1", {}).id, "x1", "sin examen todavía: como antes");
+});

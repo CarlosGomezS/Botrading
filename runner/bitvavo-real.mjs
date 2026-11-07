@@ -361,7 +361,7 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
       const k = (ctl.cuentas = ctl.cuentas || {}); k[ex] = { ...(k[ex] || {}), convertir: { ...cfg.convertir, hecho: cfg.convertir.at, txt: txt.replace(/^💶 \S+ · /, "") } }; ctlMod = true; }
     let copia = cfg.copia;
     // v293 · 📆 el automático no elige (ni copia como extra) un método cuya regla actual SUSPENDE el examen de un año
-    const susp = (k) => { const r = EL && EL.res && EL.res[k], src = fuentes[k]; return !!(r && r.ok === false && src && r.genomeId === src.genomeId); };
+    const susp = (k) => { const r = EL && EL.res && EL.res[k], src = fuentes[k]; return !!(r && r.ok === false && !r.suave && src && r.genomeId === src.genomeId); };   // v294 · «suave» (gana el año sin caer un 10 %) sí vale
     const fuentesA = Object.fromEntries(Object.entries(fuentes).filter(([k]) => !susp(k))); R0.suspendidos = Object.keys(fuentes).filter(susp);
     if (cfg.auto) { const A = autoElige(fuentesA, RS && RS.copia, !!(RS && Object.keys(RS.pos || {}).length), S.muyDesde, now, ((S.visibles && S.visibles[ex]) || FAMILIA[ex]), RS && RS.copiaDesde); copia = A.copia; R0.auto = A;
       if (RS && RS.copia && RS.copia !== copia) await io.tg(`💶 ${N} · 🤖 CAMBIO DE MÉTODO: de «${nombre(RS.copia)}» a «${nombre(copia)}» — ${A.motivo}. Lo que ya estaba abierto sigue con su método hasta venderlo.`); }

@@ -337,6 +337,13 @@ export function paso(S, tick, F, now = new Date()) {
   }
 }
 // ---- laboratorio: búsqueda dirigida con backtest robusto
+// v294 · 📆 entre las que ganan los 90 días: primero las que aprueban el año (2), luego las que lo ganan en total sin caer un 10 % (1), luego las
+// aún no examinadas (0). Las que suspenden el año del todo (−1) no pueden ser la ganadora. v222 · estabilidad: la actual se queda salvo +0,5 de nota.
+export function eligeGanadora(pop, curId, AN = {}) {
+  const rk = (v) => { const r = v && AN && AN[gkey(v.g)]; return !r ? 0 : r.ok ? 2 : r.suave ? 1 : -1; };
+  const cur = pop.find((v) => v.id === curId), g0 = pop.filter((v) => v.ok && rk(v) >= 0).sort((a, b) => rk(b) - rk(a) || b.s - a.s)[0];
+  return g0 && cur && cur.ok && rk(cur) >= 0 && rk(cur) >= rk(g0) && cur.id !== g0.id && g0.s < cur.s + 0.5 ? cur : g0;
+}
 export function evolucionar(S, H, now = new Date(), rnd = Math.random, budgetMs = 20e3, P = PERF.eq, fuera = []) {
   const Lc = lecciones(S), BASE = P.base, robustaV = (g, H) => { const r = P.robusta(g, H), e = r.s > -99 ? ajusteErrores(g, Lc) : { d: 0 }; return { s: r2(r.s + e.d), s0: r.s, err: e.d ? { d: e.d, hL: e.hL, hW: e.hW } : null, ok: !!r.ok && !(e.d <= -1), a: r.a || null, b: r.b || null, c: r.c || null, w: r.w || null }; };
   const mutarP = (g, rnd) => mutar(g, rnd, P), aleatorioP = (rnd) => aleatorio(rnd, P), cruzarP = (a, b, rnd) => ajustar(cruzar(a, b, rnd), P);
@@ -370,9 +377,9 @@ export function evolucionar(S, H, now = new Date(), rnd = Math.random, budgetMs 
   { const vivas = (S.closed || []).filter((c) => c.gid === S.genomeId).slice(0, 12), med = vivas.length ? vivas.reduce((x, c) => x + (+c.pc || 0), 0) / vivas.length : 0;
     if (S.genomeId && S.genomeId !== "base" && vivas.length >= 6 && med < -1) { B.vetadas = B.vetadas || {}; B.vetadas[gkey(S.genome)] = now.toISOString(); const kv = gkey(S.genome); B.pop = B.pop.filter((v) => v.id !== S.genomeId && gkey(v.g) !== kv); ev(`🩺 ${S.genomeId} queda vetada: en vivo pierde ${r2(med)} % de media en ${vivas.length} operaciones aunque en el pasado ganaba`); S.genomeId = null; }
     const ks = Object.keys(B.vetadas || {}); if (ks.length > 300) for (const k of ks.slice(0, ks.length - 300)) delete B.vetadas[k]; }
-  const cur = B.pop.find((v) => v.id === S.genomeId), best = B.pop.slice().sort((a, b) => b.s - a.s)[0], ganadora0 = B.pop.filter((v) => v.ok).sort((a, b) => b.s - a.s)[0];
-  // v222 · estabilidad: no cambia de reglas cada 10 min por diferencias mínimas; solo si la nueva es claramente mejor (+0,5) o la actual ya no vale
-  const ganadora = ganadora0 && cur && cur.ok && cur.id !== ganadora0.id && ganadora0.s < cur.s + 0.5 ? cur : ganadora0;
+  // v294 · 📆 EXAMEN DE UN AÑO: entre las que ganan los 90 días, primero las que aprueban el año (2), luego las que lo ganan en total sin caer un 10 % (1),
+  // luego las aún no examinadas (0). Las que suspenden el año del todo (−1) ya no pueden ser la regla ganadora.
+  const best = B.pop.slice().sort((a, b) => b.s - a.s)[0], ganadora = eligeGanadora(B.pop, S.genomeId, B.anio);
   const elegida = ganadora || best;
   if (elegida && (elegida.id !== S.genomeId || S.prueba !== !ganadora)) {
     S.genome = { ...elegida.g }; S.genomeId = elegida.id; S.prueba = !ganadora;

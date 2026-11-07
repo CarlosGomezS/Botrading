@@ -67,6 +67,8 @@ async function main() {
       const kk = JSON.stringify(gs); if (gs.length && kk !== comiteK) { comiteK = kk; B.ponVotos(H, gs); St.info.comite = gs.length; console.log(`Laboratorio consenso: comité de ${gs.length} reglas`); } } catch (e) { console.log("Laboratorio consenso: comité: " + String(e.message).slice(0, 60)); } }
     if (P.ests && P.ests[0] === "consenso" && !comiteK) { await sleep(30e3); continue; }
     // v245 · 🧬 cada 10 min trae las mejores reglas de los otros laboratorios para probarlas y cruzarlas con las suyas
+    // v294 · 📆 cada 10 min, lo que dice el examen de un año de sus candidatas (para adoptar la mejor que además aguante el año)
+    if (Date.now() - (globalThis.__anioAt || 0) > 10 * 60e3) { globalThis.__anioAt = Date.now(); try { const EL = await B.leer("examen-largo.json", "examen-largo"); if (EL && EL.anio && EL.anio[k]) St.lab.anio = EL.anio[k]; } catch (e) {} }
     let fuera = [];
     if (Date.now() - fueraAt > 10 * 60e3) { fueraAt = Date.now(); for (const o of OTROS) try { const Lo = await B.leer(`lab-${o}.json`, `bitvavo-lab-${o}`); if (!Lo || !Lo.lab) continue;
       for (const v of Lo.lab.pop.filter((v) => v.g && v.s > -99).sort((a, b) => (b.ok - a.ok) || b.s - a.s).slice(0, 6)) fuera.push({ g: v.g, de: B.PERF[o].nombre + " (" + v.id + ")" }); } catch (e) {} }
