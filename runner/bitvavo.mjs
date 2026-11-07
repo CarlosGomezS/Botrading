@@ -501,6 +501,8 @@ export async function publicarEstado(S) {
   publicar("bitvavo.json", { enc: 1, v: 1, ...enc, meta: { t: S.last, vivo: 1, seg: S.diag ? S.diag.seg : null, conex: cx } }, RAMA);
 }
 
+// v302 · 🖥️ TERMINAL: todo lo que el bot escribe en cada vuelta se guarda (cifrado, con el resto del estado) para verlo en la app como una terminal
+const CONSOLA = []; { const _log = console.log; console.log = (...a) => { _log(...a); try { CONSOLA.push([Date.now(), a.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" ").slice(0, 600)]); } catch (e) {} }; }
 async function main() {
   const now = new Date(), t0 = Date.now();
   let S = null; try { S = await leerEstado(); } catch (e) { console.log("Bitvavo: " + e.message); return; }
@@ -624,11 +626,11 @@ async function main() {
   if (!S.base || now - S.base.t > 60 * 60e3) try { const T = await tendenciaBase(S.base); if (T) S.base = T; } catch (e) { console.log("Cartera base: sin velas diarias (" + String(e.message).slice(0, 40) + ")"); }   // v301 · cada hora
   if (S.base) console.log("Cartera base: " + Object.entries(S.base.m).map(([m, T]) => `${m.split("-")[0]} ${T.up ? "📈 por encima" : "📉 por debajo"} de su media de 50 días (${Math.round((T.px / T.sma - 1) * 1000) / 10} %)`).join(" · "));
   if (Date.now() - t0 < 55e3) try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI, tickOkx: tickOkxReal }); } catch (e) { console.log("Real: error"); } else console.log("Real: vuelta larga, espera a la siguiente");
-  await publicarEstado(S);
   console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + Object.keys(S.sub[k].pos).length + " abiertas, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);
-  console.log(`Financiación: ${Object.entries(S.fins).map(([k, X]) => k + " " + (X ? X.lastEq + " € · " + Object.keys(X.pos).length + " abiertas" + (X.err ? " · " + X.err : "") : "—")).join(" · ")}`);
-  console.log(`Rejilla: ${Object.entries(S.rejs).map(([k, X]) => k + " " + (X ? X.lastEq + " € · " + Object.keys(X.g).length + " rejillas · aptas " + Object.values(X.apr || {}).filter((a) => a.ok).length : "—")).join(" · ")}`);
   console.log(`Bitvavo: ${U.length} mercados · saldo ${S.lastEq} € · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · gen ${S.lab.gen} · ${S.diag.seg} s`);
+  // v302 · 🖥️ terminal: una línea que se repite igual (mismo texto) no se duplica: se actualiza su hora y cuántas veces lleva así
+  { const C = S.consola || []; for (const [t, x] of CONSOLA.splice(0)) { let hit = null; for (let k = C.length - 1; k >= Math.max(0, C.length - 60); k--) if (C[k][1] === x) { hit = C[k]; break; } if (hit) { hit[0] = t; hit[2] = (hit[2] || 1) + 1; } else C.push([t, x, 1]); } S.consola = C.slice(-500); }
+  await publicarEstado(S);
 }
 export { main };
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.log("Bitvavo: " + (e.message || e)); process.exit(0); });
