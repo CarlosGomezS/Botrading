@@ -30,6 +30,7 @@ export const MUY_ESTABLE_MS = 60 * 60000;
 export function marcaMuy(S, fuentes, now) { S.muyDesde = S.muyDesde || {}; for (const k of SUBS_OK) { const v = reglaEnUso(fuentes[k]); if (v && esMuy(v)) S.muyDesde[k] = S.muyDesde[k] || now.toISOString(); else delete S.muyDesde[k]; } return S.muyDesde; }
 export const PERMANENCIA_MS = 24 * 3600e3;   // v289 · como mucho un cambio de método al día (antes 6 h): menos vaivenes
 export const STOP_REAL = 0.06;
+export const muchoMejor = (b, c) => !!(b && c && b.k !== c.k && ((b.muy && !c.muy) || (b.s >= c.s * 1.3 && b.s >= c.s + 2)));
 export function autoElige(fuentes, actual, abiertas, muyDesde = null, now = new Date(), familia = null, desde = null) {
   const estable = (k, v) => esMuy(v) && (!muyDesde || (muyDesde[k] && now - Date.parse(muyDesde[k]) >= MUY_ESTABLE_MS));
   const lista = familia && familia.length ? familia : SUBS_OK;
@@ -40,8 +41,10 @@ export function autoElige(fuentes, actual, abiertas, muyDesde = null, now = new 
   if (!best) return { copia: SUBS_OK.includes(actual) ? actual : lista[0], muy: false, motivo: "ningún método tiene regla ganadora ahora" };
   // v258 · con algo abierto solo espera si el cambio no es urgente: si aparece uno ⭐⭐ muy bueno (y el actual no lo es) o el actual pierde la 🏆, cambia ya
   if (abiertas && SUBS_OK.includes(actual) && cur && !(best.muy && !cur.muy)) return { copia: actual, muy: !!cur.muy, motivo: "espera a cerrar lo abierto para cambiar" };
-  if (cur && !(best.muy && !cur.muy) && best.s < cur.s + 1) return { copia: actual, muy: cur.muy, motivo: "sigue siendo de los mejores" };
-  return { copia: best.k, muy: best.muy, motivo: best.muy ? "⭐ muy ganadora" : "la de regla ganadora más fuerte" };
+  // v290 · 🧱 FIEL A SU MÉTODO: mientras el actual conserve su regla ganadora, solo cambia si aparece uno MUCHO mejor
+  // (💎 estable frente a uno que no lo es, o una puntuación ≥ 30 % y ≥ 2 puntos mayor). Cada cambio se avisa por Telegram.
+  if (cur && !muchoMejor(best, cur)) return { copia: actual, muy: cur.muy, motivo: "se queda con su método (ninguno es MUCHO mejor)" };
+  return { copia: best.k, muy: best.muy, motivo: !cur && actual ? "el método anterior ha perdido su regla ganadora" : best.muy ? "💎 MUCHO mejor que el anterior" : "MUCHO mejor que el anterior" };
 }
 export const EXS = ["bitvavo", "okx"];
 const env = (k) => (process.env[k] || "").trim(), r2 = (x) => Math.round(x * 100) / 100;
@@ -340,7 +343,7 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
       const k = (ctl.cuentas = ctl.cuentas || {}); k[ex] = { ...(k[ex] || {}), convertir: { ...cfg.convertir, hecho: cfg.convertir.at, txt: txt.replace(/^💶 \S+ · /, "") } }; ctlMod = true; }
     let copia = cfg.copia;
     if (cfg.auto) { const A = autoElige(fuentes, RS && RS.copia, !!(RS && Object.keys(RS.pos || {}).length), S.muyDesde, now, ((S.visibles && S.visibles[ex]) || FAMILIA[ex]), RS && RS.copiaDesde); copia = A.copia; R0.auto = A;
-      if (RS && RS.copia && RS.copia !== copia) await io.tg(`💶 ${N} · 🤖 AUTOMÁTICO: ahora copia a «${nombre(copia)}» (${A.motivo}).`); }
+      if (RS && RS.copia && RS.copia !== copia) await io.tg(`💶 ${N} · 🤖 CAMBIO DE MÉTODO: de «${nombre(RS.copia)}» a «${nombre(copia)}» — ${A.motivo}. Lo que ya estaba abierto sigue con su método hasta venderlo.`); }
     R0.copia = copia;
     // v269/v270 · los demás ganadores: primero los de su exchange y luego TODOS los demás con 🏆 (lo que no esté en el exchange se salta solo)
     const extra = cfg.auto ? [...((S.visibles && S.visibles[ex]) || FAMILIA[ex]), ...SUBS_OK].filter((k) => !/^riesgo/.test(k)).filter((k, i, a) => a.indexOf(k) === i && k !== copia && reglaEnUso(fuentes[k])) : [];

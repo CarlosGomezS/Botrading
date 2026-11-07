@@ -181,7 +181,7 @@ test("Real v247: ⭐ muy ganadora y 🤖 automático (elige la más fuerte, no c
   assert.equal(RL.autoElige(F, "mix", false).copia, "eq", "se va a la ⭐");
   assert.equal(RL.autoElige(F, "mix", true).copia, "eq", "v258: con algo abierto, si aparece una ⭐⭐ cambia ya");
   assert.equal(RL.autoElige({ ...F, eq: fuente(9, true, T(0.5, 60, 1.6)) }, "mix", true).copia, "mix", "con algo abierto y sin ⭐⭐ nueva, espera");
-  assert.equal(RL.autoElige({ ...F, eq: fuente(4.9, false, T(1, 60, 1.6)) }, "mix", false).copia, "mixokx", "sin ⭐, la de mejor nota (+1 sobre la actual)");
+  assert.equal(RL.autoElige({ ...F, eq: fuente(4.9, false, T(1, 60, 1.6)) }, "mix", false).copia, "mix", "v290: +1 no es MUCHO mejor → se queda");
   assert.equal(RL.autoElige({ eq: fuente(1, false, T(1, 1, 1)) }, "mixokx", false).copia, "mixokx", "si nadie gana, no cambia");
 });
 
