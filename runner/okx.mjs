@@ -123,7 +123,8 @@ export function adaptador(api, I, tick = {}) {
     if (R.tipo === "eur") { const o = await orden(R.par.instId, "buy", eur.toFixed(2), true); const feeB = o.feeCcy === o.base ? o.fee : 0, feeE = o.feeCcy === "EUR" ? o.fee : o.fee * o.px; if (!(o.fill > 0)) throw new Error("la compra no se ejecutó"); return { q: o.fill - feeB, coste: o.quote + (o.feeCcy === "EUR" ? o.fee : 0), fee: feeE, px: o.px }; }
     const u = await orden(R.puente.instId, "buy", eur.toFixed(2), true), usdc = abajo(u.fill - (u.feeCcy === "USDC" ? u.fee : 0), 4);
     let o; try { o = await orden(R.par.instId, "buy", usdc.toFixed(4), true); }
-    catch (e) { try { await orden(R.puente.instId, "sell", abajo(usdc, R.puente.lot).toFixed(R.puente.lot), false); } catch (e2) {} throw e; }   /* v297 · si falla el 2.º paso, el USDC vuelve a euros */ const feeB = o.feeCcy === o.base ? o.fee : 0;
+    catch (e) { let vuelto = false; for (let i = 0; i < 3 && !vuelto; i++) try { await orden(R.puente.instId, "sell", abajo(usdc, R.puente.lot).toFixed(R.puente.lot), false); vuelto = true; } catch (e2) { await sleep(1500); }
+      if (!vuelto) { const e3 = new Error("OKX: compra por USDC cortada; el USDC queda pendiente de pasar a euros"); e3.pendUsdc = usdc; e3.costeEur = u.quote + (u.feeCcy === "EUR" ? u.fee : 0); throw e3; } throw e; }   /* v297 · si falla el 2.º paso, el USDC vuelve a euros */ const feeB = o.feeCcy === o.base ? o.fee : 0;
     return { q: o.fill - feeB, coste: u.quote + (u.feeCcy === "EUR" ? u.fee : 0), fee: (u.feeCcy === "EUR" ? u.fee : u.fee * u.px) + o.fee * (o.feeCcy === o.base ? o.px : 1) * u.px, px: (u.quote) / Math.max(1e-12, o.fill) };
   }
   // vende «q» cripto → { q (vendida), got (€ netos), fee (€ aprox.), px }

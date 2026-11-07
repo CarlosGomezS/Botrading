@@ -242,8 +242,11 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         if (p && !p.pendConc && q < p.q * 0.999 && q >= p.q * 0.98) p.q = q;   // v297 · solo ajustes pequeños (comisión cobrada en la cripto); lo grande lo cuadra el paso 1a
         else if (!p && v >= 2 && !/^(USDC|USDT|EURC|EUR)$/.test(sym) && !(ctl.conservar || []).includes(sym)) {   // v295 · 🔒 las que marcas «no tocar» no se adoptan
           // v295 · ¿la compró el bot y se cortó antes de guardarlo (reinicio)? si un método la tiene abierta desde hace < 2 h, se apunta como suya (no se vuelve a comprar)
-          const lb = RS.libro && RS.libro.abiertas && RS.libro.abiertas[sym], dueno = Object.entries(fuentes).find(([k, f]) => f && f.pos && f.pos[m] && now - Date.parse(f.pos[m].t0) < 2 * 3600e3);
-          if (dueno) { const sp = dueno[1].pos[m]; RS.pos[m] = { src: dueno[0], sym, q, q0: q, px: lb && lb.px > 0 ? lb.px : bid, cost: r2(lb ? lb.cost * Math.min(1, q / lb.q) : v), cost0: r2(lb ? lb.cost * Math.min(1, q / lb.q) : v), t0: now.toISOString(), srcT0: sp.t0, last: bid }; RS.vistos[m + "|" + sp.t0] = now.toISOString(); L(RS, now, `🔍 ${sym}: compra del bot que no llegó a apuntarse (reinicio); queda apuntada con «${dueno[0]}»`); await protege(m); }
+          const lb = RS.libro && RS.libro.abiertas && RS.libro.abiertas[sym]; let dueno = Object.entries(fuentes).find(([k, f]) => f && f.pos && f.pos[m] && now - Date.parse(f.pos[m].t0) < 2 * 3600e3);
+          // v298 · solo se apunta como del bot lo que el historial dice que se COMPRÓ desde que el método abrió (no tus criptos de antes)
+          let qBot = q; if (dueno && X.operaciones) try { const t0 = Date.parse(dueno[1].pos[m].t0) - 60e3; qBot = Math.min(q, (await X.operaciones([sym])).filter((o) => o.side === "buy" && o.t >= t0).reduce((s2, o) => s2 + o.q, 0)); } catch (e) {}
+          if (dueno && !(qBot * bid >= 2)) dueno = null;
+          if (dueno) { const sp = dueno[1].pos[m], q = qBot; RS.pos[m] = { src: dueno[0], sym, q, q0: q, px: lb && lb.px > 0 ? lb.px : bid, cost: r2(lb ? lb.cost * Math.min(1, q / lb.q) : q * bid), cost0: r2(lb ? lb.cost * Math.min(1, q / lb.q) : q * bid), t0: now.toISOString(), srcT0: sp.t0, last: bid }; RS.vistos[m + "|" + sp.t0] = now.toISOString(); L(RS, now, `🔍 ${sym}: compra del bot que no llegó a apuntarse (reinicio); queda apuntada con «${dueno[0]}»`); await protege(m); }
           else { RS.pos[m] = { sym, q, q0: q, px: bid, cost: r2(v), cost0: r2(v), t0: now.toISOString(), last: bid, peak: bid, huerfana: 1, src: null }; L(RS, now, `🔍 ${sym}: estaba en tu cuenta sin apuntar (${r2(v)} €); ahora la vigila (stop −6 %, stop móvil, 72 h máx.)`); await protege(m); } } }
 
       // v295 · 💵 USDC que se quedó a medias (compra o venta por USDC en OKX que se cortó en el segundo paso): se vuelve a pasar a euros
@@ -252,7 +255,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       // v295 · 🛡️ revisión cada 30 min: toda posición sin stop de emergencia confirmado lo vuelve a intentar
       // (v297: también se COMPRUEBA que los stops puestos siguen activos y cubren lo que hay; si no, se vuelven a poner)
       if (!RS.stopRev || now - Date.parse(RS.stopRev) > 30 * 60e3) { RS.stopRev = now.toISOString(); for (const m of Object.keys(RS.pos)) { const p = RS.pos[m]; let vale = !!p.stopId;
-        if (vale && X.estadoStop) try { const e = await X.estadoStop(m, p.stopId); if (e && (!e.activo || (e.q > 0 && e.q < p.q * 0.97))) { vale = false; L(RS, now, `🛡️ ${p.sym}: el stop de emergencia ya no estaba activo o no cubría todo; se vuelve a poner`); delete p.stopId; } } catch (e) {}
+        if (vale && X.estadoStop) try { const e = await X.estadoStop(m, p.stopId); if (e && (!e.activo || (e.q > 0 && e.q < p.q * 0.97))) { vale = false; L(RS, now, `🛡️ ${p.sym}: el stop de emergencia ya no estaba activo o no cubría todo; se vuelve a poner`); msgs.push(`💶 🛡️ ${EX}: el stop de emergencia de ${p.sym} había desaparecido o no cubría todo; lo he vuelto a poner.`); delete p.stopId; } } catch (e) {}
         if (!vale) await protege(m); } }
       if (B.EUR != null && RS.cash > +B.EUR + 0.01) RS.cash = +B.EUR;
       RS.cuenta = { t: now.toISOString(), eur: r2(+(B.EUR || 0)), total: r2(tot), activos: act.sort((a, b) => b.eur - a.eur) };
@@ -319,6 +322,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     RS.estado = "activo"; delete RS.err;
   } catch (e) {
     RS.err = String(e.message).slice(0, 120); L(RS, now, "⚠️ " + RS.err);
+    if (e && e.pendUsdc > 0) { RS.usdcPend = (RS.usdcPend || 0) + e.pendUsdc; RS.cash -= e.costeEur || 0; L(RS, now, `💵 ${r2(e.pendUsdc)} USDC del bot quedan pendientes de pasar a euros (se reintenta cada minuto)`); }   // v298
     if ((X.errClave || errClave)(e)) { RS.estado = "clave"; if (!RS.avisoClave || now - Date.parse(RS.avisoClave) > 6 * 3600e3) { RS.avisoClave = now.toISOString(); msgs.push(`💶 ⚠️ ${EX} REAL: la clave no funciona (${RS.err}). Revisa que tenga permiso de OPERAR y que esté bien copiada en Ajustes.`); } }
   }
   const e2 = valor(RS, tick); RS.eq.push([now.toISOString(), r2(e2), r2(RS.start)]);   // v266 · también lo aportado hasta entonces (para no contar ingresos como ganancia) if (RS.eq.length > 3000) RS.eq = RS.eq.filter((_, i) => i % 2 === 0 || i > RS.eq.length - 500);

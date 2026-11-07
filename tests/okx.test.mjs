@@ -92,3 +92,14 @@ test("OKX v288: el historial propio de OKX se guarda, se completa hacia atrás y
   const { tick, ue } = await OK.preciosOkx(I, fx), raw = OK.rawDeHistoria(JSON.parse(fs.readFileSync(file, "utf8")), { tick, ue });
   assert.ok(raw.m["XYZ-EUR"] && Math.abs(raw.m["XYZ-EUR"][0][4] - 1.8) < 1e-9, "USDC → euros"); assert.ok(raw.paginas > 1.3 && raw.paginas < 1.5);
 });
+
+test("OKX v298: orden que se queda a medias → se cancela lo que falta y se apunta EXACTAMENTE lo ejecutado", async () => {
+  const OK = await import("../runner/okx.mjs"); let estado = "partially_filled"; const llamadas = [];
+  const api = async (met, ruta, cuerpo) => { llamadas.push(met + " " + ruta.split("?")[0]);
+    if (ruta.startsWith("/api/v5/trade/order") && met === "POST") return [{ ordId: "1", sCode: "0" }];
+    if (ruta.startsWith("/api/v5/trade/cancel-order")) { estado = "canceled"; return [{}]; }
+    if (ruta.startsWith("/api/v5/trade/order") && met === "GET") return [{ state: estado, accFillSz: "2", avgPx: "1", fee: "-0.004", feeCcy: "EUR" }];
+    return []; };
+  const I = { ABC: { EUR: { instId: "ABC-EUR", lot: 4, min: 0.1 } } }, X = OK.adaptador(api, I, { "ABC-EUR": { bid: 1, ask: 1 } });
+  const r = await X.comprar("ABC-EUR", 5); assert.equal(r.q, 2, "solo lo ejecutado"); assert.ok(llamadas.includes("POST /api/v5/trade/cancel-order"), "cancela lo que falta");
+});
