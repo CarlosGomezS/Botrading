@@ -114,7 +114,11 @@ export function adaptador(api, I, tick = {}) {
     if (ult && +ult.accFillSz > 0) { try { await api("POST", "/api/v5/trade/cancel-order", { instId, clOrdId }); } catch (e) {} let d = null; for (let j = 0; j < 4 && !(d && ["canceled", "filled", "mmp_canceled"].includes(d.state)); j++) { await sleep(500); try { [d] = await api("GET", `/api/v5/trade/order?instId=${instId}&clOrdId=${clOrdId}`); } catch (e) {} }
       if (!d || !["canceled", "filled", "mmp_canceled"].includes(d.state)) throw new Error("OKX: orden a medias sin estado final (se cuadrará con el saldo)");   // v297 · nunca se da por resuelta sin estado final
       const fill = +d.accFillSz || 0, px = +d.avgPx || 0, fee = Math.abs(+d.fee || 0), base = instId.split("-")[0]; if (fill > 0) return { fill, px, quote: fill * px, fee, feeCcy: d.feeCcy, base }; }
-    if (ult && (ult.state === "live" || ult.state === "partially_filled")) { try { await api("POST", "/api/v5/trade/cancel-order", { instId, clOrdId }); } catch (e) {} }
+    // v299 · sin nada ejecutado y aún viva: se cancela y se ESPERA a su estado final (si se llegó a ejecutar mientras tanto, se apunta)
+    if (ult && (ult.state === "live" || ult.state === "partially_filled")) { try { await api("POST", "/api/v5/trade/cancel-order", { instId, clOrdId }); } catch (e) {}
+      let d = null; for (let j = 0; j < 4 && !(d && ["canceled", "filled", "mmp_canceled"].includes(d.state)); j++) { await sleep(500); try { [d] = await api("GET", `/api/v5/trade/order?instId=${instId}&clOrdId=${clOrdId}`); } catch (e) {} }
+      if (d && +d.accFillSz > 0 && ["canceled", "filled", "mmp_canceled"].includes(d.state)) { const fill = +d.accFillSz, px = +d.avgPx || 0; return { fill, px, quote: fill * px, fee: Math.abs(+d.fee || 0), feeCcy: d.feeCcy, base: instId.split("-")[0] }; }
+      if (!d || !["canceled", "mmp_canceled"].includes(d.state)) throw new Error("OKX: orden sin estado final (se cuadrará con el saldo)"); }
     throw new Error("OKX: la orden no se completó a tiempo");
   };
   // compra con «eur» euros → { q (cripto neta), coste (€), fee (€ aprox.), px }
@@ -148,6 +152,9 @@ export function adaptador(api, I, tick = {}) {
   // v295 · USDC que quedó a medias (ruta EUR→USDC→cripto cortada) → a euros
   async function usdcAEur(q) { if (!I.USDC || !I.USDC.EUR) return null; const sz = abajo(q, I.USDC.EUR.lot); if (!(sz >= I.USDC.EUR.min) || sz < 5) return null; const ue = (tick["USDC-EUR"] && tick["USDC-EUR"].bid) || 0.9; const u = await orden(I.USDC.EUR.instId, "sell", sz.toFixed(I.USDC.EUR.lot), false); return { got: u.quote - (u.feeCcy === "EUR" ? u.fee : 0), est: sz * ue * 0.998 }; }
   // v297 · ¿sigue activo el stop de emergencia y cuánto cubre?
+  // v299 · compras hechas POR EL BOT (las suyas llevan identificador «bt…»), para no apropiarse de compras tuyas
+  async function comprasBot(sym, desde) { const R = ruta(I, sym + "-EUR"); if (!R) return null; let q = 0; const d = await api("GET", `/api/v5/trade/orders-history?instType=SPOT&instId=${R.par.instId}&begin=${Math.floor(desde)}&limit=100`);
+    for (const o of d || []) if (o.side === "buy" && String(o.clOrdId || "").startsWith("bt") && +o.accFillSz > 0) q += +o.accFillSz - (o.feeCcy === sym ? Math.abs(+o.fee || 0) : 0); return q; }
   async function estadoStop(m, id) { const [d] = await api("GET", `/api/v5/trade/order-algo?algoId=${id}`); return { activo: !!d && d.state === "live", q: d ? +d.sz || 0 : 0 }; }
   async function quitaStop(m, id) { const R = ruta(I, m); if (!R) return; try { await api("POST", "/api/v5/trade/cancel-algos", [{ algoId: id, instId: R.par.instId }]); } catch (e) { if (!/51000|5127|not exist|no existe|cancel/i.test(String(e.message))) throw e; } }
   async function mercado(m) { const R = ruta(I, m), px = (tick[m] && (tick[m].ask || tick[m].bid)) || 0; return { min: Math.max(5, R ? R.par.min * px * 1.05 : 5) }; }
@@ -166,5 +173,5 @@ export function adaptador(api, I, tick = {}) {
         out.push({ t: +x.ts, sym: b, side: x.side, q: sz - (x.side === "buy" && x.feeCcy === b ? fee : 0), eur: sz * px, fee: feeE }); }
       after = d[d.length - 1].billId; if (d.length < 100) break; }
     return out; }
-  return { nombre: "OKX", fee: FEE, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, saldos, saldo, precios, operaciones, ponStop, quitaStop, usdcAEur, estadoStop, errClave };
+  return { nombre: "OKX", fee: FEE, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, saldos, saldo, precios, operaciones, ponStop, quitaStop, usdcAEur, estadoStop, comprasBot, errClave };
 }

@@ -119,7 +119,11 @@ export function bitvavoEx(api, mercado, saldoEur) {
     const o = await api("POST", "/order", { market: m, side: "sell", orderType: "stopLoss", amount: amount.toFixed(mk.dec), triggerAmount: String(+px.toPrecision(5)), triggerType: "price", triggerReference: "lastTrade", operatorId: OPERADOR }); return o && o.orderId ? String(o.orderId) : null; };
   const quitaStop = async (m, id) => { try { await api("DELETE", `/order?market=${m}&orderId=${id}`); } catch (e) { if (!/240|no.*(exist|encontr)|not found|filled|cancel/i.test(String(e.message))) throw e; } };
   const estadoStop = async (m, id) => { const o = await api("GET", `/order?market=${m}&orderId=${id}`); return { activo: !!o && ["new", "awaitingTrigger", "partiallyFilled"].includes(o.status), q: o ? +o.amountRemaining || +o.amount || 0 : 0 }; };   // v297
-  return { nombre: "Bitvavo", fee: FEE, tiene: () => true, ponStop, quitaStop, estadoStop, comprar: (m, eur) => comprar(api, m, eur), vender: async (m, q) => { const mk = await mercado(m); return vender(api, m, q, mk.dec); }, mercado, saldoEur, saldo, saldos, operaciones, errClave };
+  // v299 · compras hechas POR EL BOT (sus órdenes llevan su «operatorId»), para no apropiarse de compras tuyas
+  const comprasBot = async (sym, desde) => { const d = await api("GET", `/orders?market=${sym}-EUR&start=${Math.floor(desde)}&limit=100`); let q = 0;
+    const L0 = Array.isArray(d) ? d : []; if (L0.length && !L0.some((o) => o.operatorId != null)) return null;   // si Bitvavo no informa del operatorId, se usa el historial
+    for (const o of L0) if (o.side === "buy" && +o.operatorId === OPERADOR && +o.filledAmount > 0) q += +o.filledAmount - (o.feeCurrency === sym ? +o.feePaid || 0 : 0); return q; };
+  return { nombre: "Bitvavo", fee: FEE, tiene: () => true, ponStop, quitaStop, estadoStop, comprasBot, comprar: (m, eur) => comprar(api, m, eur), vender: async (m, q) => { const mk = await mercado(m); return vender(api, m, q, mk.dec); }, mercado, saldoEur, saldo, saldos, operaciones, errClave };
 }
 // v282 · 📒 LIBRO REAL: con las operaciones del exchange, casa compras y ventas (la primera que entra es la primera que sale) y saca
 // las cerradas con su % de verdad (comisiones incluidas) y el coste de lo que sigue abierto. Es lo mismo que verías haciendo las cuentas en la app del exchange.
@@ -244,7 +248,10 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
           // v295 · ¿la compró el bot y se cortó antes de guardarlo (reinicio)? si un método la tiene abierta desde hace < 2 h, se apunta como suya (no se vuelve a comprar)
           const lb = RS.libro && RS.libro.abiertas && RS.libro.abiertas[sym]; let dueno = Object.entries(fuentes).find(([k, f]) => f && f.pos && f.pos[m] && now - Date.parse(f.pos[m].t0) < 2 * 3600e3);
           // v298 · solo se apunta como del bot lo que el historial dice que se COMPRÓ desde que el método abrió (no tus criptos de antes)
-          let qBot = q; if (dueno && X.operaciones) try { const t0 = Date.parse(dueno[1].pos[m].t0) - 60e3; qBot = Math.min(q, (await X.operaciones([sym])).filter((o) => o.side === "buy" && o.t >= t0).reduce((s2, o) => s2 + o.q, 0)); } catch (e) {}
+          // (v299: primero por las órdenes que llevan la marca del bot; si el exchange no deja consultarlas, por el historial de compras)
+          let qBot = q; if (dueno) { const t0 = Date.parse(dueno[1].pos[m].t0) - 60e3; let hecho = false;
+            if (X.comprasBot) try { const qb = await X.comprasBot(sym, t0); if (qb != null) { qBot = Math.min(q, qb); hecho = true; } } catch (e) {}
+            if (!hecho && X.operaciones) try { qBot = Math.min(q, (await X.operaciones([sym])).filter((o) => o.side === "buy" && o.t >= t0).reduce((s2, o) => s2 + o.q, 0)); } catch (e) {} }
           if (dueno && !(qBot * bid >= 2)) dueno = null;
           if (dueno) { const sp = dueno[1].pos[m], q = qBot; RS.pos[m] = { src: dueno[0], sym, q, q0: q, px: lb && lb.px > 0 ? lb.px : bid, cost: r2(lb ? lb.cost * Math.min(1, q / lb.q) : q * bid), cost0: r2(lb ? lb.cost * Math.min(1, q / lb.q) : q * bid), t0: now.toISOString(), srcT0: sp.t0, last: bid }; RS.vistos[m + "|" + sp.t0] = now.toISOString(); L(RS, now, `🔍 ${sym}: compra del bot que no llegó a apuntarse (reinicio); queda apuntada con «${dueno[0]}»`); await protege(m); }
           else { RS.pos[m] = { sym, q, q0: q, px: bid, cost: r2(v), cost0: r2(v), t0: now.toISOString(), last: bid, peak: bid, huerfana: 1, src: null }; L(RS, now, `🔍 ${sym}: estaba en tu cuenta sin apuntar (${r2(v)} €); ahora la vigila (stop −6 %, stop móvil, 72 h máx.)`); await protege(m); } } }
