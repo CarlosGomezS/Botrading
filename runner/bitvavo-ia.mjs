@@ -47,19 +47,23 @@ export function auc(ps, ys) {
   const o = ps.map((p, i) => [p, ys[i]]).sort((a, b) => a[0] - b[0]); let r = 0, np = 0, nn = 0;
   o.forEach(([, y], i) => { if (y) { r += i + 1; np++; } else nn++; }); return np && nn ? (r - np * (np + 1) / 2) / (np * nn) : 0.5;
 }
-// entrena con H = { m: { mercado: { c, f } } } y rellena f.ia en cada vela con predicciones «limpias» (validación cruzada por mitades)
+// entrena con H = { m: { mercado: { c, f } } } y rellena f.ia en cada vela con predicciones «limpias» (v291: validación sin futuro, por trozos de tiempo)
 export function entrenarIA(H, rnd = Math.random) {
   const filas = []; let tMin = Infinity, tMax = 0;
   for (const m of Object.values(H.m || {})) { const y = etiquetas(m.c); m.f.forEach((f, i) => { if (!f || y[i] == null) return; const x = vector(f); filas.push({ f, x, y: y[i], t: m.c[i][0] }); tMin = Math.min(tMin, m.c[i][0]); tMax = Math.max(tMax, m.c[i][0]); }); }
   if (filas.length < 2000) return { listo: false, n: filas.length };
-  const ts = filas.map((r) => r.t).sort((a, b) => a - b), corte = ts[Math.floor(ts.length / 2)];   /* v228 · mediana (no el punto medio): mitades equilibradas */ void tMin; void tMax;
-  const A = filas.filter((r) => r.t < corte), B = filas.filter((r) => r.t >= corte);
+  // v291 · 🔒 VALIDACIÓN SIN FUTURO (walk-forward): el tiempo se parte en 6 trozos y cada trozo se predice con un modelo entrenado SOLO con lo
+  // anterior (dejando 6 h de hueco, lo que dura la etiqueta). El primer trozo no tiene pasado → sin predicción (las reglas que usan la IA no entran ahí).
+  // Antes la primera mitad se puntuaba con un modelo entrenado con la segunda (el futuro): la IA y las reglas que la usaban parecían mejores de lo que eran.
+  const ts = filas.map((r) => r.t).sort((a, b) => a - b), K = 6, cortes = Array.from({ length: K + 1 }, (_, j) => (j === K ? Infinity : ts[Math.floor((ts.length * j) / K)]));
   const sub = (rs, k) => (rs.length > k ? rs.filter(() => rnd() < k / rs.length) : rs);   // para que entrene rápido
   const tr = (rs) => { const s2 = sub(rs, 25000); return entrenar(s2.map((r) => r.x), s2.map((r) => r.y)); };
-  const mA = tr(A), mB = tr(B); if (!mA || !mB) return { listo: false, n: filas.length };
-  for (const r of B) r.f.ia = predecir(mA, r.x); for (const r of A) r.f.ia = predecir(mB, r.x);   // cada mitad, con el modelo de la otra
-  const ps = filas.map((r) => r.f.ia), ys = filas.map((r) => r.y), a = auc(ps, ys), base = ys.reduce((s, v) => s + v, 0) / ys.length;
-  const ord = filas.slice().sort((p, q) => q.f.ia - p.f.ia), top = ord.slice(0, Math.max(50, Math.floor(ord.length * 0.05))), umbral = top[top.length - 1].f.ia, prec = top.reduce((s, r) => s + r.y, 0) / top.length;
+  const HUECO = 6 * 3600e3; for (const r of filas) r.f.ia = null;
+  for (let j = 1; j < K; j++) { const desde = cortes[j], hasta = cortes[j + 1], pasado = filas.filter((r) => r.t < desde - HUECO); if (pasado.length < 1000) continue;
+    const mj = tr(pasado); if (!mj) continue; for (const r of filas) if (r.t >= desde && r.t < hasta) r.f.ia = predecir(mj, r.x); }
+  const con = filas.filter((r) => r.f.ia != null); if (con.length < 500) return { listo: false, n: filas.length };
+  const ps = con.map((r) => r.f.ia), ys = con.map((r) => r.y), a = auc(ps, ys), base = ys.reduce((s, v) => s + v, 0) / ys.length;
+  const ord = con.slice().sort((p, q) => q.f.ia - p.f.ia), top = ord.slice(0, Math.max(50, Math.floor(ord.length * 0.05))), umbral = top[top.length - 1].f.ia, prec = top.reduce((s, r) => s + r.y, 0) / top.length;
   const M = tr(filas), imp = M.imp.map((v, j) => [NOMBRES[j], v]).sort((p, q) => q[1] - p[1]).slice(0, 5).map((x) => x[0]);
   return { listo: a >= 0.55, n: filas.length, auc: Math.round(a * 1000) / 1000, base: Math.round(base * 1000) / 1000, top5: { umbral: Math.round(umbral * 1000) / 1000, acierta: Math.round(prec * 1000) / 1000 }, imp, modelo: M, t: new Date().toISOString() };
 }

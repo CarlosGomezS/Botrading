@@ -63,7 +63,7 @@ async function main() {
       } catch (e) { console.log(`Laboratorio ${k}: datos: ${String(e.message).slice(0, 80)}`); if (!H) { await sleep(60e3); continue; } }
     }
     // v257 · 🧬 consenso: cada 10 min lee las reglas en uso del comité y recalcula los votos de cada vela (si han cambiado, se reexamina todo)
-    if (P.estiloConsenso !== false && P.ests && P.ests[0] === "consenso" && H && Date.now() - comiteAt > 10 * 60e3) { comiteAt = Date.now(); try { const gs = []; for (const o of (P.comite === "okx" ? B.COMITE_OKX : B.COMITE)) { const Lo = await B.leer(`lab-${o}.json`, `bitvavo-lab-${o}`); if (Lo && Lo.genome) gs.push({ ...B.BASE, ...Lo.genome }); }
+    if (P.estiloConsenso !== false && P.ests && P.ests[0] === "consenso" && H && Date.now() - comiteAt > 10 * 60e3) { comiteAt = Date.now(); try { const gs = []; for (const o of (P.comite === "okx" ? B.COMITE_OKX : B.COMITE)) { const Lo = await B.leer(`lab-${o}.json`, `bitvavo-lab-${o}`); if (Lo && Lo.genome && Lo.prueba === false) gs.push({ ...B.BASE, ...Lo.genome }); }
       const kk = JSON.stringify(gs); if (gs.length && kk !== comiteK) { comiteK = kk; B.ponVotos(H, gs); St.info.comite = gs.length; console.log(`Laboratorio consenso: comité de ${gs.length} reglas`); } } catch (e) { console.log("Laboratorio consenso: comité: " + String(e.message).slice(0, 60)); } }
     if (P.ests && P.ests[0] === "consenso" && !comiteK) { await sleep(30e3); continue; }
     // v245 · 🧬 cada 10 min trae las mejores reglas de los otros laboratorios para probarlas y cruzarlas con las suyas

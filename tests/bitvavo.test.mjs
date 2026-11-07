@@ -60,3 +60,21 @@ test("IA de Bitvavo: aprende un patrón real, se examina con días que no ha vis
   assert.ok(R.imp.length > 0 && R.top5.acierta > R.base, "en su 5 % más seguro acierta más que la media");
   const b = backtest({ ...BASE, estilo: "ia", iaMin: 0.3, stop: 0.015, tp: 0.02, tpFrac: 1, trailOn: 0.5, maxHoldH: 6 }, H); assert.ok(b.n > 0);
 });
+
+test("v291 · 💼 examen de cartera: dinero compartido y máximo de posiciones a la vez", async () => {
+  const B = await import("../runner/bitvavo.mjs");
+  // 10 operaciones a la vez del +2 %: con maxPos 2 solo entran 2; con size 0.5 la cuenta gana ~2 %
+  const tr = Array.from({ length: 10 }, (_, i) => ({ a: 1000 + i, b: 5000, r: 0.02 }));
+  const c = B.cartera(tr, { maxPos: 2, size: 0.5 }); assert.equal(c.n, 2); assert.ok(Math.abs(c.ret - 2) < 0.01, JSON.stringify(c));
+  // una racha de pérdidas: la caída máxima se ve
+  const malo = [0, 1, 2, 3].map((i) => ({ a: i * 10, b: i * 10 + 5, r: -0.2 })); const d = B.cartera(malo, { maxPos: 1, size: 0.5 });
+  assert.ok(d.ret < 0 && d.dd > 30, JSON.stringify(d)); assert.equal(B.aprueba({ cart: [d] }), false); assert.equal(B.aprueba({ cart: [c] }), true);
+});
+test("v291 · 🔒 la IA no se examina con el futuro: el primer trozo de tiempo queda sin predicción", async () => {
+  const { entrenarIA } = await import("../runner/bitvavo-ia.mjs"), B = await import("../runner/bitvavo.mjs");
+  const vel = []; let p = 100, t0 = Date.UTC(2026, 0, 1); for (let i = 0; i < 6000; i++) { p *= 1 + Math.sin(i / 37) * 0.004 + (i % 7 === 0 ? 0.003 : -0.0004); vel.push([t0 + i * 300e3, p, p * 1.003, p * 0.997, p, 100 + (i % 50)]); }
+  const H = { m: { "A-EUR": { c: vel, f: B.rasgos(vel) } } }; const r = entrenarIA(H);
+  if (r.listo === false && !r.auc) return;   // sin datos suficientes en este mercado sintético: nada que comprobar
+  const f = H.m["A-EUR"].f, ts = vel.map((x) => x[0]), corte = ts[Math.floor(ts.length / 6)];
+  assert.ok(f.every((x, i) => !x || ts[i] >= corte || x.ia == null), "nada antes del primer corte tiene predicción");
+});
