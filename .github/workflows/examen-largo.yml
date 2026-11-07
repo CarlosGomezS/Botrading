@@ -1,0 +1,43 @@
+name: Cripto · examen largo (1 año, solo dinero ficticio)
+
+# v293 · 📆 cada 3 horas examina la regla EN USO de cada laboratorio con un año de velas de 5 min, por trimestres y como cartera completa.
+# El dinero real no sigue a un método cuya regla actual suspende este examen. Nunca toca dinero real.
+on:
+  schedule:
+    - cron: "41 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: examen-largo
+  cancel-in-progress: false
+
+jobs:
+  examen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: runner
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Recuperar el año de velas
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/largo
+          key: largo-${{ github.run_id }}
+          restore-keys: largo-
+      - name: Examen largo
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: timeout 3000 node --max-old-space-size=12000 runner/examen-largo.mjs || true
+      - name: Guardar el año de velas
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/largo
+          key: largo-${{ github.run_id }}

@@ -78,3 +78,12 @@ test("v291 · 🔒 la IA no se examina con el futuro: el primer trozo de tiempo 
   const f = H.m["A-EUR"].f, ts = vel.map((x) => x[0]), corte = ts[Math.floor(ts.length / 6)];
   assert.ok(f.every((x, i) => !x || ts[i] >= corte || x.ia == null), "nada antes del primer corte tiene predicción");
 });
+
+test("v293 · 📆 examen largo: aprueba solo si gana el año, en ≥ 3 de 4 trimestres y sin caídas de más del 25 %", async () => {
+  const { veredicto } = await import("../runner/examen-largo.mjs");
+  const X = (rets, dds = [5, 5, 5, 5], n = 10) => Object.assign([n, n, n, n].map((x) => ({ n: x })), { cart: rets.map((r, i) => ({ ret: r, dd: dds[i], n })) });
+  assert.equal(veredicto(X([3, 2, -1, 4])).ok, true);
+  assert.equal(veredicto(X([3, -2, -1, 4])).ok, false, "solo 2 de 4 trimestres");
+  assert.equal(veredicto(X([3, 2, 1, 4], [5, 30, 5, 5])).ok, false, "cae un 30 %");
+  assert.equal(veredicto(X([1, 1, 1, 1], undefined, 3)).ok, false, "casi no opera");
+});
