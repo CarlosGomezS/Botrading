@@ -42,7 +42,7 @@ async function main() {
   for (const k of LABS) {
     const Lk = L[k], P = B.PERF[k]; if (!Lk || !Lk.genome || !P) continue;
     if (Lk.prueba !== false) { res[k] = { genomeId: Lk.genomeId, ok: null, motivo: "sin regla ganadora ahora", t: new Date().toISOString() }; continue; }
-    if (res[k] && res[k].genomeId === Lk.genomeId && res[k].ok != null && Date.now() - Date.parse(res[k].t) < 24 * 3600e3) continue;   // ya examinada hoy
+    if (res[k] && res[k].genomeId === Lk.genomeId && res[k].ok != null && Math.abs((res[k].dias || 0) - dias) < 5 && Date.now() - Date.parse(res[k].t) < 24 * 3600e3) continue;   // ya examinada hoy
     const g = { ...B.BASE, ...Lk.genome }; let Hk = H;
     if (P.soloOkx && okx && okx.size > 10) Hk = B.filtraH(H, okx);
     if (g.estilo === "consenso") { const gs = []; for (const o of (P.comite === "okx" ? B.COMITE_OKX : B.COMITE)) { const Lo = L[o]; if (Lo && Lo.genome && Lo.prueba === false) gs.push({ ...B.BASE, ...Lo.genome }); } B.ponVotos(Hk, gs); }
