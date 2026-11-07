@@ -123,15 +123,15 @@ export function rankear(F) {   // F: { mercado: rasgos[] } con los mismos tiempo
 export function backtest(g, H, desde = 0, hasta = Infinity) { return backtestTramos(g, H, [desde, hasta])[0]; }
 // v245 · un solo recorrido para varios tramos de tiempo (cortes = [t0, t1, …, tn]): lo abierto al cruzar un corte se cierra ahí
 export function backtestTramos(g, H, cortes) {
-  const T = cortes.length - 1, RS = Array.from({ length: T }, () => []), TR = Array.from({ length: T }, () => []), apunta = (p, tf, r) => { RS[p.k].push(r); TR[p.k].push({ a: p.t, b: tf, r, w: p.lo ? Math.min(0, p.lo / p.px - 1) : 0 }); },   /* v295 · w = peor momento de la operación (a precio de mercado) */ tramo = (t) => { if (t < cortes[0] || t >= cortes[T]) return -1; let k = 0; while (k < T - 1 && t >= cortes[k + 1]) k++; return k; };
-  for (const m of Object.values(H.m || {})) {
+  const T = cortes.length - 1, RS = Array.from({ length: T }, () => []), TR = Array.from({ length: T }, () => []), apunta = (p, tf, r) => { RS[p.k].push(r); TR[p.k].push({ a: p.t, b: tf, r, w: p.lo ? Math.min(0, p.lo / p.px - 1) : 0, s: p.mk }); },   /* v295 · w = peor momento de la operación (a precio de mercado) */ tramo = (t) => { if (t < cortes[0] || t >= cortes[T]) return -1; let k = 0; while (k < T - 1 && t >= cortes[k + 1]) k++; return k; };
+  for (const [mkN, m] of Object.entries(H.m || {})) {
     const c = m.c, F = m.f, sp = (m.sp || 0.001) + 2 * (m.slip || SLIP); let pos = null, cool = 0;   // v271 · spread + deslizamiento (ida y vuelta)
     for (let i = 48; i < c.length; i++) {
       const t = c[i][0], k = tramo(t);
       if (pos && k !== pos.k) { apunta(pos, t, (pos.cob + pos.q * c[i][4] * (1 - sp / 2) * (1 - FEE)) / pos.cost - 1); pos = null; }
       if (k < 0) continue;
       if (pos && pos.plan) {   // v251 · método cuantitativo: stops y objetivos con precio de cada operación
-        const [, , h, l, cc] = c[i]; pos.peak = Math.max(pos.peak, h); pos.lo = Math.min(pos.lo || pos.px, l); const x = CU.salida(pos, h, l, cc, F[i]), ven = (px, q) => q * px * (1 - sp / 2) * (1 - FEE);
+        const [, , h, l, cc] = c[i]; pos.lo = Math.min(pos.lo || pos.px, l); const x = CU.salida(pos, h, l, cc, F[i]), ven = (px, q) => q * px * (1 - sp / 2) * (1 - FEE); pos.peak = Math.max(pos.peak, h);   /* v297 · el stop móvil mira el máximo de ANTES de esta vela */
         if (x) { const pxo = x.px === pos.plan.sl ? Math.min(c[i][1], x.px) : x.px; if (x.sale >= 1) { apunta(pos, t, (pos.cob + ven(pxo, pos.q)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; continue; } pos.cob += ven(pxo, pos.q * x.sale); pos.q *= 1 - x.sale; pos.tp = 1; }
         else if ((t - pos.t) / 3600e3 >= 48) { apunta(pos, t, (pos.cob + ven(cc, pos.q)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; }
         continue;
@@ -150,7 +150,7 @@ export function backtestTramos(g, H, cortes) {
         if (out != null) { apunta(pos, t, (pos.cob + ven(out)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; }
         continue;
       }
-      if (t >= cool && entra(g, F[i]) && i + 1 < c.length && tramo(c[i + 1][0]) === k) { const px = c[i + 1][1] * (1 + sp / 2), P = g.estilo === "cuant" ? CU.plan(F[i], px, g.pil || "ABC", g) : null; if (g.estilo === "cuant" && !P) continue; pos = { k, px, q: (1 - FEE) / px, cob: 0, cost: 1, peak: px, t: c[i + 1][0], plan: P }; }   // v228 · la vela de entrada también se revisa
+      if (t >= cool && entra(g, F[i]) && i + 1 < c.length && tramo(c[i + 1][0]) === k) { const px = c[i + 1][1] * (1 + sp / 2), P = g.estilo === "cuant" ? CU.plan(F[i], px, g.pil || "ABC", g) : null; if (g.estilo === "cuant" && !P) continue; pos = { mk: mkN, k, px, q: (1 - FEE) / px, cob: 0, cost: 1, peak: px, t: c[i + 1][0], plan: P }; }   // v228 · la vela de entrada también se revisa
     }
     if (pos) { const x = c[c.length - 1]; apunta(pos, x[0], (pos.cob + pos.q * x[4] * (1 - sp / 2) * (1 - FEE)) / pos.cost - 1); }
   }
@@ -172,7 +172,7 @@ export function cartera(trades, g, opt = {}) {
   const mira = () => { const e = eqPeor(); dd = Math.max(dd, 1 - e / pico); pico = Math.max(pico, eq()); };
   const cierra = (hasta) => { abiertas.sort((x, y) => x.b - y.b); while (abiertas.length && abiertas[0].b <= hasta) { const o = abiertas.shift(); cash += o.amt * (1 + o.r); mira(); } };
   const tope = opt.tope || 1, minAmt = opt.min || 0, maxAmt = opt.max || 1;
-  for (const x of ts) { cierra(x.a); if (abiertas.length >= maxPos) continue; const E = eq(), inv = E - cash; let amt = Math.min(Math.max(size, minAmt), maxAmt) * E; amt = Math.min(amt, tope * E - inv); if (!(amt > 0) || cash < amt * 0.999) continue; cash -= amt; abiertas.push({ b: x.b, amt, r: x.r, w: x.w }); n++; mira(); }
+  for (const x of ts) { cierra(x.a); if (abiertas.length >= maxPos) continue; if (opt.unaPorMercado && x.s && abiertas.some((o) => o.s === x.s)) continue;   /* v297 · como el dinero real: una sola posición por cripto */ const E = eq(), inv = E - cash; let amt = Math.min(Math.max(size, minAmt), maxAmt) * E; amt = Math.min(amt, tope * E - inv); if (!(amt > 0) || cash < amt * 0.999) continue; cash -= amt; abiertas.push({ b: x.b, amt, r: x.r, w: x.w, s: x.s }); n++; mira(); }
   cierra(Infinity); return { ret: r2((cash - 1) * 100), dd: r2(dd * 100), n };
 }
 // ¿aprueba como cartera? gana en TODOS los tramos y nunca cae más de ddMax %
@@ -527,7 +527,7 @@ async function main() {
   let FO = Object.fromEntries(Object.entries(F).filter(([m]) => enOkx(OKX, m)).map(([m, f]) => [m, f ? { ...f } : f]));
   // v287 · 🟦 OKX CON SUS PROPIOS OJOS: los métodos de OKX miran las velas y los precios DE OKX y TODAS sus criptos (no solo las que comparte con Bitvavo)
   let tickO = tick, tickOkxReal = null; const HFO = {};   // v295 · el dinero real de OKX SOLO con precios de OKX (del par con el que opera); sin ellos, ese minuto no opera
-  if (okxI || OKX) try { const OK = await import("./okx.mjs"), fs = await import("node:fs"), I = okxI || (okxI = await OK.instrumentos()), PO = await OK.preciosOkx(I); tickOkxReal = PO.tickEx && Object.keys(PO.tickEx).length >= 10 ? PO.tickEx : null;
+  if (okxI || OKX) try { const OK = await import("./okx.mjs"), fs = await import("node:fs"), I = okxI || (okxI = await OK.instrumentos()), PO = await OK.preciosOkx(I); tickOkxReal = PO.tickEx && Object.keys(PO.tickEx).length ? PO.tickEx : null;   /* v297 · basta con que haya precio de OKX (cada operación exige el suyo) */
     const cand = Object.keys(PO.tick).filter((m) => PO.tick[m].vq >= MIN_VOL / 2 && PO.tick[m].sp < 0.012).sort((a, b) => PO.tick[b].vq - PO.tick[a].vq).slice(0, 60);
     const abiertas = SUBS.filter((k) => PERF[k].soloOkx).flatMap((k) => Object.keys(S.sub[k].pos || {})).filter((m) => PO.tick[m]);
     const CF = "/tmp/okx-velas.json"; let cache = {}; try { cache = JSON.parse(fs.readFileSync(CF, "utf8")); } catch (e) {}

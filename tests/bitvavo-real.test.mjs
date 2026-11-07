@@ -338,9 +338,10 @@ test("Real v295: 🧾 si el exchange vende fuera del bot (stop de emergencia), s
 });
 test("Real v295: 📆 estados del examen de un año (aprobada / pendiente / suspendida) y comité de Consenso", () => {
   const now = new Date(), t = now.toISOString(), F = { eq: { genomeId: "g1", prueba: false }, mix: { genomeId: "g2", prueba: false }, consenso: { genomeId: "c1" } };
-  const EL = { t, res: { eq: { genomeId: "g1", ok: false, suave: true, t }, mix: { genomeId: "gX", ok: true, t }, consenso: { genomeId: "c1", ok: true, t, comite: "g1,-,g2,-" } } };
+  const v = RL.VEX_REAL, EL = { t, res: { eq: { v, genomeId: "g1", ok: false, suave: true, t }, mix: { v, genomeId: "gX", ok: true, t }, consenso: { v, genomeId: "c1", ok: true, t, comite: "g1,-,g2,-" } } };
   assert.equal(RL.estadoExamen(EL, "eq", F, now), "aprobada"); assert.equal(RL.estadoExamen(EL, "mix", F, now), "pendiente", "otra regla");
-  assert.equal(RL.estadoExamen({ ...EL, res: { eq: { genomeId: "g1", ok: false, suave: false, t } } }, "eq", F, now), "suspendida");
+  assert.equal(RL.estadoExamen({ ...EL, res: { eq: { v, genomeId: "g1", ok: false, suave: false, t } } }, "eq", F, now), "suspendida");
+  assert.equal(RL.estadoExamen({ ...EL, res: { eq: { v: 1, genomeId: "g1", ok: true, t } } }, "eq", F, now), "pendiente", "examen con reglas antiguas");
   assert.equal(RL.estadoExamen(EL, "consenso", F, now), "aprobada"); assert.equal(RL.estadoExamen(EL, "consenso", { ...F, mix: { genomeId: "g9", prueba: false } }, now), "pendiente", "cambió el comité");
   assert.equal(RL.estadoExamen({ ...EL, t: new Date(Date.now() - 13 * 3600e3).toISOString() }, "eq", F, now), "pendiente", "examen viejo");
 });
@@ -350,4 +351,17 @@ test("Real v295: sin método aprobado no compra (pero sí vende) y el mínimo no
   const sp = { sym: "A", px: 1, cost0: 15, cost: 15, q: 15, q0: 15, t0: T(1).toISOString() };
   ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100, noCompra: true }, tk(ex.px), T(1), deps));
   assert.equal(ex.orders.length, 0); assert.ok(!RS.pos["A-EUR"]);
+});
+
+test("Real v297: 🔒 las criptos que marcas como tuyas no se compran, no se venden y el bot deja de gestionarlas", async () => {
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 100 }, tk(ex.px), T(0), deps);
+  const sp = { sym: "A", px: 1, cost0: 15, cost: 15, q: 15, q0: 15, t0: T(1).toISOString() };
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100, conservar: ["A"] }, tk(ex.px), T(1), deps));
+  assert.equal(ex.orders.filter((o) => o.side === "buy").length, 0, "no la compra");
+  const sp2 = { ...sp, t0: T(2).toISOString() };
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp2 }) }, { copia: "mix", capital: 100 }, tk(ex.px), T(2), deps)); assert.ok(RS.pos["A-EUR"]);
+  const n = ex.orders.length; ex.px["A-EUR"] = 0.5;   // cae un 50 %: con «conservar» NO se vende
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp2 }) }, { copia: "mix", capital: 100, conservar: ["A"] }, tk(ex.px), T(3), deps));
+  assert.equal(ex.orders.slice(n).filter((o) => o.side === "sell").length, 0, "no la vende"); assert.ok(!RS.pos["A-EUR"], "deja de gestionarla");
 });

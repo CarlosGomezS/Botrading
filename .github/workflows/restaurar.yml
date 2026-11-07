@@ -38,7 +38,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for w in meme.yml cripto-lab.yml; do for id in $(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?status=in_progress" -q '.workflow_runs[].id'); do gh api -X POST "repos/${{ github.repository }}/actions/runs/$id/cancel" || true; done; done
+          for w in meme.yml cripto-lab.yml examen-largo.yml; do for id in $(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?status=in_progress" -q '.workflow_runs[].id'); do gh api -X POST "repos/${{ github.repository }}/actions/runs/$id/cancel" || true; done; done
           sleep 60
       - name: Restaurar
         env:
@@ -71,6 +71,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # lo que arrancó durante la restauración cargó los datos viejos: se cancela y se arranca limpio
-          for w in meme.yml cripto-lab.yml; do for id in $(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?status=in_progress" -q '.workflow_runs[].id'); do gh api -X POST "repos/${{ github.repository }}/actions/runs/$id/cancel" || true; done; done
+          for w in meme.yml cripto-lab.yml examen-largo.yml; do for id in $(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?status=in_progress" -q '.workflow_runs[].id'); do gh api -X POST "repos/${{ github.repository }}/actions/runs/$id/cancel" || true; done; done
           sleep 45
-          for w in meme.yml cripto-lab.yml; do n=$(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?per_page=5" -q '[.workflow_runs[]|select(.status=="in_progress" or .status=="queued")]|length'); [ "$n" != "0" ] && { echo "$w ya está en marcha"; continue; }; gh api -X POST "repos/${{ github.repository }}/actions/workflows/$w/dispatches" -f ref=main && echo "encendido $w" || true; done
+          for w in meme.yml cripto-lab.yml examen-largo.yml; do n=$(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?per_page=5" -q '[.workflow_runs[]|select(.status=="in_progress" or .status=="queued")]|length'); [ "$n" != "0" ] && { echo "$w ya está en marcha"; continue; }; gh api -X POST "repos/${{ github.repository }}/actions/workflows/$w/dispatches" -f ref=main && echo "encendido $w" || true; done

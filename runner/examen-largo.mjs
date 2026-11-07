@@ -8,7 +8,7 @@ import { entrenarIA } from "./bitvavo-ia.mjs";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from "node:fs";
 
 const DIAS = +process.env.LARGO_DIAS || 365, NMER = +process.env.LARGO_MERCADOS || 12, DIR = process.env.LARGO_DIR || "/tmp/largo", FILE = DIR + "/raw.json";
-const VEX = 295;   // versión del examen: si cambian sus reglas, todo se vuelve a examinar
+const VEX = 297;   // versión del examen: si cambian sus reglas, todo se vuelve a examinar
 const LABS = ["eq", "turbo", "mix", "cuant", "consenso", "tend", "explora", "mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx", "exploraokx"];
 
 // ¿aprueba el año? opera de verdad (≥ 20 operaciones), gana como cartera en al menos 3 de los 4 trimestres, en total gana
@@ -69,9 +69,11 @@ async function main() {
   for (const [ex, lista] of [["bitvavo", LABS.filter((k) => !B.PERF[k] || !B.PERF[k].soloOkx)], ["okx", LABS.filter((k) => B.PERF[k] && B.PERF[k].soloOkx)]]) {
     const ap = lista.filter((k) => res[k] && (res[k].ok || res[k].suave) && L[k] && res[k].genomeId === L[k].genomeId);
     const tr = []; for (const k of ap) { let X = X1[k]; if (!X) { const g = { ...B.BASE, ...L[k].genome }; let Hk = H; if (B.PERF[k].soloOkx && okx) Hk = B.filtraH(H, okx); if (g.estilo === "consenso") continue; X = B.backtestTramos(g, Hk, cortes); } tr.push(...(X.trades || []).flat()); }
-    if (!tr.length) { combinada[ex] = { metodos: ap, n: 0, ok: null }; continue; }
-    const c = B.cartera(tr, { maxPos: 8, size: 0.15 }, { tope: 0.6, min: 0.1, max: 0.25 }); combinada[ex] = { metodos: ap, ...c, ok: c.ret > 0 && c.dd < 25 };
-    console.log(`Examen largo · cartera combinada ${ex} (${ap.join(", ") || "—"}): ${c.ret} % en el año · peor caída ${c.dd} % · ${c.n} operaciones → ${combinada[ex].ok ? "✅" : "❌"}`); }
+    if (!tr.length) { combinada[ex] = { v: VEX, metodos: ap, n: 0, ok: null }; continue; }
+    // v297 · como el real: una posición por cripto; aprueba solo con ≥ 30 operaciones, ganando el año y en ≥ 3 de 4 trimestres, y sin caer un 25 %
+    const c = B.cartera(tr, { maxPos: 8, size: 0.15 }, { tope: 0.6, min: 0.1, max: 0.25, unaPorMercado: true }), q4 = [0, 1, 2, 3].map((j) => B.cartera(tr.filter((x) => x.a >= cortes[j] && x.a < cortes[j + 1]), { maxPos: 8, size: 0.15 }, { tope: 0.6, min: 0.1, max: 0.25, unaPorMercado: true }));
+    combinada[ex] = { v: VEX, metodos: ap, ...c, trimestres: q4.map((x) => x.ret), ok: c.n >= 30 && c.ret > 0 && c.dd < 25 && q4.filter((x) => x.ret > 0).length >= 3 };
+    console.log(`Examen largo · cartera combinada ${ex} (${ap.join(", ") || "—"}): ${c.ret} % en el año · trimestres ${q4.map((x) => x.ret).join(" / ")} % · estrés ${c.dd} % · ${c.n} operaciones → ${combinada[ex].ok ? "✅" : "❌"}`); }
   B.publicar("examen-largo.json", { t: new Date().toISOString(), estado: "ok", dias, mercados: mer.length, res, anio, combinada }, "examen-largo");
   console.log(`Examen largo: hecho en ${Math.round((Date.now() - t0) / 1000)} s`);
 }

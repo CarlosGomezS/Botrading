@@ -31,7 +31,7 @@ jobs:
           if [ "$e" -gt 360 ]; then if [ "$v" = "0" ]; then lanza meme.yml; else echo "hay una en marcha; si en 20 min sigue sin publicar, se cancela"; id=$(gh api "repos/$R/actions/workflows/meme.yml/runs?status=in_progress&per_page=1" -q '.workflow_runs[0].id'); if [ -n "$id" ] && [ "$e" -gt 1200 ]; then gh api -X POST "repos/$R/actions/runs/$id/cancel"; sleep 60; lanza meme.yml; fi; fi; fi
           l=$(edad lab-eq.json bitvavo-lab-eq); w=$(vivo cripto-lab.yml); echo "laboratorio: hace ${l}s · ejecuciones vivas: $w"
           # v295 · TODOS los laboratorios (los de Bitvavo y los de OKX van en máquinas distintas): si alguno lleva > 40 min sin publicar y no hay tramo vivo, se relanza
-          peor=0; cual=""; for k in eq turbo mix cuant consenso tend explora mixokx eqokx turbookx cuantokx consensookx tendokx exploraokx; do x=$(edad lab-$k.json bitvavo-lab-$k); [ "$x" -gt "$peor" ] && { peor=$x; cual=$k; }; done
+          peor=0; cual=""; for k in eq turbo mix cuant consenso tend explora riesgo mixokx eqokx turbookx cuantokx consensookx tendokx exploraokx riesgookx; do x=$(edad lab-$k.json bitvavo-lab-$k); [ "$x" -gt "$peor" ] && { peor=$x; cual=$k; }; done
           echo "laboratorio más atrasado: $cual hace ${peor}s"
           if { [ "$l" -gt 1200 ] || [ "$peor" -gt 2400 ]; } && [ "$w" = "0" ]; then lanza cripto-lab.yml; fi
           # v295 · examen de un año: si el último examen bueno tiene > 5 h y no hay uno en marcha, se lanza

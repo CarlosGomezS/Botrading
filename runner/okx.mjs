@@ -26,15 +26,16 @@ export const errClave = (e) => e && (e.status === 401 || /^501\d\d$/.test(String
 // tick: { "SYM-EUR": { bid, ask, last, vq, ch24, sp } } con TODAS las criptos de OKX (también las que no están en Bitvavo)
 export async function preciosOkx(I, fx = fetch) {
   const r = await fx(BASE + "/api/v5/market/tickers?instType=SPOT", { signal: AbortSignal.timeout(15000) }), j = await r.json(), d = j.data || [], by = {};
-  for (const x of d) by[x.instId] = x; const u = by["USDC-EUR"], ue = u ? +u.bidPx || +u.last : 0, tick = {}, tickEx = {};
+  for (const x of d) by[x.instId] = x; const u = by["USDC-EUR"], ue = u ? +u.bidPx || +u.last : 0, ua = u ? +u.askPx || ue : 0, tick = {}, tickEx = {};   // v297 · al comprar se paga el «ask» de USDC-EUR, al vender se cobra el «bid»
   for (const [b, x] of Object.entries(I || {})) { if (/^(USDC|USDT|EURC|EUR)$/.test(b)) continue;
     // v289 · de sus dos pares (EUR y USDC) usa el que MÁS se mueve: los pares en EUR de OKX suelen tener poco volumen y quedaban fuera (solo 23 criptos)
     const vE = x.EUR && by[x.EUR.instId] ? +by[x.EUR.instId].volCcy24h || 0 : -1, vU = x.USDC && ue > 0 && by[x.USDC.instId] ? (+by[x.USDC.instId].volCcy24h || 0) * ue : -1;
     const par = vE < 0 && vU < 0 ? null : vU > vE ? x.USDC.instId : x.EUR.instId, t = par && by[par]; if (!t) continue;
-    const k = par.endsWith("-EUR") ? 1 : ue, bid = +t.bidPx * k, ask = +t.askPx * k, last = +t.last * k; if (!(bid > 0 && ask > 0)) continue;
+    const k = par.endsWith("-EUR") ? 1 : ue, bid = +t.bidPx * k, ask = +t.askPx * (par.endsWith("-EUR") ? 1 : ua), last = +t.last * k; if (!(bid > 0 && ask > 0)) continue;
     tick[b + "-EUR"] = { bid, ask, last, vq: (+t.volCcy24h || 0) * k, ch24: +t.open24h > 0 ? +t.last / +t.open24h - 1 : 0, sp: (ask - bid) / ((ask + bid) / 2), par, k };
     // v295 · precio del par con el que se COMPRA y VENDE de verdad (ruta: el de euros si existe; si no, USDC): lo usa el dinero real de OKX
-    const pe = x.EUR ? x.EUR.instId : x.USDC && ue > 0 ? x.USDC.instId : null, te = pe && by[pe]; if (te) { const ke = pe.endsWith("-EUR") ? 1 : ue, be = +te.bidPx * ke, ae = +te.askPx * ke; if (be > 0 && ae > 0) tickEx[b + "-EUR"] = { bid: be, ask: ae, last: +te.last * ke, vq: (+te.volCcy24h || 0) * ke, sp: (ae - be) / ((ae + be) / 2), par: pe, k: ke, t: Date.now() }; } }
+    const pe = x.EUR ? x.EUR.instId : x.USDC && ue > 0 ? x.USDC.instId : null, te = pe && by[pe]; if (te) { const ke = pe.endsWith("-EUR") ? 1 : ue, be = +te.bidPx * ke, ae = +te.askPx * (pe.endsWith("-EUR") ? 1 : ua); if (be > 0 && ae > 0) tickEx[b + "-EUR"] = { bid: be, ask: ae, last: +te.last * ke, vq: (+te.volCcy24h || 0) * ke, sp: (ae - be) / ((ae + be) / 2), par: pe, k: ke, t: Date.now() }; } }
+  if (ue > 0) tickEx["USDC-EUR"] = { bid: ue, ask: ua, sp: ua > 0 ? (ua - ue) / ((ua + ue) / 2) : 0, t: Date.now() };   // v297 · para pasar USDC a euros
   return { tick, tickEx, ue };
 }
 // velas de 5 min de un par de OKX → [[t,o,h,l,c,v]] de antigua a reciente, en euros. Con caché en disco (cada vuelta es un proceso nuevo):
@@ -110,7 +111,8 @@ export function adaptador(api, I, tick = {}) {
       const fill = +d.accFillSz || 0, px = +d.avgPx || 0, fee = Math.abs(+d.fee || 0), base = instId.split("-")[0];
       return { fill, px, quote: fill * px, fee, feeCcy: d.feeCcy, base }; } }
     // v295 · se quedó a medias: se cancela lo que falta y se apunta EXACTAMENTE lo ejecutado
-    if (ult && +ult.accFillSz > 0) { try { await api("POST", "/api/v5/trade/cancel-order", { instId, clOrdId }); } catch (e) {} let d = ult; try { [d] = await api("GET", `/api/v5/trade/order?instId=${instId}&clOrdId=${clOrdId}`); } catch (e) {}
+    if (ult && +ult.accFillSz > 0) { try { await api("POST", "/api/v5/trade/cancel-order", { instId, clOrdId }); } catch (e) {} let d = null; for (let j = 0; j < 4 && !(d && ["canceled", "filled", "mmp_canceled"].includes(d.state)); j++) { await sleep(500); try { [d] = await api("GET", `/api/v5/trade/order?instId=${instId}&clOrdId=${clOrdId}`); } catch (e) {} }
+      if (!d || !["canceled", "filled", "mmp_canceled"].includes(d.state)) throw new Error("OKX: orden a medias sin estado final (se cuadrará con el saldo)");   // v297 · nunca se da por resuelta sin estado final
       const fill = +d.accFillSz || 0, px = +d.avgPx || 0, fee = Math.abs(+d.fee || 0), base = instId.split("-")[0]; if (fill > 0) return { fill, px, quote: fill * px, fee, feeCcy: d.feeCcy, base }; }
     if (ult && (ult.state === "live" || ult.state === "partially_filled")) { try { await api("POST", "/api/v5/trade/cancel-order", { instId, clOrdId }); } catch (e) {} }
     throw new Error("OKX: la orden no se completó a tiempo");
@@ -120,7 +122,8 @@ export function adaptador(api, I, tick = {}) {
     const R = ruta(I, m); if (!R) throw new Error("no está en OKX");
     if (R.tipo === "eur") { const o = await orden(R.par.instId, "buy", eur.toFixed(2), true); const feeB = o.feeCcy === o.base ? o.fee : 0, feeE = o.feeCcy === "EUR" ? o.fee : o.fee * o.px; if (!(o.fill > 0)) throw new Error("la compra no se ejecutó"); return { q: o.fill - feeB, coste: o.quote + (o.feeCcy === "EUR" ? o.fee : 0), fee: feeE, px: o.px }; }
     const u = await orden(R.puente.instId, "buy", eur.toFixed(2), true), usdc = abajo(u.fill - (u.feeCcy === "USDC" ? u.fee : 0), 4);
-    const o = await orden(R.par.instId, "buy", usdc.toFixed(4), true); const feeB = o.feeCcy === o.base ? o.fee : 0;
+    let o; try { o = await orden(R.par.instId, "buy", usdc.toFixed(4), true); }
+    catch (e) { try { await orden(R.puente.instId, "sell", abajo(usdc, R.puente.lot).toFixed(R.puente.lot), false); } catch (e2) {} throw e; }   /* v297 · si falla el 2.º paso, el USDC vuelve a euros */ const feeB = o.feeCcy === o.base ? o.fee : 0;
     return { q: o.fill - feeB, coste: u.quote + (u.feeCcy === "EUR" ? u.fee : 0), fee: (u.feeCcy === "EUR" ? u.fee : u.fee * u.px) + o.fee * (o.feeCcy === o.base ? o.px : 1) * u.px, px: (u.quote) / Math.max(1e-12, o.fill) };
   }
   // vende «q» cripto → { q (vendida), got (€ netos), fee (€ aprox.), px }
@@ -129,7 +132,9 @@ export function adaptador(api, I, tick = {}) {
     const sz = abajo(q, R.par.lot); if (!(sz > 0)) return { q: 0, got: 0, fee: 0 };
     const o = await orden(R.par.instId, "sell", sz.toFixed(R.par.lot), false);
     if (R.tipo === "eur") { const got = o.quote - (o.feeCcy === "EUR" ? o.fee : 0); return { q: o.fill, got, fee: o.fee, px: o.px }; }
-    const usdc = abajo(o.quote - (o.feeCcy === "USDC" ? o.fee : 0), R.puente.lot); const u = await orden(R.puente.instId, "sell", usdc.toFixed(R.puente.lot), false);
+    const usdc = abajo(o.quote - (o.feeCcy === "USDC" ? o.fee : 0), R.puente.lot); let u = null;
+    for (let i = 0; i < 3 && !u; i++) try { u = await orden(R.puente.instId, "sell", usdc.toFixed(R.puente.lot), false); } catch (e) { await sleep(1500); }
+    if (!u) { const ue = (tick["USDC-EUR"] && tick["USDC-EUR"].bid) || 0.9; return { q: o.fill, got: usdc * ue * 0.998, fee: o.fee * ue, px: (usdc * ue) / Math.max(1e-12, o.fill), pendUsdc: usdc }; }   // v297 · USDC pendiente (lo convierte después, solo ese)
     return { q: o.fill, got: u.quote - (u.feeCcy === "EUR" ? u.fee : 0), fee: u.fee + o.fee * u.px, px: (u.quote) / Math.max(1e-12, o.fill) };
   }
   // mínimo por orden en euros (aprox.: el mínimo de OKX en cripto × precio), y un suelo de 5 € para no hacer órdenes ridículas
@@ -140,7 +145,9 @@ export function adaptador(api, I, tick = {}) {
     catch (e) { if (e && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code))) throw e; }
     await sleep(800); try { const [d] = await api("GET", `/api/v5/trade/order-algo?algoClOrdId=${algoClOrdId}`); if (d && d.algoId) return String(d.algoId); } catch (e) {} return null; }
   // v295 · USDC que quedó a medias (ruta EUR→USDC→cripto cortada) → a euros
-  async function usdcAEur(q) { if (!I.USDC || !I.USDC.EUR) return null; const sz = abajo(q, I.USDC.EUR.lot); if (!(sz >= I.USDC.EUR.min) || sz < 5) return null; const u = await orden(I.USDC.EUR.instId, "sell", sz.toFixed(I.USDC.EUR.lot), false); return { got: u.quote - (u.feeCcy === "EUR" ? u.fee : 0) }; }
+  async function usdcAEur(q) { if (!I.USDC || !I.USDC.EUR) return null; const sz = abajo(q, I.USDC.EUR.lot); if (!(sz >= I.USDC.EUR.min) || sz < 5) return null; const ue = (tick["USDC-EUR"] && tick["USDC-EUR"].bid) || 0.9; const u = await orden(I.USDC.EUR.instId, "sell", sz.toFixed(I.USDC.EUR.lot), false); return { got: u.quote - (u.feeCcy === "EUR" ? u.fee : 0), est: sz * ue * 0.998 }; }
+  // v297 · ¿sigue activo el stop de emergencia y cuánto cubre?
+  async function estadoStop(m, id) { const [d] = await api("GET", `/api/v5/trade/order-algo?algoId=${id}`); return { activo: !!d && d.state === "live", q: d ? +d.sz || 0 : 0 }; }
   async function quitaStop(m, id) { const R = ruta(I, m); if (!R) return; try { await api("POST", "/api/v5/trade/cancel-algos", [{ algoId: id, instId: R.par.instId }]); } catch (e) { if (!/51000|5127|not exist|no existe|cancel/i.test(String(e.message))) throw e; } }
   async function mercado(m) { const R = ruta(I, m), px = (tick[m] && (tick[m].ask || tick[m].bid)) || 0; return { min: Math.max(5, R ? R.par.min * px * 1.05 : 5) }; }
   async function saldoEur() { const [d] = await api("GET", "/api/v5/account/balance?ccy=EUR"); const x = d && (d.details || []).find((y) => y.ccy === "EUR"); return x ? +(x.availBal || x.cashBal) || 0 : 0; }
@@ -158,5 +165,5 @@ export function adaptador(api, I, tick = {}) {
         out.push({ t: +x.ts, sym: b, side: x.side, q: sz - (x.side === "buy" && x.feeCcy === b ? fee : 0), eur: sz * px, fee: feeE }); }
       after = d[d.length - 1].billId; if (d.length < 100) break; }
     return out; }
-  return { nombre: "OKX", fee: FEE, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, saldos, saldo, precios, operaciones, ponStop, quitaStop, usdcAEur, errClave };
+  return { nombre: "OKX", fee: FEE, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, saldos, saldo, precios, operaciones, ponStop, quitaStop, usdcAEur, estadoStop, errClave };
 }

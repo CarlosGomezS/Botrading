@@ -9,7 +9,7 @@
 //    Vende la mitad en 2R y el resto en 4R; tras 2R, sale si cierra por debajo de la EMA(9).
 //  · Reglas de supervivencia: no entra si el primer objetivo no es ≥ 4,5 × las comisiones (0,40 % ida y vuelta → ≥ 1,8 %);
 //    arriesga como mucho el 1,5 % del saldo por operación (el tamaño sale del stop); si cae un 8 % desde su máximo, no compra en 24 h.
-export const RIESGO = 0.015, EV_X = 4.5, COSTE = 0.004, DD_MAX = 0.08, MAX_POS = 3, TOPE_POS = 0.5;
+export const RIESGO = 0.015, EV_X = 4.5, COSTE = 0.006,   /* v297 · 0,5 % de comisiones ida y vuelta + ~0,1 % de spread y deslizamiento */ DD_MAX = 0.08, MAX_POS = 3, TOPE_POS = 0.5;
 
 // rasgos extra para este método (se añaden a los de cada vela de 5 min)
 export function rasgosCuant(c, out) {
