@@ -7,6 +7,7 @@
 //  · la clave de Bitvavo debe tener SOLO permiso de operar (nunca de retirar): aunque se filtrara, no podría sacar dinero
 // Privacidad: el estado va CIFRADO (REAL_VIEW_PASS) en la rama «bitvavo-real»; en público solo el estado (activo/parado), sin importes
 // ni criptos. La orden (submodo, parar/seguir) va en la rama «bitvavo-ctl». Nunca se escriben importes en los registros públicos.
+import { randomUUID } from "node:crypto";
 import { createHmac } from "node:crypto";
 import { encrypt, openAny } from "./real-cfg.mjs";
 
@@ -26,6 +27,7 @@ export function esMuy(v) { const X = v ? [v.a, v.b, v.c] : []; return !!(v && v.
 // v259 · ⭐⭐ ESTABLE: los laboratorios cambian de regla cada pocos minutos, y un método podía ser ⭐⭐ un rato y dejar de serlo al siguiente.
 // Para que el dinero real no salte de uno a otro (vendiendo y comprando, pagando comisiones), solo cuenta como ⭐⭐ si lleva ≥ 60 min siéndolo.
 export const TAM_COMPRA = 0.10, TAM_MUY = 0.15, TAM_MAX = 0.25, TOPE_INV = 0.60;   // v285 · cada compra ≥ 10 % de la cuenta · nunca más del 60 % invertido
+export const STOP_EMERG = 0.10;   // v291 · stop de emergencia alojado en el exchange: −10 % (el del bot, −6 %, actúa antes)
 export const MUY_ESTABLE_MS = 60 * 60000;
 export function marcaMuy(S, fuentes, now) { S.muyDesde = S.muyDesde || {}; for (const k of SUBS_OK) { const v = reglaEnUso(fuentes[k]); if (v && esMuy(v)) S.muyDesde[k] = S.muyDesde[k] || now.toISOString(); else delete S.muyDesde[k]; } return S.muyDesde; }
 export const PERMANENCIA_MS = 24 * 3600e3;   // v289 · como mucho un cambio de método al día (antes 6 h): menos vaivenes
@@ -70,15 +72,21 @@ const L = (RS, now, txt) => { RS.log.unshift({ t: now.toISOString(), txt }); RS.
 export const valor = (RS, tick) => RS.cash + Object.entries(RS.pos).reduce((s, [m, p]) => s + p.q * ((tick[m] && tick[m].bid) || p.last || p.px) * (1 - (RS.fee ?? FEE)), 0);
 
 // ---- órdenes (el importe real lo dice la respuesta de Bitvavo, no lo que pedimos)
+// v291 · 🔐 ÓRDENES SEGURAS: cada orden lleva un identificador propio (clientOrderId). Si la respuesta se pierde (red, tiempo agotado),
+// se pregunta a Bitvavo por ESA orden antes de darla por fallida: nunca se compra dos veces ni se pierde el rastro de una compra hecha.
+async function enviar(api, m, cuerpo) { const clientOrderId = randomUUID();
+  try { return await api("POST", "/order", { ...cuerpo, market: m, clientOrderId, operatorId: OPERADOR }); }
+  catch (e) { if (e && e.status && e.status < 500 && e.status !== 408 && e.status !== 429) throw e; await new Promise((r) => setTimeout(r, 1500));
+    let o = null; try { o = await api("GET", `/order?market=${m}&clientOrderId=${clientOrderId}`); } catch (e2) {} if (o && (+o.filledAmount > 0 || o.status === "filled")) return o; throw e; } }
 async function comprar(api, m, eur) {
-  const o = await api("POST", "/order", { market: m, side: "buy", orderType: "market", amountQuote: eur.toFixed(2), operatorId: OPERADOR });
+  const o = await enviar(api, m, { side: "buy", orderType: "market", amountQuote: eur.toFixed(2) });
   const q = +o.filledAmount || 0, quote = +o.filledAmountQuote || 0, fee = o.feeCurrency === "EUR" || !o.feeCurrency ? +o.feePaid || 0 : 0, feeBase = o.feeCurrency && o.feeCurrency !== "EUR" ? +o.feePaid || 0 : 0;
   if (!(q > 0)) throw new Error("la compra no se ejecutó");
   return { q: q - feeBase, coste: quote + fee, fee, px: quote / q };
 }
 async function vender(api, m, q, dec) {
   const f = 10 ** dec, amount = Math.floor(q * f) / f; if (!(amount > 0)) return { q: 0, got: 0, fee: 0 };
-  const o = await api("POST", "/order", { market: m, side: "sell", orderType: "market", amount: amount.toFixed(dec), operatorId: OPERADOR });
+  const o = await enviar(api, m, { side: "sell", orderType: "market", amount: amount.toFixed(dec) });
   const quote = +o.filledAmountQuote || 0, fee = +o.feePaid || 0; return { q: +o.filledAmount || amount, got: quote - fee, fee, px: quote / Math.max(1e-12, +o.filledAmount || amount) };
 }
 
@@ -89,7 +97,12 @@ export function bitvavoEx(api, mercado, saldoEur) {
   // v282 · operaciones REALES de la cuenta (las mismas del historial de Bitvavo), cripto a cripto
   const operaciones = async (syms) => { const out = []; for (const sym of syms) { if (/^(EUR|USDC|USDT|EURC)$/.test(sym)) continue; let d; try { d = await api("GET", `/trades?market=${sym}-EUR&limit=500`); } catch { continue; }
     for (const x of Array.isArray(d) ? d : []) { const q = +x.amount || 0, px = +x.price || 0, fee = +x.fee || 0, feeE = !x.feeCurrency || x.feeCurrency === "EUR" ? fee : fee * px; out.push({ t: +x.timestamp, sym, side: x.side, q: q - (x.side === "buy" && x.feeCurrency === sym ? fee : 0), eur: q * px, fee: feeE }); } } return out; };
-  return { nombre: "Bitvavo", fee: FEE, tiene: () => true, comprar: (m, eur) => comprar(api, m, eur), vender: async (m, q) => { const mk = await mercado(m); return vender(api, m, q, mk.dec); }, mercado, saldoEur, saldo, saldos, operaciones, errClave };
+  // v291 · 🛡️ STOP DE EMERGENCIA EN EL PROPIO EXCHANGE (por si el bot no pudiera actuar): orden «stopLoss» de Bitvavo. Bloquea esas criptos,
+  // así que antes de cualquier venta del bot se quita y, si queda algo, se vuelve a poner.
+  const ponStop = async (m, q, px) => { const mk = await mercado(m), f = 10 ** mk.dec, amount = Math.floor(q * f) / f; if (!(amount > 0) || amount * px < mk.min) return null;
+    const o = await api("POST", "/order", { market: m, side: "sell", orderType: "stopLoss", amount: amount.toFixed(mk.dec), triggerAmount: String(+px.toPrecision(5)), triggerType: "price", triggerReference: "lastTrade", operatorId: OPERADOR }); return o && o.orderId ? String(o.orderId) : null; };
+  const quitaStop = async (m, id) => { try { await api("DELETE", `/order?market=${m}&orderId=${id}`); } catch (e) { if (!/240|no.*(exist|encontr)|not found|filled|cancel/i.test(String(e.message))) throw e; } };
+  return { nombre: "Bitvavo", fee: FEE, tiene: () => true, ponStop, quitaStop, comprar: (m, eur) => comprar(api, m, eur), vender: async (m, q) => { const mk = await mercado(m); return vender(api, m, q, mk.dec); }, mercado, saldoEur, saldo, saldos, operaciones, errClave };
 }
 // v282 · 📒 LIBRO REAL: con las operaciones del exchange, casa compras y ventas (la primera que entra es la primera que sale) y saca
 // las cerradas con su % de verdad (comisiones incluidas) y el coste de lo que sigue abierto. Es lo mismo que verías haciendo las cuentas en la app del exchange.
@@ -132,6 +145,9 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     const q = Math.min(Math.max(quiere, V * (muy ? TAM_MUY : TAM_COMPRA) * frac), tope); return alMinimo(q, mk); };
   RS.vistos = RS.vistos || {};
   const vendeTodo = async (por) => { for (const m of Object.keys(RS.pos)) await cerrar(m, por); };
+  // v291 · 🛡️ pone (o renueva) el stop de emergencia −10 % en el propio exchange; si falla, el bot sigue vigilando con su stop −6 %
+  const protege = async (m) => { const p = RS.pos[m]; if (!p || !X.ponStop) return; try { if (p.stopId) { await X.quitaStop(m, p.stopId); delete p.stopId; } const id = await X.ponStop(m, p.q, p.px * (1 - STOP_EMERG)); if (id) p.stopId = id; }
+    catch (e) { if (!p.stopErr) L(RS, now, `ℹ️ ${p.sym}: no pude poner el stop de emergencia en ${EX} (sigue el del bot)`); p.stopErr = 1; } };
   async function cerrar(m, por, frac = 1) {
     const p = RS.pos[m], mk = await mercado(m), bid = tick[m] ? tick[m].bid : p.px;
     if (frac < 1 && p.q * (1 - frac) * bid < mk.min) frac = 1;   // si lo que quedaría es menos que el mínimo, se vende todo
@@ -143,6 +159,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (RS.cash >= pon && (await libre()) >= pon) { try { const rb = await X.comprar(m, pon); RS.cash -= rb.coste; RS.st.fees += rb.fee; p.q += rb.q; p.cost += rb.coste; L(RS, now, `🧹 ${p.sym}: valía menos que el mínimo de ${EX}; compra ${r2(pon)} € para poder venderla entera`); } catch (e) { if (!p.polvo) L(RS, now, `⚠️ ${p.sym}: vale menos que el mínimo y no pude completarla (lo reintenta)`); p.polvo = now.toISOString(); return; }
         return cerrar(m, por, 1); }
       if (!p.polvo) L(RS, now, `⏳ ${p.sym}: vale menos que el mínimo de ${EX} y no hay euros libres para completarla; la sigue vigilando`); p.polvo = now.toISOString(); return; }
+    if (p.stopId && X.quitaStop) { try { await X.quitaStop(m, p.stopId); delete p.stopId; } catch (e) { L(RS, now, `⚠️ ${p.sym}: no pude quitar el stop de emergencia para vender; lo reintenta`); return; } }   // v291
     let r; try { r = await X.vender(m, qv); } catch (e) { if (!/216|51008|insufficient|saldo/i.test(e.message)) throw e;
       // v278 · lo apuntado era un poco más de lo que hay (la comisión se cobró en la propia cripto): se vende lo que hay DE VERDAD
       const hay = X.saldo ? await X.saldo(p.sym) : 0, q2 = Math.min(qv, hay);
@@ -153,7 +170,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       const pnl = p.cob - p.cost; RS.st.pnl += pnl; if (pnl >= 0) RS.st.wins++; else RS.st.losses++;
       RS.closed.unshift({ m, sym: p.sym, t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(p.cob), pnl: r2(pnl), pc: r2((p.cob / p.cost - 1) * 100), why: por }); RS.closed = RS.closed.slice(0, 300); delete RS.pos[m];
       L(RS, now, `${pnl >= 0 ? "✅" : "🔻"} vende ${p.sym}: ${pnl >= 0 ? "+" : ""}${r2(pnl)} € (${r2((p.cob / p.cost - 1) * 100)} %) · ${por}`); msgs.push(`💶 ${pnl >= 0 ? "✅" : "🔻"} REAL: vende ${p.sym} → ${pnl >= 0 ? "+" : ""}${r2(pnl)} € (${r2((p.cob / p.cost - 1) * 100)} %) · ${por}`);
-    } else { p.tp = 1; L(RS, now, `💰 vende parte de ${p.sym} (+${r2(r.got)} €) · ${por}`); msgs.push(`💶 💰 REAL: vende parte de ${p.sym} (${r2(r.got)} €) · ${por}`); }
+    } else { p.tp = 1; await protege(m); L(RS, now, `💰 vende parte de ${p.sym} (+${r2(r.got)} €) · ${por}`); msgs.push(`💶 💰 REAL: vende parte de ${p.sym} (${r2(r.got)} €) · ${por}`); }
   }
   try {
     // 1) ¿parado? ¿cambio de submodo?
@@ -211,7 +228,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       const srcP = (p.src && fuentes[p.src]) || src, sp = srcP && srcP.pos ? srcP.pos[m] : null; if (tick[m]) p.last = tick[m].bid;
       if (!sp || sp.t0 !== p.srcT0) { await cerrar(m, "el método ficticio ha vendido"); continue; }
       if (sp.cob > 0 && !p.tp && sp.q0 > 0) { const frac = 1 - sp.q / sp.q0; if (frac > 0.05) await cerrar(m, "venta parcial con ganancia (como el método)", frac); }
-      if (sp.pir && !p.pir && sp.cost0 > 0) { const add = Math.min(RS.cash, p.cost0 * (sp.cost - sp.cost0) / sp.cost0, maxOrden(), Math.max(0, (await libre()) - 0.5)), mk = await mercado(m); p.pir = 1; if (add >= mk.min) { const r = await X.comprar(m, add); RS.cash -= r.coste; RS.st.fees += r.fee; p.q += r.q; p.cost += r.coste; L(RS, now, `➕ añade ${r2(r.coste)} € a ${p.sym} (como el método)`); } }
+      if (sp.pir && !p.pir && sp.cost0 > 0) { const add = Math.min(RS.cash, p.cost0 * (sp.cost - sp.cost0) / sp.cost0, maxOrden(), Math.max(0, (await libre()) - 0.5)), mk = await mercado(m); p.pir = 1; if (add >= mk.min) { const r = await X.comprar(m, add); RS.cash -= r.coste; RS.st.fees += r.fee; p.q += r.q; p.cost += r.coste; L(RS, now, `➕ añade ${r2(r.coste)} € a ${p.sym} (como el método)`); await protege(m); } }
     }
     // 4) compras nuevas del submodo (de menos de 5 min) en la misma proporción
     // v269 · en 🤖 Automático copia a la vez a TODOS los métodos con 🏆 de su exchange (más operaciones, siempre ganadores), repartiendo el dinero
@@ -227,7 +244,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         const frac = sp.q0 > 0 ? sp.q / sp.q0 : 1, mk = await mercado(m), quiere = await tam(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) * frac / eqSrc, Math.max(0, (await libre()) - 0.5)), mk, frac, esMuy(reglaEnUso(srcK)));
         if (quiere < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ no copia ${sp.sym} (abierta): tocarían ${r2(quiere)} € y el mínimo de ${EX} es ${r2(mk.min)} €`); continue; }
         const r = await X.comprar(m, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nA++;
-        RS.pos[m] = { src: kS, sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid, tp: sp.cob > 0 ? 1 : 0, pir: sp.pir ? 1 : 0 };
+        RS.pos[m] = { src: kS, sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid, tp: sp.cob > 0 ? 1 : 0, pir: sp.pir ? 1 : 0 }; await protege(m);
         L(RS, now, `📥 copia lo abierto: compra ${sp.sym} por ${r2(r.coste)} € (el método la compró a ${sp.px}; ahora ${r.px})`); msgs.push(`💶 📥 REAL: copia lo que ya tenía abierto el método: compra ${sp.sym} por ${r2(r.coste)} €`); }
       if (!nA && pedido) L(RS, now, "📥 copiar lo abierto: no había nada que se pudiera copiar ahora"); void mira; }
     for (const [m, sp] of Object.entries(srcK.pos)) {
@@ -240,7 +257,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       const mk = await mercado(m), quiere = await tam(Math.min(RS.cash, maxOrden(), valor(RS, tick) * (sp.cost0 || sp.cost) / eqSrc, Math.max(0, (await libre()) - 0.5)), mk, 1, esMuy(reglaEnUso(srcK)));
       if (quiere < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ no compra ${sp.sym}: tocarían ${r2(quiere)} € y el mínimo de ${EX} es ${r2(mk.min)} €`); continue; }
       const r = await X.comprar(m, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++;
-      RS.pos[m] = { src: kS, sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid };
+      RS.pos[m] = { src: kS, sym: sp.sym, q: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), srcT0: sp.t0, last: tk.bid }; await protege(m);
       L(RS, now, `🟢 compra ${sp.sym}: ${r2(r.coste)} € (a ${r.px})`); msgs.push(`💶 🟢 REAL: compra ${sp.sym} por ${r2(r.coste)} € (copiando a «${nombre(kS)}»)`);
     }
     }

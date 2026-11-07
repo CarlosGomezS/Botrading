@@ -16,10 +16,14 @@ function exchange(px, opts = {}) {
     if (u.pathname === "/v2/balance") { const all = [{ symbol: "EUR", available: String(ex.eur), inOrder: "0" }, ...Object.entries(ex.bal).filter(([, q]) => q > 1e-12).map(([m, q]) => ({ symbol: m.replace("-EUR", ""), available: String(q), inOrder: "0" }))]; const sy = u.searchParams.get("symbol"); return R(200, sy ? all.filter((x) => x.symbol === sy) : all); }
     if (u.pathname === "/v2/assets") return R(200, { symbol: u.searchParams.get("symbol"), decimals: 4 });
     if (u.pathname === "/v2/order" && o.method === "POST") {
-      const b = JSON.parse(o.body); assert.equal(typeof b.operatorId, "number"); assert.equal(b.orderType, "market"); ex.orders.push(b); const p = ex.px[b.market];
+      const b = JSON.parse(o.body); assert.equal(typeof b.operatorId, "number"); if (b.orderType === "stopLoss") { ex.stops = ex.stops || {}; const id = "S" + Object.keys(ex.stops).length; ex.stops[id] = b; return R(200, { orderId: id }); }
+      assert.equal(b.orderType, "market"); assert.ok(b.clientOrderId, "cada orden lleva su identificador"); if (ex.timeout) { ex.timeout--; ex.orders.push(b); ex.porId = ex.porId || {}; const p0 = ex.px[b.market], quote0 = +b.amountQuote / 1.0025, q0 = quote0 / p0; ex.bal[b.market] = (ex.bal[b.market] || 0) + q0; ex.porId[b.clientOrderId] = { filledAmount: String(q0), filledAmountQuote: String(quote0), feePaid: String(quote0 * 0.0025), feeCurrency: "EUR", status: "filled" }; return R(504, { errorCode: 999, error: "tiempo agotado" }); }
+      ex.orders.push(b); const p = ex.px[b.market];
       if (b.side === "buy") { const quote = +b.amountQuote / 1.0025, q = quote / p; ex.bal[b.market] = (ex.bal[b.market] || 0) + q; return R(200, { filledAmount: String(q), filledAmountQuote: String(quote), feePaid: String(quote * 0.0025), feeCurrency: "EUR" }); }
       const q = +b.amount; assert.ok(String(b.amount).split(".")[1] === undefined || String(b.amount).split(".")[1].length <= 4, "respeta los decimales"); ex.bal[b.market] -= q; const quote = q * p; return R(200, { filledAmount: String(q), filledAmountQuote: String(quote), feePaid: String(quote * 0.0025), feeCurrency: "EUR" });
     }
+    if (u.pathname === "/v2/order" && o.method === "DELETE") { const id = u.searchParams.get("orderId"); if (ex.stops) delete ex.stops[id]; return R(200, { orderId: id }); }
+    if (u.pathname === "/v2/order" && o.method === "GET") { const x = ex.porId && ex.porId[u.searchParams.get("clientOrderId")]; return x ? R(200, x) : R(404, { errorCode: 240, error: "no existe" }); }
     return R(404, { errorCode: 999 });
   };
   ex.api = RL.cliente("CLAVE", "SECRETO", ex.fx);
@@ -308,4 +312,15 @@ test("Real v289: stop −6 % obligatorio desde el precio de compra y sin polvo (
   assert.ok(!RS.pos["A-EUR"], "vendida por el stop real"); const nuevas = ex.orders.slice(n0);
   assert.equal(nuevas[0].side, "buy", "primero completa hasta el mínimo"); assert.equal(nuevas[nuevas.length - 1].side, "sell");
   assert.ok(RS.log.some((x) => /stop −6 % desde tu precio de compra/.test(x.txt)));
+});
+
+test("Real v291: 🔐 si la respuesta de una compra se pierde, pregunta por ESA orden (no compra dos veces) y 🛡️ deja un stop de emergencia en el exchange", async () => {
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 100 }, tk(ex.px), T(0), deps);
+  const sp = { sym: "A", px: 1, cost0: 15, cost: 15, q: 15, q0: 15, t0: T(1).toISOString() }; ex.timeout = 1;
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100 }, tk(ex.px), T(1), deps));
+  assert.equal(ex.orders.filter((o) => o.side === "buy").length, 1, "una sola compra"); assert.ok(RS.pos["A-EUR"], "la compra hecha queda apuntada");
+  assert.ok(RS.pos["A-EUR"].stopId && ex.stops[RS.pos["A-EUR"].stopId], "stop de emergencia puesto"); const st = ex.stops[RS.pos["A-EUR"].stopId]; assert.ok(Math.abs(+st.triggerAmount - RS.pos["A-EUR"].px * 0.9) < 1e-3);
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({}) }, { copia: "mix", capital: 100 }, tk(ex.px), T(2), deps));   // el método vende → quita el stop y vende
+  assert.ok(!RS.pos["A-EUR"]); assert.equal(Object.keys(ex.stops).length, 0, "stop quitado antes de vender");
 });

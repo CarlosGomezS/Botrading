@@ -99,9 +99,11 @@ export function ruta(I, m) { const b = String(m).replace(/-EUR$/, ""), x = I && 
 
 // adaptador para el módulo de dinero real (misma forma que el de Bitvavo)
 export function adaptador(api, I, tick = {}) {
-  const orden = async (instId, side, sz, quote) => {
-    const [o] = await api("POST", "/api/v5/trade/order", { instId, tdMode: "cash", side, ordType: "market", sz: String(sz), tgtCcy: quote ? "quote_ccy" : "base_ccy" });
-    for (let i = 0; i < 6; i++) { await sleep(i ? 400 : 150); const [d] = await api("GET", `/api/v5/trade/order?instId=${instId}&ordId=${o.ordId}`); if (d && (d.state === "filled" || (+d.accFillSz > 0 && d.state !== "live" && d.state !== "partially_filled"))) {
+  // v291 · 🔐 cada orden lleva su identificador (clOrdId): si la respuesta se pierde, se consulta ESA orden en vez de darla por fallida
+  const orden = async (instId, side, sz, quote) => { const clOrdId = "bt" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    try { await api("POST", "/api/v5/trade/order", { instId, tdMode: "cash", side, ordType: "market", sz: String(sz), tgtCcy: quote ? "quote_ccy" : "base_ccy", clOrdId }); }
+    catch (e) { if (e && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code))) throw e; }   // error del propio OKX → se lanza; red/tiempo → se consulta
+    for (let i = 0; i < 6; i++) { await sleep(i ? 400 : 150); let d = null; try { [d] = await api("GET", `/api/v5/trade/order?instId=${instId}&clOrdId=${clOrdId}`); } catch (e) { if (i >= 2 && /51603|no existe|does not exist/i.test(String(e.message))) throw new Error("OKX: la orden no llegó"); continue; } if (d && (d.state === "filled" || (+d.accFillSz > 0 && d.state !== "live" && d.state !== "partially_filled"))) {
       const fill = +d.accFillSz || 0, px = +d.avgPx || 0, fee = Math.abs(+d.fee || 0), base = instId.split("-")[0];
       return { fill, px, quote: fill * px, fee, feeCcy: d.feeCcy, base }; } }
     throw new Error("OKX: la orden no se completó a tiempo");
@@ -124,6 +126,10 @@ export function adaptador(api, I, tick = {}) {
     return { q: o.fill, got: u.quote - (u.feeCcy === "EUR" ? u.fee : 0), fee: u.fee + o.fee * u.px, px: (u.quote) / Math.max(1e-12, o.fill) };
   }
   // mínimo por orden en euros (aprox.: el mínimo de OKX en cripto × precio), y un suelo de 5 € para no hacer órdenes ridículas
+  // v291 · 🛡️ stop de emergencia en el propio OKX (orden condicional). Solo en criptos con par en EUR (las de USDC venderían a USDC).
+  async function ponStop(m, q, px) { const R = ruta(I, m); if (!R || R.tipo !== "eur") return null; const sz = abajo(q, R.par.lot); if (!(sz > 0) || sz < R.par.min) return null;
+    const [o] = await api("POST", "/api/v5/trade/order-algo", { instId: R.par.instId, tdMode: "cash", side: "sell", ordType: "conditional", sz: sz.toFixed(R.par.lot), slTriggerPx: String(+px.toPrecision(5)), slOrdPx: "-1" }); return o && o.algoId ? String(o.algoId) : null; }
+  async function quitaStop(m, id) { const R = ruta(I, m); if (!R) return; try { await api("POST", "/api/v5/trade/cancel-algos", [{ algoId: id, instId: R.par.instId }]); } catch (e) { if (!/51000|5127|not exist|no existe|cancel/i.test(String(e.message))) throw e; } }
   async function mercado(m) { const R = ruta(I, m), px = (tick[m] && (tick[m].ask || tick[m].bid)) || 0; return { min: Math.max(5, R ? R.par.min * px * 1.05 : 5) }; }
   async function saldoEur() { const [d] = await api("GET", "/api/v5/account/balance?ccy=EUR"); const x = d && (d.details || []).find((y) => y.ccy === "EUR"); return x ? +(x.availBal || x.cashBal) || 0 : 0; }
   // v278 · saldo REAL de todas las monedas de la cuenta (para reflejar exactamente lo que hay y vender lo que de verdad queda)
@@ -140,5 +146,5 @@ export function adaptador(api, I, tick = {}) {
         out.push({ t: +x.ts, sym: b, side: x.side, q: sz - (x.side === "buy" && x.feeCcy === b ? fee : 0), eur: sz * px, fee: feeE }); }
       after = d[d.length - 1].billId; if (d.length < 100) break; }
     return out; }
-  return { nombre: "OKX", fee: FEE, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, saldos, saldo, precios, operaciones, errClave };
+  return { nombre: "OKX", fee: FEE, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, saldos, saldo, precios, operaciones, ponStop, quitaStop, errClave };
 }
