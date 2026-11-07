@@ -29,7 +29,11 @@ async function main() {
   const TM = await B.termometro(DIAS + 5).catch(() => null);
   const H = await B.construirH(raw, UV.tick, { rellenar: true, cobertura: 0.7, termo: TM }); const mer = Object.keys(H.m); if (mer.length < 5) throw new Error("pocos mercados con un año de datos");
   try { entrenarIA(H); } catch (e) { console.log("Examen largo: IA: " + e.message); }   // predicciones sin futuro (por trozos de tiempo)
-  const ts = Object.values(H.m).flatMap((m) => [m.c[48][0], m.c[m.c.length - 1][0]]), ini = Math.max(...ts.filter((_, i) => i % 2 === 0)), fin = Math.min(...ts.filter((_, i) => i % 2 === 1)) + 1;
+  // el periodo común: se quitan las criptos que empiezan tarde (recién listadas) o acaban antes, en vez de recortar el año entero por una sola
+  const fin0 = Math.max(...Object.values(H.m).map((m) => m.c[m.c.length - 1][0])), objetivo = fin0 - (DIAS - 3) * 86400e3;
+  for (const [m, x] of Object.entries(H.m)) { const a0 = x.c[48][0], b0 = x.c[x.c.length - 1][0]; if (a0 > objetivo || b0 < fin0 - 86400e3) { console.log(`Examen largo: fuera ${m} (${Math.round((b0 - a0) / 86400e3)} días)`); delete H.m[m]; } }
+  if (Object.keys(H.m).length < 5) throw new Error("pocos mercados con un año completo");
+  const ini = Math.max(...Object.values(H.m).map((m) => m.c[48][0])), fin = Math.min(...Object.values(H.m).map((m) => m.c[m.c.length - 1][0])) + 1;
   const cortes = [0, 1, 2, 3, 4].map((j) => ini + ((fin - ini) * j) / 4);
   const dias = Math.round((fin - ini) / 86400e3); console.log(`Examen largo: ${mer.length} mercados · ${dias} días · ${Math.round((Date.now() - t0) / 1000)} s de datos`);
   const L = {}; for (const k of LABS) try { L[k] = await B.leer(`lab-${k}.json`, `bitvavo-lab-${k}`); } catch (e) {}
