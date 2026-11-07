@@ -238,12 +238,12 @@ test("Real v260: 💱 convertir a euros: vende TODO el saldo de esa cripto una s
   } finally { globalThis.fetch = f0; for (const k of ["BITVAVO_KEY", "BITVAVO_SECRET", "REAL_VIEW_PASS"]) delete process.env[k]; }
 });
 
-test("Real v266: cada exchange elige solo entre sus métodos y no cambia más de una vez cada 6 h (salvo que el actual pierda la 🏆)", () => {
+test("Real v266: cada exchange elige solo entre sus métodos y no cambia más de una vez cada 24 h (v289) (salvo que el actual pierda la 🏆)", () => {
   const T2 = (med, n, pf) => ({ med, n, pf }), f = (s, ok, x) => ({ prueba: !ok, genomeId: "g", lab: { pop: [{ id: "g", s, ok, a: x, b: x, c: x }] } });
   const F = { eq: f(9, true, T2(1, 60, 2)), mixokx: f(2, true, T2(0.5, 40, 1.3)), eqokx: f(4, true, T2(0.5, 40, 1.3)) }, now = new Date(Date.UTC(2026, 10, 6, 12));
   assert.equal(RL.autoElige(F, "eq", false, null, now, RL.FAMILIA.okx).copia, "eqokx", "OKX no elige Equilibrado (todas las criptos): elige el suyo");
   assert.equal(RL.autoElige(F, "mixokx", false, null, now, RL.FAMILIA.okx, new Date(now - 3600e3).toISOString()).copia, "mixokx", "lleva 1 h: espera");
-  assert.equal(RL.autoElige(F, "mixokx", false, null, now, RL.FAMILIA.okx, new Date(now - 7 * 3600e3).toISOString()).copia, "eqokx", "lleva 7 h: cambia");
+  assert.equal(RL.autoElige(F, "mixokx", false, null, now, RL.FAMILIA.okx, new Date(now - 25 * 3600e3).toISOString()).copia, "eqokx", "lleva 25 h: cambia");
   assert.equal(RL.autoElige({ ...F, mixokx: f(2, false, T2(0.5, 40, 1.3)) }, "mixokx", false, null, now, RL.FAMILIA.okx, new Date(now - 600e3).toISOString()).copia, "eqokx", "si pierde la 🏆, cambia aunque lleve poco");
 });
 
@@ -295,4 +295,17 @@ test("Real v285: cada compra es al menos el 10 % de la cuenta y nunca pasa del 6
   const pos = { "A-EUR": { sym: "A", px: 1, cost0: 1, cost: 1, q: 1, q0: 1, t0: T(1).toISOString() } };   // el método mete solo el 1 %
   ({ RS } = await RL.vuelta(RS, { mix: fuente(pos) }, { copia: "mix", capital: 200 }, tk(ex.px), T(1), deps));
   const v = +ex.orders[0].amountQuote; assert.ok(v >= RS.start * 0.099, `compra ${v} con cuenta de ${RS.start}`);
+});
+
+test("Real v289: stop −6 % obligatorio desde el precio de compra y sin polvo (completa hasta el mínimo y vende todo)", async () => {
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 40 }, tk(ex.px), T(0), deps);
+  const sp = { sym: "A", px: 1, cost0: 3, cost: 3, q: 3, q0: 3, t0: T(1).toISOString() };   // el método mete poco → real compra el 10 % ≈ 5,10 € (el mínimo)
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 40 }, tk(ex.px), T(1), deps));
+  assert.ok(RS.pos["A-EUR"]); const n0 = ex.orders.length;
+  ex.px["A-EUR"] = 0.9;   // −10 %: el método NO vende, pero el stop real sí; vale < 5 € → compra lo justo y vende todo
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 40 }, tk(ex.px), T(2), deps));
+  assert.ok(!RS.pos["A-EUR"], "vendida por el stop real"); const nuevas = ex.orders.slice(n0);
+  assert.equal(nuevas[0].side, "buy", "primero completa hasta el mínimo"); assert.equal(nuevas[nuevas.length - 1].side, "sell");
+  assert.ok(RS.log.some((x) => /stop −6 % desde tu precio de compra/.test(x.txt)));
 });

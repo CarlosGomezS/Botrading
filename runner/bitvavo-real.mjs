@@ -28,14 +28,15 @@ export function esMuy(v) { const X = v ? [v.a, v.b, v.c] : []; return !!(v && v.
 export const TAM_COMPRA = 0.10, TAM_MUY = 0.15, TAM_MAX = 0.25, TOPE_INV = 0.60;   // v285 · cada compra ≥ 10 % de la cuenta · nunca más del 60 % invertido
 export const MUY_ESTABLE_MS = 60 * 60000;
 export function marcaMuy(S, fuentes, now) { S.muyDesde = S.muyDesde || {}; for (const k of SUBS_OK) { const v = reglaEnUso(fuentes[k]); if (v && esMuy(v)) S.muyDesde[k] = S.muyDesde[k] || now.toISOString(); else delete S.muyDesde[k]; } return S.muyDesde; }
-export const PERMANENCIA_MS = 6 * 3600e3;
+export const PERMANENCIA_MS = 24 * 3600e3;   // v289 · como mucho un cambio de método al día (antes 6 h): menos vaivenes
+export const STOP_REAL = 0.06;
 export function autoElige(fuentes, actual, abiertas, muyDesde = null, now = new Date(), familia = null, desde = null) {
   const estable = (k, v) => esMuy(v) && (!muyDesde || (muyDesde[k] && now - Date.parse(muyDesde[k]) >= MUY_ESTABLE_MS));
   const lista = familia && familia.length ? familia : SUBS_OK;
   if (familia && familia.length && actual && !familia.includes(actual)) actual = null;   // si venía de otra familia, elige ya dentro de la suya
   const c = lista.map((k) => { const v = reglaEnUso(fuentes[k]); return v ? { k, s: +v.s || 0, muy: estable(k, v) } : null; }).filter(Boolean).sort((a, b) => (b.muy - a.muy) || b.s - a.s);
   const cur = c.find((x) => x.k === actual), best = c[0];
-  if (cur && best && best.k !== actual && desde && now - Date.parse(desde) < PERMANENCIA_MS) return { copia: actual, muy: cur.muy, motivo: "lleva poco con este método (se cambia como mucho cada 6 h)" };
+  if (cur && best && best.k !== actual && desde && now - Date.parse(desde) < PERMANENCIA_MS) return { copia: actual, muy: cur.muy, motivo: "lleva poco con este método (se cambia como mucho cada 24 h)" };
   if (!best) return { copia: SUBS_OK.includes(actual) ? actual : lista[0], muy: false, motivo: "ningún método tiene regla ganadora ahora" };
   // v258 · con algo abierto solo espera si el cambio no es urgente: si aparece uno ⭐⭐ muy bueno (y el actual no lo es) o el actual pierde la 🏆, cambia ya
   if (abiertas && SUBS_OK.includes(actual) && cur && !(best.muy && !cur.muy)) return { copia: actual, muy: !!cur.muy, motivo: "espera a cerrar lo abierto para cambiar" };
@@ -132,7 +133,13 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     const p = RS.pos[m], mk = await mercado(m), bid = tick[m] ? tick[m].bid : p.px;
     if (frac < 1 && p.q * (1 - frac) * bid < mk.min) frac = 1;   // si lo que quedaría es menos que el mínimo, se vende todo
     const qv = frac >= 1 ? p.q : p.q * frac;
-    if (qv * bid < mk.min) { if (frac < 1) { p.tp = 1; return; } L(RS, now, `${p.sym}: lo que queda es menos que el mínimo de ${EX} (${r2(mk.min)} €); se queda como «polvo» en la cuenta`); RS.cash += qv * bid * (1 - RS.fee); delete RS.pos[m]; return; }
+    if (qv * bid < mk.min) { if (frac < 1) { p.tp = 1; return; }
+      // v289 · 🧹 SIN POLVO: lo que vale menos que el mínimo NO se abandona. Compra lo justo para llegar al mínimo y vende TODO junto (cuesta céntimos de comisión);
+      // si no hay euros para eso, la sigue vigilando y lo reintenta cada minuto
+      const pon = Math.max(mk.min * 1.08, 5.5);
+      if (RS.cash >= pon && (await libre()) >= pon) { try { const rb = await X.comprar(m, pon); RS.cash -= rb.coste; RS.st.fees += rb.fee; p.q += rb.q; p.cost += rb.coste; L(RS, now, `🧹 ${p.sym}: valía menos que el mínimo de ${EX}; compra ${r2(pon)} € para poder venderla entera`); } catch (e) { if (!p.polvo) L(RS, now, `⚠️ ${p.sym}: vale menos que el mínimo y no pude completarla (lo reintenta)`); p.polvo = now.toISOString(); return; }
+        return cerrar(m, por, 1); }
+      if (!p.polvo) L(RS, now, `⏳ ${p.sym}: vale menos que el mínimo de ${EX} y no hay euros libres para completarla; la sigue vigilando`); p.polvo = now.toISOString(); return; }
     let r; try { r = await X.vender(m, qv); } catch (e) { if (!/216|51008|insufficient|saldo/i.test(e.message)) throw e;
       // v278 · lo apuntado era un poco más de lo que hay (la comisión se cobró en la propia cripto): se vende lo que hay DE VERDAD
       const hay = X.saldo ? await X.saldo(p.sym) : 0, q2 = Math.min(qv, hay);
@@ -193,8 +200,11 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (eq < RS.dia.eq0 * (1 - FRENO_DIA)) { await vendeTodo(`freno diario: hoy ha perdido un ${FRENO_DIA * 100} %`); RS.pausaDia = d; RS.estado = "pausa"; msgs.push(`💶 ⏸️ REAL: hoy ha perdido más de un ${FRENO_DIA * 100} % (de ${r2(RS.dia.eq0)} € a ${r2(eq)} €). He vendido todo y descansa hasta mañana; mañana vuelve solo.`); return { RS, msgs, ctl }; } }
     // 3) lo que tengo: ¿el submodo lo ha vendido entero, o una parte, o ha añadido (piramidar)?
     for (const [m, p] of Object.entries(RS.pos)) {
-      if (p.huerfana) { const b = tick[m] ? tick[m].bid : p.px; p.last = b; p.peak = Math.max(p.peak || p.px, b);
-        if (b <= p.px * 0.94) await cerrar(m, "stop −6 % (cripto que estaba sin apuntar)"); else if (p.peak >= p.px * 1.05 && b <= p.peak * 0.96) await cerrar(m, "stop móvil (cripto que estaba sin apuntar)"); else if (now - Date.parse(p.t0) > 72 * 3600e3) await cerrar(m, "72 h (cripto que estaba sin apuntar)"); continue; }
+      // v289 · 🛑 STOP REAL OBLIGATORIO: −6 % desde el precio al que la compraste DE VERDAD (historial del exchange), para todas, y ningún método se lo salta
+      const lb = RS.libro && RS.libro.abiertas && RS.libro.abiertas[p.sym], ent = p.huerfana && lb && lb.px > 0 ? lb.px : p.px, bN = tick[m] ? tick[m].bid : p.px;
+      if (ent > 0 && bN <= ent * (1 - STOP_REAL)) { await cerrar(m, `stop −${STOP_REAL * 100} % desde tu precio de compra (tope de seguridad)`); continue; }
+      if (p.huerfana) { const b = bN; p.last = b; p.peak = Math.max(p.peak || p.px, b);
+        if (p.peak >= ent * 1.05 && b <= p.peak * 0.96) await cerrar(m, "stop móvil (cripto que estaba sin apuntar)"); else if (now - Date.parse(p.t0) > 72 * 3600e3) await cerrar(m, "72 h (cripto que estaba sin apuntar)"); continue; }
       const srcP = (p.src && fuentes[p.src]) || src, sp = srcP && srcP.pos ? srcP.pos[m] : null; if (tick[m]) p.last = tick[m].bid;
       if (!sp || sp.t0 !== p.srcT0) { await cerrar(m, "el método ficticio ha vendido"); continue; }
       if (sp.cob > 0 && !p.tp && sp.q0 > 0) { const frac = 1 - sp.q / sp.q0; if (frac > 0.05) await cerrar(m, "venta parcial con ganancia (como el método)", frac); }

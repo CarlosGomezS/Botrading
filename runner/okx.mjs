@@ -27,7 +27,10 @@ export const errClave = (e) => e && (e.status === 401 || /^501\d\d$/.test(String
 export async function preciosOkx(I, fx = fetch) {
   const r = await fx(BASE + "/api/v5/market/tickers?instType=SPOT", { signal: AbortSignal.timeout(15000) }), j = await r.json(), d = j.data || [], by = {};
   for (const x of d) by[x.instId] = x; const u = by["USDC-EUR"], ue = u ? +u.bidPx || +u.last : 0, tick = {};
-  for (const [b, x] of Object.entries(I || {})) { if (/^(USDC|USDT|EURC|EUR)$/.test(b)) continue; const par = x.EUR ? x.EUR.instId : x.USDC && ue > 0 ? x.USDC.instId : null, t = par && by[par]; if (!t) continue;
+  for (const [b, x] of Object.entries(I || {})) { if (/^(USDC|USDT|EURC|EUR)$/.test(b)) continue;
+    // v289 · de sus dos pares (EUR y USDC) usa el que MÁS se mueve: los pares en EUR de OKX suelen tener poco volumen y quedaban fuera (solo 23 criptos)
+    const vE = x.EUR && by[x.EUR.instId] ? +by[x.EUR.instId].volCcy24h || 0 : -1, vU = x.USDC && ue > 0 && by[x.USDC.instId] ? (+by[x.USDC.instId].volCcy24h || 0) * ue : -1;
+    const par = vE < 0 && vU < 0 ? null : vU > vE ? x.USDC.instId : x.EUR.instId, t = par && by[par]; if (!t) continue;
     const k = par.endsWith("-EUR") ? 1 : ue, bid = +t.bidPx * k, ask = +t.askPx * k, last = +t.last * k; if (!(bid > 0 && ask > 0)) continue;
     tick[b + "-EUR"] = { bid, ask, last, vq: (+t.volCcy24h || 0) * k, ch24: +t.open24h > 0 ? +t.last / +t.open24h - 1 : 0, sp: (ask - bid) / ((ask + bid) / 2), par, k }; }
   return { tick, ue };
@@ -35,7 +38,7 @@ export async function preciosOkx(I, fx = fetch) {
 // velas de 5 min de un par de OKX → [[t,o,h,l,c,v]] de antigua a reciente, en euros. Con caché en disco (cada vuelta es un proceso nuevo):
 // la primera vez baja ~600 velas (300 + 3 páginas de 100) y después solo las últimas.
 export async function velasOkx(par, k, cache, fx = fetch) {
-  const get = async (u) => { const r = await fx(BASE + u, { signal: AbortSignal.timeout(12000) }); const j = await r.json(); if (j.code && j.code !== "0") throw new Error("OKX velas " + j.code); return j.data || []; };
+  const get = async (u) => { for (let i = 0; ; i++) { try { const r = await fx(BASE + u, { signal: AbortSignal.timeout(12000) }); const j = await r.json(); if (j.code && j.code !== "0") throw new Error("OKX velas " + j.code); return j.data || []; } catch (e) { if (i >= 2) throw e; await sleep(700 * (i + 1)); } } };
   const conv = (a) => a.filter((x) => x[8] === "1" || x[8] == null).map((x) => [+x[0], +x[1] * k, +x[2] * k, +x[3] * k, +x[4] * k, +x[5]]);
   let c = (cache && cache[par]) || [];
   const nuevas = conv(await get(`/api/v5/market/candles?instId=${par}&bar=5m&limit=${c.length ? 50 : 300}`));
@@ -51,7 +54,9 @@ export async function velasOkx(par, k, cache, fx = fetch) {
 const leerJ = async (f) => { try { const fs = await import("node:fs"); return JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { return null; } };
 const guardaJ = async (f, o) => { const fs = await import("node:fs"), path = await import("node:path"); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f + ".tmp", JSON.stringify(o)); fs.renameSync(f + ".tmp", f); };
 export async function mantenerHistoria(file, I, { dias = 90, hasta = Date.now() + 40 * 60e3, ritmo = 120, n = 40, fx = fetch, log = () => {}, margen = 60e3 } = {}) {
-  const get = async (u) => { await sleep(ritmo); const r = await fx(BASE + u, { signal: AbortSignal.timeout(15000) }); const j = await r.json(); if (j.code && j.code !== "0") { if (String(j.code) === "50011") await sleep(2000); throw new Error("OKX " + j.code); } return j.data || []; };
+  // v289 · si OKX dice «demasiadas peticiones» (o falla la red) se ESPERA y se repite la misma petición; antes se abandonaba esa cripto y se quedaban en 4 días
+  let errores = 0; const get = async (u) => { for (let i = 0; ; i++) { await sleep(ritmo); try { const r = await fx(BASE + u, { signal: AbortSignal.timeout(15000) }); const j = await r.json(); if (j.code && j.code !== "0") throw new Error("OKX " + j.code); return j.data || []; }
+    catch (e) { errores++; if (i >= 5) throw e; await sleep(1000 * 2 ** i); } } };
   const conv = (a) => a.filter((x) => x[8] === "1" || x[8] == null).map((x) => [+x[0], +x[1], +x[2], +x[3], +x[4], +x[5]]);
   const st = (await leerJ(file)) || { m: {} }; let ciclo = 0;
   while (Date.now() < hasta) {
@@ -59,7 +64,7 @@ export async function mantenerHistoria(file, I, { dias = 90, hasta = Date.now() 
     const lista = Object.keys(PO.tick).filter((m) => PO.tick[m].sp < 0.012).sort((a, b) => PO.tick[b].vq - PO.tick[a].vq).slice(0, n); if (PO.tick["BTC-EUR"] && !lista.includes("BTC-EUR")) lista.push("BTC-EUR");
     const desde = Date.now() - dias * 86400e3, ahora = Date.now();
     // 1) lo nuevo de todas (y lo reciente de las que acaban de entrar)
-    for (const m of lista) { if (Date.now() > hasta) break; const par = PO.tick[m].par, x = st.m[m] || (st.m[m] = { par, c: [] }); x.par = par;
+    for (const m of lista) { if (Date.now() > hasta) break; const par = PO.tick[m].par, x = st.m[m] || (st.m[m] = { par, c: [] }); if (x.par !== par) { x.c = []; delete x.inicio; } x.par = par;   // cambia de par (EUR↔USDC): no se mezclan precios
       try { let c = x.c, ult = c.length ? c[c.length - 1][0] : 0, nu = conv(await get(`/api/v5/market/candles?instId=${par}&bar=5m&limit=300`));
         let viejo = nu.length ? Math.min(...nu.map((y) => y[0])) : ahora;
         for (let p = 0; p < 40 && viejo > Math.max(ult, ahora - 3 * 86400e3); p++) { const o = conv(await get(`/api/v5/market/history-candles?instId=${par}&bar=5m&limit=100&after=${viejo}`)); if (!o.length) break; nu = nu.concat(o); viejo = Math.min(...o.map((y) => y[0])); }
@@ -72,7 +77,7 @@ export async function mantenerHistoria(file, I, { dias = 90, hasta = Date.now() 
         if (add.length) { const mp = new Map(x.c.map((y) => [y[0], y])); for (const y of add) mp.set(y[0], y); x.c = [...mp.values()].filter((y) => y[0] >= desde).sort((a, b) => a[0] - b[0]); } } catch (e) {}
       if (++hechas % 4 === 0) { st.t = Date.now(); await guardaJ(file, st); } }
     for (const m of Object.keys(st.m)) if (!lista.includes(m) && Date.now() - (st.m[m].t || 0) > 3 * 86400e3) delete st.m[m];   // las que ya no están entre las elegidas, fuera a los 3 días
-    st.t = Date.now(); await guardaJ(file, st); log(`OKX historial: vuelta ${++ciclo} · ${Object.values(st.m).map((x) => Math.round(x.c.length / 288)).join("/")} días`);
+    st.t = Date.now(); await guardaJ(file, st); log(`OKX historial: vuelta ${++ciclo} · ${Object.values(st.m).map((x) => Math.round(x.c.length / 288)).join("/")} días · ${errores} reintentos`);
     await sleep(Math.max(0, Math.min(10 * 60e3, hasta - Date.now())));   // cada 10 min, lo nuevo
   }
   return st;
