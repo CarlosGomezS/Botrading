@@ -27,7 +27,7 @@ export function esMuy(v) { const X = v ? [v.a, v.b, v.c] : []; return !!(v && v.
 // v259 · ⭐⭐ ESTABLE: los laboratorios cambian de regla cada pocos minutos, y un método podía ser ⭐⭐ un rato y dejar de serlo al siguiente.
 // Para que el dinero real no salte de uno a otro (vendiendo y comprando, pagando comisiones), solo cuenta como ⭐⭐ si lleva ≥ 60 min siéndolo.
 export const TAM_COMPRA = 0.10, TAM_MUY = 0.15, TAM_MAX = 0.25, TOPE_INV = 0.60;   // v285 · cada compra ≥ 10 % de la cuenta · nunca más del 60 % invertido
-export const STOP_EMERG = 0.10, HUECO_MAX = 0.015;   // v291 · stop de emergencia alojado en el exchange: −10 % (el del bot, −6 %, actúa antes)
+export const STOP_EMERG = 0.10, HUECO_MAX = 0.015, BASE_PCT = 0.35, BASE_STOP = 0.15;   // v291 · stop de emergencia alojado en el exchange: −10 % (el del bot, −6 %, actúa antes)
 export const MUY_ESTABLE_MS = 60 * 60000;
 export function marcaMuy(S, fuentes, now) { S.muyDesde = S.muyDesde || {}; for (const k of SUBS_OK) { const v = reglaEnUso(fuentes[k]); if (v && esMuy(v)) S.muyDesde[k] = S.muyDesde[k] || now.toISOString(); else delete S.muyDesde[k]; } return S.muyDesde; }
 export const PERMANENCIA_MS = 24 * 3600e3;   // v289 · como mucho un cambio de método al día (antes 6 h): menos vaivenes
@@ -43,7 +43,7 @@ export function estadoExamen(EL, k, fuentes, now = new Date()) {
   if (now - Date.parse(EL.t) > 12 * 3600e3 || now - Date.parse(r.t) > 36 * 3600e3) return "pendiente";
   if (r.ok === true || r.suave === true) return "aprobada"; if (r.ok === false) return "suspendida"; return "pendiente";
 }
-export const VEX_REAL = 297;   // debe coincidir con VEX de examen-largo.mjs
+export const VEX_REAL = 301;   // debe coincidir con VEX de examen-largo.mjs
 const COMITE_R = ["eq", "turbo", "mix", "mixokx"], COMITE_OKX_R = ["mixokx", "eqokx", "turbookx", "tendokx"];
 export const muchoMejor = (b, c) => !!(b && c && b.k !== c.k && ((b.muy && !c.muy) || (b.s >= c.s * 1.3 && b.s >= c.s + 2)));
 export function autoElige(fuentes, actual, abiertas, muyDesde = null, now = new Date(), familia = null, desde = null) {
@@ -157,19 +157,20 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   const maxOrden = () => Math.max(MAX_ORDEN, RS.start * 0.6);
   // v255 · con poco dinero, la parte proporcional de una compra del método (p. ej. 4 €) queda por debajo del mínimo del exchange (~5 €) y se saltaba
   // todo. Ahora se compra el mínimo, siempre que no pase del 25 % de lo que vale la cuenta ni de lo que haya libre.
-  const alMinimo = async (quiere, mk) => { const need = Math.max(mk.min, 5) * 1.02; if (quiere >= need) return quiere; const V = valor(RS, tick), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash)); const tope = Math.min(RS.cash, V * 0.25, hueco, Math.max(0, (await libre()) - 0.5)); return need <= tope ? need : quiere; };   // v295 · el mínimo del exchange tampoco salta el tope del 60 %
+  const enBase = () => Object.entries(RS.pos).reduce((s2, [mm, p]) => s2 + (p.src === "base" ? p.q * ((tick[mm] && tick[mm].bid) || p.px) : 0), 0);   // v301 · lo que está en la cartera base no cuenta para el 60 % de los métodos
+  const alMinimo = async (quiere, mk) => { const need = Math.max(mk.min, 5) * 1.02; if (quiere >= need) return quiere; const V = valor(RS, tick), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())); const tope = Math.min(RS.cash, V * 0.25, hueco, Math.max(0, (await libre()) - 0.5)); return need <= tope ? need : quiere; };   // v295 · el mínimo del exchange tampoco salta el tope del 60 %
   // v285 · 💶 TAMAÑO DE CADA COMPRA (lo eliges tú: 10 %): repartir cada compra entre 7 métodos dejaba compras de céntimos (subidas al mínimo de 5 €)
   // y el 80-90 % del dinero parado. Ahora cada compra es al menos el 10 % de lo que vale la cuenta, sin pasar nunca del 60 % invertido en total.
   // v286 · respeta el % que decide el método (su tamaño aprendido / su fórmula de riesgo), sin dividirlo entre los métodos copiados;
   // mínimo 10 % (15 % si el método es 💎) y como mucho 25 % por compra
-  const tam = async (quiere, mk, frac = 1, muy = false) => { const V = valor(RS, tick), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash)), tope = Math.min(RS.cash, maxOrden(), hueco, V * TAM_MAX * frac, Math.max(0, (await libre()) - 0.5));
+  const tam = async (quiere, mk, frac = 1, muy = false) => { const V = valor(RS, tick), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())), tope = Math.min(RS.cash, maxOrden(), hueco, V * TAM_MAX * frac, Math.max(0, (await libre()) - 0.5));
     const q = Math.min(Math.max(quiere, V * (muy ? TAM_MUY : TAM_COMPRA) * frac), tope); return alMinimo(q, mk); };
   RS.vistos = RS.vistos || {};
   const vendeTodo = async (por) => { for (const m of Object.keys(RS.pos)) await cerrar(m, por); };
   // v291 · 🛡️ pone (o renueva) el stop de emergencia −10 % en el propio exchange; si falla, el bot sigue vigilando con su stop −6 %
   // v295 · cada posición tiene un estado claro: stopEst = «ok» (confirmado en el exchange) · «no disponible» (ese mercado no lo permite) · «error»
   const protege = async (m) => { const p = RS.pos[m]; if (!p || (ctl.conservar || []).includes(p.sym)) return; if (!X.ponStop) { p.stopEst = "no disponible"; return; }
-    try { if (p.stopId) { await X.quitaStop(m, p.stopId); delete p.stopId; } const id = await X.ponStop(m, p.q, p.px * (1 - STOP_EMERG)); if (id) { p.stopId = id; p.stopEst = "ok"; delete p.stopErr; }
+    try { if (p.stopId) { await X.quitaStop(m, p.stopId); delete p.stopId; } const id = await X.ponStop(m, p.q, p.px * (1 - (p.src === "base" ? BASE_STOP + 0.03 : STOP_EMERG))); if (id) { p.stopId = id; p.stopEst = "ok"; delete p.stopErr; }
       else { if (p.stopEst !== "no disponible") L(RS, now, `ℹ️ ${p.sym}: ${EX} no permite stop de emergencia en este mercado (la vigila el bot con su stop −6 %)`); p.stopEst = "no disponible"; } }
     catch (e) { if (p.stopEst !== "error") L(RS, now, `⚠️ ${p.sym}: no pude poner el stop de emergencia en ${EX} (sigue el del bot; lo reintenta cada 30 min)`); p.stopEst = "error"; } };
   async function cerrar(m, por, frac = 1) {
@@ -282,6 +283,9 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (eq < RS.dia.eq0 * (1 - FRENO_DIA)) { await vendeTodo(`freno diario: hoy ha perdido un ${FRENO_DIA * 100} %`); RS.pausaDia = d; RS.estado = "pausa"; msgs.push(`💶 ⏸️ REAL: hoy ha perdido más de un ${FRENO_DIA * 100} % (de ${r2(RS.dia.eq0)} € a ${r2(eq)} €). He vendido todo y descansa hasta mañana; mañana vuelve solo.`); return { RS, msgs, ctl }; } }
     // 3) lo que tengo: ¿el submodo lo ha vendido entero, o una parte, o ha añadido (piramidar)?
     for (const [m, p] of Object.entries(RS.pos)) {
+      // v301 · 🧺 CARTERA BASE (BTC/ETH con tendencia): sale cuando la tendencia se gira (cierre por debajo de su media de 50 días) o si cae un 15 % desde la compra
+      if (p.src === "base") { if ((ctl.conservar || []).includes(p.sym)) { delete RS.pos[m]; continue; } const T = ctl.base && ctl.base.m && ctl.base.m[m], b = tick[m] ? tick[m].bid : p.px;
+        if (ctl.base && T && T.up === false) await cerrar(m, "cartera base: la tendencia se ha girado (por debajo de su media de 50 días)"); else if (b <= p.px * (1 - BASE_STOP)) await cerrar(m, `cartera base: stop −${BASE_STOP * 100} %`); continue; }
       if ((ctl.conservar || []).includes(p.sym)) { if (p.stopId && X.quitaStop) try { await X.quitaStop(m, p.stopId); } catch (e) {} L(RS, now, `🔒 ${p.sym}: la has marcado como tuya; el bot deja de gestionarla (no la vende)`); delete RS.pos[m]; continue; }   // v297
       // v289 · 🛑 STOP REAL OBLIGATORIO: −6 % desde el precio al que la compraste DE VERDAD (historial del exchange), para todas, y ningún método se lo salta
       const lb = RS.libro && RS.libro.abiertas && RS.libro.abiertas[p.sym], ent = p.huerfana && lb && lb.px > 0 ? lb.px : p.px, bN = tick[m] ? tick[m].bid : p.px;
@@ -292,10 +296,18 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (!sp || sp.t0 !== p.srcT0) { await cerrar(m, "el método ficticio ha vendido"); continue; }
       if (sp.cob > 0 && !p.tp && sp.q0 > 0) { const frac = 1 - sp.q / sp.q0; if (frac > 0.05) await cerrar(m, "venta parcial con ganancia (como el método)", frac); }
       // v297 · ampliar también respeta: sin método aprobado no compra, par líquido, tope 25 % por compra y 60 % invertido; se marca hecha solo si se hace
-      if (sp.pir && !p.pir && sp.cost0 > 0 && !ctl.noCompra && !(tick[m] && tick[m].sp > HUECO_MAX)) { const V = valor(RS, tick), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash)), add = Math.min(RS.cash, p.cost0 * (sp.cost - sp.cost0) / sp.cost0, maxOrden(), V * TAM_MAX, hueco, Math.max(0, (await libre()) - 0.5)), mk = await mercado(m); if (add < mk.min) p.pir = 1; else { const r = await X.comprar(m, add); p.pir = 1; RS.cash -= r.coste; RS.st.fees += r.fee; p.px = (p.px * p.q + r.px * r.q) / (p.q + r.q); p.q += r.q; p.cost += r.coste; L(RS, now, `➕ añade ${r2(r.coste)} € a ${p.sym} (como el método)`); await protege(m); } }   // v295 · precio medio
+      if (sp.pir && !p.pir && sp.cost0 > 0 && !ctl.noCompra && !(tick[m] && tick[m].sp > HUECO_MAX)) { const V = valor(RS, tick), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())), add = Math.min(RS.cash, p.cost0 * (sp.cost - sp.cost0) / sp.cost0, maxOrden(), V * TAM_MAX, hueco, Math.max(0, (await libre()) - 0.5)), mk = await mercado(m); if (add < mk.min) p.pir = 1; else { const r = await X.comprar(m, add); p.pir = 1; RS.cash -= r.coste; RS.st.fees += r.fee; p.px = (p.px * p.q + r.px * r.q) / (p.q + r.q); p.q += r.q; p.cost += r.coste; L(RS, now, `➕ añade ${r2(r.coste)} € a ${p.sym} (como el método)`); await protege(m); } }   // v295 · precio medio
     }
     // 4) compras nuevas del submodo (de menos de 5 min) en la misma proporción
     // v269 · en 🤖 Automático copia a la vez a TODOS los métodos con 🏆 de su exchange (más operaciones, siempre ganadores), repartiendo el dinero
+    // v301 · 🧺 CARTERA BASE: mientras BTC/ETH estén en tendencia (por encima de su media de 50 días) se tiene un 35 % de la cuenta repartido entre ellos;
+    // solo si su regla aprueba el examen de 2 años. No cuenta para el 60 % de los métodos. Se compra una vez (y se completa si se queda en menos de la mitad).
+    if (ctl.base && ctl.base.m) { const V = valor(RS, tick), suben = Object.entries(ctl.base.m).filter(([mm, T]) => T.up && tick[mm] && tick[mm].ask > 0 && !(ctl.conservar || []).includes(mm.split("-")[0]));
+      for (const [mm] of suben) { const obj = (V * BASE_PCT) / suben.length, p = RS.pos[mm], ya = p ? p.q * tick[mm].bid : 0; if (p && p.src !== "base") continue; if (ya >= obj * 0.5) continue;
+        const mk = await mercado(mm), quiere = Math.min(obj - ya, RS.cash, Math.max(0, (await libre()) - 0.5)); if (quiere < Math.max(mk.min, 5) * 1.02) continue;
+        try { const r = await X.comprar(mm, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++;
+          if (p) { p.px = (p.px * p.q + r.px * r.q) / (p.q + r.q); p.q += r.q; p.cost += r.coste; } else RS.pos[mm] = { src: "base", sym: mm.split("-")[0], q: r.q, q0: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), last: tick[mm].bid };
+          L(RS, now, `🧺 cartera base: compra ${r2(r.coste)} € de ${mm.split("-")[0]} (está por encima de su media de 50 días)`); await protege(mm); } catch (e) { L(RS, now, `⚠️ cartera base: no pude comprar ${mm.split("-")[0]}: ${String(e.message).slice(0, 60)}`); } } }
     const lista = ctl.noCompra ? [] : [copia, ...(ctl.extra || [])].filter((k, i, a) => fuentes[k] && a.indexOf(k) === i);   // v295 · sin método aprobado: no compra (sí vigila y vende lo abierto)
     for (const kS of lista) { const srcK = fuentes[kS], eqSrc = +srcK.lastEq || 100;
     // v253 · «📥 Copiar ya lo abierto» (lo pides tú): compra ahora lo que el método YA tiene abierto (lo que esté en este exchange), a precio de ahora
@@ -442,7 +454,10 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
     // v295 · nunca dinero real a un método suspendido; en automático, solo a aprobados (si no queda ninguno, espera sin comprar)
     let noCompra = false; if (estadoAnio(copia) === "suspendida") { noCompra = true; R0.bloqueo = `«${nombre(copia)}» suspende el examen de un año: no compra con dinero real`; }
     else if (cfg.auto && !reglaEnUso(fuentesA[copia])) { noCompra = true; R0.bloqueo = "ningún método aprobado por el examen de un año ahora: espera sin comprar"; }
-    const c2 = { copia, extra, noCompra, conservar: Array.isArray(cfg.conservar) ? cfg.conservar.map((x) => String(x).toUpperCase()) : [], capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
+    // v301 · cartera base: tendencia fresca (< 3 h) y su regla aprobada por el examen de 2 años (reciente)
+    const baseOk = !!(EL && EL.base && EL.base.ok === true && EL.base.v === VEX_REAL && now - Date.parse(EL.t) < 12 * 3600e3), T = S.base && now - S.base.t < 3 * 3600e3 ? S.base : null;
+    R0.base = baseOk ? (T ? "activa" : "sin datos de tendencia") : "pendiente del examen";
+    const c2 = { copia, extra, noCompra, base: baseOk && T ? T : null, conservar: Array.isArray(cfg.conservar) ? cfg.conservar.map((x) => String(x).toUpperCase()) : [], capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
       parado: !cfg.on || !!ctl.parado || cfg.parado, motivo: !cfg.on ? `has apagado ${N}` : ctl.parado ? ctl.motivo || "lo has parado tú" : cfg.motivo };
     const out = await vuelta(RS, fuentes, c2, tick, now, { ex: X });
     const msgs = out.msgs.map((m) => (m.includes(N) ? m : m.replace(/^💶 /, `💶 ${N} · `)));

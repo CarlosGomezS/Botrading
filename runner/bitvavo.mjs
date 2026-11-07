@@ -401,6 +401,18 @@ async function J(u, tries = 3) {
   return null;
 }
 async function enParalelo(xs, n, fn) { let i = 0; await Promise.all(Array.from({ length: n }, async () => { while (i < xs.length) { const x = xs[i++]; await fn(x); } })); }
+// v301 · 🧺 TENDENCIA DE LA CARTERA BASE: BTC y ETH frente a su media de 50 días (velas diarias). Con margen del 1 % para no ir y venir:
+// sube si cierra > media × 1,01; baja si cierra < media × 0,99; en medio, se queda como estaba.
+export const BASE_MKT = ["BTC-EUR", "ETH-EUR"];
+export function tendencia(diarias, antes = null) { const c = diarias.slice(-51, -1).map((x) => x[4]); if (c.length < 50) return null; const sma = c.reduce((a, b) => a + b, 0) / c.length, px = diarias[diarias.length - 1][4];
+  const up = px > sma * 1.01 ? true : px < sma * 0.99 ? false : antes != null ? antes : px > sma; return { up, px, sma: Math.round(sma * 100) / 100 }; }
+export async function tendenciaBase(prev = null) { const m = {}; for (const mk of BASE_MKT) { const d = velas(await J(`${API}/${mk}/candles?interval=1d&limit=60`, 3)); const T = tendencia(d, prev && prev.m && prev.m[mk] ? prev.m[mk].up : null); if (T) m[mk] = T; } return Object.keys(m).length ? { t: Date.now(), m } : null; }
+// la misma regla en el pasado (velas diarias): entra/sale al cierre, comisión 0,25 % por lado. Devuelve rentabilidad, peor caída y la de comprar y aguantar
+export function simulaBase(diarias, fee = 0.0025) { let eq = 1, pico = 1, dd = 0, dentro = false, up = null, n = 0; const ret = [];
+  for (let i = 51; i < diarias.length; i++) { if (dentro) eq *= diarias[i][4] / diarias[i - 1][4]; const T = tendencia(diarias.slice(0, i + 1), up); up = T.up;
+    if (up && !dentro) { dentro = true; eq *= 1 - fee; n++; } else if (!up && dentro) { dentro = false; eq *= 1 - fee; } pico = Math.max(pico, eq); dd = Math.max(dd, 1 - eq / pico); ret.push([diarias[i][0], eq]); }
+  const bh = diarias.length > 51 ? diarias[diarias.length - 1][4] / diarias[51][4] - 1 : 0; return { ret: Math.round((eq - 1) * 10000) / 100, dd: Math.round(dd * 10000) / 100, bh: Math.round(bh * 10000) / 100, n, curva: ret }; }
+export async function diariasLargas(mk, dias = 730) { let out = [], fin = Date.now(); for (let k = 0; k < Math.ceil(dias / 1000) + 1 && out.length < dias; k++) { const d = velas(await J(`${API}/${mk}/candles?interval=1d&limit=1000&end=${fin}`, 3)); if (!d.length) break; out = d.concat(out); fin = d[0][0] - 1; } const mp = new Map(out.map((x) => [x[0], x])); return [...mp.values()].sort((a, b) => a[0] - b[0]).slice(-dias); }
 const velas = (j) => (Array.isArray(j) ? j.map((x) => [+x[0], +x[1], +x[2], +x[3], +x[4], +x[5]]).filter((x) => x[4] > 0).sort((a, b) => a[0] - b[0]) : []);
 // BV_LOCAL=<carpeta>: modo de pruebas (lee y guarda en esa carpeta en vez de en GitHub)
 const LOCAL = process.env.BV_LOCAL || "";
@@ -609,6 +621,7 @@ async function main() {
   } catch (e) { console.log("Bitvavo: avisos no enviados"); }
   // v233 · 💶 dinero real (50 €) copiando al submodo elegido; sin clave de Bitvavo no hace nada
   /* solo si queda tiempo de sobra en esta vuelta: así nunca se corta a medias entre una orden real y el guardado */
+  if (!S.base || now - S.base.t > 60 * 60e3) try { const T = await tendenciaBase(S.base); if (T) S.base = T; } catch (e) { console.log("Cartera base: sin velas diarias (" + String(e.message).slice(0, 40) + ")"); }   // v301 · cada hora
   if (Date.now() - t0 < 55e3) try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI, tickOkx: tickOkxReal }); } catch (e) { console.log("Real: error"); } else console.log("Real: vuelta larga, espera a la siguiente");
   await publicarEstado(S);
   console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + Object.keys(S.sub[k].pos).length + " abiertas, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);

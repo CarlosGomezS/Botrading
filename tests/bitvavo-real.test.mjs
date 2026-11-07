@@ -365,3 +365,13 @@ test("Real v297: 🔒 las criptos que marcas como tuyas no se compran, no se ven
   ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp2 }) }, { copia: "mix", capital: 100, conservar: ["A"] }, tk(ex.px), T(3), deps));
   assert.equal(ex.orders.slice(n).filter((o) => o.side === "sell").length, 0, "no la vende"); assert.ok(!RS.pos["A-EUR"], "deja de gestionarla");
 });
+
+test("Real v301: 🧺 cartera base: compra BTC/ETH con tendencia (35 %), no cuenta para el 60 % de los métodos y vende al girarse", async () => {
+  const ex = exchange({ "BTC-EUR": 1, "ETH-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  const base = (up) => ({ t: Date.now(), m: { "BTC-EUR": { up }, "ETH-EUR": { up } } });
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 100, base: base(true) }, tk(ex.px), T(0), deps);
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, base: base(true) }, tk(ex.px), T(1), deps));
+  assert.ok(RS.pos["BTC-EUR"] && RS.pos["BTC-EUR"].src === "base" && RS.pos["ETH-EUR"]); const inv = RS.pos["BTC-EUR"].cost + RS.pos["ETH-EUR"].cost; assert.ok(Math.abs(inv - 35) < 1, "35 %: " + inv);
+  const n = ex.orders.length; ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, base: base(true) }, tk(ex.px), T(2), deps)); assert.equal(ex.orders.length, n, "no recompra cada minuto");
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, base: base(false) }, tk(ex.px), T(3), deps)); assert.ok(!RS.pos["BTC-EUR"] && !RS.pos["ETH-EUR"], "tendencia girada: vende");
+});

@@ -97,3 +97,10 @@ test("v294 · 📆 el laboratorio prefiere la regla que aprueba el año y nunca 
   assert.equal(B.eligeGanadora([pop[0]], "x1", AN), undefined, "la que suspende el año no es ganadora");
   assert.equal(B.eligeGanadora(pop, "x1", {}).id, "x1", "sin examen todavía: como antes");
 });
+
+test("v301 · 🧺 cartera base: tendencia con su media de 50 días y simulación sin ir y venir", async () => {
+  const B = await import("../runner/bitvavo.mjs"), d = []; let p = 100;
+  for (let i = 0; i < 200; i++) { p *= i < 100 ? 1.01 : 0.99; d.push([i * 86400e3, p, p, p, p, 1]); }
+  assert.equal(B.tendencia(d.slice(0, 90)).up, true, "subiendo: dentro"); assert.equal(B.tendencia(d).up, false, "bajando: fuera");
+  const sm = B.simulaBase(d); assert.ok(sm.n >= 1 && sm.n <= 2, "entra pocas veces: " + sm.n); assert.ok(sm.dd < 30, "sale a tiempo: " + sm.dd);
+});

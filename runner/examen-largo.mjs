@@ -8,7 +8,7 @@ import { entrenarIA } from "./bitvavo-ia.mjs";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from "node:fs";
 
 const DIAS = +process.env.LARGO_DIAS || 365, NMER = +process.env.LARGO_MERCADOS || 12, DIR = process.env.LARGO_DIR || "/tmp/largo", FILE = DIR + "/raw.json";
-const VEX = 297;   // versión del examen: si cambian sus reglas, todo se vuelve a examinar
+const VEX = 301;   // versión del examen: si cambian sus reglas, todo se vuelve a examinar
 const LABS = ["eq", "turbo", "mix", "cuant", "consenso", "tend", "explora", "mixokx", "eqokx", "turbookx", "cuantokx", "consensookx", "tendokx", "exploraokx"];
 
 // ¿aprueba el año? opera de verdad (≥ 20 operaciones), gana como cartera en al menos 3 de los 4 trimestres, en total gana
@@ -74,7 +74,19 @@ async function main() {
     const c = B.cartera(tr, { maxPos: 8, size: 0.15 }, { tope: 0.6, min: 0.1, max: 0.25, unaPorMercado: true }), q4 = [0, 1, 2, 3].map((j) => B.cartera(tr.filter((x) => x.a >= cortes[j] && x.a < cortes[j + 1]), { maxPos: 8, size: 0.15 }, { tope: 0.6, min: 0.1, max: 0.25, unaPorMercado: true }));
     combinada[ex] = { v: VEX, metodos: ap, ...c, trimestres: q4.map((x) => x.ret), ok: c.n >= 30 && c.ret > 0 && c.dd < 25 && q4.filter((x) => x.ret > 0).length >= 3 };
     console.log(`Examen largo · cartera combinada ${ex} (${ap.join(", ") || "—"}): ${c.ret} % en el año · trimestres ${q4.map((x) => x.ret).join(" / ")} % · estrés ${c.dd} % · ${c.n} operaciones → ${combinada[ex].ok ? "✅" : "❌"}`); }
-  B.publicar("examen-largo.json", { t: new Date().toISOString(), estado: "ok", dias, mercados: mer.length, res, anio, combinada }, "examen-largo");
+  // v301 · 🧺 CARTERA BASE (BTC/ETH con su media de 50 días): 2 años de velas diarias, mitad en cada una. Aprueba si gana en los 2 años,
+  // en cada uno de los 4 semestres pierde menos de un 10 % y su peor caída es menor que la de comprar y aguantar (y < 35 %).
+  let base = { v: VEX, ok: null, motivo: "sin datos" };
+  try { const sims = []; for (const mk of B.BASE_MKT) sims.push(B.simulaBase(await B.diariasLargas(mk, 730 + 51)));
+    const ts = sims[0].curva.map((x) => x[0]), eqs = ts.map((t, i) => sims.reduce((a, sm) => a + (sm.curva[i] ? sm.curva[i][1] : 1), 0) / sims.length);
+    let pico = 1, dd = 0; for (const e of eqs) { pico = Math.max(pico, e); dd = Math.max(dd, 1 - e / pico); }
+    const sem = [0, 1, 2, 3].map((j) => { const a = Math.floor((eqs.length * j) / 4), b = Math.floor((eqs.length * (j + 1)) / 4) - 1; return Math.round((eqs[b] / (j ? eqs[a - 1] : 1) - 1) * 10000) / 100; });
+    const ret = Math.round((eqs[eqs.length - 1] - 1) * 10000) / 100, bh = sims.reduce((a, sm) => a + sm.bh, 0) / sims.length, ddBH = 50;
+    const ok = ret > 0 && sem.every((x) => x > -10) && dd * 100 < 35;
+    base = { v: VEX, ok, ret, dd: Math.round(dd * 10000) / 100, semestres: sem, bh: Math.round(bh * 100) / 100, operaciones: sims.reduce((a, sm) => a + sm.n, 0), motivo: ok ? "aprueba 2 años" : ret <= 0 ? "en 2 años pierde" : dd * 100 >= 35 ? "cae demasiado" : "algún semestre pierde más de un 10 %" };
+    console.log(`Examen largo · 🧺 cartera base BTC/ETH (media 50 días): ${ok ? "✅" : "❌"} ${base.motivo} · 2 años ${ret} % (comprar y aguantar ${base.bh} %) · semestres ${sem.join(" / ")} % · peor caída ${base.dd} % · ${base.operaciones} entradas`); void ddBH;
+  } catch (e) { console.log("Examen largo · cartera base: " + String(e.message).slice(0, 80)); }
+  B.publicar("examen-largo.json", { t: new Date().toISOString(), estado: "ok", dias, mercados: mer.length, res, anio, combinada, base }, "examen-largo");
   console.log(`Examen largo: hecho en ${Math.round((Date.now() - t0) / 1000)} s`);
 }
 // v295 · si falla, se ANOTA el fallo (sin tocar la fecha del último examen bueno, que es la que mira el dinero real) y el trabajo sale en rojo
