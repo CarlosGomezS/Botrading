@@ -12,11 +12,12 @@ const LABS = ["eq", "turbo", "mix", "cuant", "consenso", "tend", "explora", "mix
 
 // ¿aprueba el año? opera de verdad (≥ 20 operaciones), gana como cartera en al menos 3 de los 4 trimestres, en total gana
 // y en ningún trimestre la cuenta cae más de un 25 %
+// v295 · las operaciones que cuentan son las que la CARTERA llega a hacer (no todas las señales) y la caída es la peor de todo el año a precio de mercado
 export function veredicto(X) {
-  const cart = X.cart || [], n = X.reduce((s, x) => s + (x.n || 0), 0), tot = cart.reduce((s, c) => s * (1 + (c.ret || 0) / 100), 1) - 1;
-  const ganados = cart.filter((c) => c.ret > 0).length, peorDD = Math.max(0, ...cart.map((c) => c.dd || 0));
+  const cart = X.cart || [], n = cart.reduce((s, c) => s + (c.n || 0), 0), tot = cart.reduce((s, c) => s * (1 + (c.ret || 0) / 100), 1) - 1;
+  const ganados = cart.filter((c) => c.ret > 0).length, peorDD = Math.max(0, ...cart.map((c) => c.dd || 0), (X.cartTodo && X.cartTodo.dd) || 0);
   const ok = n >= 20 && ganados >= 3 && tot > 0 && peorDD < 25, suave = n >= 20 && tot > 0 && peorDD < 10;   // v294 · «suave»: gana el año en total y nunca cae un 10 %
-  return { ok, suave, n, ganados, tot: Math.round(tot * 10000) / 100, peorDD, cart, motivo: ok ? "aprueba el año" : n < 20 ? "casi no opera en un año" : tot <= 0 ? "en un año pierde" : ganados < 3 ? `solo gana ${ganados} de 4 trimestres` : `cae un ${peorDD} % en un trimestre` };
+  return { ok, suave, n, ganados, tot: Math.round(tot * 10000) / 100, peorDD, cart, motivo: ok ? "aprueba el año" : n < 20 ? "casi no opera en un año" : tot <= 0 ? "en un año pierde" : ganados < 3 ? `solo gana ${ganados} de 4 trimestres` : `cae un ${peorDD} % en el año` };
 }
 
 async function main() {
@@ -27,7 +28,7 @@ async function main() {
   else raw = await B.ponerAlDia(raw, U, 2, 150);
   writeFileSync(FILE + ".tmp", JSON.stringify(raw)); renameSync(FILE + ".tmp", FILE);
   const TM = await B.termometro(DIAS + 5).catch(() => null);
-  const H = await B.construirH(raw, UV.tick, { rellenar: true, cobertura: 0.7, termo: TM }); const mer = Object.keys(H.m); if (mer.length < 5) throw new Error("pocos mercados con un año de datos");
+  const H = await B.construirH(raw, UV.tick, { rellenar: true, cobertura: 0.9, termo: TM }); const mer = Object.keys(H.m); if (mer.length < 5) throw new Error("pocos mercados con un año de datos");
   try { entrenarIA(H); } catch (e) { console.log("Examen largo: IA: " + e.message); }   // predicciones sin futuro (por trozos de tiempo)
   // el periodo común: se quitan las criptos que empiezan tarde (recién listadas) o acaban antes, en vez de recortar el año entero por una sola
   const fin0 = Math.max(...Object.values(H.m).map((m) => m.c[m.c.length - 1][0])), objetivo = fin0 - (DIAS - 3) * 86400e3;
@@ -40,23 +41,38 @@ async function main() {
   const okx = await import("./okx.mjs").then((OK) => OK.instrumentos()).then(B.okxSet).catch(() => null);
   const prev = (await B.leer("examen-largo.json", "examen-largo").catch(() => null)) || {}, res = { ...(prev.res || {}) };
   const anio = { ...(prev.anio || {}) };
+  const huella = (k) => (B.PERF[k] && B.PERF[k].comite === "okx" ? B.COMITE_OKX : B.COMITE).map((o) => (L[o] && L[o].prueba === false ? L[o].genomeId : null) || "-").join(",");
+  const X1 = {};
   for (const k of LABS) {
     const Lk = L[k], P = B.PERF[k]; if (!Lk || !Lk.genome || !P) continue;
+    // v295 · si no hay lista de OKX, los métodos de OKX NO se aprueban (quedan pendientes): nunca se aprueba a ciegas
+    if (P.soloOkx && !(okx && okx.size > 10)) { res[k] = { genomeId: Lk.genomeId, ok: null, motivo: "sin lista de OKX: pendiente", t: new Date().toISOString() }; continue; }
     // v294 · también sus MEJORES CANDIDATAS (las que aprueban los 90 días): así el laboratorio puede adoptar la mejor que además aguante el año
     try { let Hc = H; if (P.soloOkx && okx && okx.size > 10) Hc = B.filtraH(H, okx); const A = (anio[k] = anio[k] || {}); for (const x of Object.keys(A)) if (Math.abs((A[x].dias || 0) - dias) >= 5 || Date.now() - Date.parse(A[x].t) > 48 * 3600e3) delete A[x];
       const cs = ((Lk.lab && Lk.lab.pop) || []).filter((v) => v.ok && v.g).sort((a, b) => b.s - a.s).slice(0, 8);
       for (const v of cs) { const gk = B.gkey(v.g); if (A[gk]) continue; const g = { ...B.BASE, ...v.g }; if (g.estilo === "consenso") continue; const r = veredicto(B.backtestTramos(g, Hc, cortes)); A[gk] = { id: v.id, ok: r.ok, suave: r.suave, tot: r.tot, ganados: r.ganados, dd: r.peorDD, dias, t: new Date().toISOString() }; }
       const nA = Object.values(A); console.log(`Examen largo ${k}: candidatas ${nA.length} · aprueban el año ${nA.filter((x) => x.ok).length} · suaves ${nA.filter((x) => x.suave && !x.ok).length}`); } catch (e) { console.log(`Examen largo ${k}: candidatas: ${String(e.message).slice(0, 60)}`); }
     if (Lk.prueba !== false) { res[k] = { genomeId: Lk.genomeId, ok: null, motivo: "sin regla ganadora ahora", t: new Date().toISOString() }; continue; }
-    if (res[k] && res[k].genomeId === Lk.genomeId && res[k].ok != null && Math.abs((res[k].dias || 0) - dias) < 5 && Date.now() - Date.parse(res[k].t) < 24 * 3600e3) continue;   // ya examinada hoy
+    const esCons = (Lk.genome && Lk.genome.estilo === "consenso"), hc = esCons ? huella(k) : null;
+    if (res[k] && res[k].genomeId === Lk.genomeId && res[k].ok != null && (res[k].comite ?? null) === hc && Math.abs((res[k].dias || 0) - dias) < 5 && Date.now() - Date.parse(res[k].t) < 24 * 3600e3) continue;   // ya examinada hoy (misma regla y mismo comité)
     const g = { ...B.BASE, ...Lk.genome }; let Hk = H;
     if (P.soloOkx && okx && okx.size > 10) Hk = B.filtraH(H, okx);
     if (g.estilo === "consenso") { const gs = []; for (const o of (P.comite === "okx" ? B.COMITE_OKX : B.COMITE)) { const Lo = L[o]; if (Lo && Lo.genome && Lo.prueba === false) gs.push({ ...B.BASE, ...Lo.genome }); } B.ponVotos(Hk, gs); }
-    const X = B.backtestTramos(g, Hk, cortes), v = veredicto(X);
-    res[k] = { genomeId: Lk.genomeId, ...v, dias, mercados: Object.keys(Hk.m).length, t: new Date().toISOString() };
+    const X = B.backtestTramos(g, Hk, cortes), v = veredicto(X); X1[k] = X;
+    res[k] = { genomeId: Lk.genomeId, ...v, ddAnio: X.cartTodo ? X.cartTodo.dd : null, comite: hc, dias, mercados: Object.keys(Hk.m).length, t: new Date().toISOString() };
     console.log(`Examen largo ${k}: ${v.ok ? "✅" : "❌"} ${v.motivo} · ${v.n} operaciones · año ${v.tot} % · trimestres ${v.cart.map((c) => c.ret).join(" / ")} % · peor caída ${v.peorDD} %`);
   }
-  B.publicar("examen-largo.json", { t: new Date().toISOString(), dias, mercados: mer.length, res, anio }, "examen-largo");
+  // v295 · 🧩 CARTERA COMBINADA: lo que de verdad hace el automático (copiar a la vez a todos los aprobados de un exchange), con las reglas del dinero real
+  // (cada compra 10-25 %, como mucho 60 % invertido). Si la combinación suspende, el real copia solo a su método principal (sin extras).
+  const combinada = {};
+  for (const [ex, lista] of [["bitvavo", LABS.filter((k) => !B.PERF[k] || !B.PERF[k].soloOkx)], ["okx", LABS.filter((k) => B.PERF[k] && B.PERF[k].soloOkx)]]) {
+    const ap = lista.filter((k) => res[k] && (res[k].ok || res[k].suave) && L[k] && res[k].genomeId === L[k].genomeId);
+    const tr = []; for (const k of ap) { let X = X1[k]; if (!X) { const g = { ...B.BASE, ...L[k].genome }; let Hk = H; if (B.PERF[k].soloOkx && okx) Hk = B.filtraH(H, okx); if (g.estilo === "consenso") continue; X = B.backtestTramos(g, Hk, cortes); } tr.push(...(X.trades || []).flat()); }
+    if (!tr.length) { combinada[ex] = { metodos: ap, n: 0, ok: null }; continue; }
+    const c = B.cartera(tr, { maxPos: 8, size: 0.15 }, { tope: 0.6, min: 0.1, max: 0.25 }); combinada[ex] = { metodos: ap, ...c, ok: c.ret > 0 && c.dd < 25 };
+    console.log(`Examen largo · cartera combinada ${ex} (${ap.join(", ") || "—"}): ${c.ret} % en el año · peor caída ${c.dd} % · ${c.n} operaciones → ${combinada[ex].ok ? "✅" : "❌"}`); }
+  B.publicar("examen-largo.json", { t: new Date().toISOString(), estado: "ok", dias, mercados: mer.length, res, anio, combinada }, "examen-largo");
   console.log(`Examen largo: hecho en ${Math.round((Date.now() - t0) / 1000)} s`);
 }
-if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.log("Examen largo: " + (e.message || e)); process.exit(0); });
+// v295 · si falla, se ANOTA el fallo (sin tocar la fecha del último examen bueno, que es la que mira el dinero real) y el trabajo sale en rojo
+if (import.meta.url === `file://${process.argv[1]}`) main().catch(async (e) => { console.log("Examen largo: ERROR " + (e.message || e)); try { const prev = (await B.leer("examen-largo.json", "examen-largo")) || {}; B.publicar("examen-largo.json", { ...prev, error: String(e.message || e).slice(0, 200), errorAt: new Date().toISOString() }, "examen-largo"); } catch (e2) {} process.exit(1); });

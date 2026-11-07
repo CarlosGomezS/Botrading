@@ -22,6 +22,7 @@ function exchange(px, opts = {}) {
       if (b.side === "buy") { const quote = +b.amountQuote / 1.0025, q = quote / p; ex.bal[b.market] = (ex.bal[b.market] || 0) + q; return R(200, { filledAmount: String(q), filledAmountQuote: String(quote), feePaid: String(quote * 0.0025), feeCurrency: "EUR" }); }
       const q = +b.amount; assert.ok(String(b.amount).split(".")[1] === undefined || String(b.amount).split(".")[1].length <= 4, "respeta los decimales"); ex.bal[b.market] -= q; const quote = q * p; return R(200, { filledAmount: String(q), filledAmountQuote: String(quote), feePaid: String(quote * 0.0025), feeCurrency: "EUR" });
     }
+    if (u.pathname === "/v2/trades") return R(200, (ex.trades || []).filter((x) => x.market === u.searchParams.get("market")));
     if (u.pathname === "/v2/order" && o.method === "DELETE") { const id = u.searchParams.get("orderId"); if (ex.stops) delete ex.stops[id]; return R(200, { orderId: id }); }
     if (u.pathname === "/v2/order" && o.method === "GET") { const x = ex.porId && ex.porId[u.searchParams.get("clientOrderId")]; return x ? R(200, x) : R(404, { errorCode: 240, error: "no existe" }); }
     return R(404, { errorCode: 999 });
@@ -323,4 +324,30 @@ test("Real v291: 🔐 si la respuesta de una compra se pierde, pregunta por ESA 
   assert.ok(RS.pos["A-EUR"].stopId && ex.stops[RS.pos["A-EUR"].stopId], "stop de emergencia puesto"); const st = ex.stops[RS.pos["A-EUR"].stopId]; assert.ok(Math.abs(+st.triggerAmount - RS.pos["A-EUR"].px * 0.9) < 1e-3);
   ({ RS } = await RL.vuelta(RS, { mix: fuente({}) }, { copia: "mix", capital: 100 }, tk(ex.px), T(2), deps));   // el método vende → quita el stop y vende
   assert.ok(!RS.pos["A-EUR"]); assert.equal(Object.keys(ex.stops).length, 0, "stop quitado antes de vender");
+});
+
+test("Real v295: 🧾 si el exchange vende fuera del bot (stop de emergencia), se apunta el dinero que entró y el resultado", async () => {
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 100 }, tk(ex.px), T(0), deps);
+  const sp = { sym: "A", px: 1, cost0: 15, cost: 15, q: 15, q0: 15, t0: T(1).toISOString() };
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100 }, tk(ex.px), T(1), deps));
+  const q = RS.pos["A-EUR"].q, cash0 = RS.cash; ex.bal["A-EUR"] = 0; ex.eur += q * 0.9 * 0.9975;   // el exchange vende a 0,90
+  ex.trades = [{ timestamp: Date.parse(T(2)), market: "A-EUR", side: "sell", amount: String(q), price: "0.9", fee: String(q * 0.9 * 0.0025), feeCurrency: "EUR" }];
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100 }, tk(ex.px), T(3), deps));
+  assert.ok(!RS.pos["A-EUR"]); assert.ok(Math.abs(RS.cash - (cash0 + q * 0.9 * 0.9975)) < 0.01, `caja ${RS.cash}`); assert.ok(RS.closed[0].pnl < 0); assert.equal(RS.start, 100, "no lo toma como un ingreso tuyo");
+});
+test("Real v295: 📆 estados del examen de un año (aprobada / pendiente / suspendida) y comité de Consenso", () => {
+  const now = new Date(), t = now.toISOString(), F = { eq: { genomeId: "g1", prueba: false }, mix: { genomeId: "g2", prueba: false }, consenso: { genomeId: "c1" } };
+  const EL = { t, res: { eq: { genomeId: "g1", ok: false, suave: true, t }, mix: { genomeId: "gX", ok: true, t }, consenso: { genomeId: "c1", ok: true, t, comite: "g1,-,g2,-" } } };
+  assert.equal(RL.estadoExamen(EL, "eq", F, now), "aprobada"); assert.equal(RL.estadoExamen(EL, "mix", F, now), "pendiente", "otra regla");
+  assert.equal(RL.estadoExamen({ ...EL, res: { eq: { genomeId: "g1", ok: false, suave: false, t } } }, "eq", F, now), "suspendida");
+  assert.equal(RL.estadoExamen(EL, "consenso", F, now), "aprobada"); assert.equal(RL.estadoExamen(EL, "consenso", { ...F, mix: { genomeId: "g9", prueba: false } }, now), "pendiente", "cambió el comité");
+  assert.equal(RL.estadoExamen({ ...EL, t: new Date(Date.now() - 13 * 3600e3).toISOString() }, "eq", F, now), "pendiente", "examen viejo");
+});
+test("Real v295: sin método aprobado no compra (pero sí vende) y el mínimo no salta el tope del 60 %", async () => {
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 100, noCompra: true }, tk(ex.px), T(0), deps);
+  const sp = { sym: "A", px: 1, cost0: 15, cost: 15, q: 15, q0: 15, t0: T(1).toISOString() };
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100, noCompra: true }, tk(ex.px), T(1), deps));
+  assert.equal(ex.orders.length, 0); assert.ok(!RS.pos["A-EUR"]);
 });

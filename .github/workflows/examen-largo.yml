@@ -34,7 +34,7 @@ jobs:
       - name: Examen largo
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: timeout 3000 node --max-old-space-size=12000 runner/examen-largo.mjs || true
+        run: timeout 3000 node --max-old-space-size=12000 runner/examen-largo.mjs   # v295 · si falla, sale en rojo (y queda anotado)
       - name: Guardar el año de velas
         if: always()
         uses: actions/cache/save@v4

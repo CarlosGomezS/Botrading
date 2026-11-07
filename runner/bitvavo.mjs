@@ -123,7 +123,7 @@ export function rankear(F) {   // F: { mercado: rasgos[] } con los mismos tiempo
 export function backtest(g, H, desde = 0, hasta = Infinity) { return backtestTramos(g, H, [desde, hasta])[0]; }
 // v245 · un solo recorrido para varios tramos de tiempo (cortes = [t0, t1, …, tn]): lo abierto al cruzar un corte se cierra ahí
 export function backtestTramos(g, H, cortes) {
-  const T = cortes.length - 1, RS = Array.from({ length: T }, () => []), TR = Array.from({ length: T }, () => []), apunta = (p, tf, r) => { RS[p.k].push(r); TR[p.k].push({ a: p.t, b: tf, r }); }, tramo = (t) => { if (t < cortes[0] || t >= cortes[T]) return -1; let k = 0; while (k < T - 1 && t >= cortes[k + 1]) k++; return k; };
+  const T = cortes.length - 1, RS = Array.from({ length: T }, () => []), TR = Array.from({ length: T }, () => []), apunta = (p, tf, r) => { RS[p.k].push(r); TR[p.k].push({ a: p.t, b: tf, r, w: p.lo ? Math.min(0, p.lo / p.px - 1) : 0 }); },   /* v295 · w = peor momento de la operación (a precio de mercado) */ tramo = (t) => { if (t < cortes[0] || t >= cortes[T]) return -1; let k = 0; while (k < T - 1 && t >= cortes[k + 1]) k++; return k; };
   for (const m of Object.values(H.m || {})) {
     const c = m.c, F = m.f, sp = (m.sp || 0.001) + 2 * (m.slip || SLIP); let pos = null, cool = 0;   // v271 · spread + deslizamiento (ida y vuelta)
     for (let i = 48; i < c.length; i++) {
@@ -131,7 +131,7 @@ export function backtestTramos(g, H, cortes) {
       if (pos && k !== pos.k) { apunta(pos, t, (pos.cob + pos.q * c[i][4] * (1 - sp / 2) * (1 - FEE)) / pos.cost - 1); pos = null; }
       if (k < 0) continue;
       if (pos && pos.plan) {   // v251 · método cuantitativo: stops y objetivos con precio de cada operación
-        const [, , h, l, cc] = c[i]; pos.peak = Math.max(pos.peak, h); const x = CU.salida(pos, h, l, cc, F[i]), ven = (px, q) => q * px * (1 - sp / 2) * (1 - FEE);
+        const [, , h, l, cc] = c[i]; pos.peak = Math.max(pos.peak, h); pos.lo = Math.min(pos.lo || pos.px, l); const x = CU.salida(pos, h, l, cc, F[i]), ven = (px, q) => q * px * (1 - sp / 2) * (1 - FEE);
         if (x) { const pxo = x.px === pos.plan.sl ? Math.min(c[i][1], x.px) : x.px; if (x.sale >= 1) { apunta(pos, t, (pos.cob + ven(pxo, pos.q)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; continue; } pos.cob += ven(pxo, pos.q * x.sale); pos.q *= 1 - x.sale; pos.tp = 1; }
         else if ((t - pos.t) / 3600e3 >= 48) { apunta(pos, t, (pos.cob + ven(cc, pos.q)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; }
         continue;
@@ -140,11 +140,11 @@ export function backtestTramos(g, H, cortes) {
         const [, , h, l, cc] = c[i]; const ven = (px) => pos.q * px * (1 - sp / 2) * (1 - FEE);
         // v228 · PESIMISTA: si en la misma vela se tocan el stop y la venta con ganancia, se supone que el stop llegó primero
         let out = null; const sl = Math.max(pos.px * (1 - g.stop), pos.be || 0);
-        if (l <= sl) { out = Math.min(c[i][1], sl); apunta(pos, t, (pos.cob + ven(out)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; continue; }
-        pos.peak = Math.max(pos.peak, h);
+        if (l <= sl) { pos.lo = Math.min(pos.lo || pos.px, l); out = Math.min(c[i][1], sl); apunta(pos, t, (pos.cob + ven(out)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; continue; }
+        const peak0 = pos.peak; pos.peak = Math.max(pos.peak, h); pos.lo = Math.min(pos.lo || pos.px, l);   // v295 · peak0: el máximo de ANTES de esta vela (no se sabe si el máximo llegó antes que el mínimo)
         if (g.pir > 0 && !pos.pir && h >= pos.px * (1 + g.pirOn)) { const ap = pos.px * (1 + g.pirOn) * (1 + sp / 2); pos.q += g.pir * (1 - FEE) / ap; pos.cost += g.pir; pos.pir = 1; pos.be = (pos.cost - pos.cob) / (pos.q * (1 - sp / 2) * (1 - FEE)); }
         if (g.tpFrac > 0 && !pos.tp && h >= pos.px * (1 + g.tp)) { pos.cob += pos.q * g.tpFrac * pos.px * (1 + g.tp) * (1 - sp / 2) * (1 - FEE); pos.q *= 1 - g.tpFrac; pos.tp = 1; }
-        if (pos.peak >= pos.px * (1 + g.trailOn) && l <= pos.peak * (1 - g.trail)) out = Math.min(c[i][1], pos.peak * (1 - g.trail));
+        if (peak0 >= pos.px * (1 + g.trailOn) && l <= peak0 * (1 - g.trail)) out = Math.min(c[i][1], peak0 * (1 - g.trail));
         else if ((t - pos.t) / 3600e3 >= g.maxHoldH) out = cc;
         else if (g.estilo === "consenso" && g.ventaV >= 0.5 && F[i] && F[i].votos === 0 && cc > pos.px * (1 + 2 * FEE)) out = cc;   // v257 · el comité ya no la quiere
         if (out != null) { apunta(pos, t, (pos.cob + ven(out)) / pos.cost - 1); pos = null; cool = t + g.cooldownH * 3600e3; }
@@ -160,16 +160,19 @@ export function backtestTramos(g, H, cortes) {
     let gw = 0, gl = 0, w = 0; for (const x of rs) { if (x > 0) { gw += x; w++; } else gl -= x; }
     return { n, win: r2(w / n * 100), med: r4(m * 100), pf: gl > 0 ? r2(gw / gl) : gw > 0 ? 99 : 0, t: r2(m / (sd / Math.sqrt(n))) };
   });
-  out.cart = TR.map((tr) => cartera(tr, g)); return out;
+  out.cart = TR.map((tr) => cartera(tr, g)); out.cartTodo = cartera(TR.flat(), g); out.trades = TR; return out;   // v295 · también la curva de TODO el periodo
 }
 // v291 · 💼 EXAMEN DE CARTERA COMPLETA: las operaciones de TODAS las criptos juntas, como en una cuenta real: un solo dinero, como mucho
 // maxPos posiciones a la vez y cada una con su tamaño (si no hay hueco o dinero, esa operación no se hace). Devuelve lo que ganaría la cuenta
 // en el tramo (ret, %) y su peor caída desde un máximo (dd, %). Una regla puede ganar «operación a operación» y perder como cartera.
-export function cartera(trades, g) {
+export function cartera(trades, g, opt = {}) {
   const maxPos = Math.max(1, Math.round(g.maxPos || 6)), size = Math.min(1, g.size > 0 ? g.size : 0.15), ts = [...trades].sort((x, y) => x.a - y.a);
-  let cash = 1, abiertas = [], pico = 1, dd = 0, n = 0; const eq = () => cash + abiertas.reduce((s2, o) => s2 + o.amt, 0);
-  const cierra = (hasta) => { abiertas.sort((x, y) => x.b - y.b); while (abiertas.length && abiertas[0].b <= hasta) { const o = abiertas.shift(); cash += o.amt * (1 + o.r); const e = eq(); pico = Math.max(pico, e); dd = Math.max(dd, 1 - e / pico); } };
-  for (const x of ts) { cierra(x.a); if (abiertas.length >= maxPos) continue; const amt = size * eq(); if (cash < amt * 0.999) continue; cash -= amt; abiertas.push({ b: x.b, amt, r: x.r }); n++; }
+  // v295 · caída a PRECIO DE MERCADO (pesimista): en cada momento se supone que todo lo abierto está en su peor punto de la operación
+  let cash = 1, abiertas = [], pico = 1, dd = 0, n = 0; const eq = () => cash + abiertas.reduce((s2, o) => s2 + o.amt, 0), eqPeor = () => cash + abiertas.reduce((s2, o) => s2 + o.amt * (1 + (o.w || 0)), 0);
+  const mira = () => { const e = eqPeor(); dd = Math.max(dd, 1 - e / pico); pico = Math.max(pico, eq()); };
+  const cierra = (hasta) => { abiertas.sort((x, y) => x.b - y.b); while (abiertas.length && abiertas[0].b <= hasta) { const o = abiertas.shift(); cash += o.amt * (1 + o.r); mira(); } };
+  const tope = opt.tope || 1, minAmt = opt.min || 0, maxAmt = opt.max || 1;
+  for (const x of ts) { cierra(x.a); if (abiertas.length >= maxPos) continue; const E = eq(), inv = E - cash; let amt = Math.min(Math.max(size, minAmt), maxAmt) * E; amt = Math.min(amt, tope * E - inv); if (!(amt > 0) || cash < amt * 0.999) continue; cash -= amt; abiertas.push({ b: x.b, amt, r: x.r, w: x.w }); n++; mira(); }
   cierra(Infinity); return { ret: r2((cash - 1) * 100), dd: r2(dd * 100), n };
 }
 // ¿aprueba como cartera? gana en TODOS los tramos y nunca cae más de ddMax %
@@ -521,8 +524,8 @@ async function main() {
   paso(S, tick, F, now);
   let FO = Object.fromEntries(Object.entries(F).filter(([m]) => enOkx(OKX, m)).map(([m, f]) => [m, f ? { ...f } : f]));
   // v287 · 🟦 OKX CON SUS PROPIOS OJOS: los métodos de OKX miran las velas y los precios DE OKX y TODAS sus criptos (no solo las que comparte con Bitvavo)
-  let tickO = tick; const HFO = {};
-  if (okxI || OKX) try { const OK = await import("./okx.mjs"), fs = await import("node:fs"), I = okxI || (okxI = await OK.instrumentos()), PO = await OK.preciosOkx(I);
+  let tickO = tick, tickOkxReal = null; const HFO = {};   // v295 · el dinero real de OKX SOLO con precios de OKX (del par con el que opera); sin ellos, ese minuto no opera
+  if (okxI || OKX) try { const OK = await import("./okx.mjs"), fs = await import("node:fs"), I = okxI || (okxI = await OK.instrumentos()), PO = await OK.preciosOkx(I); tickOkxReal = PO.tickEx && Object.keys(PO.tickEx).length >= 10 ? PO.tickEx : null;
     const cand = Object.keys(PO.tick).filter((m) => PO.tick[m].vq >= MIN_VOL / 2 && PO.tick[m].sp < 0.012).sort((a, b) => PO.tick[b].vq - PO.tick[a].vq).slice(0, 60);
     const abiertas = SUBS.filter((k) => PERF[k].soloOkx).flatMap((k) => Object.keys(S.sub[k].pos || {})).filter((m) => PO.tick[m]);
     const CF = "/tmp/okx-velas.json"; let cache = {}; try { cache = JSON.parse(fs.readFileSync(CF, "utf8")); } catch (e) {}
@@ -604,7 +607,7 @@ async function main() {
   } catch (e) { console.log("Bitvavo: avisos no enviados"); }
   // v233 · 💶 dinero real (50 €) copiando al submodo elegido; sin clave de Bitvavo no hace nada
   /* solo si queda tiempo de sobra en esta vuelta: así nunca se corta a medias entre una orden real y el guardado */
-  if (Date.now() - t0 < 55e3) try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI, tickOkx: tickO }); } catch (e) { console.log("Real: error"); } else console.log("Real: vuelta larga, espera a la siguiente");
+  if (Date.now() - t0 < 55e3) try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI, tickOkx: tickOkxReal }); } catch (e) { console.log("Real: error"); } else console.log("Real: vuelta larga, espera a la siguiente");
   await publicarEstado(S);
   console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + Object.keys(S.sub[k].pos).length + " abiertas, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);
   console.log(`Financiación: ${Object.entries(S.fins).map(([k, X]) => k + " " + (X ? X.lastEq + " € · " + Object.keys(X.pos).length + " abiertas" + (X.err ? " · " + X.err : "") : "—")).join(" · ")}`);
