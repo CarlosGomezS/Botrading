@@ -622,6 +622,7 @@ async function main() {
   // v233 · 💶 dinero real (50 €) copiando al submodo elegido; sin clave de Bitvavo no hace nada
   /* solo si queda tiempo de sobra en esta vuelta: así nunca se corta a medias entre una orden real y el guardado */
   if (!S.base || now - S.base.t > 60 * 60e3) try { const T = await tendenciaBase(S.base); if (T) S.base = T; } catch (e) { console.log("Cartera base: sin velas diarias (" + String(e.message).slice(0, 40) + ")"); }   // v301 · cada hora
+  if (S.base) console.log("Cartera base: " + Object.entries(S.base.m).map(([m, T]) => `${m.split("-")[0]} ${T.up ? "📈 por encima" : "📉 por debajo"} de su media de 50 días (${Math.round((T.px / T.sma - 1) * 1000) / 10} %)`).join(" · "));
   if (Date.now() - t0 < 55e3) try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI, tickOkx: tickOkxReal }); } catch (e) { console.log("Real: error"); } else console.log("Real: vuelta larga, espera a la siguiente");
   await publicarEstado(S);
   console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + Object.keys(S.sub[k].pos).length + " abiertas, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);
