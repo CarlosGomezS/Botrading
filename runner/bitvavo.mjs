@@ -625,7 +625,8 @@ async function main() {
       if (hES >= 21 && S.resumenDia !== dES) { S.resumenDia = dES; const f = (n, C) => { if (!C) return null; const cl = C.closed || [], w = cl.filter((c) => c.pnl > 0).length; return `• ${n}: ${r2(C.lastEq)} € (${C.lastEq >= (C.start || 100) ? "+" : ""}${r2((C.lastEq / (C.start || 100) - 1) * 100)} %) · ${cl.length} cerradas (${w} G / ${cl.length - w} P)${C.prueba === true ? " · sin regla ganadora" : C.prueba === false ? " · 🏆 regla ganadora" : ""}`; };
         const L2 = [`📊 Cripto · resumen del día (dinero ficticio, 100 € por submodo)`, "🧠 IA y laboratorio", f("⚖️ Equilibrado", S), ...SUBS.map((k) => f(PERF[k].nombre, S.sub[k])), ...[], "Rejilla", ...Object.entries(S.rejs).map(([k, X]) => f(REJ.PERF[k].nombre, X)), `🧠 IA de predicción: acierta ${S.ia && S.ia.auc ? Math.round(S.ia.auc * 100) : "—"} de cada 100`].filter(Boolean);
         msgs.unshift(L2.join("\n")); } }
-    for (const m of msgs.slice(0, 4)) await AV.tg(m);
+    // v313 · 🔕 Telegram SOLO del dinero real: los métodos/laboratorios ficticios ya no avisan (aprenden en silencio)
+    void msgs;
   } catch (e) { console.log("Bitvavo: avisos no enviados"); }
   // v233 · 💶 dinero real (50 €) copiando al submodo elegido; sin clave de Bitvavo no hace nada
   /* solo si queda tiempo de sobra en esta vuelta: así nunca se corta a medias entre una orden real y el guardado */

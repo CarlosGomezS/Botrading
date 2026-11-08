@@ -548,7 +548,7 @@ async function main() {
     if (S.volat) msgs.push(...AV.avisosCuenta(S.av, "volat", `🌪️ Volátiles (${red})`, S.volat, now, { med: 1, big: 8 }));
     for (const x of (LB.log || []).filter((x) => x.k === "adopta" && now - Date.parse(x.t) < 3 * 60000)) { const m = AV.avisoReglas(S.av, "adopta:" + x.txt.slice(0, 40), `🧬 La bola de aprendizaje (${red}) ha encontrado reglas que ganan:
 ${x.txt}`, now); if (m) msgs.push(m); }
-    for (const m of msgs.slice(0, 6)) await AV.tg(m);
+    void msgs;   // v313 · 🔕 sin avisos del laboratorio por Telegram (solo dinero real)
   } catch (e) { console.log("Memes: avisos no enviados"); }
   await dineroReal(S, by, now, false);
   publicar(S, LB);
