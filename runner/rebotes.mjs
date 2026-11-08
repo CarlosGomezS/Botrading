@@ -44,7 +44,10 @@ export function veredicto(r) { const ok = r.anual > 3 && r.pf >= 1.3 && r.aciert
   return { ok, motivo: ok ? "aprueba 10 años" : r.anual <= 3 ? "gana poco al año" : r.pf < 1.3 ? "gana poco por cada € perdido" : r.aciertos < 60 ? "acierta poco" : r.dd >= 25 ? "cae demasiado" : "opera poco" }; }
 
 async function examen() { const series = {}; for (const s of UNIVERSO) { try { series[s] = await diarias(s); } catch (e) { console.log("Rebotes: sin datos de " + s); } }
-  const r = simula(series), v = veredicto(r);
+  // varias versiones razonables (sin buscar «la que mejor encaja»: se publican todas y solo vale si aprueba la principal o casi todas)
+  const base = { ...P }, vars = [["principal", {}], ["RSI < 5", { rsiMax: 5 }], ["sin stop (máx. 10 días)", { stop: 0.5 }], ["RSI < 5 y sin stop", { rsiMax: 5, stop: 0.5 }], ["salida a 3 días", { salida: 3 }]], todas = [];
+  for (const [nm, o] of vars) { Object.assign(P, base, o); const rr = simula(series), vv = veredicto(rr); todas.push({ nm, ...rr, ...vv }); console.log(`🎯 versión «${nm}»: ${vv.ok ? "✅" : "❌"} ${rr.anual} % al año · caída ${rr.dd} % · ${rr.porAno} op/año · ${rr.aciertos} % aciertos · PF ${rr.pf}`); }
+  Object.assign(P, base); const r = simula(series), v = veredicto(r); r.versiones = todas.map(({ nm, anual, dd, porAno, aciertos, pf, ok }) => ({ nm, anual, dd, porAno, aciertos, pf, ok }));
   console.log(`🎯 Rebote de las grandes (${Object.keys(series).length} acciones, ${r.anos} años): ${v.ok ? "✅" : "❌"} ${v.motivo} · ${r.ret} % en total (${r.anual} % al año) · peor caída ${r.dd} % · ${r.n} operaciones (${r.porAno} al año) · ${r.aciertos} % aciertos · ${r.pf} € ganados por € perdido`);
   console.log("   por años: " + r.porAnoRet.map(([y, x]) => `${y} ${x} %`).join(" · "));
   const B = await import("./bitvavo.mjs"); B.publicar("rebotes.json", { t: new Date().toISOString(), v: 312, ...r, ...v, universo: Object.keys(series), P }, "examen-largo"); await sleep(3000); }
