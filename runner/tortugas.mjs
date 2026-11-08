@@ -83,7 +83,7 @@ export function aprende(series, fee, actual, opts = {}) {
   const padres = [inc, ...pob.map(conP)], nuevas = hijas(padres, n, rnd);
   const todas = [...padres, ...nuevas].filter((P, i, a) => valido(P) && a.findIndex((q) => JSON.stringify(q) === JSON.stringify(P)) === i);
   const cands = todas.map((P) => ({ P, tr: simula(series, fee, 0.002, P, 0, corte) })).filter((x) => x.tr.n >= 10).sort((a, b) => nota(b.tr) - nota(a.tr));
-  const nuevaPob = cands.slice(0, 20).map((x) => x.P);   // las 20 mejores del 1.er año son las madres del próximo examen
+  const nuevaPob = cands.length ? cands.slice(0, 20).map((x) => x.P) : [inc];   // las 20 mejores del 1.er año son las madres del próximo examen
   const base = { probadas: cands.length, nuevas: nuevas.length, pob: nuevaPob, enUso: { ano1: incTr.ret, ano2: incTe.ret, dd2: incTe.dd, reciente: incRe.ret } };
   // se revisan las 5 mejores del 1.er año, en orden: la primera que cumple todo, sustituye
   let motivo = "la que está en uso sigue siendo la mejor", mejorInfo = null;
