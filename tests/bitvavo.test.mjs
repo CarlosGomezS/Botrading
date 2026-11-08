@@ -104,3 +104,10 @@ test("v301 · 🧺 cartera base: tendencia con su media de 50 días y simulació
   assert.equal(B.tendencia(d.slice(0, 90)).up, true, "subiendo: dentro"); assert.equal(B.tendencia(d).up, false, "bajando: fuera");
   const sm = B.simulaBase(d); assert.ok(sm.n >= 1 && sm.n <= 2, "entra pocas veces: " + sm.n); assert.ok(sm.dd < 30, "sale a tiempo: " + sm.dd);
 });
+
+test("v304 · 🐢 Tortugas: entra al romper el máximo de 20 días, corta con el stop y solo sale por señal si cubre comisiones", async () => {
+  const TT = await import("../runner/tortugas.mjs"); const mk = (f) => { const d = []; let p = 100; for (let i = 0; i < 200; i++) { p = f(i, p); d.push([i * 86400e3, p, p * 1.01, p * 0.99, p, 1]); } return d; };
+  const sube = mk((i, p) => (i < 60 ? 100 + Math.sin(i) : p * 1.02)), s1 = TT.senal(sube.slice(0, 62)); assert.equal(s1.entra, true);
+  const r = TT.simula({ "A-EUR": sube, "B-EUR": mk((i) => 100 + Math.sin(i / 3) * 2) }, 0.0025); assert.ok(r.n >= 1 && r.ret > 0, JSON.stringify({ ...r, curva: 0 }));
+  const cae = mk((i, p) => (i < 60 ? 100 + Math.sin(i) : i < 62 ? p * 1.03 : p * 0.95)), r2 = TT.simula({ "A-EUR": cae }, 0.0025); assert.ok(r2.dd < 12, "el stop corta la caída: " + r2.dd);
+});

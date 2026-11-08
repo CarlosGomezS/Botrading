@@ -8,6 +8,7 @@
 // Privacidad: el estado va CIFRADO (REAL_VIEW_PASS) en la rama «bitvavo-real»; en público solo el estado (activo/parado), sin importes
 // ni criptos. La orden (submodo, parar/seguir) va en la rama «bitvavo-ctl». Nunca se escriben importes en los registros públicos.
 import { randomUUID } from "node:crypto";
+import { T_RIESGO, T_MAXPOS, T_STOPMAX, T_ESPERA_D } from "./tortugas.mjs";
 import { createHmac } from "node:crypto";
 import { encrypt, openAny } from "./real-cfg.mjs";
 
@@ -43,7 +44,7 @@ export function estadoExamen(EL, k, fuentes, now = new Date()) {
   if (now - Date.parse(EL.t) > 12 * 3600e3 || now - Date.parse(r.t) > 36 * 3600e3) return "pendiente";
   if (r.ok === true || r.suave === true) return "aprobada"; if (r.ok === false) return "suspendida"; return "pendiente";
 }
-export const VEX_REAL = 301;   // debe coincidir con VEX de examen-largo.mjs
+export const VEX_REAL = 304;   // debe coincidir con VEX de examen-largo.mjs
 const COMITE_R = ["eq", "turbo", "mix", "mixokx"], COMITE_OKX_R = ["mixokx", "eqokx", "turbookx", "tendokx"];
 export const muchoMejor = (b, c) => !!(b && c && b.k !== c.k && ((b.muy && !c.muy) || (b.s >= c.s * 1.3 && b.s >= c.s + 2)));
 export function autoElige(fuentes, actual, abiertas, muyDesde = null, now = new Date(), familia = null, desde = null) {
@@ -286,6 +287,12 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       // v301 · 🧺 CARTERA BASE (BTC/ETH con tendencia): sale cuando la tendencia se gira (cierre por debajo de su media de 50 días) o si cae un 15 % desde la compra
       if (p.src === "base") { if ((ctl.conservar || []).includes(p.sym)) { delete RS.pos[m]; continue; } const T = ctl.base && ctl.base.m && ctl.base.m[m], b = tick[m] ? tick[m].bid : p.px;
         if (ctl.base && T && T.up === false) await cerrar(m, "cartera base: la tendencia se ha girado (por debajo de su media de 50 días)"); else if (b <= p.px * (1 - BASE_STOP)) await cerrar(m, `cartera base: stop −${BASE_STOP * 100} %`); continue; }
+      // v304 · 🐢 posiciones de las Tortugas: stop 2N (≤ −8 %) siempre; salida por mínimo de 10 días solo si cubre comisiones (o tras 7 días)
+      if (p.src === "tortuga") { if ((ctl.conservar || []).includes(p.sym)) { delete RS.pos[m]; continue; } const b = tick[m] ? tick[m].bid : p.px, S1 = ctl.tort && ctl.tort.sen && ctl.tort.sen[m];
+        if (b <= p.stop) { await cerrar(m, `🐢 stop de las Tortugas (2N, ${r2((p.stop / p.px - 1) * 100)} %)`); continue; }
+        if (S1 && S1.sale) { const neto = (p.q * b * (1 - X.fee) + (p.cob || 0)) / p.cost - 1; if (neto > 0 || now - Date.parse(p.t0) > T_ESPERA_D * 86400e3) { await cerrar(m, `🐢 cierra por debajo de su mínimo de 10 días${neto > 0 ? " (con ganancia neta)" : " (7 días sin cubrir comisiones)"}`); continue; }
+          if (!p.espera) { p.espera = now.toISOString(); L(RS, now, `⏳ ${p.sym}: señal de salida de las Tortugas, pero aún no cubre comisiones (${r2(neto * 100)} %); espera (stop activo)`); } }
+        continue; }
       if ((ctl.conservar || []).includes(p.sym)) { if (p.stopId && X.quitaStop) try { await X.quitaStop(m, p.stopId); } catch (e) {} L(RS, now, `🔒 ${p.sym}: la has marcado como tuya; el bot deja de gestionarla (no la vende)`); delete RS.pos[m]; continue; }   // v297
       // v289 · 🛑 STOP REAL OBLIGATORIO: −6 % desde el precio al que la compraste DE VERDAD (historial del exchange), para todas, y ningún método se lo salta
       const lb = RS.libro && RS.libro.abiertas && RS.libro.abiertas[p.sym], ent = p.huerfana && lb && lb.px > 0 ? lb.px : p.px, bN = tick[m] ? tick[m].bid : p.px;
@@ -293,7 +300,10 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (p.huerfana) { const b = bN; p.last = b; p.peak = Math.max(p.peak || p.px, b);
         if (p.peak >= ent * 1.05 && b <= p.peak * 0.96) await cerrar(m, "stop móvil (cripto que estaba sin apuntar)"); else if (now - Date.parse(p.t0) > 72 * 3600e3) await cerrar(m, "72 h (cripto que estaba sin apuntar)"); continue; }
       const srcP = (p.src && fuentes[p.src]) || src, sp = srcP && srcP.pos ? srcP.pos[m] : null; if (tick[m]) p.last = tick[m].bid;
-      if (!sp || sp.t0 !== p.srcT0) { await cerrar(m, "el método ficticio ha vendido"); continue; }
+      // v304 · 💶 el método vende, pero si ESTA venta no cubre las comisiones se espera (hasta 48 h) a que las cubra; el stop −6 % sigue mandando
+      if (!sp || sp.t0 !== p.srcT0) { const b = tick[m] ? tick[m].bid : p.px, neto = (p.q * b * (1 - X.fee) + (p.cob || 0)) / p.cost - 1;
+        if (neto > 0 || (p.espera && now - Date.parse(p.espera) > 48 * 3600e3)) { await cerrar(m, `el método ficticio ha vendido${neto > 0 ? " (con ganancia neta, comisiones incluidas)" : " (48 h esperando a cubrir comisiones)"}`); continue; }
+        if (!p.espera) { p.espera = now.toISOString(); L(RS, now, `⏳ ${p.sym}: el método ha vendido, pero ahora saldría en ${r2(neto * 100)} % tras comisiones; espera a cubrirlas (máx. 48 h, stop −6 % activo)`); } continue; }
       if (sp.cob > 0 && !p.tp && sp.q0 > 0) { const frac = 1 - sp.q / sp.q0; if (frac > 0.05) await cerrar(m, "venta parcial con ganancia (como el método)", frac); }
       // v297 · ampliar también respeta: sin método aprobado no compra, par líquido, tope 25 % por compra y 60 % invertido; se marca hecha solo si se hace
       if (sp.pir && !p.pir && sp.cost0 > 0 && !ctl.noCompra && !(tick[m] && tick[m].sp > HUECO_MAX)) { const V = valor(RS, tick), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())), add = Math.min(RS.cash, p.cost0 * (sp.cost - sp.cost0) / sp.cost0, maxOrden(), V * TAM_MAX, hueco, Math.max(0, (await libre()) - 0.5)), mk = await mercado(m); if (add < mk.min) p.pir = 1; else { const r = await X.comprar(m, add); p.pir = 1; RS.cash -= r.coste; RS.st.fees += r.fee; p.px = (p.px * p.q + r.px * r.q) / (p.q + r.q); p.q += r.q; p.cost += r.coste; L(RS, now, `➕ añade ${r2(r.coste)} € a ${p.sym} (como el método)`); await protege(m); } }   // v295 · precio medio
@@ -308,6 +318,17 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         try { const r = await X.comprar(mm, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++;
           if (p) { p.px = (p.px * p.q + r.px * r.q) / (p.q + r.q); p.q += r.q; p.cost += r.coste; } else RS.pos[mm] = { src: "base", sym: mm.split("-")[0], q: r.q, q0: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), last: tick[mm].bid };
           L(RS, now, `🧺 cartera base: compra ${r2(r.coste)} € de ${mm.split("-")[0]} (está por encima de su media de 50 días)`); await protege(mm); } catch (e) { L(RS, now, `⚠️ cartera base: no pude comprar ${mm.split("-")[0]}: ${String(e.message).slice(0, 60)}`); } } }
+    // v304 · 🐢 TORTUGAS: compra las criptos que cierran por encima de su máximo de 20 días (si su regla aprueba 2 años con las comisiones de este exchange)
+    if (ctl.tort && ctl.tort.sen) { const V = valor(RS, tick); let nT = Object.values(RS.pos).filter((p) => p.src === "tortuga").length;
+      for (const [m, x] of Object.entries(ctl.tort.sen).filter(([, x]) => x.entra).sort((a, b) => b[1].c / b[1].hi20 - a[1].c / a[1].hi20)) {
+        if (nT >= T_MAXPOS) break; const tk = tick[m], clave = "T|" + m + "|" + x.t; if (RS.pos[m] || RS.vistos[clave] || !tk || !(tk.ask > 0) || tk.sp > HUECO_MAX || (ctl.conservar || []).includes(m.split("-")[0]) || !(x.N > 0)) continue;
+        RS.vistos[clave] = now.toISOString(); if (tk.ask > x.c * 1.03) { L(RS, now, `⏭️ 🐢 ${m.split("-")[0]}: rompió su máximo, pero ya ha subido un ${r2((tk.ask / x.c - 1) * 100)} % desde el cierre; no la persigue`); continue; }
+        const stopD = Math.min(2 * x.N, tk.ask * T_STOPMAX), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())), mk = await mercado(m);
+        const eur = Math.min(Math.max((T_RIESGO * V) / (stopD / tk.ask), TAM_COMPRA * V), TAM_MAX * V, hueco, RS.cash, Math.max(0, (await libre()) - 0.5)); if (eur < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ 🐢 ${m.split("-")[0]}: rompe su máximo, pero no queda hueco para comprarla (tope 60 %)`); continue; }
+        try { const r = await X.comprar(m, eur); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nT++;
+          RS.pos[m] = { src: "tortuga", sym: m.split("-")[0], q: r.q, q0: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), last: tk.bid, stop: r.px - stopD, N: x.N };
+          L(RS, now, `🐢 compra ${m.split("-")[0]} por ${r2(r.coste)} €: cerró por encima de su máximo de 20 días · stop ${r2((-stopD / r.px) * 100)} % · sale con su mínimo de 10 días`); msgs.push(`💶 🐢 ${EX}: compra ${m.split("-")[0]} (${r2(r.coste)} €) por ruptura de su máximo de 20 días.`); await protege(m);
+        } catch (e) { L(RS, now, `⚠️ 🐢 no pude comprar ${m.split("-")[0]}: ${String(e.message).slice(0, 60)}`); } } }
     const lista = ctl.noCompra ? [] : [copia, ...(ctl.extra || [])].filter((k, i, a) => fuentes[k] && a.indexOf(k) === i);   // v295 · sin método aprobado: no compra (sí vigila y vende lo abierto)
     for (const kS of lista) { const srcK = fuentes[kS], eqSrc = +srcK.lastEq || 100;
     // v253 · «📥 Copiar ya lo abierto» (lo pides tú): compra ahora lo que el método YA tiene abierto (lo que esté en este exchange), a precio de ahora
@@ -449,7 +470,7 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
       if (RS && RS.copia && RS.copia !== copia) await io.tg(`💶 ${N} · 🤖 CAMBIO DE MÉTODO: de «${nombre(RS.copia)}» a «${nombre(copia)}» — ${A.motivo}. Lo que ya estaba abierto sigue con su método hasta venderlo.`); }
     R0.copia = copia;
     // v269/v270 · los demás ganadores: primero los de su exchange y luego TODOS los demás con 🏆 (lo que no esté en el exchange se salta solo)
-    const extra = cfg.auto ? [...((S.visibles && S.visibles[ex]) || FAMILIA[ex]), ...SUBS_OK].filter((k) => !/^riesgo/.test(k)).filter((k, i, a) => a.indexOf(k) === i && k !== copia && reglaEnUso(fuentesA[k])).filter((k) => { const C = EL && EL.combinada && EL.combinada[ex]; return !!(C && C.ok === true && C.v === VEX_REAL && (C.metodos || []).includes(k) && (C.metodos || []).includes(copia) && now - Date.parse(EL.t) < 12 * 3600e3); }) : [];   // v297 · extras solo con la cartera combinada aprobada, reciente y con esos métodos   // v295 · si la cartera combinada suspende, sin extras
+    const extra = cfg.auto ? [...((S.visibles && S.visibles[ex]) || FAMILIA[ex]), ...SUBS_OK].filter((k) => !/^riesgo/.test(k)).filter((k, i, a) => a.indexOf(k) === i && k !== copia && reglaEnUso(fuentesA[k])).filter(() => false) : [];   // v304 · UN SOLO método campeón: nunca extras   // v297 · extras solo con la cartera combinada aprobada, reciente y con esos métodos   // v295 · si la cartera combinada suspende, sin extras
     if (cfg.auto) R0.extra = extra;
     // v295 · nunca dinero real a un método suspendido; en automático, solo a aprobados (si no queda ninguno, espera sin comprar)
     let noCompra = false; if (estadoAnio(copia) === "suspendida") { noCompra = true; R0.bloqueo = `«${nombre(copia)}» suspende el examen de un año: no compra con dinero real`; }
@@ -457,7 +478,11 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
     // v301 · cartera base: tendencia fresca (< 3 h) y su regla aprobada por el examen de 2 años (reciente)
     const baseOk = !!(EL && EL.base && EL.base.ok === true && EL.base.v === VEX_REAL && now - Date.parse(EL.t) < 12 * 3600e3), T = S.base && now - S.base.t < 3 * 3600e3 ? S.base : null;
     R0.base = baseOk ? (T ? "activa" : "sin datos de tendencia") : "pendiente del examen";
-    const c2 = { copia, extra, noCompra, base: baseOk && T ? T : null, conservar: Array.isArray(cfg.conservar) ? cfg.conservar.map((x) => String(x).toUpperCase()) : [], capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
+    const TE = EL && EL.tortugas && EL.tortugas[ex], tortOk = !!(TE && TE.ok === true && TE.v === VEX_REAL && now - Date.parse(EL.t) < 12 * 3600e3), TS = S.tort && S.tort[ex] && now - S.tort[ex].t < 30 * 3600e3 ? S.tort[ex] : null;
+    R0.tortugas = tortOk ? (TS ? "activas" : "sin velas diarias todavía") : TE ? `no aprueban (${TE.motivo || "examen"})` : "pendientes del examen";
+    // v304 · 🖥️ la terminal cuenta qué sigue cada cuenta y por qué
+    console.log(`💶 ${N}: campeón «${copia}» (${estadoAnio(copia)}${R0.auto && R0.auto.motivo ? " · " + R0.auto.motivo : ""}) · ${noCompra ? "⏸️ " + (R0.bloqueo || "no compra") : "compra cuando su método da señal"} · 🐢 Tortugas ${R0.tortugas} · 🧺 base ${R0.base}`);
+    const c2 = { copia, extra, noCompra, tort: tortOk && TS ? TS : null, base: baseOk && T ? T : null, conservar: Array.isArray(cfg.conservar) ? cfg.conservar.map((x) => String(x).toUpperCase()) : [], capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
       parado: !cfg.on || !!ctl.parado || cfg.parado, motivo: !cfg.on ? `has apagado ${N}` : ctl.parado ? ctl.motivo || "lo has parado tú" : cfg.motivo };
     const out = await vuelta(RS, fuentes, c2, tick, now, { ex: X });
     const msgs = out.msgs.map((m) => (m.includes(N) ? m : m.replace(/^💶 /, `💶 ${N} · `)));

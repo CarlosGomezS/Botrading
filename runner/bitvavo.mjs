@@ -583,7 +583,13 @@ async function main() {
   // Cada 3 min se recoge lo que han demostrado (reglas, IA y escalones de rejilla). Si el laboratorio se para, este bot vuelve a aprender solo.
   if (!S.labAt || now - S.labAt >= 3 * 60000) { S.labAt = now.getTime();
     for (const k of ["eq", ...SUBS]) try { const Lb = await leer(`lab-${k}.json`, `bitvavo-lab-${k}`); if (!Lb || now - Date.parse(Lb.t) > 30 * 60000) continue;
-      const C = k === "eq" ? S : S.sub[k]; Object.assign(C, { lab: Lb.lab, genome: Lb.genome, genomeId: Lb.genomeId, prueba: Lb.prueba, labInfo: Lb.info });
+      const C = k === "eq" ? S : S.sub[k], antes = { gid: C.genomeId, pr: C.prueba, gen: C.lab && C.lab.gen };
+      Object.assign(C, { lab: Lb.lab, genome: Lb.genome, genomeId: Lb.genomeId, prueba: Lb.prueba, labInfo: Lb.info });
+      // v304 · 🧠 la terminal cuenta lo que APRENDE cada laboratorio: generaciones, mejor candidata, cambios de regla y si gana o no
+      { const pop = (Lb.lab && Lb.lab.pop) || [], best = pop.slice().sort((a, b) => (b.s || 0) - (a.s || 0))[0], okN = pop.filter((v) => v.ok).length, g = (Lb.lab && Lb.lab.gen) || 0;
+        if (antes.gid !== Lb.genomeId && antes.gid) console.log(`🧠 ${k}: CAMBIA de regla → ${Lb.prueba ? "ninguna gana el examen (practica)" : "nueva regla ganadora («" + ((Lb.genome && Lb.genome.estilo) || "?") + "»)"}`);
+        else if (antes.pr !== Lb.prueba && antes.pr != null) console.log(`🧠 ${k}: ${Lb.prueba ? "su regla deja de ganar el examen → practica" : "¡encuentra regla ganadora! («" + ((Lb.genome && Lb.genome.estilo) || "?") + "»)"}`);
+        if (g && g !== antes.gen) console.log(`🧠 ${k}: generación ${g} · ${pop.length} candidatas, ${okN} aprueban los 90 días · mejor «${(best && best.g && best.g.estilo) || "?"}» nota ${best ? Math.round(best.s * 100) / 100 : "-"}${best && best.a ? ` (tramos ${[best.a, best.b, best.c].map((x) => (x ? x.med : "-")).join(" / ")} % por operación)` : ""}`); }
       if (k === "eq") { if (Lb.iaM) { S.iaM = Lb.iaM; S.ia = Lb.ia; } for (const [r, a] of Object.entries(Lb.rej || {})) if (S.rejs[r]) { S.rejs[r].apr = a; S.rejs[r].aprAt = Lb.t; } S.labFresh = Lb.t; } } catch (e) { console.log("Laboratorio " + k + ": " + String(e.message).slice(0, 60)); } }
   const labVivo = S.labFresh && now - Date.parse(S.labFresh) < 30 * 60000;
   // 3) si no hay laboratorio dedicado: generación propia cada 15 min
@@ -624,6 +630,15 @@ async function main() {
   // v233 · 💶 dinero real (50 €) copiando al submodo elegido; sin clave de Bitvavo no hace nada
   /* solo si queda tiempo de sobra en esta vuelta: así nunca se corta a medias entre una orden real y el guardado */
   if (!S.base || now - S.base.t > 60 * 60e3) try { const T = await tendenciaBase(S.base); if (T) S.base = T; } catch (e) { console.log("Cartera base: sin velas diarias (" + String(e.message).slice(0, 40) + ")"); }   // v301 · cada hora
+  // v304 · 🐢 TORTUGAS: señales diarias de las 20 criptos más líquidas de CADA exchange (con sus velas); se recalculan al cerrar el día (o cada 6 h)
+  S.tort = S.tort || {}; const hoyT = new Date().toISOString().slice(0, 10);
+  for (const ex of ["bitvavo", "okx"]) { const T0 = S.tort[ex]; if (T0 && T0.dia === hoyT && now - T0.t < 6 * 3600e3) continue; if (Date.now() - t0 > 35e3) break;
+    try { const TT = await import("./tortugas.mjs"); let lista = [];
+      if (ex === "bitvavo") lista = Object.entries(tick).filter(([m, x]) => x.vq > 0 && x.sp < 0.01 && !/^(USDC|EURC|USDT)-/.test(m)).sort((a, b) => b[1].vq - a[1].vq).slice(0, 20).map(([m]) => ({ m }));
+      else if (tickOkxReal) lista = Object.entries(tickOkxReal).filter(([m, x]) => m !== "USDC-EUR" && x.vq > 0 && x.sp < 0.01).sort((a, b) => b[1].vq - a[1].vq).slice(0, 20).map(([m, x]) => ({ m, par: x.par, k: x.k }));
+      const sen = {}; for (const { m, par, k } of lista) { try { const d = await TT.diarias(ex, m, 40, par, k || 1), x = TT.senal(d); if (x) sen[m] = x; } catch (e) {} }
+      if (Object.keys(sen).length >= 5) { S.tort[ex] = { t: now.getTime(), dia: hoyT, sen }; const en = Object.entries(sen).filter(([, x]) => x.entra).map(([m]) => m.split("-")[0]);
+        console.log(`🐢 Tortugas ${ex}: ${Object.keys(sen).length} criptos vigiladas · rompen su máximo de 20 días: ${en.length ? en.join(", ") : "ninguna hoy"}`); } } catch (e) { console.log(`🐢 Tortugas ${ex}: sin velas diarias (${String(e.message).slice(0, 40)})`); } }
   if (S.base) console.log("Cartera base: " + Object.entries(S.base.m).map(([m, T]) => `${m.split("-")[0]} ${T.up ? "📈 por encima" : "📉 por debajo"} de su media de 50 días (${Math.round((T.px / T.sma - 1) * 1000) / 10} %)`).join(" · "));
   if (Date.now() - t0 < 55e3) try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI, tickOkx: tickOkxReal }); } catch (e) { console.log("Real: error"); } else console.log("Real: vuelta larga, espera a la siguiente");
   console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + Object.keys(S.sub[k].pos).length + " abiertas, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);

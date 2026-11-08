@@ -58,7 +58,8 @@ test("Real con OKX: copia al método, salta las criptos que no están en OKX y o
   const pos = { "AAA-EUR": { sym: "AAA", px: 2.002, cost0: 20, cost: 20, q: 1, q0: 1, t0: T(1).toISOString() }, "ZZZ-EUR": { sym: "ZZZ", px: 1, cost0: 20, cost: 20, q: 1, q0: 1, t0: T(1).toISOString() } };
   o = await RL.vuelta(o.RS, { mix: { pos, lastEq: 100 } }, { copia: "mix" }, tick, T(1), { ex: X });
   assert.deepEqual(Object.keys(o.RS.pos), ["AAA-EUR"]); assert.equal(o.RS.saltadas, 1); assert.ok(o.RS.log.some((l) => l.txt.includes("no está en OKX")));
-  o = await RL.vuelta(o.RS, { mix: { pos: {}, lastEq: 100 } }, { copia: "mix" }, tick, T(2), { ex: X });
+  ex.px = ex.px || {}; const sube = { ...tick, ...tk("AAA-EUR", 2.2) }; if (ex.setPx) ex.setPx("AAA-EUR", 2.2); else if (ex.px) ex.px["AAA-EUR"] = 2.2;   // v304 · el método vende y la venta cubre comisiones
+  o = await RL.vuelta(o.RS, { mix: { pos: {}, lastEq: 100 } }, { copia: "mix" }, sube, T(2), { ex: X });
   assert.equal(Object.keys(o.RS.pos).length, 0); assert.equal(o.RS.closed.length, 1);
 });
 

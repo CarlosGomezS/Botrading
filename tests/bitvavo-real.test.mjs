@@ -197,6 +197,7 @@ test("Real v253: «copiar ya lo abierto» compra lo que el método ya tenía (un
   o = await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": viejo }) }, { copia: "eq" }, tk(ex.px), T(6), deps); assert.equal(ex.orders.length, 0, "sin pedirlo, lo antiguo no se copia");
   o = await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": viejo }) }, { copia: "eq", adoptarAt: "x1" }, tk(ex.px), T(7), deps); assert.equal(ex.orders.length, 1); assert.ok(o.RS.pos["A-EUR"]);
   o = await RL.vuelta(o.RS, { eq: fuente({ "A-EUR": viejo }) }, { copia: "eq", adoptarAt: "x1" }, tk(ex.px), T(8), deps); assert.equal(ex.orders.length, 1, "no repite");
+  for (const k of Object.keys(ex.px)) ex.px[k] *= 1.05;   // v304 · vende cuando el método vende y la venta cubre comisiones
   o = await RL.vuelta(o.RS, { eq: fuente({}) }, { copia: "eq", adoptarAt: "x1" }, tk(ex.px), T(9), deps); assert.equal(ex.orders[1].side, "sell", "y vende cuando el método vende");
 });
 
@@ -266,8 +267,8 @@ test("Real v269: en automático copia a la vez a todos los ganadores de su excha
   o = await RL.vuelta(o.RS, { eqokx: fuente({ "A-EUR": a }), mixokx: fuente({ "B-EUR": b }) }, { copia: "eqokx", extra: ["mixokx"], capital: 100 }, tk(ex.px), T(1), deps);
   assert.equal(ex.orders.length, 2, "compra lo de los dos"); assert.equal(o.RS.pos["B-EUR"].src, "mixokx");
   assert.ok(+ex.orders[0].amountQuote <= 25.01, "v286: cada uno con su tamaño, como mucho 25 %");
-  o = await RL.vuelta(o.RS, { eqokx: fuente({ "A-EUR": a }), mixokx: fuente({}) }, { copia: "eqokx", extra: ["mixokx"], capital: 100 }, tk(ex.px), T(2), deps);
-  assert.ok(!o.RS.pos["B-EUR"], "vende cuando su método vende");
+  ex.px["B-EUR"] = 1.05; o = await RL.vuelta(o.RS, { eqokx: fuente({ "A-EUR": a }), mixokx: fuente({}) }, { copia: "eqokx", extra: ["mixokx"], capital: 100 }, tk(ex.px), T(2), deps);
+  assert.ok(!o.RS.pos["B-EUR"], "vende cuando su método vende (con ganancia neta)");
 });
 
 test("Real v278: 🔍 cuadra con la cuenta real: incorpora lo que hay sin apuntar, corrige cantidades y guarda la foto exacta", async () => {
@@ -322,7 +323,7 @@ test("Real v291: 🔐 si la respuesta de una compra se pierde, pregunta por ESA 
   ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100 }, tk(ex.px), T(1), deps));
   assert.equal(ex.orders.filter((o) => o.side === "buy").length, 1, "una sola compra"); assert.ok(RS.pos["A-EUR"], "la compra hecha queda apuntada");
   assert.ok(RS.pos["A-EUR"].stopId && ex.stops[RS.pos["A-EUR"].stopId], "stop de emergencia puesto"); const st = ex.stops[RS.pos["A-EUR"].stopId]; assert.ok(Math.abs(+st.triggerAmount - RS.pos["A-EUR"].px * 0.9) < 1e-3);
-  ({ RS } = await RL.vuelta(RS, { mix: fuente({}) }, { copia: "mix", capital: 100 }, tk(ex.px), T(2), deps));   // el método vende → quita el stop y vende
+  ex.px["A-EUR"] = 1.05; ({ RS } = await RL.vuelta(RS, { mix: fuente({}) }, { copia: "mix", capital: 100 }, tk(ex.px), T(2), deps));   // el método vende (con ganancia) → quita el stop y vende
   assert.ok(!RS.pos["A-EUR"]); assert.equal(Object.keys(ex.stops).length, 0, "stop quitado antes de vender");
 });
 
@@ -374,4 +375,15 @@ test("Real v301: 🧺 cartera base: compra BTC/ETH con tendencia (35 %), no cuen
   assert.ok(RS.pos["BTC-EUR"] && RS.pos["BTC-EUR"].src === "base" && RS.pos["ETH-EUR"]); const inv = RS.pos["BTC-EUR"].cost + RS.pos["ETH-EUR"].cost; assert.ok(Math.abs(inv - 35) < 1, "35 %: " + inv);
   const n = ex.orders.length; ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, base: base(true) }, tk(ex.px), T(2), deps)); assert.equal(ex.orders.length, n, "no recompra cada minuto");
   ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, base: base(false) }, tk(ex.px), T(3), deps)); assert.ok(!RS.pos["BTC-EUR"] && !RS.pos["ETH-EUR"], "tendencia girada: vende");
+});
+
+test("Real v304: 🐢 Tortugas: compra al romper el máximo de 20 días, respeta su stop y sale por señal solo con ganancia neta", async () => {
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado }, sen = (o) => ({ t: Date.now(), sen: { "A-EUR": { t: 1, c: 1, N: 0.03, hi20: 0.98, lo10: 0.9, entra: true, sale: false, ...o } } });
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 100 }, tk(ex.px), T(0), deps);
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen({}) }, tk(ex.px), T(1), deps));
+  const p = RS.pos["A-EUR"]; assert.ok(p && p.src === "tortuga"); assert.ok(Math.abs(p.stop / p.px - 0.94) < 0.005, "stop 2N = −6 %"); assert.ok(p.cost >= 9.9 && p.cost <= 25.1, "tamaño 10-25 %: " + p.cost);
+  const n = ex.orders.length; ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen({ entra: false, sale: true }) }, tk(ex.px), T(2), deps));
+  assert.ok(RS.pos["A-EUR"], "señal de salida sin cubrir comisiones: espera"); assert.equal(ex.orders.length, n);
+  ex.px["A-EUR"] = 1.05; ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen({ entra: false, sale: true }) }, tk(ex.px), T(3), deps));
+  assert.ok(!RS.pos["A-EUR"], "con ganancia neta, sale");
 });
