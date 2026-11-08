@@ -107,6 +107,19 @@ async function main() {
           console.log(`Examen largo · 🐢🧬 Tortugas ${ex} · riesgo ${F.nombre}: ${A.nuevas} reglas nuevas (${hoyN} hoy, ${total} en total) · ${A.cambia ? "✅ CAMBIA a" : "sigue con"} «${TT.describe(P)}» · ${A.motivo}${A.nueva ? ` (mejor nueva: 1.er año ${A.nueva.ano1} %, 2.º año ${A.nueva.ano2} %, últimos 4 meses ${A.nueva.reciente} %, criptos de ${otro} ${A.nueva.otra ?? "—"} %)` : ""}`);
           console.log(`Examen largo · 🐢 Tortugas ${ex} · riesgo ${F.nombre} (${Object.keys(series).length} criptos, comisión ${TT.FEES[ex] * 100} %): ${v.ok ? "✅" : "❌"} ${v.motivo} · 2 años ${r.ret} % · semestres ${r.semestres.join(" / ")} % · peor caída ${r.dd} % · ${r.n} operaciones · ${r.aciertos} % aciertos · ${r.pf} € ganados por € perdido`); }
         tortugas[ex] = { ...perfiles.medio, criptos: Object.keys(series).length, perfiles };
+        // v322 · 🤝 COMITÉ: las reglas de los 3 niveles + las 2 mejores «madres» de cada uno votan. Solo vale si gana al mejor método solo
+        //   en 2 años, en el 2.º año (que no vio) y con las criptos del otro exchange. (Solo examen: aún no compra con dinero real.)
+        try { const Ps = []; for (const rk of Object.keys(perfiles)) { const x = perfiles[rk]; if (x.P) Ps.push(x.P); for (const q of (x.pob || []).slice(0, 2)) Ps.push(q); }
+          const uniq = Ps.filter((P, i, a) => a.findIndex((q) => JSON.stringify({ ...q, riesgo: 0 }) === JSON.stringify({ ...P, riesgo: 0 })) === i);
+          const ts = [...new Set(Object.values(series).flatMap((d) => d.map((x) => x[0])))].sort((a, b) => a - b), corte = ts[Math.floor(ts.length / 2)];
+          const mejor = Object.entries(perfiles).filter(([, x]) => x.ok).sort((a, b) => b[1].ret - a[1].ret)[0], res = {};
+          for (const [nm, O] of [["normal", {}], ["agresivo", { maxPos: 4, base: 0.3, extra: 0.2, tope: 0.8 }]]) {
+            const full = TT.simulaComite(series, TT.FEES[ex], 0.002, uniq, 0, Infinity, O), a2 = TT.simulaComite(series, TT.FEES[ex], 0.002, uniq, corte, Infinity, O), ot = otra ? TT.simulaComite(otra, TT.FEES[otro], 0.002, uniq, 0, Infinity, O) : null;
+            const m2 = mejor ? TT.simula(series, TT.FEES[ex], 0.002, mejor[1].P, corte) : null, mOt = mejor && otra ? TT.simula(otra, TT.FEES[otro], 0.002, mejor[1].P) : null; delete (m2 || {}).curva; delete (mOt || {}).curva;
+            const v = TT.veredicto(full, 70), gana = !!(mejor && v.ok && full.ret > mejor[1].ret && a2.ret > m2.ret && (!ot || ot.ret > Math.max(0, mOt.ret)));
+            res[nm] = { ...full, ok: v.ok, motivo: v.motivo, ano2: a2.ret, otra: ot ? ot.ret : null, ganaAlMejor: gana, reglas: uniq.length };
+            console.log(`Examen largo · 🤝 Comité ${nm} ${ex} (${uniq.length} reglas votan): ${gana ? "✅ GANA al mejor método solo" : "❌ no gana al mejor método solo"} · 2 años ${full.ret} % (mejor solo «${mejor ? mejor[0] : "—"}» ${mejor ? mejor[1].ret : "—"} %) · 2.º año ${a2.ret} % (mejor solo ${m2 ? m2.ret : "—"} %) · criptos de ${otro} ${ot ? ot.ret : "—"} % (mejor solo ${mOt ? mOt.ret : "—"} %) · caída ${full.dd} % · ${full.n} operaciones · ${full.votosMedios} votos de media`); }
+          tortugas[ex].comite = res; } catch (e) { console.log(`Examen largo · 🤝 Comité ${ex}: ${String(e.message).slice(0, 80)}`); }
       } catch (e) { tortugas[ex] = { v: VEX, ok: null, motivo: String(e.message).slice(0, 60) }; console.log(`Examen largo · 🐢 Tortugas ${ex}: ${String(e.message).slice(0, 60)}`); } }
   } catch (e) { console.log("Examen largo · Tortugas: " + String(e.message).slice(0, 80)); }
   // v308 · 🔁 REJILLA RÁPIDA: el año de velas de 5 min, con la comisión de cada exchange (en OKX, con estas mismas criptos)

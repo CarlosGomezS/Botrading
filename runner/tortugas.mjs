@@ -75,6 +75,32 @@ export function simula(series, fee, spread = 0.002, P = null, desde = 0, hasta =
   const fin = curva.length ? curva[curva.length - 1][1] : 1, q = [0, 1, 2, 3].map((j) => { const a = Math.floor((curva.length * j) / 4), b = Math.floor((curva.length * (j + 1)) / 4) - 1; return curva.length ? Math.round((curva[b][1] / (j ? curva[a - 1][1] : 1) - 1) * 10000) / 100 : 0; });
   return { ret: Math.round((fin - 1) * 10000) / 100, dd: Math.round(dd * 10000) / 100, n, aciertos: n ? Math.round((gan / n) * 100) : 0, pf: pb > 0 ? Math.round((gb / pb) * 100) / 100 : gb > 0 ? 99 : 0, semestres: q, curva };
 }
+// v322 · 🤝 COMITÉ DE MÉTODOS: varias reglas aprobadas votan cada día. Cada cripto que alguna quiere se compra UNA vez, con más dinero
+// cuantas más reglas coinciden (1 voto → base; cada voto más → +extra; tope 60 %). Stop: el más ajustado de las que votaron.
+// Sale cuando la MAYORÍA de las que votaron dan salida (con ganancia neta, o tras 7 días) o salta el stop.
+export function senalP(series, idx, m, d, i, t, P, BTC) { if (i == null || i < P.ent + 2) return null; const s = senalRapida(d, i, P); if (!s) return null;
+  if (s.entra && P.filtro && BTC) { const ib = idx["BTC-EUR"].get(t); const sb = ib != null ? senalRapida(BTC, ib, P) : null; if (!sb || !sb.sobreF) s.entra = false; }
+  if (s.entra && P.atrMax > 0 && s.N / s.c > P.atrMax) s.entra = false; return s; }
+export function simulaComite(series, fee, spread = 0.002, Ps = [], desde = 0, hasta = Infinity, O = {}) { const { maxPos = 6, base = 0.2, extra = 0.15, tope = 0.6 } = O; Ps = Ps.map(conP);
+  const dias = [...new Set(Object.values(series).flatMap((d) => d.map((x) => x[0])))].filter((t) => t >= desde && t < hasta).sort((a, b) => a - b), idx = {}, BTC = series["BTC-EUR"];
+  for (const [m, d] of Object.entries(series)) idx[m] = new Map(d.map((x, i) => [x[0], i]));
+  let cash = 1, pos = {}, pico = 1, dd = 0, n = 0, gan = 0, gb = 0, pb = 0, votos = 0; const curva = [], cst = fee + spread / 2;
+  const valor = (t) => cash + Object.entries(pos).reduce((s, [m, p]) => { const i = idx[m].get(t); return s + p.q * (i != null ? series[m][i][4] : p.ult); }, 0);
+  for (const t of dias) {
+    for (const [m, p] of Object.entries(pos)) { const i = idx[m].get(t); if (i == null) continue; const d = series[m], x = d[i]; p.ult = x[4];
+      let px = null; if (x[3] <= p.stop) px = Math.min(x[1], p.stop); else { const salen = p.reglas.filter((k) => x[4] < loDe(d, Ps[k].sale)[i]).length; if (salen * 2 > p.reglas.length) { const neto = (x[4] * (1 - cst)) / p.px - 1; if (neto > 0 || t - p.t0 > T_ESPERA_D * 86400e3) px = x[4]; } }
+      if (px != null) { const got = p.q * px * (1 - cst); cash += got; if (got > p.coste) { gan++; gb += got - p.coste; } else pb += p.coste - got; delete pos[m]; } }
+    const V = valor(t), cand = [];
+    for (const [m, d] of Object.entries(series)) { if (pos[m]) continue; const i = idx[m].get(t), reglas = [], stops = []; let s0 = null;
+      for (let k = 0; k < Ps.length; k++) { const s = senalP(series, idx, m, d, i, t, Ps[k], BTC); if (s && s.entra && s.N > 0) { reglas.push(k); stops.push(Math.min(Ps[k].kN * s.N, s.c * Ps[k].stopMax)); s0 = s; } }
+      if (reglas.length) cand.push({ m, reglas, s: s0, stopD: Math.min(...stops) }); }
+    cand.sort((a, b) => b.reglas.length - a.reglas.length);
+    for (const c of cand) { if (Object.keys(pos).length >= maxPos) break; let eur = Math.min(V * Math.min(tope, base + extra * (c.reglas.length - 1)), cash); if (eur < 0.05 * V) continue;
+      const px = c.s.c * (1 + spread / 2); cash -= eur; pos[c.m] = { q: (eur * (1 - fee)) / px, px, coste: eur, stop: c.s.c - c.stopD, t0: t, ult: c.s.c, reglas: c.reglas }; n++; votos += c.reglas.length; }
+    const V2 = valor(t); pico = Math.max(pico, V2); dd = Math.max(dd, 1 - V2 / pico); curva.push([t, V2]); }
+  const fin = curva.length ? curva[curva.length - 1][1] : 1, q = [0, 1, 2, 3].map((j) => { const a = Math.floor((curva.length * j) / 4), b = Math.floor((curva.length * (j + 1)) / 4) - 1; return curva.length ? Math.round((curva[b][1] / (j ? curva[a - 1][1] : 1) - 1) * 10000) / 100 : 0; });
+  return { ret: Math.round((fin - 1) * 10000) / 100, dd: Math.round(dd * 10000) / 100, n, aciertos: n ? Math.round((gan / n) * 100) : 0, pf: pb > 0 ? Math.round((gb / pb) * 100) / 100 : gb > 0 ? 99 : 0, semestres: q, votosMedios: n ? Math.round((votos / n) * 10) / 10 : 0 }; }
+
 // v305 · tamaño completo, elegido por ti: se acepta una caída de hasta el 50 % por el camino (las Tortugas ganan con pocas operaciones grandes)
 export const T_DDMAX = 50;
 export function veredicto(r, ddMax = T_DDMAX) { const ok = r.n >= 30 && r.ret > 0 && r.pf >= 1.2 && r.dd < ddMax && r.semestres.filter((x) => x > 0).length >= 2;
