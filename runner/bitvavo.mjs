@@ -639,7 +639,7 @@ async function main() {
     try { const TT = await import("./tortugas.mjs"); let lista = []; let PT = null; try { const EL = await leer("examen-largo.json", "examen-largo"); PT = EL && EL.tortugas && EL.tortugas[ex] && EL.tortugas[ex].P; } catch (e) {}   // v313 · 🧠 la combinación aprendida
       if (ex === "bitvavo") lista = Object.entries(tick).filter(([m, x]) => x.vq > 0 && x.sp < 0.01 && !/^(USDC|EURC|USDT)-/.test(m)).sort((a, b) => b[1].vq - a[1].vq).slice(0, 20).map(([m]) => ({ m }));
       else if (tickOkxReal) lista = Object.entries(tickOkxReal).filter(([m, x]) => m !== "USDC-EUR" && x.vq > 0 && x.sp < 0.01).sort((a, b) => b[1].vq - a[1].vq).slice(0, 20).map(([m, x]) => ({ m, par: x.par, k: x.k }));
-      const sen = {}; for (const { m, par, k } of lista) { try { const d = await TT.diarias(ex, m, 90, par, k || 1), x = TT.senal(d, PT); if (x) sen[m] = x; } catch (e) {} }
+      const sen = {}; for (const { m, par, k } of lista) { try { const PP = TT.conP(PT), d = await TT.diarias(ex, m, Math.max(90, PP.ent + 30, (PP.filtro ? PP.mFil : 0) + 30), par, k || 1), x = TT.senal(d, PT); if (x) sen[m] = x; } catch (e) {} }
       if (Object.keys(sen).length >= 5) { S.tort[ex] = { t: now.getTime(), dia: hoyT, sen, P: TT.conP(PT) }; const en = Object.entries(sen).filter(([, x]) => x.entra).map(([m]) => m.split("-")[0]);
         console.log(`🐢 Tortugas ${ex}: ${Object.keys(sen).length} criptos vigiladas · rompen su máximo de ${TT.conP(PT).ent} días: ${en.length ? en.join(", ") : "ninguna hoy"}`); } } catch (e) { console.log(`🐢 Tortugas ${ex}: sin velas diarias (${String(e.message).slice(0, 40)})`); } }
   // v306 · 🐋 COPIA A LOS PROFESIONALES: los mejores traders de Hyperliquid (cuentas > 500.000 $ que ganan este mes y en total).

@@ -55,7 +55,11 @@ test("Real v313: 🐢 solo Tortugas: NO compra con el método, la base ni los pr
 test("Tortugas v313: 🧠 aprende sin trampas: solo cambia si la nueva gana en el año que no vio", () => {
   const dia = 864e5, mk = (f) => { const out = []; let p = 100; for (let i = 0; i < 760; i++) { p = f(i, p); out.push([i * dia, p, p * 1.01, p * 0.99, p, 1]); } return out; };
   const series = { "A-EUR": mk((i, p) => p * (1 + 0.004 * Math.sin(i / 25) + 0.001)), "B-EUR": mk((i, p) => p * (1 + 0.005 * Math.sin(i / 40))), "BTC-EUR": mk((i, p) => p * (1 + 0.003 * Math.sin(i / 60) + 0.0005)) };
-  const A = TT.aprende(series, 0.0025, null); assert.ok(A.P && A.P.ent > 0 && typeof A.cambia === "boolean" && A.motivo, JSON.stringify(A));
-  const B = TT.aprende(series, 0.0025, A.P); assert.equal(JSON.stringify(B.P), JSON.stringify(A.P), "estable: con los mismos datos no vuelve a cambiar");
+  let q = 3; const rnd = () => ((q = (q * 16807) % 2147483647) / 2147483647);
+  const A = TT.aprende(series, 0.0025, null, { rnd, n: 120 }); assert.ok(A.P && A.P.ent > 0 && typeof A.cambia === "boolean" && A.motivo, JSON.stringify(A));
+  assert.ok(A.nuevas >= 100 && A.pob.length >= 1, "evoluciona: " + A.nuevas + " · madres " + A.pob.length);
+  const H = TT.hijas([A.P], 50, rnd); assert.ok(H.length === 50 && H.every((P) => P.sale < P.ent), "hijas válidas y distintas");
+  const otraMala = { "A-EUR": mk((i, p) => p * (1 - 0.002)), "B-EUR": mk((i, p) => p * (1 - 0.0015)), "BTC-EUR": mk((i, p) => p * (1 - 0.001)) };
+  const C = TT.aprende(series, 0.0025, null, { rnd, n: 120, otra: otraMala }); assert.ok(!C.cambia || C.nueva.otra > 0, "nunca cambia a una que pierde con las criptos del otro exchange");
   assert.ok(TT.genes().length >= 30); assert.match(TT.describe(A.P), /máximo de \d+ días/);
 });
