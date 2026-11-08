@@ -32,5 +32,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RONDA: ${{ inputs.ronda }}
         run: |
-          case "${RONDA:-caza}" in caza|caza3) ;; *) echo "ronda no válida"; exit 1;; esac
+          case "${RONDA:-caza}" in caza|caza3|caza-real) ;; *) echo "ronda no válida"; exit 1;; esac
           timeout 2700 node --max-old-space-size=12000 "runner/${RONDA:-caza}.mjs"

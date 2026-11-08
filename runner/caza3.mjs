@@ -8,17 +8,17 @@ import { agrupa, prepara, cartera, FEES, CORTE } from "./caza.mjs";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function J(u, body, tries = 4) { for (let i = 0; ; i++) { try { const r = await fetch(u, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) } : { signal: AbortSignal.timeout(20000) }); if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); } catch (e) { if (i >= tries - 1) throw e; await sleep(1500 * (i + 1)); } } }
 
-async function okx1h(dias = 368) { const OK = await import("./okx.mjs"), PO = await OK.preciosOkx(await OK.instrumentos());
+export async function okx1h(dias = 368) { const OK = await import("./okx.mjs"), PO = await OK.preciosOkx(await OK.instrumentos());
   const lista = Object.entries(PO.tickEx).filter(([m, x]) => m !== "USDC-EUR" && x.vq > 0 && x.sp < 0.01 && !/^(USDT|EURC|USDC)-/.test(m)).sort((a, b) => b[1].vq - a[1].vq).slice(0, 16), out = {}, desde = Date.now() - dias * 864e5;
   for (const [m, x] of lista) { try { let c = [], after = ""; for (let p = 0; p < 100; p++) { const j = await J(`${OK.BASE}/api/v5/market/history-candles?instId=${x.par}&bar=1H&limit=100${after ? "&after=" + after : ""}`); const d = (j && j.data) || []; if (!d.length) break;
         c = c.concat(d.map((y) => [+y[0], +y[1] * x.k, +y[2] * x.k, +y[3] * x.k, +y[4] * x.k, +y[5]])); after = Math.min(...d.map((y) => +y[0])); if (after < desde) break; await sleep(120); }
       c = [...new Map(c.map((y) => [y[0], y])).values()].filter((y) => y[0] >= desde && y[0] + 3600e3 <= Date.now()).sort((a, b) => a[0] - b[0]); if (c.length > 24 * 300) out[m] = c; } catch (e) {} }
   return out; }
-async function funding(coins, desde) { const out = {}; for (const co of coins) { try { let t = desde, all = []; for (let p = 0; p < 40 && t < Date.now() - 3600e3; p++) { const j = await J("https://api.hyperliquid.xyz/info", { type: "fundingHistory", coin: co, startTime: t }); if (!Array.isArray(j) || !j.length) break; all = all.concat(j.map((x) => [x.time, +x.fundingRate])); const nt = j[j.length - 1].time + 1; if (nt <= t) break; t = nt; await sleep(250); }
+export async function funding(coins, desde) { const out = {}; for (const co of coins) { try { let t = desde, all = []; for (let p = 0; p < 40 && t < Date.now() - 3600e3; p++) { const j = await J("https://api.hyperliquid.xyz/info", { type: "fundingHistory", coin: co, startTime: t }); if (!Array.isArray(j) || !j.length) break; all = all.concat(j.map((x) => [x.time, +x.fundingRate])); const nt = j[j.length - 1].time + 1; if (nt <= t) break; t = nt; await sleep(250); }
       if (all.length > 24 * 200) out[co] = new Map(all.map(([tt, f]) => [Math.floor(tt / 3600e3) * 3600e3, f])); } catch (e) {} } return out; }
 
 // estrategias sobre velas de 1 h, todas de cartera; devuelven operaciones y las «plazas» (dinero repartido)
-function estrategias(D, FU) { const ms = Object.keys(D), out = [], btc = D["BTC-EUR"], ts = [...new Set(ms.flatMap((m) => D[m].T))].sort((a, b) => a - b), idx = Object.fromEntries(ms.map((m) => [m, new Map(D[m].T.map((t, i) => [t, i]))]));
+export function estrategias(D, FU) { const ms = Object.keys(D), out = [], btc = D["BTC-EUR"], ts = [...new Set(ms.flatMap((m) => D[m].T))].sort((a, b) => a - b), idx = Object.fromEntries(ms.map((m) => [m, new Map(D[m].T.map((t, i) => [t, i]))]));
   const ret = (m, t, L) => { const i = idx[m].get(t); if (i == null || i < L) return null; return D[m].C[i] / D[m].C[i - L] - 1; };
   const btcUp = (t) => { const i = btc && idx["BTC-EUR"].get(t); return i != null && btc.C[i] > btc.e50[i]; };
   const fr = (m, t, n = 8) => { const F = FU[m.split("-")[0]]; if (!F) return null; let s = 0, k = 0; for (let h = 0; h < n; h++) { const v = F.get(t - h * 3600e3); if (v != null) { s += v; k++; } } return k ? s / k : null; };
@@ -41,7 +41,7 @@ function evalua(D, FU, nombre) { const ms = Object.keys(D), t0 = Math.max(...ms.
       const a = cartera(E.tr, fee, t0, corte, E.slots), b = cartera(E.tr, fee, corte, t1 + 1, E.slots); res.push({ key, fam: E.fam, p: E.p, fee: fn, a, b }); } }
   return { t0, t1, corte, res }; }
 
-(async () => {
+if (import.meta.url === `file://${process.argv[1]}`) (async () => {
   const FILE = (process.env.LARGO_DIR || "/tmp/largo") + "/raw.json"; if (!existsSync(FILE)) throw new Error("sin el año de velas (caché del examen largo)");
   const raw = JSON.parse(readFileSync(FILE, "utf8")), DB = {}; for (const [m, c] of Object.entries(raw.m)) if (c && c.length > 50000) DB[m] = prepara(agrupa(c, 60));
   console.log(`🔎 Ronda 3 · Bitvavo: ${Object.keys(DB).length} criptos (velas de 1 h)`);
