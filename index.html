@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 343 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#343</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 344 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#344</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4500,7 +4500,7 @@ const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"]
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 const SRC={cripto:["🪙","Cripto"],lab:["🤖","Laboratorio"],real:["💶","Real"],proc:["⚙️","Procesos"]};
 const FIL=[["todo","Todo"],["cripto","🪙 Cripto"],["lab","🤖 Laboratorio"],["real","💶 Real"],["met","🔄 Métodos"],["proc","⚙️ Procesos"]];
-const T={toque:0,arriba:false,ev:new Map(),db:null,dirty:new Map(),fil:LS.get("termFil","todo"),q:"",abajo:true,n:1500,limpio:+LS.get("termLimpio",0)||0,at:0,srvAt:0,srvN:0,ghAt:0,realAt:0,criAt:0,ok:{cripto:0,real:0,lab:0,proc:0}};
+const T={toque:0,arriba:false,ev:new Map(),db:null,dirty:new Map(),fil:LS.get("termFil","todo"),q:"",abajo:true,n:500,limpio:+LS.get("termLimpio",0)||0,at:0,srvAt:0,srvN:0,ghAt:0,realAt:0,criAt:0,ok:{cripto:0,real:0,lab:0,proc:0}};
 const dk=t=>{const d=new Date(t);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 const hh=t=>new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
 const hs=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0).toString(36)};
@@ -4550,7 +4550,7 @@ function linea(e){const s=SRC[e.src]||["•",e.src];return`<div class="tl"><span
 function cuerpo(){const L=lista().reverse(),V=L.slice(0,T.n);let h="",d0="";
  for(const e of V){const d=dk(e.t);if(d!==d0){d0=d;h+=`<div class="td">── ${d===dk(Date.now())?"Hoy, ":""}${new Date(e.t).toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})} ──</div>`}h+=linea(e)}
  if(!V.length)h+=`<div class="tt" style="padding:20px 0">${T.ev.size?"Nada con este filtro"+(T.limpio?" desde que limpiaste la pantalla":"")+".":"Recogiendo lo que hace la app…"}</div>`;
- if(L.length>V.length)h+=`<button class="tm-mas" data-tm="mas">⬇️ Ver ${Math.min(1500,L.length-V.length)} líneas más antiguas (quedan ${L.length-V.length})</button>`;
+ if(L.length>V.length)h+=`<button class="tm-mas" data-tm="mas">⬇️ Ver ${Math.min(1000,L.length-V.length)} líneas más antiguas (quedan ${L.length-V.length})</button>`;
  return{h,n:L.length}}
 function aviso(){const pw=(typeof pwGet==="function"&&pwGet())||"",f=[];if(!pw)f.push("🔒 Para ver cripto y la cartera real, desbloquea con tu clave en 💶 Real.");else{if(!T.ok.cripto)f.push("🪙 Cripto: esperando datos…");if(!T.ok.real)f.push("💶 Real: esperando datos…")}return f.join(" ")}
 function dias(){return[...new Set([...T.ev.values()].map(e=>dk(e.t)))].sort().reverse()}
@@ -4577,17 +4577,17 @@ function pinta(force){const tab=$("#t-terminal");if(!tab)return;let b=$("#tm-bod
 function finBtn(){const x=$("#tm-fin");if(x)x.style.display=on()&&!alPrincipio()?"block":"none"}
 function txt(L,tit){return"BOT TRADING · TERMINAL · "+tit+"\nExportado el "+new Date().toLocaleString("es-ES")+" · "+L.length+" líneas\n\n"+L.map(e=>dk(e.t)+" "+hh(e.t)+" ["+(SRC[e.src]||["",e.src])[1]+"]"+(e.met?" [método]":"")+" "+e.txt+(e.n>1?" ×"+e.n:"")).join("\n")+"\n"}
 function baja(nombre,s){try{const b=new Blob([s],{type:"text/plain;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=nombre;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}catch(e){alert("No se pudo exportar: "+e.message)}}
-document.addEventListener("click",e=>{const f=e.target.closest&&e.target.closest("[data-tmf]");if(f){T.fil=f.dataset.tmf;LS.set("termFil",T.fil);T.n=1500;T.abajo=true;document.querySelectorAll("[data-tmf]").forEach(b=>b.classList.toggle("on",b===f));pinta();return}
+document.addEventListener("click",e=>{const f=e.target.closest&&e.target.closest("[data-tmf]");if(f){e.preventDefault();T.fil=f.dataset.tmf;LS.set("termFil",T.fil);T.n=500;T.abajo=true;T.toque=0;const sx=(f.parentNode||{}).scrollLeft||0;pinta(true);const ch=document.querySelector("#t-terminal .tm-chips");if(ch)ch.scrollLeft=sx;return}
  const b=e.target.closest&&e.target.closest("[data-tm]");if(!b)return;const k=b.dataset.tm,todo=()=>[...T.ev.values()].sort((a,b)=>a.t-b.t);
- if(k==="mas"){T.n+=1500;T.arriba=true;T.toque=0;pinta()}
+ if(k==="mas"){T.n+=1000;T.arriba=true;T.toque=0;pinta()}
  else if(k==="exp")baja("terminal-completo-"+dk(Date.now())+".txt",txt(todo(),"histórico completo"));
  else if(k==="expd"){const d=($("#tm-dia")||{}).value;if(d)baja("terminal-"+d+".txt",txt(todo().filter(x=>dk(x.t)===d),"día "+d))}
  else if(k==="limpia"){T.limpio=Date.now();LS.set("termLimpio",T.limpio);pinta(true)}
  else if(k==="todo"){T.limpio=0;LS.set("termLimpio",0);T.abajo=true;pinta(true)}
  else if(k==="abajo"){T.abajo=true;subeArriba();finBtn()}});
-document.addEventListener("input",e=>{if(e.target&&e.target.id==="tm-q"){T.q=e.target.value;T.abajo=true;T.toque=0;pinta()}});
+let qT=0;document.addEventListener("input",e=>{if(e.target&&e.target.id==="tm-q"){T.q=e.target.value;T.abajo=true;clearTimeout(qT);qT=setTimeout(()=>{T.toque=0;pinta()},250)}});
 addEventListener("scroll",()=>{if(!on())return;T.abajo=alPrincipio();finBtn()},{passive:true});
-["touchstart","touchmove","wheel"].forEach(ev=>addEventListener(ev,()=>{T.toque=Date.now()},{passive:true}));
+["touchmove","wheel"].forEach(ev=>addEventListener(ev,()=>{T.toque=Date.now()},{passive:true}));
 /* ---------- pestaña y botón del menú ---------- */
 function monta(){if($("#t-terminal"))return;const sec=document.createElement("section");sec.className="tab";sec.id="t-terminal";const ay=$("#t-ayuda");(ay&&ay.parentNode||document.body).insertBefore(sec,ay||null);
  const nav=$("#nav");if(nav&&!nav.querySelector('[data-t="terminal"]')){const b=document.createElement("button");b.dataset.t="terminal";b.innerHTML="<span>🖥️</span>Terminal";b.onclick=()=>{window.__userNav=true;go("terminal")};nav.insertBefore(b,nav.querySelector('[data-t="ajustes"]'))}}
