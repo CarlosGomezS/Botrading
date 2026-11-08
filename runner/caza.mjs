@@ -76,6 +76,25 @@ export function cruzadas(D, bar) { const out = [], ms = Object.keys(D), btc = D[
   if (btc) for (const x of [0.005, 0.01, 0.02]) for (const H of [1, 3, 6]) gen("BTC tira y las rezagadas siguen", { x, H }, (t) => { const rb = ret("BTC-EUR", t, 1); if (rb == null || rb < x) return []; return ms.filter((m) => m !== "BTC-EUR").map((m) => [m, ret(m, t, 1)]).filter((y) => y[1] != null && y[1] < rb / 3).sort((a, b) => a[1] - b[1]).slice(0, 2).map((y) => y[0]); }, H);
   return out; }
 
+// v314 · RONDA 2: alrededor de las pistas de la ronda 1 (momento entre criptos y BTC tira) con filtros, y 400 reglas INVENTADAS al azar
+export function ronda2(D, bar, rnd) { const out = [], ms = Object.keys(D), btc = D["BTC-EUR"];
+  const tsAll = [...new Set(ms.flatMap((m) => D[m].T))].sort((a, b) => a - b), idx = Object.fromEntries(ms.map((m) => [m, new Map(D[m].T.map((t, i) => [t, i]))]));
+  const ret = (m, t, L) => { const i = idx[m].get(t); if (i == null || i < L) return null; return D[m].C[i] / D[m].C[i - L] - 1; };
+  const btcUp = (t) => { const i = btc && idx["BTC-EUR"].get(t); return i != null && btc.C[i] > btc.e50[i]; };
+  const gen = (nombre, p, pick, H) => { const tr = []; for (let k = 210; k < tsAll.length - H - 1; k += H) { const t = tsAll[k], sel = pick(t); for (const m of sel) { const i = idx[m].get(t); if (i == null || i + 1 + H >= D[m].C.length) continue; tr.push([D[m].T[i + 1], D[m].T[i + H] + 1, D[m].C[i + H] / D[m].O[i + 1] - 1]); } } out.push({ fam: nombre, bar, p, tr }); };
+  for (const L of [6, 12, 24, 48]) for (const H of [2, 4, 6, 12, 24]) for (const top of [1, 2, 3]) for (const filtro of [false, true]) for (const min of [0, 0.02])
+    gen("momento entre criptos (afinado)", { L, H, top, filtro, min }, (t) => (filtro && !btcUp(t) ? [] : ms.map((m) => [m, ret(m, t, L)]).filter((x) => x[1] != null && x[1] > min).sort((a, b) => b[1] - a[1]).slice(0, top).map((x) => x[0])), H);
+  return out; }
+export function inventadas(rnd, n = 400) { const pick = (a) => a[Math.floor(rnd() * a.length)], out = [];
+  const conds = [() => { const r = pick([3, 5, 10, 20]); return [`RSI2<${r}`, (d, i) => d.r2[i] < r]; }, () => { const r = pick([70, 80, 90]); return [`RSI2>${r}`, (d, i) => d.r2[i] > r]; },
+    () => ["sobre EMA200", (d, i) => d.C[i] > d.e200[i]], () => ["bajo EMA200", (d, i) => d.C[i] < d.e200[i]], () => { const k = pick([1.5, 2, 3]); return [`vol>${k}x`, (d, i) => d.V[i] > k * d.v20[i]]; },
+    () => { const x = pick([0.005, 0.01, 0.02]); return [`vela -${x * 100}%`, (d, i) => d.C[i] / d.O[i] - 1 < -x]; }, () => { const x = pick([0.005, 0.01, 0.02]); return [`vela +${x * 100}%`, (d, i) => d.C[i] / d.O[i] - 1 > x]; },
+    () => ["EMA9>EMA21", (d, i) => d.e9[i] > d.e21[i]], () => ["EMA21>EMA50", (d, i) => d.e21[i] > d.e50[i]], () => { const k = pick([1.5, 2]); return [`bajo banda ${k}`, (d, i) => d.C[i] < d.m20[i] - k * d.sd20[i]]; },
+    () => { const N = pick([12, 24, 48, 96]); return [`máx ${N}`, (d, i) => d.C[i] > hiN(d, N)[i]]; }, () => { const h = pick([0, 4, 8, 12, 16, 20]); return [`hora ${h}-${h + 4}`, (d, i) => { const x = new Date(d.T[i]).getUTCHours(); return x >= h && x < h + 4; }]; }];
+  for (let k = 0; k < n; k++) { const nc = 2 + Math.floor(rnd() * 2), cs = Array.from({ length: nc }, () => pick(conds)()), bar = pick([5, 15, 60]);
+    const X = { tp: pick([0, 0.005, 0.01, 0.02, 0.04]), sl: pick([0.005, 0.01, 0.02, 0.04]), max: pick([3, 6, 12, 24, 48]) };
+    out.push({ fam: "inventada", bar, p: { regla: cs.map((c) => c[0]).join(" y "), ...X }, entra: (d, i) => cs.every((c) => c[1](d, i)), X }); }
+  return out; }
 // azar: mismas operaciones por día y misma duración, entradas aleatorias (para saber cuántas «aprobarían» solo por suerte)
 function azar(D, bar, rnd, perDay, H) { const tr = []; for (const d of Object.values(D)) { const n = d.C.length, p = perDay / (Object.keys(D).length * (1440 / bar)); for (let i = 210; i < n - H - 2; i++) if (rnd() < p) tr.push([d.T[i + 1], d.T[i + H] + 1, d.C[i + H] / d.O[i + 1] - 1]); } return tr; }
 
@@ -88,6 +107,9 @@ export function caza(raw, log = console.log) {
   const evalua = (fam, bar, p, tr) => { nVar++; for (const [fn, fee] of Object.entries(FEES)) { const a = cartera(tr, fee, t0, corte), b = cartera(tr, fee, corte, t1 + 1); res.push({ fam, bar, p, fee: fn, a, b, okA: aprueba(a), okB: aprueba(b) }); } };
   for (const F of familias()) { const tr = []; for (const m of mer) tr.push(...opera(POR[F.bar][m], F.entra, F.X)); evalua(F.fam, F.bar, F.p, tr); }
   for (const bar of [15, 60]) for (const F of cruzadas(POR[bar], bar)) evalua(F.fam, bar, F.p, F.tr);
+  let s2 = 99; const rnd2 = () => ((s2 = (s2 * 16807) % 2147483647) / 2147483647);
+  for (const bar of [15, 60]) for (const F of ronda2(POR[bar], bar, rnd2)) evalua(F.fam, bar, F.p, F.tr);
+  for (const F of inventadas(rnd2)) { const tr = []; for (const m of mer) tr.push(...opera(POR[F.bar][m], F.entra, F.X)); evalua(F.fam, F.bar, F.p, tr); }
   // azar (control)
   let s = 7; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647); const ctl = [];
   for (let k = 0; k < 200; k++) { const bar = [5, 15, 60][k % 3], H = [3, 12, 24][k % 3], tr = azar(POR[bar], bar, rnd, 8, H); for (const [fn, fee] of Object.entries(FEES)) { const a = cartera(tr, fee, t0, corte), b = cartera(tr, fee, corte, t1 + 1); ctl.push({ fee: fn, okA: aprueba(a), okB: aprueba(b) }); } }
@@ -97,9 +119,10 @@ export function caza(raw, log = console.log) {
 export function resumen(R) { const out = { t: new Date().toISOString(), v: 314, dias: Math.round((R.t1 - R.t0) / 864e5), mercados: R.mercados.length, variantes: R.nVar, porFee: {} };
   for (const fn of Object.keys(FEES)) { const r = R.res.filter((x) => x.fee === fn), okA = r.filter((x) => x.okA), okAB = okA.filter((x) => x.okB), c = R.ctl.filter((x) => x.fee === fn);
     const mejores = okAB.sort((x, y) => y.b.ret - x.b.ret).slice(0, 8).map((x) => ({ fam: x.fam, bar: x.bar, p: x.p, entreno: x.a, prueba: x.b }));
+    const casi = r.filter((x) => x.a.ret > 0 && x.b.ret > 0 && x.a.opsDia >= 1 && x.b.opsDia >= 1).sort((x, y) => Math.min(y.a.ret, y.b.ret) - Math.min(x.a.ret, x.b.ret)).slice(0, 6).map((x) => ({ fam: x.fam, bar: x.bar, p: x.p, entreno: x.a, prueba: x.b }));
     const topA = r.slice().sort((x, y) => y.a.ret - x.a.ret).slice(0, 5).map((x) => ({ fam: x.fam, bar: x.bar, p: x.p, entreno: x.a, prueba: x.b }));
     const fams = {}; for (const x of r) { const f = (fams[x.fam] = fams[x.fam] || { n: 0, okA: 0, okAB: 0, mejorA: -1e9 }); f.n++; if (x.okA) f.okA++; if (x.okA && x.okB) f.okAB++; f.mejorA = Math.max(f.mejorA, x.a.ret); }
-    out.porFee[fn] = { probadas: r.length, apruebanEntreno: okA.length, apruebanAmbos: okAB.length, azarAmbos: c.filter((x) => x.okA && x.okB).length + "/" + c.length, mejores, topEntreno: topA, familias: fams }; }
+    out.porFee[fn] = { probadas: r.length, apruebanEntreno: okA.length, apruebanAmbos: okAB.length, azarAmbos: c.filter((x) => x.okA && x.okB).length + "/" + c.length, mejores, casi, topEntreno: topA, familias: fams }; }
   return out; }
 
 const P = (o) => Object.entries(o).filter(([, v]) => v !== false && v !== 0).map(([k, v]) => `${k}=${v}`).join(" ");
@@ -110,6 +133,7 @@ if (import.meta.url === `file://${process.argv[1]}`) (async () => {
   for (const [fn, x] of Object.entries(S.porFee)) {
     console.log(`\n💶 ${fn}: aprueban el entreno ${x.apruebanEntreno} · aprueban ENTRENO Y PRUEBA ${x.apruebanAmbos} · con entradas al azar aprobarían ${x.azarAmbos}`);
     for (const m of x.mejores) console.log(`   ✅ ${m.fam} (${m.bar} min) ${P(m.p)} · entreno ${m.entreno.ret} % (${m.entreno.opsDia}/día, PF ${m.entreno.pf}, caída ${m.entreno.dd} %) · prueba ${m.prueba.ret} % (${m.prueba.opsDia}/día, PF ${m.prueba.pf}, caída ${m.prueba.dd} %)`);
+    for (const m of x.casi) console.log(`   ~ gana en los dos con ≥ 1/día: ${m.fam} (${m.bar} min) ${P(m.p)} · entreno ${m.entreno.ret} % (${m.entreno.opsDia}/día, PF ${m.entreno.pf}, caída ${m.entreno.dd} %) · prueba ${m.prueba.ret} % (${m.prueba.opsDia}/día, PF ${m.prueba.pf}, caída ${m.prueba.dd} %)`);
     for (const m of x.topEntreno) console.log(`   · mejor en entreno: ${m.fam} (${m.bar} min) ${P(m.p)} · entreno ${m.entreno.ret} % (${m.entreno.opsDia}/día) → prueba ${m.prueba.ret} % (${m.prueba.opsDia}/día)`);
     console.log("   por familia (aprueban entreno / ambos de las probadas · mejor entreno): " + Object.entries(x.familias).map(([f, y]) => `${f} ${y.okA}/${y.okAB} de ${y.n} (${Math.round(y.mejorA)} %)`).join(" · "));
   }
