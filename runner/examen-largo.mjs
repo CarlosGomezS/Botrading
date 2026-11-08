@@ -91,8 +91,8 @@ async function main() {
   try { const TT = await import("./tortugas.mjs"), OK = await import("./okx.mjs");
     const SER = {};   // v317 · primero los datos de los dos exchanges (cada regla nueva se comprueba también con las criptos del otro)
     for (const ex of ["bitvavo", "okx"]) { try { let lista = [];
-        if (ex === "bitvavo") lista = Object.entries(UV.tick).filter(([m, x]) => x.vq > 0 && x.sp < 0.01 && !/^(USDC|EURC|USDT)-/.test(m)).sort((a, b) => b[1].vq - a[1].vq).slice(0, 20).map(([m]) => ({ m }));
-        else { const PO = await OK.preciosOkx(await OK.instrumentos()); lista = Object.entries(PO.tickEx).filter(([m, x]) => m !== "USDC-EUR" && x.vq > 0 && x.sp < 0.01).sort((a, b) => b[1].vq - a[1].vq).slice(0, 20).map(([m, x]) => ({ m, par: x.par, k: x.k })); }
+        if (ex === "bitvavo") lista = TT.universo(UV.tick).map(([m]) => ({ m }));   // v320 · 🌍 todas las líquidas
+        else { const PO = await OK.preciosOkx(await OK.instrumentos()); lista = TT.universo(PO.tickEx).map(([m, x]) => ({ m, par: x.par, k: x.k })); }
         const series = {}; for (const { m, par, k } of lista) { try { const d = await TT.diarias(ex, m, 800, par, k || 1); if (d.length >= 200) series[m] = d; } catch (e) {} }
         SER[ex] = series; } catch (e) { console.log(`Examen largo · 🐢 Tortugas ${ex}: ${String(e.message).slice(0, 60)}`); } }
     for (const ex of ["bitvavo", "okx"]) { try { const series = SER[ex] || {}, otro = ex === "okx" ? "bitvavo" : "okx", otra = SER[otro] && Object.keys(SER[otro]).length >= 8 ? SER[otro] : null;

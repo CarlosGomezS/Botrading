@@ -7,6 +7,9 @@ import { BASE as OKX_API } from "./okx.mjs";
 const BV = "https://api.bitvavo.com/v2";
 export const T_ENTRA = 20, T_SALE = 10, T_N = 20, T_RIESGO = 0.015, T_MAXPOS = 4, T_STOPMAX = 0.08, T_ESPERA_D = 7;
 export const FEES = { bitvavo: 0.0025, okx: 0.001 };
+// v320 · 🌍 TODAS las criptos que se pueden operar con un mínimo de liquidez (volumen de 24 h ≥ 50.000 € y diferencia compra/venta < 0,8 %), hasta 150
+export const UNI_VOL = 50000, UNI_SP = 0.008, UNI_MAX = 150;
+export const universo = (tick, extra = () => true) => Object.entries(tick).filter(([m, x]) => x && x.vq >= UNI_VOL && x.sp < UNI_SP && !/^(USDC|EURC|USDT|EUROC|DAI|PYUSD)-/.test(m) && m !== "USDC-EUR" && extra(m, x)).sort((a, b) => b[1].vq - a[1].vq).slice(0, UNI_MAX);
 // v313 · 🧠 las Tortugas APRENDEN: estos son sus «genes». El examen largo prueba muchas combinaciones con el 1.er año y solo cambia si la nueva
 // gana TAMBIÉN en el 2.º año (que no ha visto) a la que está en uso. Así mejora sola sin «ajustarse» al pasado.
 export const P0 = { ent: T_ENTRA, sale: T_SALE, kN: 2, stopMax: T_STOPMAX, filtro: false, maxPos: T_MAXPOS, mFil: 50, atrMax: 0 };   // v317 · + media del filtro de BTC y tope de volatilidad
@@ -37,6 +40,18 @@ export function senal(d, P) { P = conP(P); const i = d.length - 1; if (i < Math.
   let mF = 0; const nF = Math.min(P.mFil, i + 1); for (let j = i - nF + 1; j <= i; j++) mF += d[j][4]; mF /= nF;
   const N = atr(d, i, T_N), c = d[i][4]; return { t: d[i][0], c, N, hi20: hi, lo10: lo, entra: c > hi, sale: c < lo, sobre50: c > m50, sobreF: c > mF }; }
 
+// v320 · ⚡ cálculos por cripto guardados (para examinar 150 criptos × cientos de reglas en minutos): máximos, mínimos, medias y N
+const CACHE = new WeakMap();
+function pre(d) { let c = CACHE.get(d); if (c) return c; const n = d.length, tr = new Float64Array(n), N = new Float64Array(n).fill(NaN);
+  for (let j = 1; j < n; j++) tr[j] = Math.max(d[j][2] - d[j][3], Math.abs(d[j][2] - d[j - 1][4]), Math.abs(d[j][3] - d[j - 1][4]));
+  let s = 0; for (let i = 1; i < n; i++) { s += tr[i]; if (i - T_N >= 1) s -= tr[i - T_N]; if (i >= T_N) N[i] = s / T_N; }
+  c = { N, hi: {}, lo: {}, me: {} }; CACHE.set(d, c); return c; }
+const hiDe = (d, k) => { const c = pre(d); if (c.hi[k]) return c.hi[k]; const o = new Float64Array(d.length).fill(-Infinity); for (let i = 1; i < d.length; i++) { let m = -Infinity; for (let j = Math.max(0, i - k); j < i; j++) m = Math.max(m, d[j][2]); o[i] = m; } return (c.hi[k] = o); };
+const loDe = (d, k) => { const c = pre(d); if (c.lo[k]) return c.lo[k]; const o = new Float64Array(d.length).fill(Infinity); for (let i = 1; i < d.length; i++) { let m = Infinity; for (let j = Math.max(0, i - k); j < i; j++) m = Math.min(m, d[j][3]); o[i] = m; } return (c.lo[k] = o); };
+const meDe = (d, k) => { const c = pre(d); if (c.me[k]) return c.me[k]; const o = new Float64Array(d.length); let s = 0; for (let i = 0; i < d.length; i++) { s += d[i][4]; if (i >= k) s -= d[i - k][4]; o[i] = s / Math.min(k, i + 1); } return (c.me[k] = o); };
+// la misma señal que senal(), pero leyendo lo guardado (idéntica para i ≥ 20)
+export function senalRapida(d, i, P) { if (i < Math.max(P.ent, T_N) + 2) return null; const c = d[i][4], N = pre(d).N[i]; return { c, N, entra: c > hiDe(d, P.ent)[i], sale: c < loDe(d, P.sale)[i], sobreF: c > meDe(d, P.mFil)[i] }; }
+
 // 🧪 SIMULACIÓN DE CARTERA con las reglas EXACTAS del real: dinero compartido, como mucho 4 a la vez, tamaño por volatilidad (10-25 %),
 // comisión del exchange y medio spread en cada orden, salida por mínimo de 10 días solo si cubre comisiones (si no, espera ≤ 7 días), stop 2N (≤ −8 %).
 export function simula(series, fee, spread = 0.002, P = null, desde = 0, hasta = Infinity) { P = conP(P);
@@ -46,12 +61,12 @@ export function simula(series, fee, spread = 0.002, P = null, desde = 0, hasta =
   const valor = (t) => cash + Object.entries(pos).reduce((s, [m, p]) => { const i = idx[m].get(t); return s + p.q * (i != null ? series[m][i][4] : p.ult); }, 0);
   for (const t of dias) {
     for (const [m, p] of Object.entries(pos)) { const i = idx[m].get(t); if (i == null) continue; const d = series[m], x = d[i]; p.ult = x[4];
-      let lo = Infinity; for (let j = Math.max(0, i - P.sale); j < i; j++) lo = Math.min(lo, d[j][3]);
+      const lo = loDe(d, P.sale)[i];
       let px = null; if (x[3] <= p.stop) px = Math.min(x[1], p.stop); else if (x[4] < lo) { const neto = (x[4] * (1 - cst)) / p.px - 1; if (neto > 0 || t - p.t0 > T_ESPERA_D * 86400e3) px = x[4]; }
       if (px != null) { const got = p.q * px * (1 - cst); cash += got; const r = got / p.coste - 1; if (r > 0) { gan++; gb += got - p.coste; } else pb += p.coste - got; delete pos[m]; } }
     const V = valor(t);
-    for (const [m, d] of Object.entries(series)) { if (pos[m] || Object.keys(pos).length >= P.maxPos) continue; const i = idx[m].get(t); if (i == null || i < P.ent + 2) continue; const s = senal(d.slice(Math.max(0, i - Math.max(P.ent, 50, P.mFil) - 25), i + 1), P);
-      if (s && s.entra && P.filtro && BTC) { const ib = idx["BTC-EUR"].get(t); const sb = ib != null ? senal(BTC.slice(Math.max(0, ib - P.mFil - 30), ib + 1), P) : null; if (!sb || !sb.sobreF) continue; }
+    for (const [m, d] of Object.entries(series)) { if (pos[m] || Object.keys(pos).length >= P.maxPos) continue; const i = idx[m].get(t); if (i == null || i < P.ent + 2) continue; const s = senalRapida(d, i, P);
+      if (s && s.entra && P.filtro && BTC) { const ib = idx["BTC-EUR"].get(t); const sb = ib != null ? senalRapida(BTC, ib, P) : null; if (!sb || !sb.sobreF) continue; }
       if (s && s.entra && P.atrMax > 0 && s.N / s.c > P.atrMax) continue;   /* v317 · demasiado nerviosa */
       if (!s || !s.entra || !(s.N > 0)) continue;
       const stopD = Math.min(P.kN * s.N, s.c * P.stopMax); let eur = tamano(V, stopD / s.c, P); eur = Math.min(eur, cash); if (eur < 0.05 * V) continue;
