@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 336 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#336</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 337 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#337</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2853,7 +2853,7 @@ function bvPanel(f){const ex=bvModo()==="okx"?"okx":"bitvavo",N=BVN[ex],CU=bvCue
   <div class="mt-dim" style="margin-top:8px">Ventas: <b class="up">${gan.length} con ganancia</b> · <b class="dn">${per.length} con pérdida</b> · resultado de las ventas <b class="${cl(ce)}">${res(ce)}</b> · comisiones pagadas ${eu(R.st&&R.st.fees)}</div>`;
  // 2) gráfica
  const cv=(R.curva||[]).filter(x=>x&&x[1]>0);let graf="";if(cv.length>=3){const W=320,H=80,v=cv.map(x=>x[1]),mn=Math.min(...v),mx=Math.max(...v),rg=mx-mn||1,pts=cv.map((x,i)=>`${(i/(cv.length-1)*W).toFixed(1)},${(H-4-(x[1]-mn)/rg*(H-8)).toFixed(1)}`).join(" "),up=v[v.length-1]>=v[0];
-  graf=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:90px;display:block"><polyline fill="none" stroke="${up?"#16a34a":"#dc2626"}" stroke-width="2.5" points="${pts}"/></svg><div class="mt-dim" style="display:flex;justify-content:space-between"><span>${fh(cv[0][0])}</span><span>mín ${eu(mn)} · máx ${eu(mx)}</span><span>ahora</span></div>`}else graf=`<div class="mt-dim">Se dibuja con un punto cada 30 min; en unas horas verás la línea.</div>`;
+  graf=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:110px;display:block;margin-top:10px" preserveAspectRatio="none"><polyline fill="none" stroke="${up?"var(--go)":"var(--stop)"}" stroke-width="2" vector-effect="non-scaling-stroke" points="${pts}"/></svg><div class="mt-dim" style="display:flex;justify-content:space-between"><span>${fh(cv[0][0])}</span><span>mín ${eu(mn)} · máx ${eu(mx)}</span><span>ahora</span></div>`}else graf=`<div class="mt-dim">Se dibuja con un punto cada 30 min; en unas horas verás la línea.</div>`;
  // 3) comprado
  const comp=act.length?`<div class="tw"><table><tr><th>Cripto</th><th>Pagaste</th><th>Vale ahora</th><th>Resultado</th></tr>${act.map(a=>{const r0=a.coste!=null?a.eur-a.coste:null,pc0=a.e0?(a.px/a.e0-1)*100:null;return`<tr><td><b>${esc(a.sym)}</b><br><small class="m">${tipo(a.src)}${a.stop&&a.e0?` · stop ${pct((a.stop/a.e0-1)*100)}`:""}${a.stopEst==="ok"?" · 🛡️":""}</small></td><td class="n">${a.coste!=null?eu(a.coste):"—"}</td><td class="n" data-cta-c="${esc(a.sym)}-EUR" data-q="${a.q}" data-v="${a.eur}" data-e="${a.e0||""}">${eu(a.eur)}</td><td class="n ${r0==null?"":cl(r0)}"${a.coste!=null?` data-cta-r="${a.coste}"`:""}>${r0==null?"—":res(r0)}<br><small>${pc0==null?"":pct(pc0)}</small></td></tr>`}).join("")}</table></div>`:`<div class="mt-dim">Ahora no tiene ninguna cripto comprada: todo está en euros, esperando la siguiente oportunidad.</div>`;
  // 4) ventas
@@ -2869,7 +2869,10 @@ function bvPanel(f){const ex=bvModo()==="okx"?"okx":"bitvavo",N=BVN[ex],CU=bvCue
   <div class="mt-chs" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:8px">${[50,100,150,200].map(v=>`<button class="mt-ch${k.capital===v?" on":""}" data-bvcap="${v}" data-cx="${ex}" style="text-align:center"><b>${v} €</b></button>`).join("")}<button class="mt-ch" data-bvcap="otro" data-cx="${ex}" style="text-align:center"><b>Otra</b></button><button class="mt-ch${k.capital>=100000?" on":""}" data-bvcap="100000" data-cx="${ex}" style="text-align:center"><b>Todo</b></button></div>
   <button data-bvreal="conservar" data-cx="${ex}" style="width:100%;margin-bottom:6px">🔒 Criptos tuyas que el bot no debe tocar${((k.conservar||[]).length?": "+k.conservar.map(esc).join(", "):"")}</button>
   <button data-bvreal="convertir" data-cx="${ex}" style="width:100%;margin-bottom:6px">💱 Pasar a euros una cripto que ya tenías</button></div></details>`;
- return`${card(`${ex==="okx"?"🟦 OKX":"🇪🇺 Bitvavo"} · tu dinero real`,resumen)}${card("📈 Evolución de tu cuenta",graf)}<div data-cta data-eur="${Cn.eur}">${card(`📦 Lo que tiene comprado <small class="m" style="font-weight:400">· precios en directo</small>`,comp)}</div>${card(`🧾 Últimas ventas`,vtas)}<details class="rd" id="bv-mas"><summary><span>⋯ Más: qué hace ahora, descargas y ajustes</span></summary><div class="rb">${ahora?card("⚙️ Qué está haciendo ahora",ahora):""}
+ const top=`<div class="bv-top"><div class="mt-dim">${ex==="okx"?"🟦 OKX":"🇪🇺 Bitvavo"} · tu cuenta</div><div class="mt-big" data-cta-big>${eu(Cn.total)}</div>
+  <div class="bv-sub"><b class="${cl(G)}">${res(G)} (${pct(G/(R.start||1)*100)})</b> ganado de verdad${hoy==null?"":` · hoy <b class="${cl(hoy)}">${pct(hoy)}</b>`}</div></div>${graf}
+  <div class="bv-mini"><span>💶 Libre <b>${eu(Cn.eur)}</b></span><span>📦 Invertido <b>${eu(inv)}</b></span><span>🧾 Ventas <b><span class="up">${gan.length}</span> / <span class="dn">${per.length}</span></b></span></div>`;
+ return`<div class="mt-p">${top}</div>${act.length?`<div data-cta data-eur="${Cn.eur}">${card(`📦 Lo que tiene comprado`,comp)}</div>`:""}${ventas.length?card(`🧾 Últimas ventas`,vtas):""}<details class="rd" id="bv-mas"><summary><span>⋯ Más</span></summary><div class="rb"><div style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 0">${onBtn}<span class="mt-bdg" style="--c:${bdg[0]}">${bdg[1]}</span></div><div class="mt-dim" style="margin-bottom:8px">Comisiones pagadas ${eu(R.st&&R.st.fees)} · resultado de las ventas <b class="${cl(ce)}">${res(ce)}</b></div>${ahora?card("⚙️ Qué está haciendo ahora",ahora):""}
   <button data-bvexp="${ex}" data-nobusy style="width:100%;margin:4px 0 8px">📥 Descargar el histórico completo de ${N}</button>${ajustes}${window.__bvTerm||""}</div></details>`}
 /* v307 · solo dos botones: Bitvavo y OKX, con lo que hay de verdad en cada cuenta (los métodos ficticios siguen aprendiendo por detrás, sin mostrarse) */
 function hlpHtml(){const Z=(MM.S||{}).hlp;if(!Z||!Z.t0)return"";const pc=(Z.eq/1000-1)*100,d=Math.max(1/24,(Z.t-Z.t0)/864e5),st=Z.st||{},ul=(Z.decisiones||[])[0],c=Z.curva||[],w=300,h=40;let path="";if(c.length>1){const mn=Math.min(...c.map(x=>x[1])),mx=Math.max(...c.map(x=>x[1])),sx=i=>(i/(c.length-1))*w,sy=v=>h-((v-mn)/((mx-mn)||1))*(h-4)-2;path=c.map((x,i)=>(i?"L":"M")+sx(i).toFixed(1)+","+sy(x[1]).toFixed(1)).join("")}
@@ -2881,7 +2884,7 @@ function hlpHtml(){const Z=(MM.S||{}).hlp;if(!Z||!Z.t0)return"";const pc=(Z.eq/1
  ${(Z.cerradas||[]).length?`<div class="tw" style="margin-top:6px"><table><tr><th>Cripto</th><th>Resultado</th></tr>${Z.cerradas.slice(0,12).map(x=>`<tr><td><b>${esc(x.c)}</b> <small class="m">${new Date(x.t1).toLocaleString("es-ES",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</small></td><td class="n ${x.pnl>=0?"up":"dn"}">${x.pc>=0?"+":""}${String(x.pc).replace(".",",")} %</td></tr>`).join("")}</table></div>`:""}
  </div></details>`}
 function bvExchanges(f){const cur=bvModo(),X=MM.bvX||{},b=(k,ex,n)=>{const R=(X[ex]||{}).R,C=R&&R.cuenta,tot=C?C.total:null,Lb=R&&R.libro,ce=Lb?(Lb.cerradas||[]).reduce((s2,c)=>s2+c.pnl,0):null;
-  return`<button class="mt-ch${k===cur?" on":""}" data-bvm="${k}" data-nobusy><b>${n}</b><span>${tot!=null?(tot*f).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €":"🔒"}</span><small class="${ce==null?"":ce>=0?"up":"dn"}">${ce==null?"desbloquea para ver":"ganado de verdad "+E2r(ce*f)}</small></button>`};
+  return`<button class="mt-ch${k===cur?" on":""}" data-bvm="${k}" data-nobusy><b>${n}</b><span>${tot!=null?(tot*f).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €":"🔒"}</span>${ce==null?`<small>desbloquea para ver</small>`:""}</button>`};
  return`<div class="mt-chs" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:8px">${b("ia","bitvavo","🇪🇺 Bitvavo")}${b("okx","okx","🟦 OKX")}</div>`}
 function bvModos(f){const M=[["ia","🇪🇺 Bitvavo"],["okx","🟦 OKX"]],cur=bvModo(),ops=(md,o)=>!o?"":md==="rej"?((o.st||{}).ventas||0)+" ventas":((o.st||{}).trades||0)+" operaciones";
  const tot=md=>{const xs=bvVis(md).map(([k])=>bvCuenta(md,k)).filter(o=>o&&o.lastEq!=null);if(!xs.length)return null;const bs=xs.map(o=>bvBase0(o));return{lastEq:xs.reduce((a,o)=>a+ +o.lastEq,0),start:xs.reduce((a,o)=>a+(o.start||100),0),base0:bs.every(v=>v!=null)?bs.reduce((a,v)=>a+v,0):null,st:{trades:xs.reduce((a,o)=>a+((o.st||{}).trades||0),0),ventas:xs.reduce((a,o)=>a+((o.st||{}).ventas||0),0)}}};
@@ -3806,7 +3809,7 @@ ${hasAcc?`<div class="hero-chg">${ch!=null?`Desde ayer <b class="${cls(ch)}">${S
 ${Math.abs(own)>=1?`<div class="hero-live">🤖 El bot maneja ${E(botMon)}; el resto (${E(own)}) es tuyo y no lo toca.</div>`:""}`:
 `<div class="hero-chg">${s?`<b class="${cls(s.res)}">${SG(s.res)} (${PC(s.pct)})</b> desde el ${esc(fd(s.d0))}${s.dia!=null?` · hoy <b class="${cls(s.dia)}">${SG(s.dia)}</b>`:""}`:"Aún sin historial"}</div>
 <div class="hero-row"><span>Invertido <b>${s?E(s.invBot):"—"}</b></span><span>Efectivo <b>${s?E(s.cashBot):"—"}</b></span></div>`}
-<div class="hero-mood">${mood}</div>
+${/^✅ Todo en orden/.test(mood)?"":`<div class="hero-mood">${mood}</div>`}
 <div class="hero-live">${lv?`<i class="${ago!=null&&ago<40?"on":""}"></i> Actualizado ${agoT}`:""} · ${a.modo==="auto"?"invierte solo":a.modo==="pausa"?"solo mira":"te pide aprobación"}</div></div>`}
 /* v74 · ¿hay algo mejor que el método de tu cartera real? (según el filtro de la prueba histórica y la ficticia) */
 function betterHtml(){try{const b=S&&S.btm;if(!b||!b.rows||!b.rows.spy)return"";const cur=A().metodo,pc=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",",")+" %";
@@ -4047,12 +4050,12 @@ function draw0(){const root=$r("#rl-root");if(!root)return;const R=RL.R;let h=""
   h=lockP+h+warns()+'<div class="p"><h2>Acciones</h2>'+actHtml()+stP+"</div>"+fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),false)+fold("met","🧭 Elige el método",metHtml(),false)+fold("help","❓ Cómo ponerla en marcha",helpHtml(),false);root.innerHTML=h;bind();return}
  // v61: lo importante arriba (cuánto vale, qué va a hacer, botones); el detalle, plegado debajo
  // v335 · 🧹 SENCILLA: a la vista solo el saldo, la gráfica y lo que tiene; todo lo demás dentro de «⋯ Más» (misma funcionalidad)
- h+=heroHtml()+warns();
+ h+=heroHtml();
  h+='<div class="p"><div class="chtop"><h2>¿Va ganando?</h2></div><div id="rl-ch">'+chartHtml()+"</div></div>";
  const pend=!!(R&&R.plan&&R.plan.estado==="pendiente");
  if(pend)h+='<div class="p"><h2>Qué va a hacer</h2><div style="display:grid;gap:10px">'+planHtml()+'</div></div><div class="p rl-act">'+actHtml()+stP+'</div>';
  h+=fold("pos","💼 Lo que tiene",posHtml(),true);
- let mas="";
+ let mas=warns();
  if(!pend)mas+='<div class="p"><h2>Qué va a hacer</h2><div style="display:grid;gap:10px">'+planHtml()+'</div></div><div class="p rl-act">'+actHtml()+stP+'</div>';
  mas+=metResHtml()+betterHtml();
  mas+=fold("ord","🧾 Órdenes ("+((R.orders||[]).length)+")",ordHtml(),false);
@@ -4304,6 +4307,8 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
   try{const l=localStorage.getItem("pbtab");if(l==="hoy"||l==="ayuda"||l==="radar")localStorage.setItem("pbtab",l==="ayuda"?"ajustes":"informe")}catch(e){}
   const act=document.querySelector(".tab.on"); if(act&&(act===hoy||act===ay||act.id==="t-radar"))go(act===ay?"ajustes":"informe");
  }
+ /* v337 · siempre en modo sencillo (antes había un botón «Ver todo»; lo secundario ya está en «⋯ Más») */
+ try{localStorage.setItem("pbsimple","1")}catch(e){} try{document.body.classList.add("simple")}catch(e){}
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",arma);else arma();
  setTimeout(arma,1500);
  // 🎨 Apariencia: arriba de Ajustes (también en el modo visor), siempre visible
@@ -4414,6 +4419,13 @@ svg polyline,svg path[fill="none"]{stroke-width:2!important;stroke-linejoin:roun
 #rl-svg,#rl-ch{touch-action:pan-y;-webkit-user-select:none;user-select:none}
 #rl-svg path[stroke-width="3.2"]{stroke-width:2.2px}
 #rl-svg line[stroke="var(--line)"]{opacity:.5}
+.bv-top .mt-big{margin:2px 0 4px}.bv-sub{font-size:13.5px;color:var(--muted)}
+.bv-mini{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12.5px;color:var(--muted)}.bv-mini b{color:var(--ink);font-weight:600;margin-left:3px}
+/* barra del visor: una línea fina y discreta */
+#viewer-banner{position:static!important;padding:4px 12px!important;font:500 11.5px/1.3 var(--fb)!important;background:var(--soft)!important;color:var(--muted)!important}
+/* cabecera: el botón «Ver todo / Modo sencillo» ya no hace falta (lo secundario está en «⋯ Más») */
+#simpleB{display:none!important}
+.top{padding-top:4px!important}
 /* selector de apariencia */
 .tema-chs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .tema-chs button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;border-radius:16px!important}
