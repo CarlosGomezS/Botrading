@@ -387,6 +387,18 @@ async function boot() {
   await ctx.addInitScript((m) => { window.__REALMET = m; }, realMet);
   const page = await ctx.newPage();
   page.on("pageerror", (e) => log("pageerror:", String(e.message).slice(0, 200)));
+  // v322 · 📈 HISTÓRICO LARGO DESDE YAHOO (sin cuota): en la nube, la prueba histórica y el laboratorio piden los años de precios a Yahoo
+  // desde aquí (Node no tiene el bloqueo CORS del navegador). Solo si Yahoo falla se gasta la cuota diaria de Twelve Data.
+  const yhCache = new Map(); let yhOk = 0, yhKo = 0;
+  await page.exposeFunction("__yhLargo", async (sym, n) => {
+    const ys = String(sym).replace(/\//g, "").replace(/\./g, "-"), key = ys; let out = yhCache.get(key);
+    if (!out) { for (const host of ["query1", "query2"]) { try { const r = await fetch(`https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ys)}?range=max&interval=1d&includeAdjustedClose=true&events=split`, { headers: { "User-Agent": "Mozilla/5.0 (bot-trading)" }, signal: AbortSignal.timeout(25000) }); if (!r.ok) continue;
+          const j = await r.json(), x = j && j.chart && j.chart.result && j.chart.result[0]; if (!x || !x.timestamp) continue; const q = x.indicators.quote[0], aj = (x.indicators.adjclose && x.indicators.adjclose[0] && x.indicators.adjclose[0].adjclose) || [];
+          out = []; for (let i = 0; i < x.timestamp.length; i++) { const c = q.close[i]; if (!(c > 0) || !(q.open[i] > 0) || !(q.high[i] > 0) || !(q.low[i] > 0)) continue; const f = aj[i] > 0 ? aj[i] / c : 1; out.push({ d: new Date(x.timestamp[i] * 1000).toISOString().slice(0, 10), o: q.open[i] * f, h: q.high[i] * f, l: q.low[i] * f, c: c * f, v: q.volume[i] || 0 }); }
+          const hoy = new Date().toISOString().slice(0, 10); out = out.filter((b) => b.d < hoy); break; } catch (e) {} }
+      if (out && out.length) yhCache.set(key, out); }
+    if (!out || out.length < 30) { yhKo++; return null; } yhOk++; return out.slice(-Math.max(1, n || out.length));
+  });
   page.on("dialog", (d) => d.dismiss().catch(() => {}));
   await page.goto("https://app.local/blank");
   if (snap0) await restoreAll(page, snap0);
@@ -563,6 +575,8 @@ async function main() {
       await page.evaluate(async (o) => { if (__API.setBt) await __API.setBt(o); else __API.setBtMax(o.n); }, { ...AJ.bt, n });
       const LABX = env("LAB_EXTRA") === "1";   // v84: ronda extra del laboratorio (cada 2 h): sin avisos salvo que encuentre un ganador
       if (LABX) await page.evaluate(() => { window.__LABX = true; });
+      // v322 · Twelve Data → primero Yahoo (sin cuota); si Yahoo no tiene ese valor, Twelve Data como antes
+      await page.evaluate(() => { try { if (!FE.__yh && FE.td) { const orig = FE.td; FE.td = async (k, s, n, adj) => { try { const b = await window.__yhLargo(s, n || 300); if (b && b.length >= Math.min(n || 300, 600)) return b; } catch (e) {} return orig(k, s, n, adj); }; FE.__yh = 1; } } catch (e) {} });
       await page.evaluate(() => { btRun(); });
       const MAX = Math.max(10 * 60e3, DEADLINE - Date.now() - 5 * 60e3);
       let lastPub = Date.now(), timedOut = false;
@@ -570,7 +584,7 @@ async function main() {
       for (;;) {
         const st = await page.evaluate(() => __API.state());
         const r = await page.evaluate((s) => __API.newestReport(s), startIso);
-        if (!st.btBusy && !st.btPend && r && /^prueba-historica/.test(r.status)) { rep = r; log("Prueba histórica terminada:", st.btst.slice(0, 200)); break; }
+        if (!st.btBusy && !st.btPend && r && /^prueba-historica/.test(r.status)) { rep = r; log("Prueba histórica terminada:", st.btst.slice(0, 200)); log(`Histórico largo: ${yhOk} valores desde Yahoo (sin cuota) · ${yhKo} tuvieron que ir a Twelve Data`); break; }
         if (Date.now() - t0 > MAX) { log("Tiempo máximo alcanzado en la prueba histórica."); timedOut = true; break; }
         if (Date.now() - lastPub > 20 * 60e3) { try { publish(await snapshot()); } catch (e) { log("publicación intermedia falló:", e.message.slice(0, 160)); } lastPub = Date.now(); }
         await sleep(15000);
