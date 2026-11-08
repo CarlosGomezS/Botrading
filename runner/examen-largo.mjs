@@ -99,7 +99,13 @@ async function main() {
         console.log(`Examen largo · 🐢 Tortugas ${ex} (${Object.keys(series).length} criptos, comisión ${TT.FEES[ex] * 100} %): ${v.ok ? "✅" : "❌"} ${v.motivo} · 2 años ${r.ret} % · semestres ${r.semestres.join(" / ")} % · peor caída ${r.dd} % · ${r.n} operaciones · ${r.aciertos} % aciertos · ${r.pf} € ganados por € perdido`);
       } catch (e) { tortugas[ex] = { v: VEX, ok: null, motivo: String(e.message).slice(0, 60) }; console.log(`Examen largo · 🐢 Tortugas ${ex}: ${String(e.message).slice(0, 60)}`); } }
   } catch (e) { console.log("Examen largo · Tortugas: " + String(e.message).slice(0, 80)); }
-  B.publicar("examen-largo.json", { t: new Date().toISOString(), estado: "ok", dias, mercados: mer.length, res, anio, combinada, base, tortugas }, "examen-largo");
+  // v308 · 🔁 REJILLA RÁPIDA: el año de velas de 5 min, con la comisión de cada exchange (en OKX, con estas mismas criptos)
+  const rejilla = {};
+  try { const RJ = await import("./rejilla2.mjs"), series = Object.fromEntries(Object.entries(H.m).map(([m, x]) => [m, x.c.filter((v) => v[0] >= ini)]));
+    for (const [ex, fee] of [["bitvavo", 0.0025], ["okx", 0.001]]) { const r = RJ.simula(series, fee), v = RJ.veredicto(r); rejilla[ex] = { v: VEX, ...r, ...v };
+      console.log(`Examen largo · 🔁 Rejilla rápida ${ex} (escalón ${r.paso} %): ${v.ok ? "✅" : "❌"} ${v.motivo} · año ${r.ret} % · trimestres ${r.trimestres.join(" / ")} % · peor caída ${r.dd} % · ${r.ops} operaciones (${r.opsDia} al día) · ventas con ganancia ${r.ventasGanadoras} %`); }
+  } catch (e) { console.log("Examen largo · Rejilla: " + String(e.message).slice(0, 80)); }
+  B.publicar("examen-largo.json", { t: new Date().toISOString(), estado: "ok", dias, mercados: mer.length, res, anio, combinada, base, tortugas, rejilla }, "examen-largo");
   console.log(`Examen largo: hecho en ${Math.round((Date.now() - t0) / 1000)} s`);
 }
 // v295 · si falla, se ANOTA el fallo (sin tocar la fecha del último examen bueno, que es la que mira el dinero real) y el trabajo sale en rojo
