@@ -41,3 +41,9 @@ jobs:
         with:
           path: /tmp/largo
           key: largo-${{ github.run_id }}
+      # v312 · 🎯 rebote de las grandes (Trading 212): examen de 10 años con Yahoo
+      - name: Examen rebote de las grandes
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: timeout 900 node runner/rebotes.mjs examen
