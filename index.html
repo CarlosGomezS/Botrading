@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 341 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#341</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 342 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#342</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4500,7 +4500,7 @@ const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"]
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 const SRC={cripto:["🪙","Cripto"],lab:["🤖","Laboratorio"],real:["💶","Real"],proc:["⚙️","Procesos"]};
 const FIL=[["todo","Todo"],["cripto","🪙 Cripto"],["lab","🤖 Laboratorio"],["real","💶 Real"],["met","🔄 Métodos"],["proc","⚙️ Procesos"]];
-const T={ev:new Map(),db:null,dirty:new Map(),fil:LS.get("termFil","todo"),q:"",abajo:true,n:1500,limpio:+LS.get("termLimpio",0)||0,at:0,srvAt:0,srvN:0,ghAt:0,realAt:0,criAt:0,ok:{cripto:0,real:0,lab:0,proc:0}};
+const T={toque:0,arriba:false,ev:new Map(),db:null,dirty:new Map(),fil:LS.get("termFil","todo"),q:"",abajo:true,n:1500,limpio:+LS.get("termLimpio",0)||0,at:0,srvAt:0,srvN:0,ghAt:0,realAt:0,criAt:0,ok:{cripto:0,real:0,lab:0,proc:0}};
 const dk=t=>{const d=new Date(t);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 const hh=t=>new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
 const hs=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0).toString(36)};
@@ -4553,31 +4553,39 @@ function cuerpo(){const L=lista(),V=L.slice(-T.n);let h="",d0="";if(L.length>V.l
  return{h,n:L.length}}
 function aviso(){const pw=(typeof pwGet==="function"&&pwGet())||"",f=[];if(!pw)f.push("🔒 Para ver cripto y la cartera real, desbloquea con tu clave en 💶 Real.");else{if(!T.ok.cripto)f.push("🪙 Cripto: esperando datos…");if(!T.ok.real)f.push("💶 Real: esperando datos…")}return f.join(" ")}
 function dias(){return[...new Set([...T.ev.values()].map(e=>dk(e.t)))].sort().reverse()}
+const finPag=()=>Math.max(document.documentElement.scrollHeight,document.body.scrollHeight);
+const alFinal=()=>window.innerHeight+window.scrollY>=finPag()-160;
+const bajaAlFinal=()=>{try{window.scrollTo(0,finPag())}catch(e){}};
+let firma="";
 function pinta(force){const tab=$("#t-terminal");if(!tab)return;let b=$("#tm-body");
- if(!b||force){const ds=dias();tab.innerHTML=`<div class="tm">
+ if(!b||force){const ds=dias();firma="";tab.innerHTML=`<div class="tm">
   <div class="tm-top"><div><div class="tm-h">Terminal</div><div class="tt" id="tm-est"></div></div><span class="tm-live">● en directo</span></div>
-  <div class="tm-chips">${FIL.map(([k,t])=>`<button data-tmf="${k}" class="${T.fil===k?"on":""}">${t}</button>`).join("")}</div>
+  <div class="tm-stick"><div class="tm-chips">${FIL.map(([k,t])=>`<button data-tmf="${k}" class="${T.fil===k?"on":""}">${t}</button>`).join("")}</div></div>
   <input id="tm-q" placeholder="Buscar en el terminal…" value="${esc(T.q)}" autocomplete="off">
   <div class="tm-acc"><button data-tm="exp">⬇️ Todo</button><select id="tm-dia">${ds.map(d=>`<option value="${d}">${d===dk(Date.now())?"Hoy":new Date(d+"T12:00").toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"short"})}</option>`).join("")}</select><button data-tm="expd">⬇️ Ese día</button>${T.limpio?`<button data-tm="todo">↩️ Ver todo</button>`:`<button data-tm="limpia">🧹 Limpiar</button>`}</div>
-  <div id="tm-body"></div>
-  <div class="tm-acc"><button data-tm="abajo">⬇️ Ir a lo último</button></div>
-  <div class="tt" id="tm-av" style="margin-top:6px"></div>
-  <div class="tt" style="margin-top:6px">Aquí sale todo lo que hace la app: 🪙 lo que el bot de cripto mira, compra y vende (y lo que aprende), 🤖 cada ronda del laboratorio, los métodos que nacen, entran o salen y lo que apuestan, 💶 las órdenes, informes y cambios de método de tu cartera real y ⚙️ cada proceso que se ejecuta en GitHub. Se guarda en este móvil, así el histórico crece cada vez que abres la app. «Limpiar» solo despeja la pantalla: al exportar sale todo.</div></div>`;b=$("#tm-body")}
- const top=b.scrollTop,abajo=T.abajo,{h,n}=cuerpo();b.innerHTML=h;if(abajo)b.scrollTop=b.scrollHeight;else b.scrollTop=top;
- const st=$("#tm-est");if(st){const s=T.at?Math.round((Date.now()-T.at)/1000):null;st.textContent=n+" líneas"+(T.fil!=="todo"?" en este filtro":"")+" · "+T.ev.size+" guardadas en este móvil"+(s!=null?" · actualizado hace "+s+" s":"")}
- const av=$("#tm-av");if(av)av.textContent=aviso()}
+  <div class="tt" id="tm-av"></div>
+  <div id="tm-body"></div></div><button id="tm-fin" data-tm="abajo" aria-label="Ir a lo último">⬇️</button>`;b=$("#tm-body")}
+ const st=$("#tm-est"),av=$("#tm-av");if(av)av.textContent=aviso();
+ /* no se redibuja mientras arrastras el dedo, ni si no ha cambiado nada: así el scroll no da saltos */
+ const L=lista(),f=[L.length,L.length?L[L.length-1].t:0,L.length?L[L.length-1].n:0,T.fil,T.q,T.limpio,T.n].join("|");
+ if(st){const s2=T.at?Math.round((Date.now()-T.at)/1000):null;st.textContent=L.length+" líneas"+(T.fil!=="todo"?" en este filtro":"")+" · "+T.ev.size+" guardadas en este móvil"+(s2!=null?" · actualizado hace "+s2+" s":"")}
+ if(f===firma)return;if(!force&&Date.now()-T.toque<2500){setTimeout(()=>pinta(),2600);return}
+ const seguir=force||T.abajo,y=window.scrollY,h0=finPag();firma=f;const {h}=cuerpo();b.innerHTML=h;
+ if(seguir)bajaAlFinal();else if(T.arriba){window.scrollTo(0,y+(finPag()-h0));T.arriba=false}else window.scrollTo(0,y);finBtn()}
+function finBtn(){const x=$("#tm-fin");if(x)x.style.display=on()&&!alFinal()?"block":"none"}
 function txt(L,tit){return"BOT TRADING · TERMINAL · "+tit+"\nExportado el "+new Date().toLocaleString("es-ES")+" · "+L.length+" líneas\n\n"+L.map(e=>dk(e.t)+" "+hh(e.t)+" ["+(SRC[e.src]||["",e.src])[1]+"]"+(e.met?" [método]":"")+" "+e.txt+(e.n>1?" ×"+e.n:"")).join("\n")+"\n"}
 function baja(nombre,s){try{const b=new Blob([s],{type:"text/plain;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=nombre;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}catch(e){alert("No se pudo exportar: "+e.message)}}
 document.addEventListener("click",e=>{const f=e.target.closest&&e.target.closest("[data-tmf]");if(f){T.fil=f.dataset.tmf;LS.set("termFil",T.fil);T.n=1500;T.abajo=true;document.querySelectorAll("[data-tmf]").forEach(b=>b.classList.toggle("on",b===f));pinta();return}
  const b=e.target.closest&&e.target.closest("[data-tm]");if(!b)return;const k=b.dataset.tm,todo=()=>[...T.ev.values()].sort((a,b)=>a.t-b.t);
- if(k==="mas"){T.n+=1500;T.abajo=false;pinta();const x=$("#tm-body");if(x)x.scrollTop=0}
+ if(k==="mas"){T.n+=1500;T.abajo=false;T.arriba=true;T.toque=0;pinta()}
  else if(k==="exp")baja("terminal-completo-"+dk(Date.now())+".txt",txt(todo(),"histórico completo"));
  else if(k==="expd"){const d=($("#tm-dia")||{}).value;if(d)baja("terminal-"+d+".txt",txt(todo().filter(x=>dk(x.t)===d),"día "+d))}
  else if(k==="limpia"){T.limpio=Date.now();LS.set("termLimpio",T.limpio);pinta(true)}
  else if(k==="todo"){T.limpio=0;LS.set("termLimpio",0);T.abajo=true;pinta(true)}
- else if(k==="abajo"){T.abajo=true;const x=$("#tm-body");if(x)x.scrollTop=x.scrollHeight}});
-document.addEventListener("input",e=>{if(e.target&&e.target.id==="tm-q"){T.q=e.target.value;T.abajo=true;pinta()}});
-document.addEventListener("scroll",e=>{const t=e.target;if(t&&t.id==="tm-body")T.abajo=t.scrollHeight-t.scrollTop-t.clientHeight<40},true);
+ else if(k==="abajo"){T.abajo=true;bajaAlFinal();finBtn()}});
+document.addEventListener("input",e=>{if(e.target&&e.target.id==="tm-q"){T.q=e.target.value;T.abajo=true;T.toque=0;pinta()}});
+addEventListener("scroll",()=>{if(!on())return;T.abajo=alFinal();finBtn()},{passive:true});
+["touchstart","touchmove","wheel"].forEach(ev=>addEventListener(ev,()=>{T.toque=Date.now()},{passive:true}));
 /* ---------- pestaña y botón del menú ---------- */
 function monta(){if($("#t-terminal"))return;const sec=document.createElement("section");sec.className="tab";sec.id="t-terminal";const ay=$("#t-ayuda");(ay&&ay.parentNode||document.body).insertBefore(sec,ay||null);
  const nav=$("#nav");if(nav&&!nav.querySelector('[data-t="terminal"]')){const b=document.createElement("button");b.dataset.t="terminal";b.innerHTML="<span>🖥️</span>Terminal";b.onclick=()=>{window.__userNav=true;go("terminal")};nav.insertBefore(b,nav.querySelector('[data-t="ajustes"]'))}}
@@ -4585,12 +4593,12 @@ const on=()=>{const t=$("#t-terminal");return t&&t.classList.contains("on")&&!do
 let ult=0;async function ciclo(){if(on()){refresca();await recoge();pinta(!$("#tm-body"))}else if(Date.now()-ult>60e3){ult=Date.now();await recoge()}}
 monta();carga().then(()=>{recoge().then(()=>{if(on())pinta(true)})});
 setInterval(ciclo,10e3);
-document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest('#nav button[data-t="terminal"]');if(b)setTimeout(()=>{T.abajo=true;pinta(true);recoge().then(()=>pinta())},30)});
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest('#nav button[data-t="terminal"]');if(b)setTimeout(()=>{T.abajo=true;pinta(true);recoge().then(()=>pinta())},30);else if(e.target.closest&&e.target.closest("#nav button")){const x=$("#tm-fin");if(x)x.style.display="none"}});
 window.__terminal={T,recoge,pinta};
 })();
 </script>
 <style id="terminal-css">
-#t-terminal .tm{padding:4px 2px 90px}
+#t-terminal .tm{padding:0 2px 110px}
 #t-terminal .tm-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:4px 0 8px}
 #t-terminal .tm-h{font-size:24px!important;font-weight:700;letter-spacing:-.02em;color:var(--ink);line-height:1.15}
 #t-terminal .tm-live{font-size:11px!important;color:var(--go);font-weight:600;margin-top:6px;white-space:nowrap}
@@ -4600,7 +4608,7 @@ window.__terminal={T,recoge,pinta};
 #t-terminal .tm-chips button{flex:0 0 auto;font-size:12px!important;padding:6px 11px!important;min-height:0!important;white-space:nowrap}
 #t-terminal .tm-chips button.on{background:var(--acc)!important;color:var(--accink)!important}
 #t-terminal #tm-q{width:100%;box-sizing:border-box;font-size:14px!important;padding:8px 12px!important;margin:0 0 6px}
-#t-terminal #tm-body{height:calc(100vh - 400px);height:calc(100dvh - 400px);min-height:280px;overflow-y:auto;background:var(--note)!important;border-radius:14px;padding:8px 10px 12px;margin-top:8px;color:var(--ink);white-space:pre-wrap;word-break:break-word;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#t-terminal #tm-body{background:var(--note)!important;border-radius:14px;padding:8px 10px 12px;margin-top:8px;color:var(--ink);white-space:pre-wrap;word-break:break-word}
 #t-terminal #tm-body,#t-terminal #tm-body *{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace!important;font-size:11px!important;line-height:1.45!important;letter-spacing:0!important}
 #t-terminal #tm-body .tl{padding:1px 0}
 #t-terminal #tm-body .td{color:var(--muted)!important;text-align:center;margin:8px 0 4px}
@@ -4609,5 +4617,9 @@ window.__terminal={T,recoge,pinta};
 #t-terminal .tm-acc{display:flex;gap:6px;margin-top:6px}
 #t-terminal .tm-acc button{flex:1 1 auto;font-size:12px!important;padding:7px 8px!important;min-height:0!important;white-space:nowrap}
 #t-terminal .tm-acc select{flex:1 1 80px;font-size:12px!important;padding:6px 6px!important;min-width:0}
+#t-terminal .tm-stick{position:sticky;top:0;z-index:6;background:var(--bg);padding:6px 0 2px;margin-bottom:4px}
+#t-terminal #tm-av:empty{display:none}
+#t-terminal #tm-av{margin-top:6px}
+#tm-fin{display:none;position:fixed;right:16px;bottom:96px;z-index:30;width:44px;height:44px;min-height:0!important;padding:0!important;font-size:18px!important;background:var(--acc)!important;color:var(--accink)!important;box-shadow:0 4px 14px rgba(0,0,0,.18)!important}
 </style>
 </body></html>
