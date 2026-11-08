@@ -631,6 +631,8 @@ async function main() {
   // v233 · 💶 dinero real (50 €) copiando al submodo elegido; sin clave de Bitvavo no hace nada
   /* solo si queda tiempo de sobra en esta vuelta: así nunca se corta a medias entre una orden real y el guardado */
   if (!S.base || now - S.base.t > 60 * 60e3) try { const T = await tendenciaBase(S.base); if (T) S.base = T; } catch (e) { console.log("Cartera base: sin velas diarias (" + String(e.message).slice(0, 40) + ")"); }   // v301 · cada hora
+  // v316 · 🧪🐋 HYPERLIQUID en directo con dinero FICTICIO: el método que aprobó la caza (cada 5 min y al empezar cada hora)
+  if (Date.now() - t0 < 40e3 && (!S.hlp || now - S.hlp.t >= 5 * 60e3 || Math.floor(now / 3600e3) * 3600e3 !== S.hlp.ultHora)) try { const HP = await import("./hl-momento.mjs"); S.hlp = await HP.paso(S.hlp, now.getTime(), fetch, (x) => console.log(x)); const z = HP.resumen(S.hlp); if (z && (!S.hlpLogAt || now - S.hlpLogAt >= 3600e3)) { S.hlpLogAt = now.getTime(); console.log(`🧪🐋 Hyperliquid (ficticio): ${z.pc >= 0 ? "+" : ""}${z.pc} % en ${z.dias} días · ${z.ops} operaciones (${z.opsDia}/día) · ${z.aciertos} % aciertos · abiertas ${z.abiertas.length}`); } } catch (e) { console.log("🧪🐋 Hyperliquid (ficticio): " + String(e.message).slice(0, 60)); }
   // v304 · 🐢 TORTUGAS: señales diarias de las 20 criptos más líquidas de CADA exchange (con sus velas); se recalculan al cerrar el día (o cada 6 h)
   S.tort = S.tort || {}; const hoyT = new Date().toISOString().slice(0, 10);
   for (const ex of ["bitvavo", "okx"]) { const T0 = S.tort[ex]; if (T0 && T0.dia === hoyT && now - T0.t < 6 * 3600e3) continue; if (Date.now() - t0 > 35e3) break;
