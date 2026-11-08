@@ -5,7 +5,7 @@
 // Solo dinero ficticio. Resultado en la rama «caza» (caza.json): porcentajes y recuentos, nunca dinero real.
 import { existsSync, readFileSync } from "node:fs";
 
-export const FEES = { "Bitvavo (a mercado 0,25 %)": 0.0025, "Bitvavo (límite 0,15 %)": 0.0015, "OKX (a mercado 0,10 %)": 0.001, "OKX (límite 0,08 %)": 0.0008 };
+export const FEES = { "Bitvavo (a mercado 0,25 %)": 0.0025, "Bitvavo (límite 0,15 %)": 0.0015, "OKX (a mercado 0,10 %)": 0.001, "OKX (límite 0,08 %)": 0.0008, "Hyperliquid (a mercado 0,045 %)": 0.00045, "Hyperliquid (límite 0,015 %)": 0.00015 };
 export const SLIP = 0.0005, SLOTS = 4, CORTE = 7 / 12;
 
 // ── velas ──────────────────────────────────────────────────────────────────────────────────────────────

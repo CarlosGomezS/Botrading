@@ -37,7 +37,7 @@ function estrategias(D, FU) { const ms = Object.keys(D), out = [], btc = D["BTC-
 
 export const aprueba3 = (r) => r.opsDia >= 3 && r.ret > 0 && r.pf >= 1.15 && r.dd < 30;
 function evalua(D, FU, nombre) { const ms = Object.keys(D), t0 = Math.max(...ms.map((m) => D[m].T[0])), t1 = Math.min(...ms.map((m) => D[m].T[D[m].T.length - 1])), corte = t0 + (t1 - t0) * CORTE, res = [];
-  for (const E of estrategias(D, FU)) { const key = E.fam + JSON.stringify(E.p); for (const [fn, fee] of Object.entries(FEES)) { if (nombre === "bitvavo" && /OKX/.test(fn)) continue; if (nombre === "okx" && /Bitvavo/.test(fn)) continue;
+  for (const E of estrategias(D, FU)) { const key = E.fam + JSON.stringify(E.p); for (const [fn, fee] of Object.entries(FEES)) { if (nombre === "bitvavo" && /OKX/.test(fn)) continue; if (nombre === "okx" && /Bitvavo/.test(fn)) continue;   /* Hyperliquid se prueba con los dos juegos de datos */
       const a = cartera(E.tr, fee, t0, corte, E.slots), b = cartera(E.tr, fee, corte, t1 + 1, E.slots); res.push({ key, fam: E.fam, p: E.p, fee: fn, a, b }); } }
   return { t0, t1, corte, res }; }
 
@@ -50,12 +50,12 @@ function evalua(D, FU, nombre) { const ms = Object.keys(D), t0 = Math.max(...ms.
   const RB = evalua(DB, FU, "bitvavo"), RO = Object.keys(DO).length >= 6 ? evalua(DO, FU, "okx") : { res: [] };
   console.log(`🔎 ${RB.res.length + RO.res.length} pruebas · entreno hasta ${new Date(RB.corte).toISOString().slice(0, 10)}`);
   const P = (o) => Object.entries(o).filter(([, v]) => v !== false && v !== 0).map(([k, v]) => `${k}=${v}`).join(" "), out = { t: new Date().toISOString(), v: 315, porFee: {} };
-  for (const [nombre, R] of [["Bitvavo", RB], ["OKX", RO]]) for (const fn of Object.keys(FEES).filter((f) => f.startsWith(nombre))) { const r = R.res.filter((x) => x.fee === fn);
+  for (const [nombre, R] of [["Bitvavo", RB], ["OKX", RO]]) for (const fn of Object.keys(FEES).filter((f) => f.startsWith(nombre) || f.startsWith("Hyperliquid"))) { const r = R.res.filter((x) => x.fee === fn);
     // elección honesta: las 10 mejores del ENTRENO (con ≥ 3/día); se mira cómo les va en la prueba
     const sel = r.filter((x) => x.a.opsDia >= 3 && x.a.dd < 30).sort((x, y) => y.a.ret - x.a.ret).slice(0, 10), okAB = r.filter((x) => aprueba3(x.a) && aprueba3(x.b));
-    console.log(`\n💶 ${fn}: ${r.length} probadas · aprueban entreno ${r.filter((x) => aprueba3(x.a)).length} · aprueban ENTRENO Y PRUEBA ${okAB.length}`);
+    console.log(`\n💶 ${fn} · datos de ${nombre}: ${r.length} probadas · aprueban entreno ${r.filter((x) => aprueba3(x.a)).length} · aprueban ENTRENO Y PRUEBA ${okAB.length}`);
     for (const x of sel) console.log(`   ${aprueba3(x.b) ? "✅" : "❌"} ${x.fam} ${P(x.p)} · entreno ${x.a.ret} % (${x.a.opsDia}/día, PF ${x.a.pf}, caída ${x.a.dd} %) → prueba ${x.b.ret} % (${x.b.opsDia}/día, PF ${x.b.pf}, caída ${x.b.dd} %)`);
-    out.porFee[fn] = { probadas: r.length, okA: r.filter((x) => aprueba3(x.a)).length, okAB: okAB.length, top: sel.map((x) => ({ fam: x.fam, p: x.p, a: x.a, b: x.b, ok: aprueba3(x.b) })) }; }
+    out.porFee[fn + " · " + nombre] = { probadas: r.length, okA: r.filter((x) => aprueba3(x.a)).length, okAB: okAB.length, top: sel.map((x) => ({ fam: x.fam, p: x.p, a: x.a, b: x.b, ok: aprueba3(x.b) })) }; }
   // ¿lo que aprueba en un exchange aprueba también en el otro?
   const ambos = RB.res.filter((x) => aprueba3(x.a) && aprueba3(x.b)).filter((x) => RO.res.some((y) => y.key === x.key && aprueba3(y.a) && aprueba3(y.b))).map((x) => x.key);
   console.log(`\n🔎 Aprueban entreno y prueba en Bitvavo Y en OKX: ${[...new Set(ambos)].length}${ambos.length ? " → " + [...new Set(ambos)].slice(0, 6).join(" | ") : ""}`);
