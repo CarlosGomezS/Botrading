@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 331 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#331</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 332 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#332</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4347,6 +4347,27 @@ h1::before{display:none!important}
 /* tablas: filas como una lista */
 th{border-bottom:1px solid var(--line)!important}
 td{border-bottom:1px solid var(--line)!important}
+/* tarjeta principal (saldo): texto en negro sobre fondo de la app (antes era blanco sobre color) */
+.hero{color:var(--ink)!important;background:var(--panel)!important}
+.hero h2,.hero .m,.hero .hero-chg,.hero small{color:var(--muted)!important;opacity:1!important}
+.hero .big{color:var(--ink)!important}
+.hero .up,.hero b.up{color:var(--go)!important}.hero .dn,.hero b.dn{color:var(--stop)!important}
+.hero b:not(.up):not(.dn){color:var(--ink)!important}
+.hero .hero-row span{color:var(--muted)!important}.hero .hero-row b{color:var(--ink)!important;display:block;font-size:17px;font-weight:600}
+.hero .hero-live{color:var(--muted)!important}
+.hero .hero-mood{border:0!important;background:var(--soft)!important;color:var(--ink)!important;border-radius:14px!important;font-weight:500}
+.hero [class*="mood"],.hero .note,.hero > div[style*="border"]{border-color:var(--line)!important;background:var(--soft)!important;color:var(--ink)!important}
+.hero *{text-shadow:none!important}
+/* listas de métodos (podio, top, observación): filas limpias, sin cajas */
+.rk-c{border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;padding:14px 2px!important}
+.rk-c.on,.rk-c[aria-current],.rk-c.sel{background:var(--soft)!important;border-radius:14px!important;border-bottom-color:transparent!important}
+.rk-t,.rk-t b{font-size:14px!important;font-weight:500!important;line-height:1.4!important}
+.rk-n{font-size:15px!important;font-weight:600!important;color:var(--muted)!important}
+.rk-g{font-size:17px!important;font-weight:600!important;letter-spacing:-.01em}
+/* etiquetas (Ganador, T212, DINERO REAL…): píldoras suaves */
+.b-buy,.b-hold,.b-sell,.badge,.tag:not(.vtag),[class^="b-"]{border:0!important;font-weight:500!important}
+/* ids de método (#abc): discretos */
+code,.mid,[class*="hash"]{background:var(--soft)!important;color:var(--muted)!important;border:0!important}
 /* selector de apariencia */
 .tema-chs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .tema-chs button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;border-radius:16px!important}
