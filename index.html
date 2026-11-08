@@ -501,7 +501,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .mt-cmp>div,.mt-foot{background:color-mix(in srgb,var(--line) 20%,transparent);border:0;border-radius:12px}
 .mt-log,.mt-kv,.mt-rule,.mt-node{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 </style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 325 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#325</small></span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 326 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#326</small></span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -519,7 +519,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <div class="p"><h2>Detalle por activo</h2><div style="display:flex;gap:8px"><input id="sy" placeholder="Ticker, p. ej. AAPL" style="width:150px"><button id="sb">Ver</button></div><div id="sd"></div></div>
 </section>
 <section class="tab" id="t-informe">
-<div class="p"><h2>🤖 Laboratorio</h2><div class="m" style="margin:4px 0 10px">El buscador: cada noche prueba unos 40 métodos candidatos con datos reales desde 2000 y los costes incluidos. Todos se pueden hacer en Trading 212 con ETF europeos en euros y revisan como mucho una vez al mes. Solo es <b>✅ Ganador</b> el que gana al SPY por ≥2 puntos al año (después de impuestos), le gana en 2000-2015 <b>y también</b> en 2016-hoy (si no, pudo ser suerte de una época), no cae más del −35 % y opera poco: ese entra solo en la ficticia. Además, el 🤖 laboratorio inventa métodos nuevos cada noche. No usa dinero.</div>
+<div class="p"><h2>🤖 Laboratorio</h2><div class="m" style="margin:4px 0 10px">Cada noche prueba unos 40 métodos de ETF con datos reales desde 2000 y las comisiones incluidas. Solo es <b>✅ Ganador</b> el que gana al S&amp;P 500 por 2 puntos o más al año <b>en las dos mitades</b> del periodo y sin caer más del 35 %. Además inventa métodos nuevos cada noche. No usa dinero.</div>
 <div class="btbar"><button id="btr">▶ Ejecutar prueba</button><button id="btcb" class="ghost">⚙️ Ajustes de la prueba</button></div>
 <div id="btcf" class="btcf" hidden>
  <label class="btrow btstk"><span>Incluir métodos de acciones sueltas<small>Momentum de acciones, IA… Más lento (30-60 min).</small></span><input type="checkbox" id="btacc"></label>
@@ -4292,6 +4292,45 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
  }
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",arma);else arma();
  setTimeout(arma,1500);
+ // bloques que otras partes de la app añaden más tarde a Ajustes: también a «Avanzado»
+ const tarde=()=>{const aj=$("#t-ajustes"),ab=$("#simpl-av .fb");if(!aj||!ab)return;[...aj.children].forEach(c=>{if(c.id&&c.id.startsWith("simpl-"))return;if(/Dinero con el que se muestra|Conexión de datos|Auditoría|Parámetros del bot|Diagnóstico/.test((c.textContent||"").slice(0,80)))ab.appendChild(c)});const ay=$("#simpl-ay"),av=$("#simpl-av");if(av)aj.appendChild(av);if(ay)aj.appendChild(ay)};
+ [2000,4000,8000].forEach(t=>setTimeout(tarde,t));
 })();
 </script>
+<style id="movil-legible">
+/* v326 · 📱 LECTURA EN MÓVIL: letra más grande, más aire, tablas que se leen sin hacer zoom y botones fáciles de pulsar */
+@media (max-width:700px){
+ body{font-size:16px;line-height:1.55;-webkit-text-size-adjust:100%}
+ .m,.mt-dim,small{font-size:14.5px;line-height:1.5}
+ small small,.m small{font-size:13.5px}
+ .p{padding:16px;gap:12px;border-radius:16px}
+ .p h2,.p > h2{font-size:17px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:750;line-height:1.3}
+ summary{font-size:16.5px;letter-spacing:0;text-transform:none;color:var(--ink);padding:16px;line-height:1.35}
+ details .fb,details .rb{padding:0 14px 14px}
+ .big{font-size:36px;line-height:1.15}
+ button,select,input:not([type=checkbox]):not([type=radio]){min-height:44px;font-size:16px}
+ button{padding:10px 14px;border-radius:12px}
+ /* tablas: números alineados, filas con aire, primera columna fija al deslizar */
+ table{font-size:15px}
+ th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:8px 10px}
+ td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+ tr:last-child td{border-bottom:0}
+ td.n,td.r,.n{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+ .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px}
+ .tw table tr > :first-child{position:sticky;left:0;background:var(--panel);z-index:1}
+ /* cajas de datos: 2 por fila, cifra grande */
+ .kv{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .kv > *{min-width:0}
+ .kv b,.kv strong{font-size:18px}
+  /* letras diminutas escritas a mano en la app: mínimo legible (no en los textos de las gráficas) */
+ :not(text):not(tspan)[style*="font-size:9px"],:not(text):not(tspan)[style*="font-size:9.5px"],:not(text):not(tspan)[style*="font-size:10px"],:not(text):not(tspan)[style*="font-size:10.5px"],:not(text):not(tspan)[style*="font-size:11px"],:not(text):not(tspan)[style*="font-size:11.5px"]{font-size:13px!important}
+ /* el botón ⊖ de plegar no tapa el texto */
+ .p > :first-child:not(button),.p > h2{padding-right:46px}
+/* menú de abajo: iconos y textos más grandes */
+ #nav button{font-size:13px;min-height:56px}
+ #nav button span{font-size:22px}
+ /* textos largos: que no se salgan */
+ .p,.fold,td,.m{overflow-wrap:anywhere}
+}
+</style>
 </body></html>
