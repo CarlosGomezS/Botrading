@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 337 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#337</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 338 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#338</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2039,7 +2039,9 @@ function winAll(){const b=S.btm;if(!b||!b.rows||!b.rows.spy)return[];return Obje
 function top5List(all,N){N=N||5;try{const b=S.btm,tx=b&&b.rows&&b.rows.spy&&b.rows.spy[0]&&b.rows.spy[0].atax!=null,AT=r=>tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts),as=b&&b.rows.spy?AT(b.rows.spy):null;
  const H=all.filter(x=>x.k!=="spy"&&x.v&&x.v.c==="ok"&&!x.late&&labHoldOk(x.k)).map(x=>({h:x,sc:AT(x.r)}));
  const LV=(S.labConf||[]).filter(c=>c.fwd&&c.ok&&STR[c.k]).map(c=>({lv:c,sc:c.nd>0?Math.pow(1+c.g,365/c.nd)-1:null}));
- return{T:[...H,...LV].filter(x=>x.sc!=null).sort((p,q)=>q.sc-p.sc).slice(0,N),as}}catch(e){return{T:[],as:null}}}
+ /* v338 · empate (menos de 0,2 puntos al año de diferencia) → va antes el que cae menos */
+ const ddOf=x=>x.h&&x.h.dd!=null?x.h.dd:x.lv&&x.lv.dd!=null?x.lv.dd:null;
+ return{T:[...H,...LV].filter(x=>x.sc!=null).sort((p,q)=>{const d=q.sc-p.sc,a=ddOf(p),c=ddOf(q);return Math.abs(d)<0.002&&a!=null&&c!=null&&a!==c?c-a:d}).slice(0,N),as}}catch(e){return{T:[],as:null}}}
 function top5Html(all,card){try{const {T,as}=top5List(all,20);
  const lvCard=(c,j)=>`<details class="btc"><summary><span class="rk">${j}</span><span class="nm">${esc(STR[c.k].n)}${midB(c.k)}</span><span class="pa ${c.g>=0?"up":"dn"}">${P(c.g*100)}<small style="font-size:11px;font-weight:400;color:var(--muted)"> en vivo</small></span><span class="sb"><span class="bdg ok">✅ Probado en vivo</span><span class="bdg t">🔭 mixto</span></span></summary><div class="bd"><div>En ${Math.round(c.nd/30.4)} meses con precios reales: ${P(c.g*100)} frente al ${P(c.gs*100)} del SPY. Sus resultados son de verdad, no de una prueba histórica.</div><div class="m">${esc(STR[c.k].d||"")}</div></div></details>`;
  let h=`<input type="search" class="mfilter" data-filter="details.btc" data-scope=".labtop" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="🔎 Buscar por #id o nombre" style="width:100%;margin:6px 0"><div class="m" style="margin:10px 0 4px"><b>🏆 Los 20 que más ganan al SPY</b> (los 5 primeros a la vista) (después de impuestos, con caídas no peores del −35 % y ganando en 2000-2015 y en 2016-hoy${as!=null?` · el SPY: ${P(as*100)}/año`:""})</div><div class="btl">`;
