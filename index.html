@@ -1,5 +1,5 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="theme-color" content="#eef2fb" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#0c1224" media="(prefers-color-scheme: dark)"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Bot Trading v55 · 5 métodos sin bonos</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f3f4f2;--panel:#fff;--ink:#1a2220;--muted:#5d6966;--line:#d9dedb;--acc:#0f6b5c;--accink:#fff;--go:#147a3e;--gobg:#e3f3e8;--stop:#b3261e;--stopbg:#fbe5e3;--wait:#9a6400;--waitbg:#fbf0d9;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121816;--panel:#1a2220;--ink:#e6ebe9;--muted:#9aa7a3;--line:#2c3633;--acc:#4fbfa8;--accink:#0c1312;--go:#5fd38a;--gobg:#173323;--stop:#ff8a80;--stopbg:#3a1a18;--wait:#f0b44a;--waitbg:#33280f;color-scheme:dark}}
@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#0a1420":"#eef2fb");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 327 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#327</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 328 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#328</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4323,39 +4323,47 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
 .tema-chs small{color:var(--muted)}
 </style>
 <style id="movil-legible">
-/* v326 · 📱 LECTURA EN MÓVIL: letra más grande, más aire, tablas que se leen sin hacer zoom y botones fáciles de pulsar */
-@media (max-width:700px){
- body{font-size:16px;line-height:1.55;-webkit-text-size-adjust:100%}
- .m,.mt-dim,small{font-size:14.5px;line-height:1.5}
- small small,.m small{font-size:13.5px}
- .p{padding:16px;gap:12px;border-radius:16px}
- .p h2,.p > h2{font-size:17px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:750;line-height:1.3}
- summary{font-size:16.5px;letter-spacing:0;text-transform:none;color:var(--ink);padding:16px;line-height:1.35}
- details .fb,details .rb{padding:0 14px 14px}
- .big{font-size:36px;line-height:1.15}
- button,select,input:not([type=checkbox]):not([type=radio]){min-height:44px;font-size:16px}
- button{padding:10px 14px;border-radius:12px}
- /* tablas: números alineados, filas con aire, primera columna fija al deslizar */
- table{font-size:15px}
- th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:8px 10px}
- td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
- tr:last-child td{border-bottom:0}
- td.n,td.r,.n{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
- .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px}
- .tw table tr > :first-child{position:sticky;left:0;background:var(--panel);z-index:1}
- /* cajas de datos: 2 por fila, cifra grande */
- .kv{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
- .kv > *{min-width:0}
- .kv b,.kv strong{font-size:18px}
-  /* letras diminutas escritas a mano en la app: mínimo legible (no en los textos de las gráficas) */
- :not(text):not(tspan)[style*="font-size:9px"],:not(text):not(tspan)[style*="font-size:9.5px"],:not(text):not(tspan)[style*="font-size:10px"],:not(text):not(tspan)[style*="font-size:10.5px"],:not(text):not(tspan)[style*="font-size:11px"],:not(text):not(tspan)[style*="font-size:11.5px"]{font-size:13px!important}
- /* el botón ⊖ de plegar no tapa el texto */
- .p > :first-child:not(button),.p > h2{padding-right:46px}
-/* menú de abajo: iconos y textos más grandes */
- #nav button{font-size:13px;min-height:56px}
- #nav button span{font-size:22px}
- /* textos largos: que no se salgan */
- .p,.fold,td,.m{overflow-wrap:anywhere}
-}
+/* v328 · ✨ ESTILO 2: letra pequeña y limpia (Geist); solo lo importante en grande: cuánto tienes y cuánto ganas */
+:root{--fb:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;--fd:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif}
+body{font-family:var(--fb);font-size:14px;line-height:1.5;letter-spacing:-.005em;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
+h1,h2,h3,summary,button,.big,[data-cta-big],.mt-big{font-family:var(--fd)}
+.m,.mt-dim,small{font-size:12.5px;line-height:1.5;color:var(--muted)}
+small small,.m small{font-size:11.5px}
+/* tarjetas: planas, sin sombra, separadas por un borde muy suave */
+.p,.fold,details.rd{border-radius:20px;border:1px solid color-mix(in srgb,var(--line) 70%,transparent);box-shadow:none}
+.p{padding:16px;gap:10px}
+.p h2,.p > h2{font-size:14px;font-weight:600;letter-spacing:-.005em;text-transform:none;color:var(--ink);line-height:1.35}
+summary{font-size:14px;font-weight:600;letter-spacing:-.005em;text-transform:none;color:var(--ink);padding:15px 16px;line-height:1.35}
+details .fb,details .rb{padding:0 14px 14px}
+/* LO GRANDE: las cifras que importan */
+.big,[data-cta-big],.mt-big{font-size:40px!important;font-weight:300!important;letter-spacing:-.035em;line-height:1.05;font-variant-numeric:tabular-nums}
+.kv b,.kv strong{font-size:17px;font-weight:500;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kv{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kv > *{min-width:0}
+/* botones */
+button,select,input:not([type=checkbox]):not([type=radio]){font-size:14px;min-height:40px}
+button{padding:8px 14px;border-radius:12px;font-weight:500}
+/* tablas: compactas pero con aire entre filas */
+table{font-size:13.5px}
+th{font-size:11px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted);padding:6px 8px}
+td{padding:10px 8px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td.n,td.r,.n{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tw table tr > :first-child{position:sticky;left:0;background:var(--panel);z-index:1}
+/* letras diminutas escritas a mano: mínimo legible (no en gráficas) */
+:not(text):not(tspan)[style*="font-size:9px"],:not(text):not(tspan)[style*="font-size:9.5px"],:not(text):not(tspan)[style*="font-size:10px"],:not(text):not(tspan)[style*="font-size:10.5px"]{font-size:11.5px!important}
+/* el botón ⊖ de plegar no tapa el texto */
+.p > :first-child:not(button),.p > h2{padding-right:40px}
+details > summary,details > summary h2,details > summary h3,.p > h2,.p > h3{font-size:14px!important;font-weight:600!important;letter-spacing:-.005em!important;text-transform:none!important}
+/* cabecera discreta: el protagonismo es para las cifras */
+h1{font-size:20px!important;font-weight:600!important;letter-spacing:-.02em}
+.vtag{font-size:11px!important;font-weight:500;border:0!important;background:color-mix(in srgb,var(--acc) 14%,transparent)!important;color:var(--acc)!important;padding:3px 8px!important}
+.vtag small{color:inherit;opacity:.7;font-size:inherit}
+#simpleB{font-size:12.5px;min-height:34px;padding:6px 12px}
+/* menú de abajo: más fino */
+#nav button{font-size:11.5px;font-weight:500;min-height:52px}
+#nav button span{font-size:19px}
+.p,.fold,td,.m{overflow-wrap:anywhere}
 </style>
 </body></html>
