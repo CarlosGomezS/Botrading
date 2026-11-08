@@ -576,7 +576,7 @@ async function main() {
       const LABX = env("LAB_EXTRA") === "1";   // v84: ronda extra del laboratorio (cada 2 h): sin avisos salvo que encuentre un ganador
       if (LABX) await page.evaluate(() => { window.__LABX = true; });
       // v322 · Twelve Data → primero Yahoo (sin cuota); si Yahoo no tiene ese valor, Twelve Data como antes
-      log("Histórico largo desde Yahoo: " + await page.evaluate(() => { try { if (typeof FE === "undefined") return "FE no accesible"; if (!FE.__yh && FE.td) { const orig = FE.td; FE.td = async (k, s, n, adj) => { try { const b = await window.__yhLargo(s, n || 300); if (b && b.length >= Math.min(n || 300, 600)) return b; } catch (e) {} return orig(k, s, n, adj); }; FE.__yh = 1; } return "activado"; } catch (e) { return "error " + e.message; } }));
+      log("Histórico largo desde Yahoo: " + await page.evaluate(() => { try { if (typeof FE === "undefined") return "FE no accesible"; if (!FE.__yh && FE.td) { const orig = FE.td; FE.td = async (k, s, n, adj) => { try { const b = await window.__yhLargo(s, n || 300); if (b && b.length >= Math.min(n || 300, 600)) return b; window.__yhErr = (window.__yhErr || "") + ` ${s}:${b ? b.length + " velas" : "nada"}`; } catch (e) { window.__yhErr = (window.__yhErr || "") + ` ${s}:${String((e && e.message) || e).slice(0, 80)}`; } return orig(k, s, n, adj); }; FE.__yh = 1; } return "activado"; } catch (e) { return "error " + e.message; } }));
       await page.evaluate(() => { btRun(); });
       const MAX = Math.max(10 * 60e3, DEADLINE - Date.now() - 5 * 60e3);
       let lastPub = Date.now(), timedOut = false;
@@ -584,7 +584,7 @@ async function main() {
       for (;;) {
         const st = await page.evaluate(() => __API.state());
         const r = await page.evaluate((s) => __API.newestReport(s), startIso);
-        if (!st.btBusy && !st.btPend && r && /^prueba-historica/.test(r.status)) { rep = r; log("Prueba histórica terminada:", st.btst.slice(0, 200)); log(`Histórico largo: ${globalThis.__yhOk || 0} valores desde Yahoo (sin cuota) · ${globalThis.__yhKo || 0} tuvieron que ir a Twelve Data`); break; }
+        if (!st.btBusy && !st.btPend && r && /^prueba-historica/.test(r.status)) { rep = r; log("Prueba histórica terminada:", st.btst.slice(0, 200)); log(`Histórico largo: ${globalThis.__yhOk || 0} valores desde Yahoo (sin cuota) · ${globalThis.__yhKo || 0} tuvieron que ir a Twelve Data`); try { const ee = await page.evaluate(() => window.__yhErr || ""); if (ee) log("Yahoo no sirvió para:" + ee.slice(0, 400)); } catch (e) {} break; }
         if (Date.now() - t0 > MAX) { log("Tiempo máximo alcanzado en la prueba histórica."); timedOut = true; break; }
         if (Date.now() - lastPub > 20 * 60e3) { try { publish(await snapshot()); } catch (e) { log("publicación intermedia falló:", e.message.slice(0, 160)); } lastPub = Date.now(); }
         await sleep(15000);
