@@ -1,0 +1,29 @@
+name: Cripto · caza de métodos de muchas operaciones (solo ficticio)
+# v314 · prueba cientos de estrategias con el año de velas de 5 min del examen largo y las comisiones de Bitvavo y OKX. Nunca toca dinero real.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 0"
+permissions:
+  contents: write
+jobs:
+  caza:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: runner
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Recuperar el año de velas
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/largo
+          key: largo-${{ github.run_id }}
+          restore-keys: largo-
+      - name: Caza
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: timeout 2700 node --max-old-space-size=12000 runner/caza.mjs
