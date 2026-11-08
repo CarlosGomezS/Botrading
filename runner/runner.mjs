@@ -397,7 +397,7 @@ async function boot() {
           out = []; for (let i = 0; i < x.timestamp.length; i++) { const c = q.close[i]; if (!(c > 0) || !(q.open[i] > 0) || !(q.high[i] > 0) || !(q.low[i] > 0)) continue; const f = aj[i] > 0 ? aj[i] / c : 1; out.push({ d: new Date(x.timestamp[i] * 1000).toISOString().slice(0, 10), o: q.open[i] * f, h: q.high[i] * f, l: q.low[i] * f, c: c * f, v: q.volume[i] || 0 }); }
           const hoy = new Date().toISOString().slice(0, 10); out = out.filter((b) => b.d < hoy); break; } catch (e) {} }
       if (out && out.length) yhCache.set(key, out); }
-    if (!out || out.length < 30) { globalThis.__yhKo++; return null; } globalThis.__yhOk++; return out.slice(-Math.max(1, n || out.length));
+    if (!out || out.length < 30) { if (!globalThis.__yhKo) log(`Yahoo sin datos de ${ys} (se usa Twelve Data)`); globalThis.__yhKo++; return null; } globalThis.__yhOk++; return out.slice(-Math.max(1, n || out.length));
   });
   page.on("dialog", (d) => d.dismiss().catch(() => {}));
   await page.goto("https://app.local/blank");
@@ -576,7 +576,7 @@ async function main() {
       const LABX = env("LAB_EXTRA") === "1";   // v84: ronda extra del laboratorio (cada 2 h): sin avisos salvo que encuentre un ganador
       if (LABX) await page.evaluate(() => { window.__LABX = true; });
       // v322 · Twelve Data → primero Yahoo (sin cuota); si Yahoo no tiene ese valor, Twelve Data como antes
-      await page.evaluate(() => { try { if (!FE.__yh && FE.td) { const orig = FE.td; FE.td = async (k, s, n, adj) => { try { const b = await window.__yhLargo(s, n || 300); if (b && b.length >= Math.min(n || 300, 600)) return b; } catch (e) {} return orig(k, s, n, adj); }; FE.__yh = 1; } } catch (e) {} });
+      log("Histórico largo desde Yahoo: " + await page.evaluate(() => { try { if (typeof FE === "undefined") return "FE no accesible"; if (!FE.__yh && FE.td) { const orig = FE.td; FE.td = async (k, s, n, adj) => { try { const b = await window.__yhLargo(s, n || 300); if (b && b.length >= Math.min(n || 300, 600)) return b; } catch (e) {} return orig(k, s, n, adj); }; FE.__yh = 1; } return "activado"; } catch (e) { return "error " + e.message; } }));
       await page.evaluate(() => { btRun(); });
       const MAX = Math.max(10 * 60e3, DEADLINE - Date.now() - 5 * 60e3);
       let lastPub = Date.now(), timedOut = false;
