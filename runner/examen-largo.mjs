@@ -105,7 +105,18 @@ async function main() {
     for (const [ex, fee] of [["bitvavo", 0.0025], ["okx", 0.001]]) { const r = RJ.simula(series, fee), v = RJ.veredicto(r); rejilla[ex] = { v: VEX, ...r, ...v };
       console.log(`Examen largo · 🔁 Rejilla rápida ${ex} (escalón ${r.paso} %): ${v.ok ? "✅" : "❌"} ${v.motivo} · año ${r.ret} % · trimestres ${r.trimestres.join(" / ")} % · peor caída ${r.dd} % · ${r.ops} operaciones (${r.opsDia} al día) · ventas con ganancia ${r.ventasGanadoras} %`); }
   } catch (e) { console.log("Examen largo · Rejilla: " + String(e.message).slice(0, 80)); }
-  B.publicar("examen-largo.json", { t: new Date().toISOString(), estado: "ok", dias, mercados: mer.length, res, anio, combinada, base, tortugas, rejilla }, "examen-largo");
+  // v311 · 🐸 MEMECOINS RÁPIDO: un año de velas de las memecoins de Bitvavo (en horas), con varias combinaciones y la comisión de cada exchange
+  const memes = {};
+  try { const MZ = await import("./memes2.mjs"), lista = MZ.MEMES.map((x) => x + "-EUR").filter((m) => UV.tick[m]); const MF = DIR + "/memes.json"; let rm = null;
+    try { rm = JSON.parse(readFileSync(MF, "utf8")); } catch (e) {} if (!rm || lista.some((m) => !rm.m[m])) rm = await B.descargar(lista, PAG, 2, 150); else rm = await B.ponerAlDia(rm, lista, 2, 150);
+    writeFileSync(MF, JSON.stringify(rm)); const series = {}; for (const m of lista) if (rm.m[m] && rm.m[m].length > 20000) series[m] = MZ.aHoras(rm.m[m]);
+    const combos = [{}, { ent: 12 }, { ent: 48 }, { trail: 0.05, stop: 0.06, maxH: 24 }, { vol: 3 }, { ent: 12, trail: 0.02, stop: 0.03, maxH: 6 }];
+    for (const [ex, fee] of [["bitvavo", 0.0025], ["okx", 0.001]]) { let mejor = null;
+      for (const c of combos) { const P = { ent: 24, vol: 2, trail: 0.03, stop: 0.04, maxH: 12, maxPos: 3, tam: 0.25, ...c }, r = MZ.simula(series, fee, 0.002, P); if (!mejor || r.ret > mejor.ret) mejor = { ...r, P }; }
+      const v = MZ.veredicto(mejor); memes[ex] = { v: VEX, ...mejor, ...v, criptos: Object.keys(series) };
+      console.log(`Examen largo · 🐸 Memecoins rápido ${ex} (${Object.keys(series).join(", ")}): ${v.ok ? "✅" : "❌"} ${v.motivo} · mejor combinación ${JSON.stringify(mejor.P)} · año ${mejor.ret} % · trimestres ${mejor.trimestres.join(" / ")} % · peor caída ${mejor.dd} % · ${mejor.ops} operaciones (${mejor.opsDia} al día) · ${mejor.aciertos} % aciertos`); }
+  } catch (e) { console.log("Examen largo · Memecoins: " + String(e.message).slice(0, 80)); }
+  B.publicar("examen-largo.json", { t: new Date().toISOString(), estado: "ok", dias, mercados: mer.length, res, anio, combinada, base, tortugas, rejilla, memes }, "examen-largo");
   console.log(`Examen largo: hecho en ${Math.round((Date.now() - t0) / 1000)} s`);
 }
 // v295 · si falla, se ANOTA el fallo (sin tocar la fecha del último examen bueno, que es la que mira el dinero real) y el trabajo sale en rojo
