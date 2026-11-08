@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 335 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#335</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 336 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#336</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -579,11 +579,13 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <div class="p adv"><h2>Diagnóstico técnico</h2><pre id="dg">—</pre></div>
 </section>
 <section class="tab" id="t-ayuda">
+<div class="p"><h2>📱 La app, en 4 pestañas</h2><div class="m">• <b>💶 Real</b>: tu cuenta de Trading 212 (saldo, ingresado, invertido, efectivo, ganancia y la gráfica; desliza el dedo sobre ella para ver cada día). • <b>🤖 Laboratorio</b>: el podio de métodos ganadores. • <b>🪙 Cripto</b>: Bitvavo y OKX con dinero real. • <b>⚙️ Ajustes</b>: apariencia (claro, oscuro o como el móvil), copias y lo técnico. En cada pantalla, lo que no es del día a día está en <b>«⋯ Más»</b>. Los datos se actualizan solos: precios de cripto cada 2 segundos y el resto en cuanto el bot publica algo nuevo (la app se recarga sola si llevas 10 segundos sin tocarla). Todos los avisos llegan por <b>Telegram</b>.</div></div>
+
 <div class="p hlp"><h2>Cómo funciona, en 1 minuto</h2>
 <div class="steps">
 <div class="step"><b>1</b><div><b>🤖 Laboratorio</b> · inventa y examina métodos <b>todo el día</b>, solo: una ronda de 48 cada ~35 minutos (de 4:00 a 20:00, hora de España). El 40 % se inventan de cero (los más distintos a todo lo ya probado) y el resto son mejoras de los mejores, otras familias e ideas del modelo que aprende. Cada uno se prueba con <b>26 años de datos</b> (desde 2000) contra el S&amp;P 500, con costes e impuestos. Solo aprueba si gana al S&amp;P 500 por <b>≥2 puntos al año</b>, no cae más del <b>−35 %</b>, gana en 2000-2015 <b>y</b> en 2016-hoy, pasa el <b>examen oculto</b> (los 2 últimos años, que no vio al buscar) y la <b>prueba de estabilidad</b> (sus variantes cercanas también ganan: no fue suerte).</div></div>
 <div class="step"><b>2</b><div><b>🧪 Ficticia</b> · los 20 mejores del laboratorio entran solos y operan cada día con precios reales (cada uno simula <span class="capT">500 €</span>; sus euros se muestran escalados a tu dinero real). Se ordenan por lo que llevan ganado aquí. Así se ve si siguen ganando con días que la prueba no conocía.</div></div>
-<div class="step"><b>3</b><div><b>💶 Real</b> · el método (o los 2-3) que elijas invierte tu dinero en Trading 212 con los ETF europeos equivalentes, en euros. Si un método confirmado (aprobado + 30 días en la ficticia sin quedarse atrás + ≥2 puntos al año mejor que el tuyo) te conviene más, te llega por Telegram con «✅ Cambiar» / «❌ No cambiar»: sin tu sí no cambia nada.</div></div>
+<div class="step"><b>3</b><div><b>💶 Real</b> · el método (o los 2-3) que elijas invierte tu dinero en Trading 212 con los ETF europeos equivalentes, en euros. <b>Sigue sola al ganador:</b> cuando un método confirmado (aprobado + 30 días en la ficticia sin quedarse atrás + ≥2 puntos al año mejor que el tuyo) aparece, la cartera real <b>se cambia sola</b> y te avisa por Telegram. Para no comerse la ventaja en costes e impuestos, como mucho cambia una vez cada 90 días (30 si el nuevo es mucho mejor). Si prefieres que te pregunte antes, desmarca «🤖 Seguir solo al método ganador» en sus ajustes.</div></div>
 </div></div>
 <div class="p hlp"><h2>Lo que hace solo</h2>
 <div class="m">• <b>Cada noche</b>, tras el cierre de Wall Street: descarga los precios (si a algún activo le falta el último, se lo pide a otro proveedor), la ficticia decide y te llega por Telegram la <b>🩺 revisión automática</b> («todo en orden» o qué mirar).<br>
@@ -598,7 +600,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 • <b>Liga</b>: los 20 mejores (como mucho 12 de la misma familia). <b>📦 Archivo</b>: los que salen nunca se borran; cada ronda se reexaminan 15 y vuelven solos si vuelven a ser de los mejores.<br>
 • <b>🔭 En observación</b>: mixtos (ETF + acciones + bitcoin), acciones y el experimento de noticias, que no se pueden probar con 26 años. Cada día nacen 3 nuevos; se prueban con precios reales y, si ganan al S&amp;P 500 por ≥2 puntos durante 12 meses, entran solos en la ficticia.</div></div>
 <div class="p hlp"><h2>La cartera real, en pocas palabras</h2>
-<div class="m">• <b>Elegir método</b>: en 💶 Real → «🧭 Elige el método» (por familias, con buscador por #id) o con «💶 Usar en mi cartera real» desde el Laboratorio. Luego, «Guardar». Puedes <b>repartir</b> el dinero a partes iguales entre 2 o 3 métodos (mejor de familias distintas).<br>
+<div class="m">• <b>Elegir método</b>: en 💶 Real → «⋯ Más» → «🧭 Elige el método» (por familias, con buscador por #id) o con «💶 Usar en mi cartera real» desde el Laboratorio. Luego, «Guardar». Puedes <b>repartir</b> el dinero a partes iguales entre 2 o 3 métodos (mejor de familias distintas).<br>
 • <b>Dinero que trabaja el bot</b>: muestra lo que vale hoy. Lo ganado se reinvierte solo y, con «Sumar ingresos», lo que ingreses o retires en Trading 212 se suma o se resta solo. Cambia la cifra solo si quieres que trabaje con más o con menos.<br>
 • <b>Efectivo</b>: el bot deja una pequeña <b>reserva</b> (2 % por defecto) por si el precio se mueve al comprar, y no compra restos menores que la orden mínima (5 €).<br>
 • <b>Invertir sin mi aprobación</b>: marcado, compra y vende solo y te avisa; sin marcar, te propone las órdenes y espera a que pulses «Aprobar».<br>
@@ -3387,7 +3389,7 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
   var cp0=(function(){var c=CL.capital;if(c==null){try{c=START}catch(e){}}return c==null?500:c})();
   h+='<div class="m">🔓 Estás editando. Cambia lo que quieras y pulsa <b>«Guardar edición»</b> (abajo del todo): se guarda en la nube y el bot lo usa desde su siguiente ejecución. Lo que dejes en blanco en las claves no se toca.</div>';
   h+=h3("Conexión de datos (claves de precios)")+'<div class="kv">'+SECRETS.slice(0,5).map(secField).join("")+'<div>Tiempo máximo por actualización (min, 2 a 60)<input id="cs_mins" type="number" step="1" min="2" max="60" value="'+(CL.mins!=null?CL.mins:8)+'" style="width:100%"></div></div>';
-  h+=h3("Avisos")+'<div class="m">📲 <b>Todos los avisos van a tu Telegram</b> (sus claves están en 💶 Real → Ajustes de la cartera real → Claves). El móvil (ntfy) y el correo solo se usan <b>de respaldo</b>, si Telegram falla.</div><details class="rd"><summary><span>Respaldo: móvil (ntfy) y correo</span></summary><div class="rb"><div class="kv">'+SECRETS.slice(5).map(secField).join("")+
+  h+=h3("Avisos")+'<div class="m">📲 <b>Todos los avisos van a tu Telegram</b> (sus claves están en 💶 Real → Ajustes de la cartera real → Claves). Si Telegram fallara, el móvil (ntfy) hace de respaldo.</div><details class="rd" hidden><summary><span>Respaldo: móvil (ntfy) y correo</span></summary><div class="rb"><div class="kv">'+SECRETS.slice(5).map(secField).join("")+
    yn("cs_avm","Avisos al móvil (ntfy) de la actualización y la prueba histórica",AV.movil,1)+
    yn("cs_avc","Avisos por correo de la actualización y la prueba histórica",AV.correo,1)+
 '</div></div></details>';
@@ -3471,7 +3473,7 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
   if(capEl&&String(capV)!==String(Math.round(+capEl.dataset.orig))){if(!confirm("¿Cambiar el capital a "+capV+" € y reiniciar TODAS las cuentas?\n\nLa cartera y los métodos empezarán de cero en la próxima ejecución del bot. Antes se archiva una copia. Se conservan ajustes, claves, reglas e informes."))return;capS=String(capV)}
   var EX0=CL.extra||{},gv=function(id,d){var e=document.getElementById(id);return e?e.value:d},fxV=String(gv("cs_fx",EX0.fx!=null?EX0.fx:"")).trim(),ex={nt:+gv("cs_nt",EX0.nt!=null?EX0.nt:1),mon:+gv("cs_mon",EX0.mon!=null?EX0.mon:0),mc:+gv("cs_mc",EX0.mc!=null?EX0.mc:1)};
   if(fxV!==""){if(!(+fxV>=0.3&&+fxV<=3)){stSet("El cambio €/$ debe estar entre 0,3 y 3.");return}ex.fx=+fxV}
-  var av={movil:+document.getElementById("cs_avm").value,correo:+document.getElementById("cs_avc").value},secs=[],dels=[],badS=null;
+  var av={movil:+document.getElementById("cs_avm").value,correo:0},secs=[],dels=[],badS=null;
   document.querySelectorAll("#cloudset [data-sk]").forEach(function(el){var v=(el.value||"").trim();if(!v)return;var e=secretBad(el.dataset.sk,v);if(e&&!badS)badS=el.dataset.sk+": "+e;secs.push([el.dataset.sk,v,el])});
   document.querySelectorAll("#cloudset [data-sd]").forEach(function(el){if(el.checked&&!secs.some(function(s){return s[0]===el.dataset.sd}))dels.push(el.dataset.sd)});
   if(badS){stSet("Clave no válida · "+badS);return}
@@ -3800,7 +3802,7 @@ function heroHtml(){ficBaseUpd();const R=RL.R,a=A(),s=summary(),acc=(R&&R.accoun
  return`<div class="p hero"><div class="hero-top"><h2>${hasAcc?"Tu cuenta de Trading 212":"Dinero del bot"}</h2><span class="hero-tags">${env}${est}</span></div>
 <div class="big">${hasAcc?E(tv):s?E(s.be):L?E(L.cap):"—"}</div>
 ${hasAcc?`<div class="hero-chg">${ch!=null?`Desde ayer <b class="${cls(ch)}">${SG(ch)}</b>`:""}${rend!=null?`${ch!=null?" · ":""}rendimiento <b class="${cls(pnl)}">${SG(pnl)} (${PC(rend)})</b>`:""}</div>
-<div class="hero-row"><span>Inversiones <b>${E(inv)}</b></span><span>Efectivo <b>${E(cash+resv)}</b></span></div>
+<div class="hero-row hero-row3"><span>Ingresado <b>${(()=>{const L2=((R&&R.days)||[]).filter(x=>x.ap!=null).pop();return L2?E(L2.ap):"—"})()}</b></span><span>Invertido <b>${E(inv)}</b></span><span>Efectivo <b>${E(cash+resv)}</b></span></div>
 ${Math.abs(own)>=1?`<div class="hero-live">🤖 El bot maneja ${E(botMon)}; el resto (${E(own)}) es tuyo y no lo toca.</div>`:""}`:
 `<div class="hero-chg">${s?`<b class="${cls(s.res)}">${SG(s.res)} (${PC(s.pct)})</b> desde el ${esc(fd(s.d0))}${s.dia!=null?` · hoy <b class="${cls(s.dia)}">${SG(s.dia)}</b>`:""}`:"Aún sin historial"}</div>
 <div class="hero-row"><span>Invertido <b>${s?E(s.invBot):"—"}</b></span><span>Efectivo <b>${s?E(s.cashBot):"—"}</b></span></div>`}
@@ -4405,6 +4407,13 @@ th,thead tr,thead{background:transparent!important}
 .mt-w{color:var(--ink)!important}
 /* gráficas: línea fina y limpia */
 svg polyline,svg path[fill="none"]{stroke-width:2!important;stroke-linejoin:round;stroke-linecap:round}
+/* Real: tres cifras en fila (ingresado · invertido · efectivo) */
+.hero-row3{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.hero-row3 b{font-size:15px!important}
+/* gráfica de la real: línea fina; se desliza con el dedo para ver cada día (sin bloquear el scroll vertical) */
+#rl-svg,#rl-ch{touch-action:pan-y;-webkit-user-select:none;user-select:none}
+#rl-svg path[stroke-width="3.2"]{stroke-width:2.2px}
+#rl-svg line[stroke="var(--line)"]{opacity:.5}
 /* selector de apariencia */
 .tema-chs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .tema-chs button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;border-radius:16px!important}
