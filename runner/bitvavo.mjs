@@ -501,6 +501,17 @@ export async function publicarEstado(S) {
   publicar("bitvavo.json", { enc: 1, v: 1, ...enc, meta: { t: S.last, vivo: 1, seg: S.diag ? S.diag.seg : null, conex: cx } }, RAMA);
 }
 
+// v341 · 🖥️ histórico del terminal (48 h, hasta 12 000 líneas); si no se puede leer o descifrar el que hay, NO se pisa (se reintenta en la siguiente)
+export function mezclaTerminal(L, pend, ahora, horas = 48, max = 12000) {
+  const out = Array.isArray(L) ? L.slice() : [];
+  for (const [t, x] of pend) { let hit = null; for (let k = out.length - 1; k >= Math.max(0, out.length - 80); k--) if (out[k][1] === x && new Date(out[k][0]).toDateString() === new Date(t).toDateString()) { hit = out[k]; break; } if (hit) { hit[0] = Math.max(hit[0], t); hit[2] = (hit[2] || 1) + 1; } else out.push([t, x, 1]); }
+  out.sort((a, b) => a[0] - b[0]); return out.filter((l) => l[0] >= ahora - horas * 3600e3).slice(-max);
+}
+async function guardaTerminal(pend, ahora) {
+  const j = await leer("terminal.json", "terminal-cripto"); let L = [];
+  if (j && j.enc) { const o = await openAny(j, PWS()); if (o.error) throw new Error("no se pudo descifrar"); L = (o.j && o.j.l) || []; } else if (j) throw new Error("formato desconocido");
+  const l = mezclaTerminal(L, pend, ahora); publicar("terminal.json", { enc: 1, v: 1, ...(await encrypt(JSON.stringify({ v: 1, l }), PW())), meta: { t: new Date(ahora).toISOString(), n: l.length } }, "terminal-cripto"); return [];
+}
 // v302 · 🖥️ TERMINAL: todo lo que el bot escribe en cada vuelta se guarda (cifrado, con el resto del estado) para verlo en la app como una terminal
 const CONSOLA = []; { const _log = console.log; console.log = (...a) => { _log(...a); try { CONSOLA.push([Date.now(), a.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" ").slice(0, 600)]); } catch (e) {} }; }
 async function main() {
@@ -663,7 +674,9 @@ async function main() {
   console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + Object.keys(S.sub[k].pos).length + " abiertas, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);
   console.log(`Bitvavo: ${U.length} mercados · saldo ${S.lastEq} € · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · gen ${S.lab.gen} · ${S.diag.seg} s`);
   // v302 · 🖥️ terminal: una línea que se repite igual (mismo texto) no se duplica: se actualiza su hora y cuántas veces lleva así
-  { const C = S.consola || []; for (const [t, x] of CONSOLA.splice(0)) { let hit = null; for (let k = C.length - 1; k >= Math.max(0, C.length - 60); k--) if (C[k][1] === x) { hit = C[k]; break; } if (hit) { hit[0] = t; hit[2] = (hit[2] || 1) + 1; } else C.push([t, x, 1]); } S.consola = C.slice(-500); }
+  { const C = S.consola || [], NUEVAS = CONSOLA.splice(0); S.termPend = PW() ? (S.termPend || []).concat(NUEVAS).slice(-4000) : []; for (const [t, x] of NUEVAS) { let hit = null; for (let k = C.length - 1; k >= Math.max(0, C.length - 60); k--) if (C[k][1] === x) { hit = C[k]; break; } if (hit) { hit[0] = t; hit[2] = (hit[2] || 1) + 1; } else C.push([t, x, 1]); } S.consola = C.slice(-500); }
+  // v341 · 🖥️ TERMINAL LARGO: cada 5 min, lo nuevo se añade (cifrado) a terminal.json en su propia rama, con las últimas 48 h; la app lo lee en la pestaña Terminal
+  if (PW() && S.termPend.length && (!S.termAt || now - S.termAt >= 5 * 60e3) && Date.now() - t0 < 75e3) try { S.termPend = await guardaTerminal(S.termPend, now.getTime()); S.termAt = now.getTime(); } catch (e) { console.log("Terminal: no se pudo guardar el histórico (" + String(e.message || e).slice(0, 60) + ")"); }
   await publicarEstado(S);
 }
 export { main };

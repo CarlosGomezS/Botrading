@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 339 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#339</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 341 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#341</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -579,7 +579,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <div class="p adv"><h2>Diagnóstico técnico</h2><pre id="dg">—</pre></div>
 </section>
 <section class="tab" id="t-ayuda">
-<div class="p"><h2>📱 La app, en 4 pestañas</h2><div class="m">• <b>💶 Real</b>: tu cuenta de Trading 212 (saldo, ingresado, invertido, efectivo, ganancia y la gráfica; desliza el dedo sobre ella para ver cada día). • <b>🤖 Laboratorio</b>: el podio de métodos ganadores. • <b>🪙 Cripto</b>: Bitvavo y OKX con dinero real. • <b>⚙️ Ajustes</b>: apariencia (claro, oscuro o como el móvil), copias y lo técnico. En cada pantalla, lo que no es del día a día está en <b>«⋯ Más»</b>. Los datos se actualizan solos: precios de cripto cada 2 segundos y el resto en cuanto el bot publica algo nuevo (la app se recarga sola si llevas 10 segundos sin tocarla). Todos los avisos llegan por <b>Telegram</b>.</div></div>
+<div class="p"><h2>📱 La app, en 5 pestañas</h2><div class="m">• <b>💶 Real</b>: tu cuenta de Trading 212 (saldo, ingresado, invertido, efectivo, ganancia y la gráfica; desliza el dedo sobre ella para ver cada día). • <b>🤖 Laboratorio</b>: el podio de métodos ganadores. • <b>🪙 Cripto</b>: Bitvavo y OKX con dinero real. • <b>🖥️ Terminal</b>: todo lo que hace la app por detrás, línea a línea y con su hora (cripto, laboratorio, cartera real, cambios de método y cada proceso de GitHub); se filtra por pestañas, se busca, se exporta entero o por día y «Limpiar» despeja la pantalla sin borrar nada. • <b>⚙️ Ajustes</b>: apariencia (claro, oscuro o como el móvil), copias y lo técnico. En cada pantalla, lo que no es del día a día está en <b>«⋯ Más»</b>. Los datos se actualizan solos: precios de cripto cada 2 segundos y el resto en cuanto el bot publica algo nuevo (la app se recarga sola si llevas 10 segundos sin tocarla). Todos los avisos llegan por <b>Telegram</b>.</div></div>
 
 <div class="p hlp"><h2>Cómo funciona, en 1 minuto</h2>
 <div class="steps">
@@ -634,7 +634,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  try{Object.keys(localStorage).forEach(function(k){if((k==="pb19"||k==="pbh3"||k==="pbi1"||k==="vgidx"||k==="pbReportsFallback"||k.indexOf("vgd:")===0)&&!(k in snap.ls))localStorage.removeItem(k)})}catch(e){}
  try{for(var k in snap.ls)localStorage.setItem(k,snap.ls[k])}catch(e){}
  window.__SNAPREADY=(async function(){
-  try{if(indexedDB.databases){var ds=await indexedDB.databases();for(var q=0;q<ds.length;q++){if(ds[q].name&&!(snap.idb&&ds[q].name in snap.idb))await new Promise(function(r){var d=indexedDB.deleteDatabase(ds[q].name);d.onsuccess=d.onerror=d.onblocked=function(){r()}})}}}catch(e){}
+  try{if(indexedDB.databases){var ds=await indexedDB.databases();for(var q=0;q<ds.length;q++){if(ds[q].name&&ds[q].name!=="bt-terminal"&&!(snap.idb&&ds[q].name in snap.idb))await new Promise(function(r){var d=indexedDB.deleteDatabase(ds[q].name);d.onsuccess=d.onerror=d.onblocked=function(){r()}})}}}catch(e){}
   try{for(var name in (snap.idb||{})){var db=snap.idb[name];
    await new Promise(function(r){var d=indexedDB.deleteDatabase(name);d.onsuccess=d.onerror=d.onblocked=function(){r()}});
    var conn=await new Promise(function(ok,no){var o=indexedDB.open(name,db.version||1);
@@ -2926,7 +2926,7 @@ function bvDraw(el){const md=bvModo(),sb=bvSub(md),X0=bvCuenta(md,sb);if(md!=="i
  if(!X0){el.innerHTML=`<div class="mt">${memeTabs(MEMF(MM.S))}${bvModos(MEMF(MM.S))}<div class="mt-p"><div class="mt-dim">Este submodo arranca en la próxima vuelta (una por minuto).</div></div></div>`;return}
  const r2=x=>Math.round(x*100)/100,S=sb==="eq"?MM.S:Object.assign({},MM.S,X0,{__base:MM.S,ia:MM.S.ia,hl:MM.S.hl,regimen:MM.S.regimen,top:MM.S.top,diag:MM.S.diag}),f=MEMF(S),Eu=x=>E0((+x||0)*f),W2=x=>E2r((+x||0)*f),st=S.st||{},eq=+S.lastEq||S.start,pl=eq-S.start,B=S.lab||{},pos=Object.entries(S.pos||{}),cl=(S.closed||[]),hm=t=>new Date(t).toLocaleString("es-ES",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}),pc=x=>(Math.abs(x)<0.005?"":x>=0?"+":"−")+Math.abs(x).toFixed(2).replace(".",",")+" %",ago=S.last?Math.round((Date.now()-Date.parse(S.last))/60000):null;
  const best=(B.pop||[]).slice().sort((a,b)=>b.s-a.s).slice(0,5);
- el.innerHTML=`<div class="mt">${memeTabs(f)}${bvExchanges(f)}${(window.__bvTerm=hlpHtml()+bvTerminalHtml(),"")}${bvPanel(f)}<div hidden>
+ el.innerHTML=`<div class="mt">${memeTabs(f)}${bvExchanges(f)}${(window.__bvTerm=hlpHtml()+'<button data-nobusy onclick="window.__userNav=true;go(\'terminal\')" style="width:100%;margin:8px 0">🖥️ Ver todo lo que hace el bot en la pestaña Terminal</button>',"")}${bvPanel(f)}<div hidden>
  <div class="mt-p mt-head"><div class="mt-orb${ago!=null&&ago<5?" live":""}"><i></i><i></i></div><div class="mt-ttl"><div><b class="mt-t1">Bitvavo</b> <b class="mt-t2">criptos en euros</b></div><div class="mt-dim">exchange europeo regulado (MiCA) · comisión 0,25 % por orden · ${S.diag?S.diag.liquidos+" mercados líquidos":""}${ago!=null?" · última vuelta hace "+ago+" min":""}</div></div>
   <div class="mt-bal"><div class="mt-big ${pl>=0?"up":"dn"}" id="bv-eq" data-srv="${S.lastEq}" data-cash="${S.cash}" data-start="${S.start}">${Eu(eq)}</div><div class="mt-dim" id="bv-bdg"></div><div class="mt-dim">saldo · empezó con ${Eu(S.start)} · dinero ficticio</div><div class="mt-w">${st.trades||0} operaciones · ${st.wins||0} G · ${st.losses||0} P · <span id="bv-pc">${pc(pl/S.start*100)}</span> · comisiones ${Eu(st.fees)}</div></div></div>
  <div class="mt-p"><div class="mt-ph"><span>REGLAS EN USO</span><span class="mt-bdg" style="--c:${S.prueba?"#9a6400":"#147a3e"}">${S.prueba?"🛑 SIN VENTAJA: NO COMPRA":"🏆 GANADORA"}</span></div><div class="mt-dim">${S.prueba?"<b>Regla estricta:</b> ninguna regla ha demostrado todavía que gana (con al menos 25 operaciones en los días antiguos y 25 en los recientes, con costes, y sin fallar en vivo), así que <b>no compra nada</b>: solo observa y sigue aprendiendo. En cuanto una lo demuestre, empieza sola.":"Usa reglas que ganan, con costes, tanto en los días antiguos como en los recientes."} ${S.regimen!=null?`🌡️ Mercado ahora: <b class="mt-w">${S.regimen?"a favor (el bitcoin sube)":"en contra (el bitcoin baja)"}</b>. `:""}Reglas: <b class="mt-w">${esc(S.genomeId||"base")}</b>${(S.genome||{}).regimen?" (solo compra con el mercado a favor)":""} · estilo <b class="mt-w">${esc(BVE[(S.genome||{}).estilo]||(S.genome||{}).estilo||"tendencia")}</b> · stop −${r2((S.genome||{}).stop*100)} % · vende la mitad a +${r2((S.genome||{}).tp*100)} % · como mucho ${r2((S.genome||{}).maxHoldH)} h.</div></div>
@@ -3559,7 +3559,7 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
 (function(){
 "use strict";
 try{(window.__busyChecks=window.__busyChecks||[]).push(()=>RL.busy||RL.loading)}catch(e){}
-const RL={R:null,meta:null,enc:null,err:null,cfg:null,cfgSrc:"",loading:false,msg:"",busy:false,rng:"all",showRep:30,pick:null,at:0};
+const RL={R:null,meta:null,enc:null,err:null,cfg:null,cfgSrc:"",loading:false,msg:"",busy:false,rng:"all",showRep:30,pick:null,at:0};try{window.__RLs=RL}catch(e){}
 const $r=s=>document.querySelector(s);
 const C=()=>window.__CLOUD||null;
 try{window.addEventListener("cloud-unlocked",()=>{try{draw()}catch(e){}})}catch(e){}
@@ -4490,5 +4490,124 @@ h1{font-size:20px!important;font-weight:600!important;letter-spacing:-.02em}
 #nav button{font-size:11.5px;font-weight:500;min-height:52px}
 #nav button span{font-size:19px}
 .p,.fold,td,.m{overflow-wrap:anywhere}
+</style>
+<script id="terminal-app">
+/* v341 · 🖥️ TERMINAL: una pestaña propia con TODO lo que hace la app por detrás (cripto, laboratorio, cartera real, cambios de método y procesos).
+   Cada línea que llega se guarda en ESTE móvil (IndexedDB), así el histórico crece aunque el bot solo publique las últimas 48 h.
+   «Limpiar» solo oculta lo anterior en pantalla: exportar siempre incluye todo. */
+(function(){"use strict";
+const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const SRC={cripto:["🪙","Cripto"],lab:["🤖","Laboratorio"],real:["💶","Real"],proc:["⚙️","Procesos"]};
+const FIL=[["todo","Todo"],["cripto","🪙 Cripto"],["lab","🤖 Laboratorio"],["real","💶 Real"],["met","🔄 Métodos"],["proc","⚙️ Procesos"]];
+const T={ev:new Map(),db:null,dirty:new Map(),fil:LS.get("termFil","todo"),q:"",abajo:true,n:1500,limpio:+LS.get("termLimpio",0)||0,at:0,srvAt:0,srvN:0,ghAt:0,realAt:0,criAt:0,ok:{cripto:0,real:0,lab:0,proc:0}};
+const dk=t=>{const d=new Date(t);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const hh=t=>new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+const hs=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0).toString(36)};
+const MET=/🧬|CAMBIA|cambia a |cambia de m(é|e)todo|cambia sola|nuevo n(ú|u)mero 1|pasa a seguir|reglas nuevas|perfil de riesgo|riesgo (🟢|🟡|🔴)/i;
+function add(src,t,txt,n,met){t=typeof t==="number"?t:Date.parse(t);if(!(t>0)||!txt)return;txt=String(txt).replace(/\s+/g," ").trim().slice(0,900);if(!txt)return;
+ const id=src+"|"+dk(t)+"|"+hs(txt),e=T.ev.get(id),m=met||(src!=="proc"&&MET.test(txt))?1:0;
+ if(!e){const o={id,t,src,txt,n:n||1,met:m};T.ev.set(id,o);T.dirty.set(id,o);return}
+ let ch=false;if(t>e.t){e.t=t;ch=true}if((n||1)>e.n){e.n=n;ch=true}if(m&&!e.met){e.met=1;ch=true}if(ch)T.dirty.set(id,e)}
+/* ---------- base de datos del móvil ---------- */
+function abre(){return new Promise(ok=>{try{const r=indexedDB.open("bt-terminal",1);r.onupgradeneeded=()=>{r.result.createObjectStore("ev",{keyPath:"id"})};r.onsuccess=()=>ok(r.result);r.onerror=()=>ok(null)}catch(e){ok(null)}})}
+async function carga(){T.db=await abre();if(!T.db)return;await new Promise(ok=>{try{const q=T.db.transaction("ev").objectStore("ev").getAll();q.onsuccess=()=>{for(const o of q.result||[])if(!T.ev.has(o.id))T.ev.set(o.id,o);ok()};q.onerror=()=>ok()}catch(e){ok()}})}
+function guarda(){if(!T.db||!T.dirty.size)return;const v=[...T.dirty.values()];T.dirty.clear();try{const tx=T.db.transaction("ev","readwrite"),st=tx.objectStore("ev");for(const o of v)st.put(o)}catch(e){}}
+/* ---------- de dónde sale cada línea ---------- */
+const nom=k=>{try{const m=typeof MX==="function"&&MX(k);if(m&&m.n)return m.n}catch(e){}try{if(typeof labName==="function"&&typeof S!=="undefined"&&S.lab&&S.lab.pop){const g=(S.lab.pop||[]).find(x=>x&&x.k===k);if(g)return labName(g)}}catch(e){}return k};
+function cripto(){const M=typeof MM!=="undefined"?MM:null;if(!M)return;const C=(M.ch==="bitvavo"&&M.S)||(M.oth&&M.oth.bitvavo)||null;
+ if(C&&C.consola){T.ok.cripto=1;for(const [t,x,n] of C.consola)add("cripto",t,x,n)}
+ const X=M.bvX||{};for(const ex of ["bitvavo","okx"]){const R=(X[ex]||{}).R;if(R){T.ok.cripto=1;for(const x of R.log||[])add("cripto",x.t,"💶 "+(ex==="okx"?"OKX":"Bitvavo")+" REAL · "+x.txt)}}}
+function lab(){if(typeof S==="undefined"||!S)return;const L=S.lab||{},sv=S.savedAt||Date.now(),hd=d=>d===dk(sv)?sv:Date.parse(d+"T23:59:00");T.ok.lab=1;
+ for(const j of S.journal||[])if(j&&j.ts)add("lab",j.ts,"Ronda del laboratorio"+(j.marketDate?" (sesión "+j.marketDate+")":"")+": "+(j.status||"")+(j.message?" · "+j.message:""));
+ for(const r of S.runLog||[])if(r&&(r.finishedAt||r.startedAt)){const er=Object.keys(r.providerErrors||{}).length;add("lab",r.finishedAt||r.startedAt,"📥 Precios: "+(r.freshAssets??"?")+" de "+(r.requestedAssets??"?")+" valores al día"+(er?" · "+er+" proveedores con fallos":"")+(r.status?" · "+r.status:""))}
+ const EV={nace:"🐣 Nace",aprueba:"✅ Aprueba y entra en la liga",sale:"⬇️ Sale de la liga",vuelve:"↩️ Vuelve a la liga"};
+ for(const x of L.log||[])if(x&&x.d)add("lab",hd(x.d),(EV[x.ev]||x.ev)+": "+(x.n||nom(x.k))+(x.why?" · "+x.why:""),1,1);
+ for(const x of S.siglog||[])if(x&&x.d)add("lab",hd(x.d),"🧪 "+nom(x.m)+" · "+(x.k==="compra"?"🟢 compra ":x.k==="venta"?"🔴 vende ":x.k+" ")+(x.s||"")+(x.amt!=null?" · "+(+x.amt).toFixed(2)+" € ficticios":""));
+ for(const p of L.prog||[])if(p&&p.d)add("lab",hd(p.d),"🧠 Aprendizaje: "+(p.tried||0)+" reglas probadas en total"+(p.best!=null?" · la mejor rinde "+(p.best*100).toFixed(1)+" % al año":""));
+ const top=(S.promo||[])[0];if(top){const prev=LS.get("termTop1","");if(prev!==top){if(prev)add("lab",Date.now(),"🏆 Nuevo número 1 del laboratorio: "+nom(top)+" (antes: "+nom(prev)+")",1,1);LS.set("termTop1",top)}}}
+function real(){const RL=window.__RLs,R=RL&&RL.R;if(!R)return;T.ok.real=1;
+ for(const o of R.orders||[])if(o&&o.ts){const s=/VENTA|sell/i.test(o.side||"")?"🔴 VENTA":"🟢 COMPRA";add("real",o.ts,s+" "+(o.name||o.sym||o.t||"")+(o.eur!=null?" · "+(+o.eur).toFixed(2)+" €":"")+(o.estado?" · "+o.estado:"")+(o.metodo?" · método "+o.metodo:"")+(o.why?" · "+o.why:"")+(o.err?" · ⚠️ "+o.err:""))}
+ for(const r of R.reports||[])if(r&&r.ts)add("real",r.ts,"📄 "+(r.titulo||r.tipo||"Informe")+(r.estado?" ("+r.estado+")":""));
+ for(const h of R.metHist||[])if(h&&h.d)add("real",h.d.length<=10?h.d+"T09:00:00":h.d,"🔄 La cartera real pasa a seguir «"+(h.nombre||h.metodo)+"»",1,1);
+ for(const x of (R.ledger&&R.ledger.hist)||[])if(x&&x.ts&&!/^(compra|venta|buy|sell)$/i.test(x.tipo||""))add("real",x.ts,"💶 Movimiento: "+(x.tipo||"")+(x.eur!=null?" · "+(+x.eur).toFixed(2)+" €":"")+(x.nota?" · "+x.nota:""));
+ const sg=R.metSug;if(sg&&(sg.ts||sg.t))add("real",sg.ts||sg.t,"🤖 Propuesta de método: «"+(sg.nombre||sg.metodo||"")+"» · "+(sg.estado||""),1,1)}
+async function servidor(){/* histórico largo de cripto (48 h, cifrado) */
+ if(Date.now()-T.srvAt<5*60e3||typeof memeGet!=="function")return;T.srvAt=Date.now();try{const pw=(typeof pwGet==="function"&&pwGet())||"";const j=await memeGet("terminal-cripto","terminal.json");if(!j||j.nada||!j.enc||!pw)return;const d=JSON.parse(await decrypt(j,pw));if(d&&d.l){T.srvN=d.l.length;T.ok.cripto=1;for(const [t,x,n] of d.l)add("cripto",t,x,n)}}catch(e){}}
+async function procesos(){if(Date.now()-T.ghAt<5*60e3)return;T.ghAt=Date.now();
+ try{const c=window.__CLOUD,r=c&&c.ri?c.ri():null,o=r?r.o:"CarlosGomezS",rr=r?r.r:"Botrading",h={Accept:"application/vnd.github+json"};try{if(c&&c.tok&&c.tok())h.Authorization="Bearer "+c.tok()}catch(e){}
+  const x=await fetch(`https://api.github.com/repos/${o}/${rr}/actions/runs?per_page=60`,{headers:h,cache:"no-store"});if(!x.ok)return;const j=await x.json();T.ok.proc=1;
+  for(const w of j.workflow_runs||[]){const ini=w.run_started_at||w.created_at,n=w.name||w.display_title||"Proceso",min=Math.max(0,Math.round((Date.parse(w.updated_at)-Date.parse(ini))/60000));
+   add("proc",ini,"▶️ Empieza: "+n+(w.event==="schedule"?" (programado)":w.event==="workflow_dispatch"?" (lanzado a mano o por otro proceso)":""));
+   if(w.status==="completed"){const c2=w.conclusion;add("proc",w.updated_at,(c2==="success"?"✅ Termina bien: ":c2==="cancelled"?"⏹️ Cancelado: ":c2==="skipped"?"⏭️ Saltado: ":"❌ Falla ("+c2+"): ")+n+" · "+min+" min")}}}catch(e){}}
+function refresca(){try{const M=typeof MM!=="undefined"?MM:null;if(M&&typeof memeLoad==="function"&&Date.now()-T.criAt>60e3&&!M.busy){T.criAt=Date.now();memeLoad(false).catch(()=>{})}}catch(e){}
+ try{const RL=window.__RLs;if(RL&&RL.R&&!RL.busy&&!RL.loading&&Date.now()-(RL.at||0)>120e3&&typeof window.__realReload==="function"&&!$("#t-real.on"))window.__realReload()}catch(e){}}
+async function recoge(){try{cripto()}catch(e){}try{lab()}catch(e){}try{real()}catch(e){}await Promise.all([servidor(),procesos()]);try{cripto()}catch(e){}T.at=Date.now();guarda()}
+/* ---------- pantalla ---------- */
+const col=x=>/⚠️|🔻|🛑|❌|ERROR|[Ee]rror|no pude|no se pudo|PIERDE|Falla/.test(x)?"var(--stop)":/✅|💰|🟢|➕|GANA|aprueba|Aprueba|COMPRA|compra/.test(x)?"var(--go)":"var(--ink)";
+function lista(){const q=T.q.toLowerCase();return[...T.ev.values()].filter(e=>e.t>=T.limpio&&(T.fil==="todo"||(T.fil==="met"?e.met:e.src===T.fil))&&(!q||e.txt.toLowerCase().includes(q))).sort((a,b)=>a.t-b.t)}
+function linea(e){const s=SRC[e.src]||["•",e.src];return`<div class="tl"><span class="tt">${hh(e.t)}</span> <span class="tg tg-${e.src}">${s[0]}</span> <span style="color:${col(e.txt)}">${esc(e.txt)}</span>${e.n>1?` <span class="tt">×${e.n}</span>`:""}</div>`}
+function cuerpo(){const L=lista(),V=L.slice(-T.n);let h="",d0="";if(L.length>V.length)h+=`<button class="tm-mas" data-tm="mas">⬆️ Ver ${Math.min(1500,L.length-V.length)} líneas más antiguas (hay ${L.length-V.length})</button>`;
+ for(const e of V){const d=dk(e.t);if(d!==d0){d0=d;h+=`<div class="td">── ${new Date(e.t).toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})} ──</div>`}h+=linea(e)}
+ if(!V.length)h+=`<div class="tt" style="padding:20px 0">${T.ev.size?"Nada con este filtro"+(T.limpio?" desde que limpiaste la pantalla":"")+".":"Recogiendo lo que hace la app…"}</div>`;
+ return{h,n:L.length}}
+function aviso(){const pw=(typeof pwGet==="function"&&pwGet())||"",f=[];if(!pw)f.push("🔒 Para ver cripto y la cartera real, desbloquea con tu clave en 💶 Real.");else{if(!T.ok.cripto)f.push("🪙 Cripto: esperando datos…");if(!T.ok.real)f.push("💶 Real: esperando datos…")}return f.join(" ")}
+function dias(){return[...new Set([...T.ev.values()].map(e=>dk(e.t)))].sort().reverse()}
+function pinta(force){const tab=$("#t-terminal");if(!tab)return;let b=$("#tm-body");
+ if(!b||force){const ds=dias();tab.innerHTML=`<div class="tm">
+  <div class="tm-top"><div><div class="tm-h">Terminal</div><div class="tt" id="tm-est"></div></div><span class="tm-live">● en directo</span></div>
+  <div class="tm-chips">${FIL.map(([k,t])=>`<button data-tmf="${k}" class="${T.fil===k?"on":""}">${t}</button>`).join("")}</div>
+  <input id="tm-q" placeholder="Buscar en el terminal…" value="${esc(T.q)}" autocomplete="off">
+  <div class="tm-acc"><button data-tm="exp">⬇️ Todo</button><select id="tm-dia">${ds.map(d=>`<option value="${d}">${d===dk(Date.now())?"Hoy":new Date(d+"T12:00").toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"short"})}</option>`).join("")}</select><button data-tm="expd">⬇️ Ese día</button>${T.limpio?`<button data-tm="todo">↩️ Ver todo</button>`:`<button data-tm="limpia">🧹 Limpiar</button>`}</div>
+  <div id="tm-body"></div>
+  <div class="tm-acc"><button data-tm="abajo">⬇️ Ir a lo último</button></div>
+  <div class="tt" id="tm-av" style="margin-top:6px"></div>
+  <div class="tt" style="margin-top:6px">Aquí sale todo lo que hace la app: 🪙 lo que el bot de cripto mira, compra y vende (y lo que aprende), 🤖 cada ronda del laboratorio, los métodos que nacen, entran o salen y lo que apuestan, 💶 las órdenes, informes y cambios de método de tu cartera real y ⚙️ cada proceso que se ejecuta en GitHub. Se guarda en este móvil, así el histórico crece cada vez que abres la app. «Limpiar» solo despeja la pantalla: al exportar sale todo.</div></div>`;b=$("#tm-body")}
+ const top=b.scrollTop,abajo=T.abajo,{h,n}=cuerpo();b.innerHTML=h;if(abajo)b.scrollTop=b.scrollHeight;else b.scrollTop=top;
+ const st=$("#tm-est");if(st){const s=T.at?Math.round((Date.now()-T.at)/1000):null;st.textContent=n+" líneas"+(T.fil!=="todo"?" en este filtro":"")+" · "+T.ev.size+" guardadas en este móvil"+(s!=null?" · actualizado hace "+s+" s":"")}
+ const av=$("#tm-av");if(av)av.textContent=aviso()}
+function txt(L,tit){return"BOT TRADING · TERMINAL · "+tit+"\nExportado el "+new Date().toLocaleString("es-ES")+" · "+L.length+" líneas\n\n"+L.map(e=>dk(e.t)+" "+hh(e.t)+" ["+(SRC[e.src]||["",e.src])[1]+"]"+(e.met?" [método]":"")+" "+e.txt+(e.n>1?" ×"+e.n:"")).join("\n")+"\n"}
+function baja(nombre,s){try{const b=new Blob([s],{type:"text/plain;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=nombre;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}catch(e){alert("No se pudo exportar: "+e.message)}}
+document.addEventListener("click",e=>{const f=e.target.closest&&e.target.closest("[data-tmf]");if(f){T.fil=f.dataset.tmf;LS.set("termFil",T.fil);T.n=1500;T.abajo=true;document.querySelectorAll("[data-tmf]").forEach(b=>b.classList.toggle("on",b===f));pinta();return}
+ const b=e.target.closest&&e.target.closest("[data-tm]");if(!b)return;const k=b.dataset.tm,todo=()=>[...T.ev.values()].sort((a,b)=>a.t-b.t);
+ if(k==="mas"){T.n+=1500;T.abajo=false;pinta();const x=$("#tm-body");if(x)x.scrollTop=0}
+ else if(k==="exp")baja("terminal-completo-"+dk(Date.now())+".txt",txt(todo(),"histórico completo"));
+ else if(k==="expd"){const d=($("#tm-dia")||{}).value;if(d)baja("terminal-"+d+".txt",txt(todo().filter(x=>dk(x.t)===d),"día "+d))}
+ else if(k==="limpia"){T.limpio=Date.now();LS.set("termLimpio",T.limpio);pinta(true)}
+ else if(k==="todo"){T.limpio=0;LS.set("termLimpio",0);T.abajo=true;pinta(true)}
+ else if(k==="abajo"){T.abajo=true;const x=$("#tm-body");if(x)x.scrollTop=x.scrollHeight}});
+document.addEventListener("input",e=>{if(e.target&&e.target.id==="tm-q"){T.q=e.target.value;T.abajo=true;pinta()}});
+document.addEventListener("scroll",e=>{const t=e.target;if(t&&t.id==="tm-body")T.abajo=t.scrollHeight-t.scrollTop-t.clientHeight<40},true);
+/* ---------- pestaña y botón del menú ---------- */
+function monta(){if($("#t-terminal"))return;const sec=document.createElement("section");sec.className="tab";sec.id="t-terminal";const ay=$("#t-ayuda");(ay&&ay.parentNode||document.body).insertBefore(sec,ay||null);
+ const nav=$("#nav");if(nav&&!nav.querySelector('[data-t="terminal"]')){const b=document.createElement("button");b.dataset.t="terminal";b.innerHTML="<span>🖥️</span>Terminal";b.onclick=()=>{window.__userNav=true;go("terminal")};nav.insertBefore(b,nav.querySelector('[data-t="ajustes"]'))}}
+const on=()=>{const t=$("#t-terminal");return t&&t.classList.contains("on")&&!document.hidden};
+let ult=0;async function ciclo(){if(on()){refresca();await recoge();pinta(!$("#tm-body"))}else if(Date.now()-ult>60e3){ult=Date.now();await recoge()}}
+monta();carga().then(()=>{recoge().then(()=>{if(on())pinta(true)})});
+setInterval(ciclo,10e3);
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest('#nav button[data-t="terminal"]');if(b)setTimeout(()=>{T.abajo=true;pinta(true);recoge().then(()=>pinta())},30)});
+window.__terminal={T,recoge,pinta};
+})();
+</script>
+<style id="terminal-css">
+#t-terminal .tm{padding:4px 2px 90px}
+#t-terminal .tm-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:4px 0 8px}
+#t-terminal .tm-h{font-size:24px!important;font-weight:700;letter-spacing:-.02em;color:var(--ink);line-height:1.15}
+#t-terminal .tm-live{font-size:11px!important;color:var(--go);font-weight:600;margin-top:6px;white-space:nowrap}
+#t-terminal .tt{color:var(--muted)!important;font-size:11px!important}
+#t-terminal .tm-chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+#t-terminal .tm-chips::-webkit-scrollbar{display:none}
+#t-terminal .tm-chips button{flex:0 0 auto;font-size:12px!important;padding:6px 11px!important;min-height:0!important;white-space:nowrap}
+#t-terminal .tm-chips button.on{background:var(--acc)!important;color:var(--accink)!important}
+#t-terminal #tm-q{width:100%;box-sizing:border-box;font-size:14px!important;padding:8px 12px!important;margin:0 0 6px}
+#t-terminal #tm-body{height:calc(100vh - 400px);height:calc(100dvh - 400px);min-height:280px;overflow-y:auto;background:var(--note)!important;border-radius:14px;padding:8px 10px 12px;margin-top:8px;color:var(--ink);white-space:pre-wrap;word-break:break-word;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#t-terminal #tm-body,#t-terminal #tm-body *{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace!important;font-size:11px!important;line-height:1.45!important;letter-spacing:0!important}
+#t-terminal #tm-body .tl{padding:1px 0}
+#t-terminal #tm-body .td{color:var(--muted)!important;text-align:center;margin:8px 0 4px}
+#t-terminal #tm-body .tg{display:inline-block;min-width:1.3em;text-align:center}
+#t-terminal .tm-mas{display:block;width:100%;padding:6px!important;margin-bottom:6px;min-height:0!important}
+#t-terminal .tm-acc{display:flex;gap:6px;margin-top:6px}
+#t-terminal .tm-acc button{flex:1 1 auto;font-size:12px!important;padding:7px 8px!important;min-height:0!important;white-space:nowrap}
+#t-terminal .tm-acc select{flex:1 1 80px;font-size:12px!important;padding:6px 6px!important;min-width:0}
 </style>
 </body></html>
