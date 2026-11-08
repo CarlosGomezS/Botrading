@@ -8,7 +8,10 @@
 // Privacidad: el estado va CIFRADO (REAL_VIEW_PASS) en la rama «bitvavo-real»; en público solo el estado (activo/parado), sin importes
 // ni criptos. La orden (submodo, parar/seguir) va en la rama «bitvavo-ctl». Nunca se escriben importes en los registros públicos.
 import { randomUUID } from "node:crypto";
-import { T_RIESGO, T_MAXPOS, T_STOPMAX, T_ESPERA_D } from "./tortugas.mjs";
+import { T_RIESGO, T_ESPERA_D, conP as tortP, describe as tortDesc } from "./tortugas.mjs";
+// v313 · 🐢 UN SOLO MÉTODO para el dinero real: las TORTUGAS (que aprenden solas en el examen largo). Ni campeón de laboratorio, ni base, ni profesionales:
+// lo que ya estaba abierto de esos se sigue vigilando y se vende con sus reglas, pero ya no se compra nada nuevo con ellos.
+export const soloT = () => process.env.SOLO_TORT !== "0";   // (las pruebas antiguas del copiado de métodos lo apagan con SOLO_TORT=0)
 import { createHmac } from "node:crypto";
 import { encrypt, openAny } from "./real-cfg.mjs";
 
@@ -297,8 +300,8 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
           if (!p.espera) { p.espera = now.toISOString(); L(RS, now, `⏳ ${p.sym}: los profesionales salen, pero aún no cubre comisiones; espera (stop activo)`); } }
         continue; }
       if (p.src === "tortuga") { if ((ctl.conservar || []).includes(p.sym)) { delete RS.pos[m]; continue; } const b = tick[m] ? tick[m].bid : p.px, S1 = ctl.tort && ctl.tort.sen && ctl.tort.sen[m];
-        if (b <= p.stop) { await cerrar(m, `🐢 stop de las Tortugas (2N, ${r2((p.stop / p.px - 1) * 100)} %)`); continue; }
-        if (S1 && S1.sale) { const neto = (p.q * b * (1 - X.fee) + (p.cob || 0)) / p.cost - 1; if (neto > 0 || now - Date.parse(p.t0) > T_ESPERA_D * 86400e3) { await cerrar(m, `🐢 cierra por debajo de su mínimo de 10 días${neto > 0 ? " (con ganancia neta)" : " (7 días sin cubrir comisiones)"}`); continue; }
+        if (b <= p.stop) { await cerrar(m, `🐢 stop de las Tortugas (${r2((p.stop / p.px - 1) * 100)} %)`); continue; }
+        if (S1 && S1.sale) { const neto = (p.q * b * (1 - X.fee) + (p.cob || 0)) / p.cost - 1; if (neto > 0 || now - Date.parse(p.t0) > T_ESPERA_D * 86400e3) { await cerrar(m, `🐢 cierra por debajo de su mínimo de ${tortP(ctl.tort && ctl.tort.P).sale} días${neto > 0 ? " (con ganancia neta)" : " (7 días sin cubrir comisiones)"}`); continue; }
           if (!p.espera) { p.espera = now.toISOString(); L(RS, now, `⏳ ${p.sym}: señal de salida de las Tortugas, pero aún no cubre comisiones (${r2(neto * 100)} %); espera (stop activo)`); } }
         continue; }
       if ((ctl.conservar || []).includes(p.sym)) { if (p.stopId && X.quitaStop) try { await X.quitaStop(m, p.stopId); } catch (e) {} L(RS, now, `🔒 ${p.sym}: la has marcado como tuya; el bot deja de gestionarla (no la vende)`); delete RS.pos[m]; continue; }   // v297
@@ -314,38 +317,39 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         if (!p.espera) { p.espera = now.toISOString(); L(RS, now, `⏳ ${p.sym}: el método ha vendido, pero ahora saldría en ${r2(neto * 100)} % tras comisiones; espera a cubrirlas (máx. 48 h, stop −6 % activo)`); } continue; }
       if (sp.cob > 0 && !p.tp && sp.q0 > 0) { const frac = 1 - sp.q / sp.q0; if (frac > 0.05) await cerrar(m, "venta parcial con ganancia (como el método)", frac); }
       // v297 · ampliar también respeta: sin método aprobado no compra, par líquido, tope 25 % por compra y 60 % invertido; se marca hecha solo si se hace
-      if (sp.pir && !p.pir && sp.cost0 > 0 && !ctl.noCompra && !(tick[m] && tick[m].sp > HUECO_MAX)) { const V = valor(RS, tick), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())), add = Math.min(RS.cash, p.cost0 * (sp.cost - sp.cost0) / sp.cost0, maxOrden(), V * TAM_MAX, hueco, Math.max(0, (await libre()) - 0.5)), mk = await mercado(m); if (add < mk.min) p.pir = 1; else { const r = await X.comprar(m, add); p.pir = 1; RS.cash -= r.coste; RS.st.fees += r.fee; p.px = (p.px * p.q + r.px * r.q) / (p.q + r.q); p.q += r.q; p.cost += r.coste; L(RS, now, `➕ añade ${r2(r.coste)} € a ${p.sym} (como el método)`); await protege(m); } }   // v295 · precio medio
+      if (sp.pir && !p.pir && sp.cost0 > 0 && !ctl.noCompra && !soloT() && !(tick[m] && tick[m].sp > HUECO_MAX)) { const V = valor(RS, tick), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())), add = Math.min(RS.cash, p.cost0 * (sp.cost - sp.cost0) / sp.cost0, maxOrden(), V * TAM_MAX, hueco, Math.max(0, (await libre()) - 0.5)), mk = await mercado(m); if (add < mk.min) p.pir = 1; else { const r = await X.comprar(m, add); p.pir = 1; RS.cash -= r.coste; RS.st.fees += r.fee; p.px = (p.px * p.q + r.px * r.q) / (p.q + r.q); p.q += r.q; p.cost += r.coste; L(RS, now, `➕ añade ${r2(r.coste)} € a ${p.sym} (como el método)`); await protege(m); } }   // v295 · precio medio
     }
     // 4) compras nuevas del submodo (de menos de 5 min) en la misma proporción
     // v269 · en 🤖 Automático copia a la vez a TODOS los métodos con 🏆 de su exchange (más operaciones, siempre ganadores), repartiendo el dinero
     // v301 · 🧺 CARTERA BASE: mientras BTC/ETH estén en tendencia (por encima de su media de 50 días) se tiene un 35 % de la cuenta repartido entre ellos;
     // solo si su regla aprueba el examen de 2 años. No cuenta para el 60 % de los métodos. Se compra una vez (y se completa si se queda en menos de la mitad).
-    if (ctl.base && ctl.base.m) { const V = valor(RS, tick), suben = Object.entries(ctl.base.m).filter(([mm, T]) => T.up && tick[mm] && tick[mm].ask > 0 && !(ctl.conservar || []).includes(mm.split("-")[0]));
+    if (!soloT() && ctl.base && ctl.base.m) { const V = valor(RS, tick), suben = Object.entries(ctl.base.m).filter(([mm, T]) => T.up && tick[mm] && tick[mm].ask > 0 && !(ctl.conservar || []).includes(mm.split("-")[0]));
       for (const [mm] of suben) { const obj = (V * BASE_PCT) / suben.length, p = RS.pos[mm], ya = p ? p.q * tick[mm].bid : 0; if (p && p.src !== "base") continue; if (ya >= obj * 0.5) continue;
         const mk = await mercado(mm), quiere = Math.min(obj - ya, RS.cash, Math.max(0, (await libre()) - 0.5)); if (quiere < Math.max(mk.min, 5) * 1.02) continue;
         try { const r = await X.comprar(mm, quiere); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++;
           if (p) { p.px = (p.px * p.q + r.px * r.q) / (p.q + r.q); p.q += r.q; p.cost += r.coste; } else RS.pos[mm] = { src: "base", sym: mm.split("-")[0], q: r.q, q0: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), last: tick[mm].bid };
           L(RS, now, `🧺 cartera base: compra ${r2(r.coste)} € de ${mm.split("-")[0]} (está por encima de su media de 50 días)`); await protege(mm); } catch (e) { L(RS, now, `⚠️ cartera base: no pude comprar ${mm.split("-")[0]}: ${String(e.message).slice(0, 60)}`); } } }
     // v304 · 🐢 TORTUGAS: compra las criptos que cierran por encima de su máximo de 20 días (si su regla aprueba 2 años con las comisiones de este exchange)
-    if (ctl.tort && ctl.tort.sen) { const V = valor(RS, tick); let nT = Object.values(RS.pos).filter((p) => p.src === "tortuga").length;
+    if (ctl.tort && ctl.tort.sen) { const V = valor(RS, tick), TP = tortP(ctl.tort.P), btc = ctl.tort.sen["BTC-EUR"]; let nT = Object.values(RS.pos).filter((p) => p.src === "tortuga").length;
       for (const [m, x] of Object.entries(ctl.tort.sen).filter(([, x]) => x.entra).sort((a, b) => b[1].c / b[1].hi20 - a[1].c / a[1].hi20)) {
-        if (nT >= T_MAXPOS) break; const tk = tick[m], clave = "T|" + m + "|" + x.t; if (RS.pos[m] || RS.vistos[clave] || !tk || !(tk.ask > 0) || tk.sp > HUECO_MAX || (ctl.conservar || []).includes(m.split("-")[0]) || !(x.N > 0)) continue;
+        if (nT >= TP.maxPos) break; const tk = tick[m], clave = "T|" + m + "|" + x.t; if (RS.pos[m] || RS.vistos[clave] || !tk || !(tk.ask > 0) || tk.sp > HUECO_MAX || (ctl.conservar || []).includes(m.split("-")[0]) || !(x.N > 0)) continue;
+        if (TP.filtro && !(btc && btc.sobre50)) continue;   // v313 · la combinación aprendida solo compra si BTC va al alza
         RS.vistos[clave] = now.toISOString(); if (tk.ask > x.c * 1.03) { L(RS, now, `⏭️ 🐢 ${m.split("-")[0]}: rompió su máximo, pero ya ha subido un ${r2((tk.ask / x.c - 1) * 100)} % desde el cierre; no la persigue`); continue; }
-        const stopD = Math.min(2 * x.N, tk.ask * T_STOPMAX), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())), mk = await mercado(m);
-        const eur = Math.min(Math.max((T_RIESGO * V) / (stopD / tk.ask), TAM_COMPRA * V), TAM_MAX * V, hueco, RS.cash, Math.max(0, (await libre()) - 0.5)); if (eur < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ 🐢 ${m.split("-")[0]}: rompe su máximo, pero no queda hueco para comprarla (tope 60 %)`); continue; }
+        const stopD = Math.min(TP.kN * x.N, tk.ask * TP.stopMax), hueco = soloT() ? RS.cash : Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())), mk = await mercado(m);
+        const eur = Math.min(Math.max((T_RIESGO * V) / (stopD / tk.ask), TAM_COMPRA * V), V / TP.maxPos, TAM_MAX * V, hueco, RS.cash, Math.max(0, (await libre()) - 0.5)); if (eur < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ 🐢 ${m.split("-")[0]}: rompe su máximo, pero no quedan euros libres para comprarla (lo demás está invertido)`); continue; }
         try { const r = await X.comprar(m, eur); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nT++;
           RS.pos[m] = { src: "tortuga", sym: m.split("-")[0], q: r.q, q0: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), last: tk.bid, stop: r.px - stopD, N: x.N };
-          L(RS, now, `🐢 compra ${m.split("-")[0]} por ${r2(r.coste)} €: cerró por encima de su máximo de 20 días · stop ${r2((-stopD / r.px) * 100)} % · sale con su mínimo de 10 días`); msgs.push(`💶 🐢 ${EX}: compra ${m.split("-")[0]} (${r2(r.coste)} €) por ruptura de su máximo de 20 días.`); await protege(m);
+          L(RS, now, `🐢 compra ${m.split("-")[0]} por ${r2(r.coste)} €: cerró por encima de su máximo de ${TP.ent} días · stop ${r2((-stopD / r.px) * 100)} % · sale con su mínimo de ${TP.sale} días`); msgs.push(`💶 🐢 ${EX}: compra ${m.split("-")[0]} (${r2(r.coste)} €) por ruptura de su máximo de ${TP.ent} días.`); await protege(m);
         } catch (e) { L(RS, now, `⚠️ 🐢 no pude comprar ${m.split("-")[0]}: ${String(e.message).slice(0, 60)}`); } } }
     // v306 · 🐋 COPIA A LOS PROFESIONALES de Hyperliquid: como mucho 2 a la vez, 10 % de la cuenta cada una (máx. 20 % en total), solo criptos de este exchange
-    if (ctl.ballenas && ctl.ballenas.m) { const V = valor(RS, tick); let nB = Object.values(RS.pos).filter((p) => p.src === "ballena").length;
+    if (!soloT() && ctl.ballenas && ctl.ballenas.m) { const V = valor(RS, tick); let nB = Object.values(RS.pos).filter((p) => p.src === "ballena").length;
       for (const [m, w] of Object.entries(ctl.ballenas.m).filter(([, w]) => w.entra).sort((a, b) => b[1].s - a[1].s)) { if (nB >= 2) break; const tk = tick[m]; if (RS.pos[m] || !tk || !(tk.ask > 0) || tk.sp > HUECO_MAX || (ctl.conservar || []).includes(m.split("-")[0])) continue;
         const clave = "W|" + m + "|" + new Date(now).toISOString().slice(0, 13); if (RS.vistos[clave]) continue; RS.vistos[clave] = now.toISOString();
         const hueco = Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())), mk = await mercado(m), eur = Math.min(0.10 * V, hueco, RS.cash, Math.max(0, (await libre()) - 0.5)); if (eur < Math.max(mk.min, 5) * 1.02) continue;
         try { const r = await X.comprar(m, eur); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nB++; RS.pos[m] = { src: "ballena", sym: m.split("-")[0], q: r.q, q0: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), last: tk.bid };
           L(RS, now, `🐋 compra ${m.split("-")[0]} por ${r2(r.coste)} €: los mejores traders de Hyperliquid están comprados al ${Math.round(w.s * 100)} % (${w.nl} de ellos) y metiendo más`); msgs.push(`💶 🐋 ${EX}: copia a los profesionales: compra ${m.split("-")[0]} (${r2(r.coste)} €).`); await protege(m);
         } catch (e) { L(RS, now, `⚠️ 🐋 no pude comprar ${m.split("-")[0]}: ${String(e.message).slice(0, 60)}`); } } }
-    const lista = ctl.noCompra ? [] : [copia, ...(ctl.extra || [])].filter((k, i, a) => fuentes[k] && a.indexOf(k) === i);   // v295 · sin método aprobado: no compra (sí vigila y vende lo abierto)
+    const lista = ctl.noCompra || soloT() ? [] : [copia, ...(ctl.extra || [])].filter((k, i, a) => fuentes[k] && a.indexOf(k) === i);   // v295 · sin método aprobado: no compra (sí vigila y vende lo abierto)
     for (const kS of lista) { const srcK = fuentes[kS], eqSrc = +srcK.lastEq || 100;
     // v253 · «📥 Copiar ya lo abierto» (lo pides tú): compra ahora lo que el método YA tiene abierto (lo que esté en este exchange), a precio de ahora
     // v256 · «🪞 espejo» (siempre): en cada vuelta compra todo lo que el método tenga abierto y aún no tenga la cuenta real (cada posición una sola vez)
@@ -498,7 +502,8 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
     const TE = EL && EL.tortugas && EL.tortugas[ex], tortOk = !!(TE && TE.ok === true && TE.v === VEX_REAL && now - Date.parse(EL.t) < 12 * 3600e3), TS = S.tort && S.tort[ex] && now - S.tort[ex].t < 30 * 3600e3 ? S.tort[ex] : null;
     R0.tortugas = tortOk ? (TS ? "activas" : "sin velas diarias todavía") : TE ? `no aprueban (${TE.motivo || "examen"})` : "pendientes del examen";
     // v304 · 🖥️ la terminal cuenta qué sigue cada cuenta y por qué
-    console.log(`💶 ${N}: campeón «${copia}» (${estadoAnio(copia)}${R0.auto && R0.auto.motivo ? " · " + R0.auto.motivo : ""}) · ${noCompra ? "⏸️ " + (R0.bloqueo || "no compra") : "compra cuando su método da señal"} · 🐢 Tortugas ${R0.tortugas} · 🧺 base ${R0.base}`);
+    if (soloT()) { R0.solo = "tortugas"; R0.tortReglas = tortDesc(TE && TE.P); R0.tortAprende = TE && TE.aprende ? { motivo: TE.aprende.motivo, desde: TE.aprende.desde } : null; R0.bloqueo = R0.tortugas === "activas" ? "" : "🐢 las Tortugas " + R0.tortugas + ": espera sin comprar"; }
+    console.log(soloT() ? `💶 ${N}: 🐢 solo Tortugas (${R0.tortugas})${TE && TE.P ? " · " + tortDesc(TE.P) : ""}` : `💶 ${N}: campeón «${copia}» (${estadoAnio(copia)}${R0.auto && R0.auto.motivo ? " · " + R0.auto.motivo : ""}) · ${noCompra ? "⏸️ " + (R0.bloqueo || "no compra") : "compra cuando su método da señal"} · 🐢 Tortugas ${R0.tortugas} · 🧺 base ${R0.base}`);
     const BW = S.ballenas && now - S.ballenas.t < 30 * 60e3 ? S.ballenas : null; R0.ballenas = BW ? "activa" : "sin datos recientes de Hyperliquid";
     const c2 = { copia, extra, noCompra, ballenas: BW, tort: tortOk && TS ? TS : null, base: baseOk && T ? T : null, conservar: Array.isArray(cfg.conservar) ? cfg.conservar.map((x) => String(x).toUpperCase()) : [], capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
       parado: !cfg.on || !!ctl.parado || cfg.parado, motivo: !cfg.on ? `has apagado ${N}` : ctl.parado ? ctl.motivo || "lo has parado tú" : cfg.motivo };

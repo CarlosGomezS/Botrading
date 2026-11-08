@@ -634,12 +634,12 @@ async function main() {
   // v304 · 🐢 TORTUGAS: señales diarias de las 20 criptos más líquidas de CADA exchange (con sus velas); se recalculan al cerrar el día (o cada 6 h)
   S.tort = S.tort || {}; const hoyT = new Date().toISOString().slice(0, 10);
   for (const ex of ["bitvavo", "okx"]) { const T0 = S.tort[ex]; if (T0 && T0.dia === hoyT && now - T0.t < 6 * 3600e3) continue; if (Date.now() - t0 > 35e3) break;
-    try { const TT = await import("./tortugas.mjs"); let lista = [];
+    try { const TT = await import("./tortugas.mjs"); let lista = []; let PT = null; try { const EL = await leer("examen-largo.json", "examen-largo"); PT = EL && EL.tortugas && EL.tortugas[ex] && EL.tortugas[ex].P; } catch (e) {}   // v313 · 🧠 la combinación aprendida
       if (ex === "bitvavo") lista = Object.entries(tick).filter(([m, x]) => x.vq > 0 && x.sp < 0.01 && !/^(USDC|EURC|USDT)-/.test(m)).sort((a, b) => b[1].vq - a[1].vq).slice(0, 20).map(([m]) => ({ m }));
       else if (tickOkxReal) lista = Object.entries(tickOkxReal).filter(([m, x]) => m !== "USDC-EUR" && x.vq > 0 && x.sp < 0.01).sort((a, b) => b[1].vq - a[1].vq).slice(0, 20).map(([m, x]) => ({ m, par: x.par, k: x.k }));
-      const sen = {}; for (const { m, par, k } of lista) { try { const d = await TT.diarias(ex, m, 40, par, k || 1), x = TT.senal(d); if (x) sen[m] = x; } catch (e) {} }
-      if (Object.keys(sen).length >= 5) { S.tort[ex] = { t: now.getTime(), dia: hoyT, sen }; const en = Object.entries(sen).filter(([, x]) => x.entra).map(([m]) => m.split("-")[0]);
-        console.log(`🐢 Tortugas ${ex}: ${Object.keys(sen).length} criptos vigiladas · rompen su máximo de 20 días: ${en.length ? en.join(", ") : "ninguna hoy"}`); } } catch (e) { console.log(`🐢 Tortugas ${ex}: sin velas diarias (${String(e.message).slice(0, 40)})`); } }
+      const sen = {}; for (const { m, par, k } of lista) { try { const d = await TT.diarias(ex, m, 90, par, k || 1), x = TT.senal(d, PT); if (x) sen[m] = x; } catch (e) {} }
+      if (Object.keys(sen).length >= 5) { S.tort[ex] = { t: now.getTime(), dia: hoyT, sen, P: TT.conP(PT) }; const en = Object.entries(sen).filter(([, x]) => x.entra).map(([m]) => m.split("-")[0]);
+        console.log(`🐢 Tortugas ${ex}: ${Object.keys(sen).length} criptos vigiladas · rompen su máximo de ${TT.conP(PT).ent} días: ${en.length ? en.join(", ") : "ninguna hoy"}`); } } catch (e) { console.log(`🐢 Tortugas ${ex}: sin velas diarias (${String(e.message).slice(0, 40)})`); } }
   // v306 · 🐋 COPIA A LOS PROFESIONALES: los mejores traders de Hyperliquid (cuentas > 500.000 $ que ganan este mes y en total).
   // Si la mayoría de su dinero está COMPRADO en una cripto (≥ 60 %, al menos 4 de ellos) y además están metiendo más (sube en la última hora), es señal.
   if (hlFresco && S.hl && S.hl.snap) { const pv = HLm.hace(S.hl, S.hl.at || now.getTime(), 3600e3) || {}, m = {};

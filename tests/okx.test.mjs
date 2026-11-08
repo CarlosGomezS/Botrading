@@ -1,3 +1,4 @@
+process.env.SOLO_TORT = "0";   // v313 · estas pruebas son del copiado de métodos (el real ahora solo sigue a las Tortugas; ver tortugas-solo.test.mjs)
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";

@@ -94,8 +94,11 @@ async function main() {
         else { const PO = await OK.preciosOkx(await OK.instrumentos()); lista = Object.entries(PO.tickEx).filter(([m, x]) => m !== "USDC-EUR" && x.vq > 0 && x.sp < 0.01).sort((a, b) => b[1].vq - a[1].vq).slice(0, 20).map(([m, x]) => ({ m, par: x.par, k: x.k })); }
         const series = {}; for (const { m, par, k } of lista) { try { const d = await TT.diarias(ex, m, 800, par, k || 1); if (d.length >= 200) series[m] = d; } catch (e) {} }
         if (Object.keys(series).length < 8) { tortugas[ex] = { v: VEX, ok: null, motivo: "pocas criptos con 2 años de datos" }; continue; }
-        const r = TT.simula(series, TT.FEES[ex]), v = TT.veredicto(r); delete r.curva;
-        tortugas[ex] = { v: VEX, ...r, ...v, criptos: Object.keys(series).length };
+        // v313 · 🧠 aprende: parte de la combinación que ya estaba en uso y solo cambia si la nueva gana en el año que no vio
+        const prevT = prev.tortugas && prev.tortugas[ex], A = TT.aprende(series, TT.FEES[ex], prevT && prevT.P), P = A.P;
+        console.log(`Examen largo · 🐢🧠 Tortugas ${ex}: ${A.probadas || 0} combinaciones · ${A.cambia ? "✅ CAMBIA a" : "sigue con"} «${TT.describe(P)}» · ${A.motivo}${A.nueva ? ` (mejor nueva: 1.er año ${A.nueva.ano1} %, 2.º año ${A.nueva.ano2} % · en uso: ${A.enUso.ano1} % / ${A.enUso.ano2} %)` : ""}`);
+        const r = TT.simula(series, TT.FEES[ex], 0.002, P), v = TT.veredicto(r); delete r.curva;
+        tortugas[ex] = { v: VEX, ...r, ...v, criptos: Object.keys(series).length, P, aprende: { cambia: A.cambia, motivo: A.motivo, desde: A.cambia ? new Date().toISOString() : (prevT && prevT.aprende && prevT.aprende.desde) || null, nueva: A.nueva, enUso: A.enUso } };
         console.log(`Examen largo · 🐢 Tortugas ${ex} (${Object.keys(series).length} criptos, comisión ${TT.FEES[ex] * 100} %): ${v.ok ? "✅" : "❌"} ${v.motivo} · 2 años ${r.ret} % · semestres ${r.semestres.join(" / ")} % · peor caída ${r.dd} % · ${r.n} operaciones · ${r.aciertos} % aciertos · ${r.pf} € ganados por € perdido`);
       } catch (e) { tortugas[ex] = { v: VEX, ok: null, motivo: String(e.message).slice(0, 60) }; console.log(`Examen largo · 🐢 Tortugas ${ex}: ${String(e.message).slice(0, 60)}`); } }
   } catch (e) { console.log("Examen largo · Tortugas: " + String(e.message).slice(0, 80)); }
