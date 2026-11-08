@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 342 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#342</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 343 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#343</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4547,15 +4547,16 @@ async function recoge(){try{cripto()}catch(e){}try{lab()}catch(e){}try{real()}ca
 const col=x=>/⚠️|🔻|🛑|❌|ERROR|[Ee]rror|no pude|no se pudo|PIERDE|Falla/.test(x)?"var(--stop)":/✅|💰|🟢|➕|GANA|aprueba|Aprueba|COMPRA|compra/.test(x)?"var(--go)":"var(--ink)";
 function lista(){const q=T.q.toLowerCase();return[...T.ev.values()].filter(e=>e.t>=T.limpio&&(T.fil==="todo"||(T.fil==="met"?e.met:e.src===T.fil))&&(!q||e.txt.toLowerCase().includes(q))).sort((a,b)=>a.t-b.t)}
 function linea(e){const s=SRC[e.src]||["•",e.src];return`<div class="tl"><span class="tt">${hh(e.t)}</span> <span class="tg tg-${e.src}">${s[0]}</span> <span style="color:${col(e.txt)}">${esc(e.txt)}</span>${e.n>1?` <span class="tt">×${e.n}</span>`:""}</div>`}
-function cuerpo(){const L=lista(),V=L.slice(-T.n);let h="",d0="";if(L.length>V.length)h+=`<button class="tm-mas" data-tm="mas">⬆️ Ver ${Math.min(1500,L.length-V.length)} líneas más antiguas (hay ${L.length-V.length})</button>`;
- for(const e of V){const d=dk(e.t);if(d!==d0){d0=d;h+=`<div class="td">── ${new Date(e.t).toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})} ──</div>`}h+=linea(e)}
+function cuerpo(){const L=lista().reverse(),V=L.slice(0,T.n);let h="",d0="";
+ for(const e of V){const d=dk(e.t);if(d!==d0){d0=d;h+=`<div class="td">── ${d===dk(Date.now())?"Hoy, ":""}${new Date(e.t).toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})} ──</div>`}h+=linea(e)}
  if(!V.length)h+=`<div class="tt" style="padding:20px 0">${T.ev.size?"Nada con este filtro"+(T.limpio?" desde que limpiaste la pantalla":"")+".":"Recogiendo lo que hace la app…"}</div>`;
+ if(L.length>V.length)h+=`<button class="tm-mas" data-tm="mas">⬇️ Ver ${Math.min(1500,L.length-V.length)} líneas más antiguas (quedan ${L.length-V.length})</button>`;
  return{h,n:L.length}}
 function aviso(){const pw=(typeof pwGet==="function"&&pwGet())||"",f=[];if(!pw)f.push("🔒 Para ver cripto y la cartera real, desbloquea con tu clave en 💶 Real.");else{if(!T.ok.cripto)f.push("🪙 Cripto: esperando datos…");if(!T.ok.real)f.push("💶 Real: esperando datos…")}return f.join(" ")}
 function dias(){return[...new Set([...T.ev.values()].map(e=>dk(e.t)))].sort().reverse()}
 const finPag=()=>Math.max(document.documentElement.scrollHeight,document.body.scrollHeight);
-const alFinal=()=>window.innerHeight+window.scrollY>=finPag()-160;
-const bajaAlFinal=()=>{try{window.scrollTo(0,finPag())}catch(e){}};
+const alPrincipio=()=>{const b=$("#tm-body");return!b||b.getBoundingClientRect().top>-80};
+const subeArriba=()=>{try{window.scrollTo(0,0)}catch(e){}};
 let firma="";
 function pinta(force){const tab=$("#t-terminal");if(!tab)return;let b=$("#tm-body");
  if(!b||force){const ds=dias();firma="";tab.innerHTML=`<div class="tm">
@@ -4564,27 +4565,28 @@ function pinta(force){const tab=$("#t-terminal");if(!tab)return;let b=$("#tm-bod
   <input id="tm-q" placeholder="Buscar en el terminal…" value="${esc(T.q)}" autocomplete="off">
   <div class="tm-acc"><button data-tm="exp">⬇️ Todo</button><select id="tm-dia">${ds.map(d=>`<option value="${d}">${d===dk(Date.now())?"Hoy":new Date(d+"T12:00").toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"short"})}</option>`).join("")}</select><button data-tm="expd">⬇️ Ese día</button>${T.limpio?`<button data-tm="todo">↩️ Ver todo</button>`:`<button data-tm="limpia">🧹 Limpiar</button>`}</div>
   <div class="tt" id="tm-av"></div>
-  <div id="tm-body"></div></div><button id="tm-fin" data-tm="abajo" aria-label="Ir a lo último">⬇️</button>`;b=$("#tm-body")}
+  <div id="tm-body"></div></div><button id="tm-fin" data-tm="abajo" aria-label="Ir a lo último">⬆️</button>`;b=$("#tm-body")}
  const st=$("#tm-est"),av=$("#tm-av");if(av)av.textContent=aviso();
  /* no se redibuja mientras arrastras el dedo, ni si no ha cambiado nada: así el scroll no da saltos */
  const L=lista(),f=[L.length,L.length?L[L.length-1].t:0,L.length?L[L.length-1].n:0,T.fil,T.q,T.limpio,T.n].join("|");
  if(st){const s2=T.at?Math.round((Date.now()-T.at)/1000):null;st.textContent=L.length+" líneas"+(T.fil!=="todo"?" en este filtro":"")+" · "+T.ev.size+" guardadas en este móvil"+(s2!=null?" · actualizado hace "+s2+" s":"")}
  if(f===firma)return;if(!force&&Date.now()-T.toque<2500){setTimeout(()=>pinta(),2600);return}
- const seguir=force||T.abajo,y=window.scrollY,h0=finPag();firma=f;const {h}=cuerpo();b.innerHTML=h;
- if(seguir)bajaAlFinal();else if(T.arriba){window.scrollTo(0,y+(finPag()-h0));T.arriba=false}else window.scrollTo(0,y);finBtn()}
-function finBtn(){const x=$("#tm-fin");if(x)x.style.display=on()&&!alFinal()?"block":"none"}
+ const arriba=force||T.abajo,y=window.scrollY,h0=finPag();firma=f;const {h}=cuerpo();b.innerHTML=h;
+ /* lo nuevo entra ARRIBA: si estás leyendo más abajo, se compensa para que no se te mueva lo que lees */
+ if(force)subeArriba();else if(!arriba&&!T.arriba)window.scrollTo(0,y+(finPag()-h0));T.arriba=false;finBtn()}
+function finBtn(){const x=$("#tm-fin");if(x)x.style.display=on()&&!alPrincipio()?"block":"none"}
 function txt(L,tit){return"BOT TRADING · TERMINAL · "+tit+"\nExportado el "+new Date().toLocaleString("es-ES")+" · "+L.length+" líneas\n\n"+L.map(e=>dk(e.t)+" "+hh(e.t)+" ["+(SRC[e.src]||["",e.src])[1]+"]"+(e.met?" [método]":"")+" "+e.txt+(e.n>1?" ×"+e.n:"")).join("\n")+"\n"}
 function baja(nombre,s){try{const b=new Blob([s],{type:"text/plain;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=nombre;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}catch(e){alert("No se pudo exportar: "+e.message)}}
 document.addEventListener("click",e=>{const f=e.target.closest&&e.target.closest("[data-tmf]");if(f){T.fil=f.dataset.tmf;LS.set("termFil",T.fil);T.n=1500;T.abajo=true;document.querySelectorAll("[data-tmf]").forEach(b=>b.classList.toggle("on",b===f));pinta();return}
  const b=e.target.closest&&e.target.closest("[data-tm]");if(!b)return;const k=b.dataset.tm,todo=()=>[...T.ev.values()].sort((a,b)=>a.t-b.t);
- if(k==="mas"){T.n+=1500;T.abajo=false;T.arriba=true;T.toque=0;pinta()}
+ if(k==="mas"){T.n+=1500;T.arriba=true;T.toque=0;pinta()}
  else if(k==="exp")baja("terminal-completo-"+dk(Date.now())+".txt",txt(todo(),"histórico completo"));
  else if(k==="expd"){const d=($("#tm-dia")||{}).value;if(d)baja("terminal-"+d+".txt",txt(todo().filter(x=>dk(x.t)===d),"día "+d))}
  else if(k==="limpia"){T.limpio=Date.now();LS.set("termLimpio",T.limpio);pinta(true)}
  else if(k==="todo"){T.limpio=0;LS.set("termLimpio",0);T.abajo=true;pinta(true)}
- else if(k==="abajo"){T.abajo=true;bajaAlFinal();finBtn()}});
+ else if(k==="abajo"){T.abajo=true;subeArriba();finBtn()}});
 document.addEventListener("input",e=>{if(e.target&&e.target.id==="tm-q"){T.q=e.target.value;T.abajo=true;T.toque=0;pinta()}});
-addEventListener("scroll",()=>{if(!on())return;T.abajo=alFinal();finBtn()},{passive:true});
+addEventListener("scroll",()=>{if(!on())return;T.abajo=alPrincipio();finBtn()},{passive:true});
 ["touchstart","touchmove","wheel"].forEach(ev=>addEventListener(ev,()=>{T.toque=Date.now()},{passive:true}));
 /* ---------- pestaña y botón del menú ---------- */
 function monta(){if($("#t-terminal"))return;const sec=document.createElement("section");sec.className="tab";sec.id="t-terminal";const ay=$("#t-ayuda");(ay&&ay.parentNode||document.body).insertBefore(sec,ay||null);
