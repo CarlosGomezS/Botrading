@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 334 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#334</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 335 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#335</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2855,7 +2855,7 @@ function bvPanel(f){const ex=bvModo()==="okx"?"okx":"bitvavo",N=BVN[ex],CU=bvCue
  // 3) comprado
  const comp=act.length?`<div class="tw"><table><tr><th>Cripto</th><th>Pagaste</th><th>Vale ahora</th><th>Resultado</th></tr>${act.map(a=>{const r0=a.coste!=null?a.eur-a.coste:null,pc0=a.e0?(a.px/a.e0-1)*100:null;return`<tr><td><b>${esc(a.sym)}</b><br><small class="m">${tipo(a.src)}${a.stop&&a.e0?` · stop ${pct((a.stop/a.e0-1)*100)}`:""}${a.stopEst==="ok"?" · 🛡️":""}</small></td><td class="n">${a.coste!=null?eu(a.coste):"—"}</td><td class="n" data-cta-c="${esc(a.sym)}-EUR" data-q="${a.q}" data-v="${a.eur}" data-e="${a.e0||""}">${eu(a.eur)}</td><td class="n ${r0==null?"":cl(r0)}"${a.coste!=null?` data-cta-r="${a.coste}"`:""}>${r0==null?"—":res(r0)}<br><small>${pc0==null?"":pct(pc0)}</small></td></tr>`}).join("")}</table></div>`:`<div class="mt-dim">Ahora no tiene ninguna cripto comprada: todo está en euros, esperando la siguiente oportunidad.</div>`;
  // 4) ventas
- const vtas=ventas.length?`<div class="tw"><table><tr><th>Cuándo</th><th>Cripto</th><th>Pagó → Recibió</th><th>Resultado</th></tr>${ventas.slice(0,60).map(c=>`<tr><td><small>${fh(c.t1)}</small></td><td><b>${esc(c.sym)}</b></td><td class="n"><small>${eu(c.cost)} → ${eu(c.got)}</small></td><td class="n ${cl(c.pnl)}"><b>${res(c.pnl)}</b><br><small>${pct(c.pc)}</small></td></tr>`).join("")}</table></div>`:`<div class="mt-dim">Todavía no ha vendido nada en ${N}.</div>`;
+ const vtas=ventas.length?`<div class="tw"><table><tr><th>Cuándo</th><th>Cripto</th><th>Pagó → Recibió</th><th>Resultado</th></tr>${ventas.slice(0,5).map(c=>`<tr><td><small>${fh(c.t1)}</small></td><td><b>${esc(c.sym)}</b></td><td class="n"><small>${eu(c.cost)} → ${eu(c.got)}</small></td><td class="n ${cl(c.pnl)}"><b>${res(c.pnl)}</b><br><small>${pct(c.pc)}</small></td></tr>`).join("")}</table></div>${ventas.length>5?`<details class="rd"><summary><span>Ver las ${Math.min(ventas.length,60)} ventas</span></summary><div class="tw"><table>${ventas.slice(5,60).map(c=>`<tr><td><small>${fh(c.t1)}</small></td><td><b>${esc(c.sym)}</b></td><td class="n"><small>${eu(c.cost)} → ${eu(c.got)}</small></td><td class="n ${cl(c.pnl)}"><b>${res(c.pnl)}</b><br><small>${pct(c.pc)}</small></td></tr>`).join("")}</table></div></details>`:""}`:`<div class="mt-dim">Todavía no ha vendido nada en ${N}.</div>`;
  // 5) qué hace ahora (sin métodos)
  const ahora=SC.solo==="tortugas"?`<div style="display:flex;gap:8px;margin:4px 0"><span>🐢</span><span>Solo Tortugas: <b>${esc(SC.tortugas||"—")}</b>${SC.riesgoNombre?` · riesgo <b>${esc(SC.riesgoNombre)}</b>`:""}${SC.tortReglas?`<br><small class="mt-dim">🧠 regla aprendida: ${esc(SC.tortReglas)}${SC.tortAprende&&SC.tortAprende.motivo?" · "+esc(SC.tortAprende.motivo):""}${SC.tortAprende&&SC.tortAprende.total?`<br>🧬 ${SC.tortAprende.hoy} reglas nuevas probadas hoy · ${SC.tortAprende.total} en total${SC.tortAprende.desde?" · última mejora: "+new Date(SC.tortAprende.desde).toLocaleDateString("es-ES",{day:"numeric",month:"short"}):""}`:""}</small>`:""}</span></div>`+(SC.bloqueo?`<div class="mt-dim" style="margin-top:4px">⏸️ ${esc(SC.bloqueo)}</div>`:"")+`<div class="mt-dim" style="margin-top:4px"><small>Lo que ya tenía comprado de antes se sigue vigilando y se vende con sus reglas.</small></div>`:[["🐢","Tortugas (compra las criptos que rompen su máximo de 20 días)",SC.tortugas],["🐋","Copia a los mejores traders de Hyperliquid",SC.ballenas],["🧺","Cartera base BTC/ETH (35 % mientras suban)",SC.base]].filter(x=>x[2]).map(x=>`<div style="display:flex;gap:8px;margin:4px 0"><span>${x[0]}</span><span>${x[1]}: <b>${esc(x[2])}</b></span></div>`).join("")+(SC.bloqueo?`<div class="mt-dim" style="margin-top:4px">⏸️ ${esc(SC.bloqueo)}</div>`:"");
  // 6) ajustes
@@ -2867,8 +2867,8 @@ function bvPanel(f){const ex=bvModo()==="okx"?"okx":"bitvavo",N=BVN[ex],CU=bvCue
   <div class="mt-chs" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:8px">${[50,100,150,200].map(v=>`<button class="mt-ch${k.capital===v?" on":""}" data-bvcap="${v}" data-cx="${ex}" style="text-align:center"><b>${v} €</b></button>`).join("")}<button class="mt-ch" data-bvcap="otro" data-cx="${ex}" style="text-align:center"><b>Otra</b></button><button class="mt-ch${k.capital>=100000?" on":""}" data-bvcap="100000" data-cx="${ex}" style="text-align:center"><b>Todo</b></button></div>
   <button data-bvreal="conservar" data-cx="${ex}" style="width:100%;margin-bottom:6px">🔒 Criptos tuyas que el bot no debe tocar${((k.conservar||[]).length?": "+k.conservar.map(esc).join(", "):"")}</button>
   <button data-bvreal="convertir" data-cx="${ex}" style="width:100%;margin-bottom:6px">💱 Pasar a euros una cripto que ya tenías</button></div></details>`;
- return`${card(`${ex==="okx"?"🟦 OKX":"🇪🇺 Bitvavo"} · tu dinero real`,resumen)}${card("📈 Evolución de tu cuenta",graf)}<div data-cta data-eur="${Cn.eur}">${card(`📦 Lo que tiene comprado <small class="m" style="font-weight:400">· precios en directo</small>`,comp)}</div>${card(`🧾 Ventas (${ventas.length})`,vtas)}${ahora?card("⚙️ Qué está haciendo ahora",ahora):""}
-  <button data-bvexp="${ex}" data-nobusy style="width:100%;margin:4px 0 8px">📥 Descargar el histórico completo de ${N}</button>${ajustes}`}
+ return`${card(`${ex==="okx"?"🟦 OKX":"🇪🇺 Bitvavo"} · tu dinero real`,resumen)}${card("📈 Evolución de tu cuenta",graf)}<div data-cta data-eur="${Cn.eur}">${card(`📦 Lo que tiene comprado <small class="m" style="font-weight:400">· precios en directo</small>`,comp)}</div>${card(`🧾 Últimas ventas`,vtas)}<details class="rd" id="bv-mas"><summary><span>⋯ Más: qué hace ahora, descargas y ajustes</span></summary><div class="rb">${ahora?card("⚙️ Qué está haciendo ahora",ahora):""}
+  <button data-bvexp="${ex}" data-nobusy style="width:100%;margin:4px 0 8px">📥 Descargar el histórico completo de ${N}</button>${ajustes}${window.__bvTerm||""}</div></details>`}
 /* v307 · solo dos botones: Bitvavo y OKX, con lo que hay de verdad en cada cuenta (los métodos ficticios siguen aprendiendo por detrás, sin mostrarse) */
 function hlpHtml(){const Z=(MM.S||{}).hlp;if(!Z||!Z.t0)return"";const pc=(Z.eq/1000-1)*100,d=Math.max(1/24,(Z.t-Z.t0)/864e5),st=Z.st||{},ul=(Z.decisiones||[])[0],c=Z.curva||[],w=300,h=40;let path="";if(c.length>1){const mn=Math.min(...c.map(x=>x[1])),mx=Math.max(...c.map(x=>x[1])),sx=i=>(i/(c.length-1))*w,sy=v=>h-((v-mn)/((mx-mn)||1))*(h-4)-2;path=c.map((x,i)=>(i?"L":"M")+sx(i).toFixed(1)+","+sy(x[1]).toFixed(1)).join("")}
  return`<details class="rd" style="margin-bottom:8px"><summary><span>🧪🐋 Hyperliquid · prueba con dinero ficticio · <b class="${pc>=0?"up":"dn"}">${pc>=0?"+":"−"}${Math.abs(pc).toFixed(2).replace(".",",")} %</b> <small class="m">en ${d<1?Math.round(d*24)+" h":d.toFixed(1).replace(".",",")+" días"} · ${st.n||0} operaciones</small></span></summary><div style="padding:6px 0">
@@ -2918,7 +2918,7 @@ function bvDraw(el){const md=bvModo(),sb=bvSub(md),X0=bvCuenta(md,sb);if(md!=="i
  if(!X0){el.innerHTML=`<div class="mt">${memeTabs(MEMF(MM.S))}${bvModos(MEMF(MM.S))}<div class="mt-p"><div class="mt-dim">Este submodo arranca en la próxima vuelta (una por minuto).</div></div></div>`;return}
  const r2=x=>Math.round(x*100)/100,S=sb==="eq"?MM.S:Object.assign({},MM.S,X0,{__base:MM.S,ia:MM.S.ia,hl:MM.S.hl,regimen:MM.S.regimen,top:MM.S.top,diag:MM.S.diag}),f=MEMF(S),Eu=x=>E0((+x||0)*f),W2=x=>E2r((+x||0)*f),st=S.st||{},eq=+S.lastEq||S.start,pl=eq-S.start,B=S.lab||{},pos=Object.entries(S.pos||{}),cl=(S.closed||[]),hm=t=>new Date(t).toLocaleString("es-ES",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}),pc=x=>(Math.abs(x)<0.005?"":x>=0?"+":"−")+Math.abs(x).toFixed(2).replace(".",",")+" %",ago=S.last?Math.round((Date.now()-Date.parse(S.last))/60000):null;
  const best=(B.pop||[]).slice().sort((a,b)=>b.s-a.s).slice(0,5);
- el.innerHTML=`<div class="mt">${memeTabs(f)}${bvExchanges(f)}${hlpHtml()}${bvPanel(f)}${bvTerminalHtml()}<div hidden>
+ el.innerHTML=`<div class="mt">${memeTabs(f)}${bvExchanges(f)}${(window.__bvTerm=hlpHtml()+bvTerminalHtml(),"")}${bvPanel(f)}<div hidden>
  <div class="mt-p mt-head"><div class="mt-orb${ago!=null&&ago<5?" live":""}"><i></i><i></i></div><div class="mt-ttl"><div><b class="mt-t1">Bitvavo</b> <b class="mt-t2">criptos en euros</b></div><div class="mt-dim">exchange europeo regulado (MiCA) · comisión 0,25 % por orden · ${S.diag?S.diag.liquidos+" mercados líquidos":""}${ago!=null?" · última vuelta hace "+ago+" min":""}</div></div>
   <div class="mt-bal"><div class="mt-big ${pl>=0?"up":"dn"}" id="bv-eq" data-srv="${S.lastEq}" data-cash="${S.cash}" data-start="${S.start}">${Eu(eq)}</div><div class="mt-dim" id="bv-bdg"></div><div class="mt-dim">saldo · empezó con ${Eu(S.start)} · dinero ficticio</div><div class="mt-w">${st.trades||0} operaciones · ${st.wins||0} G · ${st.losses||0} P · <span id="bv-pc">${pc(pl/S.start*100)}</span> · comisiones ${Eu(st.fees)}</div></div></div>
  <div class="mt-p"><div class="mt-ph"><span>REGLAS EN USO</span><span class="mt-bdg" style="--c:${S.prueba?"#9a6400":"#147a3e"}">${S.prueba?"🛑 SIN VENTAJA: NO COMPRA":"🏆 GANADORA"}</span></div><div class="mt-dim">${S.prueba?"<b>Regla estricta:</b> ninguna regla ha demostrado todavía que gana (con al menos 25 operaciones en los días antiguos y 25 en los recientes, con costes, y sin fallar en vivo), así que <b>no compra nada</b>: solo observa y sigue aprendiendo. En cuanto una lo demuestre, empieza sola.":"Usa reglas que ganan, con costes, tanto en los días antiguos como en los recientes."} ${S.regimen!=null?`🌡️ Mercado ahora: <b class="mt-w">${S.regimen?"a favor (el bitcoin sube)":"en contra (el bitcoin baja)"}</b>. `:""}Reglas: <b class="mt-w">${esc(S.genomeId||"base")}</b>${(S.genome||{}).regimen?" (solo compra con el mercado a favor)":""} · estilo <b class="mt-w">${esc(BVE[(S.genome||{}).estilo]||(S.genome||{}).estilo||"tendencia")}</b> · stop −${r2((S.genome||{}).stop*100)} % · vende la mitad a +${r2((S.genome||{}).tp*100)} % · como mucho ${r2((S.genome||{}).maxHoldH)} h.</div></div>
@@ -4044,23 +4044,25 @@ function draw0(){const root=$r("#rl-root");if(!root)return;const R=RL.R;let h=""
  if(!R){h+=`<div class="p"><h2>💶 Cartera real con Trading 212</h2><div class="m">${RL.loading?"Cargando…":RL.err&&RL.err!=="nada"?esc(RL.err):"Todavía no hay datos de tu cuenta real. Sigue los pasos de abajo: pon tus claves de Trading 212 en los ajustes y pulsa «Probar conexión»."}</div></div>`;
   h=lockP+h+warns()+'<div class="p"><h2>Acciones</h2>'+actHtml()+stP+"</div>"+fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),false)+fold("met","🧭 Elige el método",metHtml(),false)+fold("help","❓ Cómo ponerla en marcha",helpHtml(),false);root.innerHTML=h;bind();return}
  // v61: lo importante arriba (cuánto vale, qué va a hacer, botones); el detalle, plegado debajo
+ // v335 · 🧹 SENCILLA: a la vista solo el saldo, la gráfica y lo que tiene; todo lo demás dentro de «⋯ Más» (misma funcionalidad)
  h+=heroHtml()+warns();
  h+='<div class="p"><div class="chtop"><h2>¿Va ganando?</h2></div><div id="rl-ch">'+chartHtml()+"</div></div>";
- h+=metResHtml();h+=betterHtml();
- h+='<div class="p"><h2>Qué va a hacer</h2><div style="display:grid;gap:10px">'+planHtml()+"</div></div>";
- h+='<div class="p rl-act">'+actHtml()+stP+'</div>';
- h+=fold("pos","💼 Lo que tiene el bot y lo que es tuyo",posHtml(),true);
- h+='<div class="rl-sep">Detalle</div>';
- h+=fold("ord","🧾 Historial de órdenes ("+((R.orders||[]).length)+")",ordHtml(),false);
- h+=fold("rep","📄 Informes",repHtml(),false);
- h+=fold("mov","📒 Movimientos del bot (contabilidad)",movHtml(),false);
- h+='<div class="rl-sep">Configuración</div>';
- h+=fold("met","🧭 Elige el método",metHtml(),false);
- h+=fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),false);
- h+=fold("map","🔎 ¿Se puede comprar todo?",mapHtml(),false);
- h+=fold("sec","🛡️ Seguridad",secHtml(),false);
- h+=lockP;
- h+=fold("help","❓ Cómo funciona",helpHtml(),false);
+ const pend=!!(R&&R.plan&&R.plan.estado==="pendiente");
+ if(pend)h+='<div class="p"><h2>Qué va a hacer</h2><div style="display:grid;gap:10px">'+planHtml()+'</div></div><div class="p rl-act">'+actHtml()+stP+'</div>';
+ h+=fold("pos","💼 Lo que tiene",posHtml(),true);
+ let mas="";
+ if(!pend)mas+='<div class="p"><h2>Qué va a hacer</h2><div style="display:grid;gap:10px">'+planHtml()+'</div></div><div class="p rl-act">'+actHtml()+stP+'</div>';
+ mas+=metResHtml()+betterHtml();
+ mas+=fold("ord","🧾 Órdenes ("+((R.orders||[]).length)+")",ordHtml(),false);
+ mas+=fold("rep","📄 Informes y descargas",repHtml(),false);
+ mas+=fold("mov","📒 Movimientos del bot",movHtml(),false);
+ mas+=fold("met","🧭 Elige el método",metHtml(),false);
+ mas+=fold("cfg","⚙️ Ajustes",cfgHtml(),false);
+ mas+=fold("map","🔎 ¿Se puede comprar todo?",mapHtml(),false);
+ mas+=fold("sec","🛡️ Seguridad",secHtml(),false);
+ mas+=lockP;
+ mas+=fold("help","❓ Cómo funciona",helpHtml(),false);
+ h+=fold("mas","⋯ Más: órdenes, informes, ajustes",mas,false);
  root.classList.add("rl-full");root.innerHTML=h;bind();setTimeout(()=>{const ch=$r("#rl-ch");if(ch&&RL.pts&&Math.abs((ch.clientWidth||0)-RL.cx.W)>40&&ch.clientWidth>=300){ch.innerHTML=chartHtml();chartBind()}},0)}
 function csvEsc(v){v=v==null?"":String(v);return/[",;\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
 function bind(){const R=RL.R,on=(id,f)=>{const e=$r(id);if(e)e.onclick=f};
@@ -4281,11 +4283,16 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
   fic.addEventListener("toggle",()=>{if(fic.open)try{chartDraw()}catch(e){}});
   // 2) Detalles técnicos del laboratorio, plegados
   const det=fold("simpl-det","📊 Detalles del laboratorio",false), db=det.querySelector(".fb");
-  [...inf.children].filter(c=>c!==fic&&c!==cab&&/Comparativa|Informe de rendimiento|Neto frente|Alertas automáticas|Informes y descargas/.test(h2(c))).forEach(c=>{c.classList.remove("adv","xadv");db.appendChild(c)}); inf.appendChild(det);
+  [...inf.children].filter(c=>c!==fic&&c!==cab&&/Comparativa|Informe de rendimiento|Neto frente|Alertas automáticas|Informes y descargas/.test(h2(c))).forEach(c=>{c.classList.remove("adv","xadv");db.appendChild(c)});
+  // v335 · a la vista solo los resultados (podio); explicación, botones de prueba, ficticia y detalles en «⋯ Más»
+  const lm=fold("simpl-labmas","⋯ Más: cómo funciona, prueba a mano, cartera ficticia y detalles",false), lb=lm.querySelector(".fb");
+  if(cab){[[...cab.querySelectorAll(".m")].find(x=>x.id!=="btst"&&!x.closest("#bt2")&&/Cada noche prueba/.test(x.textContent)),cab.querySelector(".btbar"),cab.querySelector("#btcf"),cab.querySelector("details.btinfo")].forEach(x=>{if(x)lb.appendChild(x)})}
+  lb.appendChild(fic); lb.appendChild(det); inf.appendChild(lm);
   // 3) Ajustes: lo de todos los días arriba; lo técnico en «Avanzado»; sin correo
   const av=fold("simpl-av","🔧 Avanzado (técnico)",false), ab=av.querySelector(".fb");
   [...aj.children].forEach(c=>{const t=h2(c); if(/Envío automático por correo/.test(t)){c.remove();return} if(/Conexión de datos|Auditoría|Parámetros del bot|Diagnóstico|Dinero con el que se muestra/.test(t)){c.classList.remove("adv");ab.appendChild(c)}});
   aj.appendChild(av);
+  [...aj.children].forEach(c=>{if(/Telegram en este dispositivo/.test(h2(c))){const tf=fold("simpl-tg","📤 Telegram en este dispositivo",false);[...c.children].forEach((x,i)=>{if(i)tf.querySelector(".fb").appendChild(x)});c.replaceWith(tf)}});
   // 4) Ayuda dentro de Ajustes
   const ayu=fold("simpl-ay","❓ Ayuda",false), yb=ayu.querySelector(".fb"); [...ay.children].forEach(c=>yb.appendChild(c)); aj.appendChild(ayu);
   // 5) Menú de abajo: sin «Ficticia» ni «Ayuda»
@@ -4304,8 +4311,21 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
    ap.addEventListener("click",e=>{const b=e.target.closest("[data-tema]");if(!b)return;const v=b.dataset.tema;try{localStorage.setItem("tema2",v)}catch(x){}const r=document.documentElement;if(v==="oscuro")r.setAttribute("data-theme","dark");else if(v==="claro")r.setAttribute("data-theme","light");else r.removeAttribute("data-theme");const cs=v==="oscuro"?"only dark":v==="claro"?"only light":"light dark";r.style.colorScheme=cs;const m=document.querySelector('meta[name="color-scheme"]');if(m)m.setAttribute("content",cs);ap.querySelectorAll("[data-tema]").forEach(x=>x.classList.toggle("on",x===b));try{chartDraw()}catch(x){}});}
   if(aj.firstElementChild!==ap)aj.insertBefore(ap,aj.firstChild);ap.style.setProperty("display","grid","important");ap.hidden=false;}
  tema();[500,1500,3000,6000,10000].forEach(t=>setTimeout(tema,t));
+ // v335 · los desplegables que abras se quedan abiertos aunque la pantalla se redibuje con datos nuevos
+ const kOf=d=>{const sm=d.querySelector(":scope > summary");return d.id||(sm?sm.textContent.replace(/\(\d+\)|\d+[,.]?\d*\s*(€|%)?/g,"").trim().slice(0,60):"")};
+ const ABI=new Set();let yo=false;
+ document.addEventListener("toggle",e=>{const d=e.target;if(yo||!(d instanceof HTMLDetailsElement))return;const k=kOf(d);if(!k)return;if(d.open)ABI.add(k);else ABI.delete(k)},true);
+ new MutationObserver(ms=>{yo=true;for(const m of ms)for(const n of m.addedNodes){if(n.nodeType!==1)continue;const ds=n.matches&&n.matches("details")?[n]:[];n.querySelectorAll&&ds.push(...n.querySelectorAll("details"));for(const d of ds){const k=kOf(d);if(!d.open&&ABI.has(k))d.open=true;else if(d.open&&!ABI.has(k)&&/observación|Puestos 6/i.test(k))d.open=false}}setTimeout(()=>{yo=false},0)}).observe(document.body,{childList:true,subtree:true});
  // bloques que otras partes de la app añaden más tarde a Ajustes: también a «Avanzado»
  const tarde=()=>{const aj=$("#t-ajustes"),ab=$("#simpl-av .fb");if(!aj||!ab)return;[...aj.children].forEach(c=>{if(c.id&&c.id.startsWith("simpl-"))return;if(/Dinero con el que se muestra|Conexión de datos|Auditoría|Parámetros del bot|Diagnóstico/.test((c.textContent||"").slice(0,80)))ab.appendChild(c)});const ay=$("#simpl-ay"),av=$("#simpl-av");if(av)aj.appendChild(av);if(ay)aj.appendChild(ay)};
+ // laboratorio: lo que se dibuja más tarde también va a su sitio (explicación y botones → «⋯ Más»; detalles → «📊 Detalles»)
+ const tardeLab=()=>{const inf=$("#t-informe"),lb=$("#simpl-labmas .fb"),db=$("#simpl-det .fb");if(!inf||!lb||!db)return;
+  [...inf.children].forEach(c=>{if(c.id&&c.id.startsWith("simpl-"))return;const t=(c.textContent||"").trim().slice(0,90);
+   if(/^(\S+\s)?(Comparativa|Informe de rendimiento|Neto frente|Alertas automáticas|Informes y descargas)/.test(t.replace(/^[^A-Za-zÁ-ú]+/,""))){c.classList.remove("adv","xadv");db.appendChild(c)}});
+  const cab=[...inf.children].find(c=>/Laboratorio/.test(((c.querySelector("summary,h2")||{}).textContent||"")));
+  if(cab){[[...cab.querySelectorAll(".m")].find(x=>x.id!=="btst"&&!x.closest("#bt2")&&/Cada noche prueba/.test(x.textContent)),cab.querySelector(".btbar"),cab.querySelector("#btcf"),cab.querySelector("details.btinfo")].forEach(x=>{if(x&&!lb.contains(x))lb.insertBefore(x,lb.firstChild)})}
+  const lm=$("#simpl-labmas");if(lm&&inf.lastElementChild!==lm)inf.appendChild(lm)};
+ [1600,2500,4000,8000,15000].forEach(t=>setTimeout(tardeLab,t));
  [2000,4000,8000].forEach(t=>setTimeout(tarde,t));
 })();
 </script>
