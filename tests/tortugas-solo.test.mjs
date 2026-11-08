@@ -112,3 +112,15 @@ test("Real v323: 💰 recoger ganancias vende la mitad al llegar al objetivo y s
   ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen }, tk(ex.px), T(2), deps));
   const p = RS.pos["A-EUR"]; assert.ok(p && p.tpHecho, "sigue abierta y marcada"); assert.ok(Math.abs(p.q / q0 - 0.5) < 0.05, "vendió la mitad: " + p.q / q0);
 });
+
+test("Real v324: 🐢 si una señal llega sin euros libres, la compra cuando se libera dinero (no la da por vista)", async () => {
+  delete process.env.SOLO_TORT;
+  const ex = exchange({ "A-EUR": 1, "B-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  const sen = { t: Date.now(), P: { maxPos: 4, riesgo: "medio" }, sen: { "A-EUR": { t: 7, c: 1, N: 0.03, hi20: 0.98, lo10: 0.9, entra: true, sale: false } } };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 100 }, tk(ex.px), T(0), deps);
+  const cash0 = RS.cash; RS.cash = 1;
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen }, tk(ex.px), T(1), deps));
+  assert.ok(!RS.pos["A-EUR"], "sin euros no compra"); RS.cash = cash0;
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen }, tk(ex.px), T(2), deps));
+  assert.ok(RS.pos["A-EUR"], "con euros libres, la compra");
+});

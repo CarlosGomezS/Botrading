@@ -340,10 +340,10 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         if (nT >= TP.maxPos) break; const tk = tick[m], clave = "T|" + m + "|" + x.t; if (RS.pos[m] || RS.vistos[clave] || !tk || !(tk.ask > 0) || tk.sp > HUECO_MAX || (ctl.conservar || []).includes(m.split("-")[0]) || !(x.N > 0)) continue;
         if (TP.filtro && !(btc && (btc.sobreF ?? btc.sobre50))) continue;   // v317 · media del filtro aprendida
         if (TP.atrMax > 0 && x.N / x.c > TP.atrMax) continue;   // v317 · demasiado nerviosa para la regla aprendida   // v313 · la combinación aprendida solo compra si BTC va al alza
-        RS.vistos[clave] = now.toISOString(); if (tk.ask > x.c * 1.03) { L(RS, now, `⏭️ 🐢 ${m.split("-")[0]}: rompió su máximo, pero ya ha subido un ${r2((tk.ask / x.c - 1) * 100)} % desde el cierre; no la persigue`); continue; }
+        if (tk.ask > x.c * 1.03) { RS.vistos[clave] = now.toISOString(); L(RS, now, `⏭️ 🐢 ${m.split("-")[0]}: rompió su máximo, pero ya ha subido un ${r2((tk.ask / x.c - 1) * 100)} % desde el cierre; no la persigue`); continue; }
         const stopD = Math.min(TP.kN * x.N, tk.ask * TP.stopMax), hueco = soloT() ? RS.cash : Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())), mk = await mercado(m);
         const eur = Math.min(tortTam(V, stopD / tk.ask, TP), hueco, RS.cash, Math.max(0, (await libre()) - 0.5)); if (eur < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ 🐢 ${m.split("-")[0]}: rompe su máximo, pero no quedan euros libres para comprarla (lo demás está invertido)`); continue; }
-        try { const r = await X.comprar(m, eur); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nT++;
+        try { RS.vistos[clave] = now.toISOString(); const r = await X.comprar(m, eur); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nT++;   /* v324 · «vista» solo al comprar o si ya se escapó: si faltaba dinero, lo vuelve a intentar cuando lo haya */
           RS.pos[m] = { src: "tortuga", sym: m.split("-")[0], q: r.q, q0: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), last: tk.bid, stop: r.px - stopD, N: x.N };
           L(RS, now, `🐢 compra ${m.split("-")[0]} por ${r2(r.coste)} €: cerró por encima de su máximo de ${TP.ent} días · stop ${r2((-stopD / r.px) * 100)} % · sale con su mínimo de ${TP.sale} días`); msgs.push(`💶 🐢 ${EX}: compra ${m.split("-")[0]} (${r2(r.coste)} €) por ruptura de su máximo de ${TP.ent} días.`); await protege(m);
         } catch (e) { L(RS, now, `⚠️ 🐢 no pude comprar ${m.split("-")[0]}: ${String(e.message).slice(0, 60)}`); } } }
