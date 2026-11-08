@@ -453,6 +453,7 @@ export function cuentas(ctl) {
     parado: !!x.parado, motivo: x.motivo || null, avisoSinSaldo: x.avisoSinSaldo || 0, auto: x.copia === "auto", adoptarAt: x.adoptarAt || null, espejo: !!x.espejo, convertir: x.convertir || null, conservar: Array.isArray(x.conservar) ? x.conservar : [], riesgo: ["bajo", "medio", "alto", "auto"].includes(x.riesgo) ? x.riesgo : "auto", liquidar: x.liquidar || null }]; }));   // v318 · 🎚️ riesgo (de momento, máximo)
 }
 const NOMBRE_EX = { bitvavo: "Bitvavo", okx: "OKX" };
+export const AVISO_APRENDE_N = 25, AVISO_APRENDE_DESDE = "2026-11-09";
 export async function paso(S, tick, now, io) { const tick0 = tick;
   const pw = env("REAL_VIEW_PASS");
   try { const c = await probar(S, tick, now, io); console.log(`Conexión: Bitvavo ${c.bitvavo.estado} · OKX ${c.okx.estado}`); } catch (e) {}
@@ -524,6 +525,8 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
       k[ex] = { ...(k[ex] || {}), avisoSinSaldo: out.ctl.avisoSinSaldo || 0, ...(out.ctl.parado && !c2.parado ? { parado: true, motivo: out.ctl.motivo } : {}) }; ctlMod = true;
     }
     if (out.sinEmpezar) { R0.estado = "sin saldo"; for (const m of msgs) await io.tg(m); console.log("Real (" + ex + "): sin saldo suficiente"); continue; }
+    // v345 · 🧠 aviso (una sola vez) cuando ya hay bastantes operaciones reales de Tortugas para aprender también de ellas
+    { const nT = (out.RS.closed || []).filter((c) => c && c.t1 >= AVISO_APRENDE_DESDE).length; if (nT >= AVISO_APRENDE_N && !out.RS.avisoAprende) { out.RS.avisoAprende = now.toISOString(); msgs.unshift(`💶 ${N} · 🧠 Ya hay ${nT} operaciones reales cerradas con Tortugas. Es buen momento para que el bot aprenda también de sus compras reales (comisiones y precios de verdad frente a la simulación): pídeselo a Claude.`); } }
     out.RS.ex = ex; out.RS.savedAt = Date.now(); const enc = await encrypt(JSON.stringify(out.RS), pw);
     io.publicar("real.json", { enc: 1, v: 1, ...enc, meta: { estado: out.RS.estado || "activo", copia: out.RS.copia, ex, t: now.toISOString() } }, RAMAS[ex]);
     R0.estado = cfg.on ? out.RS.estado : "apagada"; R0.copia = out.RS.copia;
