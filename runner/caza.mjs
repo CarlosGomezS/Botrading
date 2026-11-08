@@ -31,10 +31,10 @@ export function opera(d, entra, X) { const out = [], n = d.C.length; let i = 210
   return out; }
 
 // ── cartera: todas las criptos a la vez, como mucho 4 operaciones abiertas, cada una con 1/4 del dinero ───────────────────────
-export function cartera(trades, fee, desde, hasta) { const ts = trades.filter((x) => x[0] >= desde && x[0] < hasta).sort((a, b) => a[0] - b[0]);
+export function cartera(trades, fee, desde, hasta, slots = SLOTS) { const ts = trades.filter((x) => x[0] >= desde && x[0] < hasta).sort((a, b) => a[0] - b[0]);
   let eq = 1, pico = 1, dd = 0, n = 0, gan = 0, gb = 0, pb = 0; const abiertas = [];
   for (const [t0, t1, g] of ts) { for (let k = abiertas.length - 1; k >= 0; k--) if (abiertas[k].t1 <= t0) { eq += abiertas[k].pnl; abiertas.splice(k, 1); pico = Math.max(pico, eq); dd = Math.max(dd, 1 - eq / pico); }
-    if (abiertas.length >= SLOTS) continue; const net = (1 + g) * (1 - fee) ** 2 * (1 - SLIP) ** 2 - 1, tam = eq / SLOTS, pnl = tam * net; abiertas.push({ t1, pnl }); n++; if (net > 0) { gan++; gb += pnl; } else pb -= pnl; }
+    if (abiertas.length >= slots) continue; const net = (1 + g) * (1 - fee) ** 2 * (1 - SLIP) ** 2 - 1, tam = eq / slots, pnl = tam * net; abiertas.push({ t1, pnl }); n++; if (net > 0) { gan++; gb += pnl; } else pb -= pnl; }
   for (const a of abiertas) eq += a.pnl; pico = Math.max(pico, eq); dd = Math.max(dd, 1 - eq / pico);
   const dias = Math.max(1, (hasta - desde) / 864e5); return { ret: Math.round((eq - 1) * 10000) / 100, dd: Math.round(dd * 10000) / 100, n, opsDia: Math.round((n / dias) * 10) / 10, aciertos: n ? Math.round((gan / n) * 100) : 0, pf: pb > 0 ? Math.round((gb / pb) * 100) / 100 : gb > 0 ? 99 : 0 }; }
 export const aprueba = (r) => r.opsDia >= 3 && r.ret > 0 && r.pf >= 1.15 && r.dd < 30;

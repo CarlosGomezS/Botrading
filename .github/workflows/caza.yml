@@ -2,6 +2,10 @@ name: Cripto · caza de métodos de muchas operaciones (solo ficticio)
 # v314 · prueba cientos de estrategias con el año de velas de 5 min del examen largo y las comisiones de Bitvavo y OKX. Nunca toca dinero real.
 on:
   workflow_dispatch:
+    inputs:
+      ronda:
+        description: "caza o caza3"
+        default: "caza"
   schedule:
     - cron: "17 5 * * 0"
 permissions:
@@ -26,4 +30,7 @@ jobs:
       - name: Caza
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: timeout 2700 node --max-old-space-size=12000 runner/caza.mjs
+          RONDA: ${{ inputs.ronda }}
+        run: |
+          case "${RONDA:-caza}" in caza|caza3) ;; *) echo "ronda no válida"; exit 1;; esac
+          timeout 2700 node --max-old-space-size=12000 "runner/${RONDA:-caza}.mjs"
