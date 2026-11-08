@@ -17,7 +17,7 @@ if (c.cuenta != null) {
   if (c.convertir != null) { const sym = String(c.convertir).toUpperCase(); if (!/^[A-Z0-9]{2,10}$/.test(sym) || sym === "EUR") throw new Error("cripto no válida"); k.convertir = { sym, at: new Date().toISOString() }; }   // v260 · vender a euros TODO lo de esa cripto   // v256 · 🪞 copiar SIEMPRE todo lo que el método tenga abierto   // v253 · copiar ya lo que el método tiene abierto
   if (c.copia != null) { if (!SUBS.includes(c.copia)) throw new Error("método no válido"); k.copia = c.copia; }
   if (c.liquidar === true) k.liquidar = new Date().toISOString();   // v319 · 🧹 vender lo de los métodos antiguos (una vez)
-  if (c.riesgo != null) { if (!["bajo", "medio", "alto"].includes(c.riesgo)) throw new Error("riesgo no válido"); k.riesgo = c.riesgo; }   // v318 · 🎚️
+  if (c.riesgo != null) { if (!["bajo", "medio", "alto", "auto"].includes(c.riesgo)) throw new Error("riesgo no válido"); k.riesgo = c.riesgo; }   // v318 · 🎚️
   if (c.capital != null) { const v = Math.round(+c.capital); if (!(v >= 10 && v <= 100000)) throw new Error("cantidad no válida"); k.capital = v; }
   if (c.parado === false || c.on === true) { k.parado = false; k.motivo = null; }
   ctl.t = new Date().toISOString(); publicar("ctl.json", ctl, "bitvavo-ctl");

@@ -449,7 +449,7 @@ export function cuentas(ctl) {
   const c = ctl.cuentas && typeof ctl.cuentas === "object" ? ctl.cuentas : null, act = EXS.includes(ctl.ex) ? ctl.ex : "bitvavo";
   return Object.fromEntries(EXS.map((ex) => { const x = (c && c[ex]) || {}; return [ex, {
     on: c ? !!x.on : ex === act, copia: SUBS_OK.includes(x.copia) || x.copia === "auto" ? x.copia : def.copia, capital: x.capital ? Math.max(10, Math.round(+x.capital)) : def.capital,
-    parado: !!x.parado, motivo: x.motivo || null, avisoSinSaldo: x.avisoSinSaldo || 0, auto: x.copia === "auto", adoptarAt: x.adoptarAt || null, espejo: !!x.espejo, convertir: x.convertir || null, conservar: Array.isArray(x.conservar) ? x.conservar : [], riesgo: ["bajo", "medio", "alto"].includes(x.riesgo) ? x.riesgo : "alto", liquidar: x.liquidar || null }]; }));   // v318 · 🎚️ riesgo (de momento, máximo)
+    parado: !!x.parado, motivo: x.motivo || null, avisoSinSaldo: x.avisoSinSaldo || 0, auto: x.copia === "auto", adoptarAt: x.adoptarAt || null, espejo: !!x.espejo, convertir: x.convertir || null, conservar: Array.isArray(x.conservar) ? x.conservar : [], riesgo: ["bajo", "medio", "alto", "auto"].includes(x.riesgo) ? x.riesgo : "auto", liquidar: x.liquidar || null }]; }));   // v318 · 🎚️ riesgo (de momento, máximo)
 }
 const NOMBRE_EX = { bitvavo: "Bitvavo", okx: "OKX" };
 export async function paso(S, tick, now, io) { const tick0 = tick;
@@ -505,7 +505,9 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
     const baseOk = !!(EL && EL.base && EL.base.ok === true && EL.base.v === VEX_REAL && now - Date.parse(EL.t) < 12 * 3600e3), T = S.base && now - S.base.t < 3 * 3600e3 ? S.base : null;
     R0.base = baseOk ? (T ? "activa" : "sin datos de tendencia") : "pendiente del examen";
     // v318 · 🎚️ las reglas y señales del perfil de riesgo elegido para esta cuenta
-    const rk = cfg.riesgo || "alto", TE0 = EL && EL.tortugas && EL.tortugas[ex], TE = TE0 && TE0.perfiles && TE0.perfiles[rk] ? TE0.perfiles[rk] : rk === "medio" ? TE0 : null, tortOk = !!(TE && TE.ok === true && TE.v === VEX_REAL && now - Date.parse(EL.t) < 12 * 3600e3);
+    // v321 · 🤖 «auto»: en cada examen usa el nivel que MÁS gana en 2 años entre los que aprueban
+    const TE0 = EL && EL.tortugas && EL.tortugas[ex], autoRk = (() => { const PF = (TE0 && TE0.perfiles) || {}; const ok = Object.entries(PF).filter(([, x]) => x && x.ok === true).sort((a, b) => b[1].ret - a[1].ret); return ok.length ? ok[0][0] : "medio"; })();
+    const rk = !cfg.riesgo || cfg.riesgo === "auto" ? autoRk : cfg.riesgo; const TE = TE0 && TE0.perfiles && TE0.perfiles[rk] ? TE0.perfiles[rk] : rk === "medio" ? TE0 : null, tortOk = !!(TE && TE.ok === true && TE.v === VEX_REAL && now - Date.parse(EL.t) < 12 * 3600e3);
     const TS0 = S.tort && S.tort[ex] && now - S.tort[ex].t < 30 * 3600e3 ? S.tort[ex] : null, TS = TS0 ? (TS0.perfiles && TS0.perfiles[rk] ? { t: TS0.t, ...TS0.perfiles[rk] } : rk === "medio" ? TS0 : null) : null; R0.riesgo = rk;
     R0.tortugas = tortOk ? (TS ? "activas" : "sin velas diarias todavía") : TE ? `no aprueban (${TE.motivo || "examen"})` : "pendientes del examen";
     // v304 · 🖥️ la terminal cuenta qué sigue cada cuenta y por qué
