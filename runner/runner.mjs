@@ -629,7 +629,7 @@ async function main() {
         }
       } catch (e) { log("revisión:", String(e.message).slice(0, 120)); }
     }
-    await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj, silent: (MODE === "backtest" && !labNews && /completada/.test(String((rep && rep.status) || ""))) });   // v105: la prueba de cada noche solo avisa si entra uno nuevo en el top 3 (o si algo falla)
+    await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj, silent: (MODE === "backtest" && !labNews && (/completada/.test(String((rep && rep.status) || "")) || env("LAB_EXTRA") === "1" || /HTTP 429|cuota diaria/i.test(String((rep && rep.message) || "")))) });   /* v322 · las rondas extra (cada 2 h) y el «cuota agotada» del proveedor ya no avisan: solo si entra uno nuevo en el top 3 */   // v105: la prueba de cada noche solo avisa si entra uno nuevo en el top 3 (o si algo falla)
   } catch (e) {
     // cualquier fallo queda registrado en un informe y avisado
     const msg = `Fallo del proceso automático (${MODE}): ${String(e && e.message || e).slice(0, 400)}`;
