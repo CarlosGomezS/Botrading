@@ -341,7 +341,7 @@ async function avisar0(page, rep, { title, short, subject, silent = false, force
   const AV = loadAjustes().avisos;
   const offM = { ok: false, txt: "no enviado a propósito (apagado en Ajustes de la nube → avisos al móvil)" };
   const offC = { ok: false, txt: "no enviado a propósito (apagado en Ajustes de la nube → avisos por correo)" };
-  const [n, m] = silent ? [off, off] : [(force || AV.movil) ? await sendNtfy(title, body) : offM, (force || AV.correo) ? await sendMail(page, subject, mailTxt) : offC];
+  const [n, m] = silent ? [off, off] : [(force || AV.movil) ? await sendNtfy(title, body) : offM, { ok: false, txt: "correo desactivado (todo llega por Telegram)" }];   /* v325 · sin envío de informes por correo */
   log("Aviso móvil:", n.txt); log("Aviso correo:", m.txt);
   const bloque = silent ? `\n\n## Avisos de esta ejecución\n- Sin aviso al móvil ni correo (ronda sin novedades: solo se avisa si hay un error).\n`
     : `\n\n## Avisos de esta ejecución\n- Móvil (ntfy): ${n.ok ? "✔ " : "✖ "}${n.txt}\n- Correo: ${m.ok ? "✔ " : "✖ "}${m.txt}\n`;

@@ -751,6 +751,7 @@ async function avisa(title, msg, { planId = null, prio = 3, tags = [], fullMd = 
   return `- Telegram: ${t}\n- Respaldo (porque Telegram no llegó): móvil ${n} · correo ${c}`;
 }
 async function mail(subject, text) {
+  return "— correo desactivado (todo llega por Telegram)";   // v325 · sin envío de informes por correo
   const user = env("SMTP_USER"), pass = env("SMTP_PASS");
   if (!user || !pass) return "✖ correo sin configurar (SMTP_USER / SMTP_PASS)";
   try {
