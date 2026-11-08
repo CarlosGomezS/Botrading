@@ -2,7 +2,7 @@
 // cae fuerte 1-2 días (RSI(2) < 10), se compra al día siguiente; se vende cuando cierra por encima de su media de 5 días.
 // Si no rebota: stop −8 % desde la compra o, como mucho, 10 días. Hasta 3 a la vez con el 20 % de la cartera de Trading 212.
 // Costes de Trading 212: sin comisión; 0,15 % de cambio de divisa en cada compra y venta de acciones en dólares; + 0,05 % de spread.
-// Uso: node rebotes.mjs examen   → examina 10 años y lo publica en la rama «examen-largo» (rebotes.json)
+// Uso: node rebotes.mjs examen   → examina 10 años y lo publica en la rama «examen-largo» (rebotes.json, rama propia: NO pisar «examen-largo»)
 export const UNIVERSO = ["GOOGL", "MSFT", "AAPL", "NVDA", "AMZN", "META", "AVGO", "ADBE", "CRM", "AMD", "NFLX", "COST", "ORCL", "ASML.AS", "SAP.DE"];
 export const P = { rsiMax: 10, ma: 200, salida: 5, stop: 0.08, maxD: 10, maxPos: 3 };
 export const coste = (sym) => (/\.(AS|DE|PA|MI|MC)$/.test(sym) ? 0 : 0.0015) + 0.0005;   // por orden
@@ -50,5 +50,5 @@ async function examen() { const series = {}; for (const s of UNIVERSO) { try { s
   Object.assign(P, base); const r = simula(series), v = veredicto(r); r.versiones = todas.map(({ nm, anual, dd, porAno, aciertos, pf, ok }) => ({ nm, anual, dd, porAno, aciertos, pf, ok }));
   console.log(`🎯 Rebote de las grandes (${Object.keys(series).length} acciones, ${r.anos} años): ${v.ok ? "✅" : "❌"} ${v.motivo} · ${r.ret} % en total (${r.anual} % al año) · peor caída ${r.dd} % · ${r.n} operaciones (${r.porAno} al año) · ${r.aciertos} % aciertos · ${r.pf} € ganados por € perdido`);
   console.log("   por años: " + r.porAnoRet.map(([y, x]) => `${y} ${x} %`).join(" · "));
-  const B = await import("./bitvavo.mjs"); B.publicar("rebotes.json", { t: new Date().toISOString(), v: 312, ...r, ...v, universo: Object.keys(series), P }, "examen-largo"); await sleep(3000); }
+  const B = await import("./bitvavo.mjs"); B.publicar("rebotes.json", { t: new Date().toISOString(), v: 312, ...r, ...v, universo: Object.keys(series), P }, "examen-rebotes"); await sleep(3000); }
 if (import.meta.url === `file://${process.argv[1]}` && process.argv[2] === "examen") examen().catch((e) => { console.log("Rebotes: " + e.message); process.exit(1); });
