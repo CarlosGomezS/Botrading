@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 333 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#333</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 334 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#334</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4312,7 +4312,7 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
 <style id="tema-terminal">
 /* v329 · 🎨 ESTILO «BRÓKER MINIMAL» (inspirado en las apps de bróker europeas): blanco y negro puro, cifras grandes,
    listas sin cajas separadas por líneas finas, botones negros en píldora. Claro por defecto; oscuro = negro puro; o como el móvil. */
-:root,:root[data-theme="light"]{--bg:#ffffff;--panel:#ffffff;--ink:#0a0a0a;--muted:#8e8e93;--line:#ececee;--acc:#0a0a0a;--accink:#ffffff;--go:#00a35c;--gobg:#e9f7ef;--stop:#e5372f;--stopbg:#fdecea;--wait:#b7791f;--waitbg:#fbf3e4;--note:#f4f4f6;--note2:#ececee;--gold:#0a0a0a;--g1:#0a0a0a;--g2:#8e8e93;--aur1:transparent;--aur2:transparent;--shadow:none;--glass:#ffffff;--soft:#f4f4f6;color-scheme:light}
+:root,:root[data-theme="light"]{--bg:#ffffff;--panel:#ffffff;--ink:#0a0a0a;--muted:#6e6e73;--line:#ececee;--acc:#0a0a0a;--accink:#ffffff;--go:#008a4e;--gobg:#e9f7ef;--stop:#d92d24;--stopbg:#fdecea;--wait:#b7791f;--waitbg:#fbf3e4;--note:#f4f4f6;--note2:#ececee;--gold:#0a0a0a;--g1:#0a0a0a;--g2:#8e8e93;--aur1:transparent;--aur2:transparent;--shadow:none;--glass:#ffffff;--soft:#f4f4f6;color-scheme:light}
 :root[data-theme="dark"]{--bg:#000000;--panel:#000000;--ink:#ffffff;--muted:#8e8e93;--line:#1f1f22;--acc:#ffffff;--accink:#000000;--go:#30d158;--gobg:#0d2a18;--stop:#ff453a;--stopbg:#2e0f0d;--wait:#ffd60a;--waitbg:#2b2405;--note:#141416;--note2:#1f1f22;--gold:#ffffff;--g1:#ffffff;--g2:#8e8e93;--aur1:transparent;--aur2:transparent;--shadow:none;--glass:#000000;--soft:#141416;color-scheme:dark}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#000000;--panel:#000000;--ink:#ffffff;--muted:#8e8e93;--line:#1f1f22;--acc:#ffffff;--accink:#000000;--go:#30d158;--gobg:#0d2a18;--stop:#ff453a;--stopbg:#2e0f0d;--wait:#ffd60a;--waitbg:#2b2405;--note:#141416;--note2:#1f1f22;--gold:#ffffff;--g1:#ffffff;--g2:#8e8e93;--aur1:transparent;--aur2:transparent;--shadow:none;--glass:#000000;--soft:#141416;color-scheme:dark}}
 html,body{background:var(--bg)!important;background-image:none!important}
@@ -4351,6 +4351,8 @@ td{border-bottom:1px solid var(--line)!important}
 .hero{color:var(--ink)!important;background:var(--panel)!important}
 .hero h2,.hero .m,.hero .hero-chg,.hero small{color:var(--muted)!important;opacity:1!important}
 .hero .big{color:var(--ink)!important}
+.hero select,.hero option,.hero label,.hero span:not(.up):not(.dn),.hero div:not(.big){color:inherit}
+.hero [style*="color:#fff"],.hero [style*="color: #fff"],.hero [style*="rgba(255,255,255"]{color:var(--ink)!important;background:var(--soft)!important}
 .hero .up,.hero b.up{color:var(--go)!important}.hero .dn,.hero b.dn{color:var(--stop)!important}
 .hero b:not(.up):not(.dn){color:var(--ink)!important}
 .hero .hero-row span{color:var(--muted)!important}.hero .hero-row b{color:var(--ink)!important;display:block;font-size:17px;font-weight:600}
