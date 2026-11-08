@@ -24,7 +24,8 @@ export const DEF = {
   acciones: 1,        // 1 = permite acciones de EE. UU. (si el método las usa)
   movil: 1,           // avisos al móvil (ntfy)
   telegram: 1,        // avisos por Telegram (con botones para aprobar o rechazar); necesita TELEGRAM_TOKEN y TELEGRAM_CHAT
-  correo: 1,          // avisos por correo
+  correo: 0,          // v335 · sin envío por correo (todo por Telegram)
+  metAuto: 1,         // v336 · 1 = sigue SOLA al método ganador del laboratorio (con freno de 30-90 días entre cambios) · 0 = te lo pregunta por Telegram
   avisos: "todo",     // todo = avisa de cada cosa que hace (revisión, foto, aprobación…) · importante = solo órdenes, propuestas, errores e informe semanal
   discreto: 1,        // 1 = los avisos al MÓVIL no llevan importes ni posiciones (ntfy es público para quien adivine el tema); el correo sí lleva el informe completo
   aceptoReal: 0,      // 1 = el usuario confirmó que entiende que es dinero real
@@ -34,7 +35,7 @@ export const DEF = {
 };
 
 const NUM = { limite: [5, 100000], minOrden: [1, 1000], umbral: [1, 50], reserva: [0, 20], maxOrdenes: [1, 30], maxPerdida: [5, 90] };
-const BIN = ["on", "acciones", "movil", "telegram", "correo", "sumarIngresos", "aceptoReal", "semanal", "discreto"];
+const BIN = ["on", "metAuto", "acciones", "movil", "telegram", "correo", "sumarIngresos", "aceptoReal", "semanal", "discreto"];
 const ENUM = { env: ["live", "demo"], modo: ["confirmar", "auto", "pausa"], divisa: ["eur", "cualquiera"], reajuste: ["revision", "desvio"], avisos: ["todo", "importante"] };
 
 // ---------- cifrado (mismo formato que la web): PBKDF2-SHA256 + AES-256-GCM ----------

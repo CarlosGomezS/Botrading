@@ -1137,8 +1137,17 @@ async function main() {
           R.metSug = { id, k: sg.k, n: sg.n, de: sg.de, ts: now.toISOString(), estado: "pendiente", an: sg.an, g: sg.g, gs: sg.gs, d0: sg.d0, needAcc: !!sg.needAcc, inv: !!sg.inv };
           const pc = (x) => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1).replace(".", ",") + " %";
           const txt = `${ksA.length > 1 ? `Tu cartera real se reparte entre ${ksA.length} métodos. El más flojo es «${nombreDe(b.S, flojo)}», y el bot` : `Tu cartera real sigue «${nombreDe(b.S, A.metodo)}». El bot`} ha encontrado uno que lo hace mejor${sg.inv ? " y es ⚡ INVENCIBLE en todas las pruebas (≥5 puntos al año más que el SPY, le gana en las 3 épocas y por ≥10 puntos en los 2 años que no vio, caída máxima ≤30 %). Te lo propongo SIN esperar a la ficticia: todavía no tiene resultados con precios reales" : " y ya está confirmado"}:\n\n🏆 ${sg.n}${sg.fwd ? "\n· Método de acciones en prueba en vivo (sin prueba histórica, que con acciones hace trampa)" : `\n· Prueba histórica (después de impuestos): ${pc(sg.an)}/año${(b.S.labAn || {})[A.metodo] != null ? " (el tuyo " + pc(b.S.labAn[A.metodo]) + "/año)" : ""}`}\n· En la ficticia desde el ${sg.d0}: ${pc(sg.g)} (SPY ${pc(sg.gs)})${sg.fwd ? "" : `\n· Peor caída histórica ${pc(sg.dd || 0)} · ~${Math.max(1, Math.round(sg.opy || 1))} ventas al año`}\n\nSi lo cambias, en la próxima revisión el bot venderá lo de ahora y comprará lo nuevo (las ventas con ganancia tributan).`;
+          // v336 · 🤖 SIGUE SOLA AL GANADOR: si no está desactivado (A.metAuto === false), el cambio se aplica sin esperar tu respuesta,
+          // con los mismos frenos (como mucho uno cada 90 días, o 30 si el nuevo gana ≥ 4 puntos al año). Los que necesitan acciones de EE. UU. siguen pidiendo permiso.
+          if (!(A.metAuto === 0 || A.metAuto === false) && !sg.needAcc) {
+            const P2 = R.metSug; P2.estado = "aprobada"; P2.fin = now.toISOString(); P2.auto = 1;
+            R.metOv = { k: sg.k, n: sg.n, ts: now.toISOString(), de: sg.de || A.metodo, auto: 1 }; aplicaCambio(A, sg.de || A.metodo, sg.k); R.lastNormal = null;
+            rep.push("", "## Cambio automático al método ganador", "", txt.replace(/\n\nSi lo cambias,[\s\S]*$/, ""), "", "✅ Aplicado solo (sigues al ganador del laboratorio). En la próxima revisión con la bolsa abierta venderá lo de ahora y comprará lo nuevo.");
+            await avisa("🔄 Cartera real: cambia sola al método ganador", txt.replace(/\n\nSi lo cambias,[\s\S]*$/, "") + "\n\n✅ Hecho: en la próxima revisión con la bolsa abierta venderá lo de ahora y comprará lo nuevo (las ventas con ganancia tributan). No volverá a cambiar en al menos 30-90 días.", { prio: 3 });
+          } else {
           rep.push("", "## Propuesta de cambio de método", "", txt);
           await avisa("🔎 Cartera real: hay un método mejor", txt + (sg.needAcc ? "\n\nCompra acciones de EE. UU.: si pulsas «✅ Cambiar» se activa también la compra de acciones y de productos en dólares. Cotizan en dólares (0,15 % de cambio por operación, salvo que tengas saldo en dólares en Trading 212)." : ""), { prio: 3, kb: [[{ text: "✅ Cambiar", callback_data: "mc:" + id }, { text: "❌ No cambiar", callback_data: "mr:" + id }]] });
+          }
         }
       }
     } catch (e) { log("No pude revisar si hay un método mejor:", String(e.message).slice(0, 120)); }

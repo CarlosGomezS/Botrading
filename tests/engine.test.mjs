@@ -352,6 +352,7 @@ test("ESCENARIOS: un año de uso con dinero real (simulado) de principio a fin",
       W.setSx({ labAn: { sect: 0.09, trq: 0.11 }, labConf: [{ k: "trq", n: "Tendencia QQQ de 10 meses (Faber)", an: 0.11, dd: -0.34, opy: 1, d0: "2026-11-01", g: 0.06, gs: 0.03, nd: 120, ok: true }],
         books: { sect: { cash: 0, pos: {}, trades: [], days: [{ d: "2026-10-01", eq: 500 }, { d: "2026-11-01", eq: 500 }, { d: "2027-03-08", eq: 510 }], tgt: { d: "2027-03-01", w: { XLK: 1 / 3, XLE: 1 / 3, XLF: 1 / 3 }, bull: true } },
           trq: { cash: 0, pos: {}, trades: [], days: [{ d: "2026-11-01", eq: 500 }, { d: "2027-03-08", eq: 530 }], tgt: trqT } } });
+      W.setCfg({ metodo: "sect", metAuto: 0, savedAt: "2027-03-09T10:00:00Z" });   // v336 · esta prueba es la del modo «pregúntame antes»
       const n0 = W.mk.calls.filter((c) => c.m === "POST").length;
       const r1 = await W.step("foto", "2027-03-09T16:50:00Z");
       assert.equal(r1.code, 0, r1.so); assert.ok(r1.R.metSug && r1.R.metSug.estado === "pendiente" && r1.R.metSug.k === "trq", "propuesta creada");
@@ -366,6 +367,18 @@ test("ESCENARIOS: un año de uso con dinero real (simulado) de principio a fin",
       W.setCfg({ metodo: "sect", savedAt: "2027-03-11T09:00:00Z" });
       const r4 = await W.step("foto", "2027-03-11T16:50:00Z");
       assert.ok(!r4.R.metOv, "si guardas los ajustes en la web, manda lo que tengas elegido allí");
+      W.setSx(null);
+    });
+    await t.test("16b · v336 · por defecto SIGUE SOLA al ganador: cambia sin preguntar (con el freno de 30-90 días) y avisa", async () => {
+      const trqT = { d: "2027-06-01", w: { XLK: 1 }, why: {}, bull: true };
+      W.setCfg({ metodo: "sect", metAuto: 1, savedAt: "2027-06-19T09:00:00Z" });
+      W.setSx({ labAn: { sect: 0.09, trq: 0.11 }, labConf: [{ k: "trq", n: "Tendencia QQQ de 10 meses (Faber)", an: 0.11, dd: -0.34, opy: 1, d0: "2026-11-01", g: 0.06, gs: 0.03, nd: 220, ok: true }],
+        books: { sect: { cash: 0, pos: {}, trades: [], days: [{ d: "2026-10-01", eq: 500 }, { d: "2027-06-19", eq: 510 }], tgt: { d: "2027-06-01", w: { XLK: 1 / 3, XLE: 1 / 3, XLF: 1 / 3 }, bull: true } },
+          trq: { cash: 0, pos: {}, trades: [], days: [{ d: "2026-11-01", eq: 500 }, { d: "2027-06-19", eq: 560 }], tgt: trqT } } });
+      const n0 = W.mk.calls.filter((c) => c.m === "POST").length;
+      const r1 = await W.step("foto", "2027-06-20T16:50:00Z");
+      assert.equal(r1.code, 0, r1.so); assert.ok(r1.R.metOv && r1.R.metOv.k === "trq" && r1.R.metOv.auto, "cambia solo al ganador: " + JSON.stringify(r1.R.metSug));
+      assert.equal(W.mk.calls.filter((c) => c.m === "POST").length, n0, "el cambio no envía órdenes hasta la revisión con la bolsa abierta");
       W.setSx(null);
     });
   } finally { await W.close(); }
