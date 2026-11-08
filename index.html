@@ -500,8 +500,13 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 .mt-pchart{background:color-mix(in srgb,var(--line) 20%,transparent)}
 .mt-cmp>div,.mt-foot{background:color-mix(in srgb,var(--line) 20%,transparent);border:0;border-radius:12px}
 .mt-log,.mt-kv,.mt-rule,.mt-node{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-</style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 326 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#326</small></span></h1><div class="m">Tu dinero, los métodos que más ganan y cómo van.</div></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+</style><script id="tema">
+/* v327 · 🎨 tema: oscuro por defecto (aspecto de app de trading); en Ajustes → Apariencia se puede poner claro o como el móvil */
+(function(){var t="oscuro";try{t=localStorage.getItem("tema")||"oscuro"}catch(e){}var r=document.documentElement;if(t==="oscuro")r.setAttribute("data-theme","dark");else if(t==="claro")r.setAttribute("data-theme","light");
+ var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#0a1420":"#eef2fb");m[i].removeAttribute("media")}})();
+</script>
+</head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 327 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#327</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4283,6 +4288,11 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
   aj.appendChild(av);
   // 4) Ayuda dentro de Ajustes
   const ayu=fold("simpl-ay","❓ Ayuda",false), yb=ayu.querySelector(".fb"); [...ay.children].forEach(c=>yb.appendChild(c)); aj.appendChild(ayu);
+  // 4b) 🎨 Apariencia (arriba de Ajustes)
+  const ap=document.createElement("div");ap.className="p";ap.id="simpl-tema";let tt="oscuro";try{tt=localStorage.getItem("tema")||"oscuro"}catch(e){}
+  ap.innerHTML='<h2>🎨 Apariencia</h2><div class="tema-chs">'+[["oscuro","🌙","Oscuro"],["claro","☀️","Claro"],["auto","📱","Como el móvil"]].map(([v,i,n])=>'<button type="button" data-tema="'+v+'"'+(tt===v?' class="on"':'')+'><span style="font-size:22px">'+i+'</span><b>'+n+'</b></button>').join("")+'</div>';
+  aj.insertBefore(ap,aj.firstChild);
+  ap.addEventListener("click",e=>{const b=e.target.closest("[data-tema]");if(!b)return;const v=b.dataset.tema;try{localStorage.setItem("tema",v)}catch(x){}const r=document.documentElement;if(v==="oscuro")r.setAttribute("data-theme","dark");else if(v==="claro")r.setAttribute("data-theme","light");else r.removeAttribute("data-theme");ap.querySelectorAll("[data-tema]").forEach(x=>x.classList.toggle("on",x===b));try{chartDraw()}catch(x){}});
   // 5) Menú de abajo: sin «Ficticia» ni «Ayuda»
   document.querySelectorAll('#nav button[data-t="hoy"],#nav button[data-t="ayuda"],#nav button[data-t="radar"]').forEach(b=>b.style.display="none");
   // 6) quien vaya a las pestañas antiguas acaba en su sitio nuevo
@@ -4297,6 +4307,21 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
  [2000,4000,8000].forEach(t=>setTimeout(tarde,t));
 })();
 </script>
+<style id="tema-terminal">
+/* v327 · 🎨 TEMA «TERMINAL»: azul tinta profundo, oro de moneda para lo que se pulsa, verde = gana, coral = pierde */
+:root[data-theme="dark"]{--bg:#0a1420;--panel:#111e2d;--ink:#ecf2f7;--muted:#8ea3b5;--line:#1e3044;--acc:#f4b942;--accink:#1b1405;--go:#34d399;--gobg:#0f2e24;--stop:#ff6b6b;--stopbg:#3a1a1e;--wait:#f4b942;--waitbg:#33270c;--note:#14243a;--note2:#1b3150;--gold:#f4b942;--g1:#f4b942;--g2:#34d399;--aur1:rgba(244,185,66,.07);--aur2:rgba(52,211,153,.06);--shadow:0 14px 30px -22px rgba(0,0,0,.85);color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a1420;--panel:#111e2d;--ink:#ecf2f7;--muted:#8ea3b5;--line:#1e3044;--acc:#f4b942;--accink:#1b1405;--go:#34d399;--gobg:#0f2e24;--stop:#ff6b6b;--stopbg:#3a1a1e;--wait:#f4b942;--waitbg:#33270c;--gold:#f4b942;--g1:#f4b942;--g2:#34d399;--aur1:rgba(244,185,66,.07);--aur2:rgba(52,211,153,.06)}}
+:root[data-theme="dark"] body{background:var(--bg)}
+/* cifras: siempre con números de ancho fijo para que las columnas no bailen */
+.big,.n,td,[data-cta-big],[data-cta-c],[data-cta-r]{font-variant-numeric:tabular-nums}
+/* subidas y bajadas con el mismo verde y coral en toda la app */
+:root[data-theme="dark"] .up{color:var(--go)}:root[data-theme="dark"] .dn{color:var(--stop)}
+/* selector de apariencia */
+.tema-chs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tema-chs button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 6px}
+.tema-chs button.on{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc)}
+.tema-chs small{color:var(--muted)}
+</style>
 <style id="movil-legible">
 /* v326 · 📱 LECTURA EN MÓVIL: letra más grande, más aire, tablas que se leen sin hacer zoom y botones fáciles de pulsar */
 @media (max-width:700px){
