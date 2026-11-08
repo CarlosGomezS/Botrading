@@ -63,3 +63,23 @@ test("Tortugas v313: 🧠 aprende sin trampas: solo cambia si la nueva gana en e
   const C = TT.aprende(series, 0.0025, null, { rnd, n: 120, otra: otraMala }); assert.ok(!C.cambia || C.nueva.otra > 0, "nunca cambia a una que pierde con las criptos del otro exchange");
   assert.ok(TT.genes().length >= 30); assert.match(TT.describe(A.P), /máximo de \d+ días/);
 });
+
+test("Tortugas v318: 🎚️ perfiles de riesgo: el máximo pone casi todo en cada compra y evoluciona sus propias reglas", () => {
+  const P1 = { riesgo: "alto", maxPos: 1 }, P4 = { riesgo: "bajo", maxPos: 4 };
+  assert.ok(Math.abs(TT.tamano(100, 0.08, P1) - 100) < 1e-9, "máximo con 1 a la vez: todo");
+  assert.ok(TT.tamano(100, 0.08, P4) <= 15 + 1e-9, "bajo: como mucho 15 %");
+  const dia = 864e5, mk = (f) => { const out = []; let p = 100; for (let i = 0; i < 760; i++) { p = f(i, p); out.push([i * dia, p, p * 1.01, p * 0.99, p, 1]); } return out; };
+  const series = { "A-EUR": mk((i, p) => p * (1 + 0.004 * Math.sin(i / 25) + 0.001)), "BTC-EUR": mk((i, p) => p * (1 + 0.003 * Math.sin(i / 60) + 0.0005)) };
+  let q = 5; const rnd = () => ((q = (q * 16807) % 2147483647) / 2147483647);
+  const A = TT.aprende(series, 0.001, null, { rnd, n: 80, riesgo: "alto" }); assert.equal(A.P.riesgo, "alto"); assert.ok(A.pob.every((P) => P.riesgo === "alto"));
+  const B = TT.aprende(series, 0.001, null, { rnd, n: 80, riesgo: "bajo" }); assert.ok(B.pob.every((P) => P.maxPos >= 4), "bajo nunca concentra");
+});
+
+test("Real v318: 🎚️ riesgo máximo: compra con casi todo el dinero y el stop de emergencia queda por debajo del de su regla", async () => {
+  delete process.env.SOLO_TORT;
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  const sen = { t: Date.now(), P: { ent: 20, sale: 10, kN: 3, stopMax: 0.15, filtro: false, maxPos: 1, riesgo: "alto" }, sen: { "A-EUR": { t: 1, c: 1, N: 0.04, hi20: 0.98, lo10: 0.9, entra: true, sale: false } } };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 100 }, tk(ex.px), T(0), deps);
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen }, tk(ex.px), T(1), deps));
+  const p = RS.pos["A-EUR"]; assert.ok(p && p.cost > 90, "casi todo: " + (p && p.cost)); assert.ok(Math.abs(p.stop / p.px - 0.88) < 0.006, "stop 3N = −12 %");
+});

@@ -97,13 +97,16 @@ async function main() {
         SER[ex] = series; } catch (e) { console.log(`Examen largo · 🐢 Tortugas ${ex}: ${String(e.message).slice(0, 60)}`); } }
     for (const ex of ["bitvavo", "okx"]) { try { const series = SER[ex] || {}, otro = ex === "okx" ? "bitvavo" : "okx", otra = SER[otro] && Object.keys(SER[otro]).length >= 8 ? SER[otro] : null;
         if (Object.keys(series).length < 8) { tortugas[ex] = { v: VEX, ok: null, motivo: "pocas criptos con 2 años de datos" }; continue; }
-        // v313 · 🧠 aprende: parte de la combinación que ya estaba en uso y solo cambia si la nueva gana en el año que no vio
-        const prevT = prev.tortugas && prev.tortugas[ex], A = TT.aprende(series, TT.FEES[ex], prevT && prevT.P, { otra, feeOtra: TT.FEES[otro], pob: (prevT && prevT.pob) || [], n: 200 }), P = A.P;
-        const total = ((prevT && prevT.aprende && prevT.aprende.total) || 0) + (A.nuevas || 0), hoyD = new Date().toISOString().slice(0, 10), hoyN = (prevT && prevT.aprende && prevT.aprende.dia === hoyD ? prevT.aprende.hoy || 0 : 0) + (A.nuevas || 0);
-        console.log(`Examen largo · 🐢🧬 Tortugas ${ex}: ${A.nuevas} reglas nuevas (${hoyN} hoy, ${total} en total) · ${A.cambia ? "✅ CAMBIA a" : "sigue con"} «${TT.describe(P)}» · ${A.motivo}${A.nueva ? ` (mejor nueva: 1.er año ${A.nueva.ano1} %, 2.º año ${A.nueva.ano2} %, últimos 4 meses ${A.nueva.reciente} %, criptos de ${otro} ${A.nueva.otra ?? "—"} % · en uso: ${A.enUso.ano1} % / ${A.enUso.ano2} % / ${A.enUso.reciente} %)` : ""}`);
-        const r = TT.simula(series, TT.FEES[ex], 0.002, P), v = TT.veredicto(r); delete r.curva;
-        tortugas[ex] = { v: VEX, ...r, ...v, criptos: Object.keys(series).length, P, pob: A.pob, aprende: { cambia: A.cambia, motivo: A.motivo, total, hoy: hoyN, dia: hoyD, desde: A.cambia ? new Date().toISOString() : (prevT && prevT.aprende && prevT.aprende.desde) || null, nueva: A.nueva, enUso: A.enUso } };
-        console.log(`Examen largo · 🐢 Tortugas ${ex} (${Object.keys(series).length} criptos, comisión ${TT.FEES[ex] * 100} %): ${v.ok ? "✅" : "❌"} ${v.motivo} · 2 años ${r.ret} % · semestres ${r.semestres.join(" / ")} % · peor caída ${r.dd} % · ${r.n} operaciones · ${r.aciertos} % aciertos · ${r.pf} € ganados por € perdido`);
+        // v318 · 🎚️ cada perfil de riesgo (bajo / medio / máximo) evoluciona SUS reglas por separado
+        const prevT = prev.tortugas && prev.tortugas[ex], perfiles = {}, hoyD = new Date().toISOString().slice(0, 10);
+        for (const rk of Object.keys(TT.PERFILES)) { const F = TT.PERFILES[rk], pv = (prevT && prevT.perfiles && prevT.perfiles[rk]) || (rk === "medio" ? prevT : null) || null;
+          const A = TT.aprende(series, TT.FEES[ex], pv && pv.P, { otra, feeOtra: TT.FEES[otro], pob: (pv && pv.pob) || [], n: 200, riesgo: rk }), P = A.P;
+          const total = ((pv && pv.aprende && pv.aprende.total) || 0) + (A.nuevas || 0), hoyN = (pv && pv.aprende && pv.aprende.dia === hoyD ? pv.aprende.hoy || 0 : 0) + (A.nuevas || 0);
+          const r = TT.simula(series, TT.FEES[ex], 0.002, P), v = TT.veredicto(r, F.ddMax); delete r.curva;
+          perfiles[rk] = { v: VEX, ...r, ...v, P, pob: A.pob, aprende: { cambia: A.cambia, motivo: A.motivo, total, hoy: hoyN, dia: hoyD, desde: A.cambia ? new Date().toISOString() : (pv && pv.aprende && pv.aprende.desde) || null, nueva: A.nueva, enUso: A.enUso } };
+          console.log(`Examen largo · 🐢🧬 Tortugas ${ex} · riesgo ${F.nombre}: ${A.nuevas} reglas nuevas (${hoyN} hoy, ${total} en total) · ${A.cambia ? "✅ CAMBIA a" : "sigue con"} «${TT.describe(P)}» · ${A.motivo}${A.nueva ? ` (mejor nueva: 1.er año ${A.nueva.ano1} %, 2.º año ${A.nueva.ano2} %, últimos 4 meses ${A.nueva.reciente} %, criptos de ${otro} ${A.nueva.otra ?? "—"} %)` : ""}`);
+          console.log(`Examen largo · 🐢 Tortugas ${ex} · riesgo ${F.nombre} (${Object.keys(series).length} criptos, comisión ${TT.FEES[ex] * 100} %): ${v.ok ? "✅" : "❌"} ${v.motivo} · 2 años ${r.ret} % · semestres ${r.semestres.join(" / ")} % · peor caída ${r.dd} % · ${r.n} operaciones · ${r.aciertos} % aciertos · ${r.pf} € ganados por € perdido`); }
+        tortugas[ex] = { ...perfiles.medio, criptos: Object.keys(series).length, perfiles };
       } catch (e) { tortugas[ex] = { v: VEX, ok: null, motivo: String(e.message).slice(0, 60) }; console.log(`Examen largo · 🐢 Tortugas ${ex}: ${String(e.message).slice(0, 60)}`); } }
   } catch (e) { console.log("Examen largo · Tortugas: " + String(e.message).slice(0, 80)); }
   // v308 · 🔁 REJILLA RÁPIDA: el año de velas de 5 min, con la comisión de cada exchange (en OKX, con estas mismas criptos)

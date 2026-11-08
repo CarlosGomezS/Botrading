@@ -10,7 +10,15 @@ export const FEES = { bitvavo: 0.0025, okx: 0.001 };
 // v313 · 🧠 las Tortugas APRENDEN: estos son sus «genes». El examen largo prueba muchas combinaciones con el 1.er año y solo cambia si la nueva
 // gana TAMBIÉN en el 2.º año (que no ha visto) a la que está en uso. Así mejora sola sin «ajustarse» al pasado.
 export const P0 = { ent: T_ENTRA, sale: T_SALE, kN: 2, stopMax: T_STOPMAX, filtro: false, maxPos: T_MAXPOS, mFil: 50, atrMax: 0 };   // v317 · + media del filtro de BTC y tope de volatilidad
-export const conP = (P) => ({ ...P0, ...(P || {}) });   // comisión por orden (a mercado) de cada exchange
+export const conP = (P) => ({ ...P0, ...(P || {}) });
+// v318 · 🎚️ PERFILES DE RIESGO: cada uno evoluciona sus PROPIAS reglas. «alto» = máximo riesgo: pocas criptos a la vez y casi todo el dinero
+// en cada una; busca la que más gana aunque caiga mucho por el camino (hasta un 70 %).
+export const PERFILES = {
+  bajo: { nombre: "🟢 Bajo", r: 0.01, tMax: 0.15, ddMax: 30, peso: 1.0, maxPosMin: 4 },
+  medio: { nombre: "🟡 Medio", r: 0.015, tMax: 0.25, ddMax: 50, peso: 0.5, maxPosMin: 2 },
+  alto: { nombre: "🔴 Máximo", r: 0.25, tMax: 1, ddMax: 70, peso: 0.15, maxPosMin: 1 } };
+export const perfil = (k) => PERFILES[k] || PERFILES.medio;
+export const tamano = (V, stopPct, P) => { const F = perfil(P && P.riesgo); return Math.min(Math.max((F.r * V) / stopPct, 0.10 * V), V / conP(P).maxPos, F.tMax * V); };   // comisión por orden (a mercado) de cada exchange
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function J(u, tries = 3) { for (let i = 0; ; i++) { try { const r = await fetch(u, { signal: AbortSignal.timeout(15000) }); if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); } catch (e) { if (i >= tries - 1) throw e; await sleep(800 * (i + 1)); } } }
 
@@ -46,7 +54,7 @@ export function simula(series, fee, spread = 0.002, P = null, desde = 0, hasta =
       if (s && s.entra && P.filtro && BTC) { const ib = idx["BTC-EUR"].get(t); const sb = ib != null ? senal(BTC.slice(Math.max(0, ib - P.mFil - 30), ib + 1), P) : null; if (!sb || !sb.sobreF) continue; }
       if (s && s.entra && P.atrMax > 0 && s.N / s.c > P.atrMax) continue;   /* v317 · demasiado nerviosa */
       if (!s || !s.entra || !(s.N > 0)) continue;
-      const stopD = Math.min(P.kN * s.N, s.c * P.stopMax); let eur = Math.min(Math.max((T_RIESGO * V) / (stopD / s.c), 0.10 * V), 1 / P.maxPos * V, 0.25 * V); eur = Math.min(eur, cash); if (eur < 0.05 * V) continue;
+      const stopD = Math.min(P.kN * s.N, s.c * P.stopMax); let eur = tamano(V, stopD / s.c, P); eur = Math.min(eur, cash); if (eur < 0.05 * V) continue;
       const px = s.c * (1 + spread / 2); cash -= eur; pos[m] = { q: (eur * (1 - fee)) / px, px, coste: eur, stop: s.c - stopD, t0: t, ult: s.c }; n++; }
     const V2 = valor(t); pico = Math.max(pico, V2); dd = Math.max(dd, 1 - V2 / pico); curva.push([t, V2]); }
   const fin = curva.length ? curva[curva.length - 1][1] : 1, q = [0, 1, 2, 3].map((j) => { const a = Math.floor((curva.length * j) / 4), b = Math.floor((curva.length * (j + 1)) / 4) - 1; return curva.length ? Math.round((curva[b][1] / (j ? curva[a - 1][1] : 1) - 1) * 10000) / 100 : 0; });
@@ -54,43 +62,43 @@ export function simula(series, fee, spread = 0.002, P = null, desde = 0, hasta =
 }
 // v305 · tamaño completo, elegido por ti: se acepta una caída de hasta el 50 % por el camino (las Tortugas ganan con pocas operaciones grandes)
 export const T_DDMAX = 50;
-export function veredicto(r) { const ok = r.n >= 30 && r.ret > 0 && r.pf >= 1.2 && r.dd < T_DDMAX && r.semestres.filter((x) => x > 0).length >= 2;
-  return { ok, motivo: ok ? "aprueba 2 años" : r.n < 30 ? "pocas operaciones" : r.ret <= 0 ? "en 2 años pierde" : r.pf < 1.2 ? "gana poco por cada euro perdido" : r.dd >= T_DDMAX ? "cae demasiado" : "pierde en 3 de 4 semestres" }; }
+export function veredicto(r, ddMax = T_DDMAX) { const ok = r.n >= 30 && r.ret > 0 && r.pf >= 1.2 && r.dd < ddMax && r.semestres.filter((x) => x > 0).length >= 2;
+  return { ok, motivo: ok ? "aprueba 2 años" : r.n < 30 ? "pocas operaciones" : r.ret <= 0 ? "en 2 años pierde" : r.pf < 1.2 ? "gana poco por cada euro perdido" : r.dd >= ddMax ? "cae demasiado" : "pierde en 3 de 4 semestres" }; }
 
 // v313 · 🧠 APRENDIZAJE de las Tortugas (sin trampas): elige la mejor combinación SOLO con el 1.er año y la compara con la que está en uso en el 2.º año.
 // Cambia solo si la nueva gana en el 2.º año por ≥ 3 puntos, no cae más y aprueba los 2 años completos. Si no, sigue la que había.
 export function genes() { const out = []; for (const ent of [20, 30, 55]) for (const sale of [10, 20]) for (const kN of [2, 3]) for (const stopMax of [0.08, 0.12]) for (const filtro of [false, true]) if (sale < ent) out.push({ ent, sale, kN, stopMax, filtro, maxPos: T_MAXPOS }); return out; }
-const nota = (r) => r.ret - 0.5 * r.dd;
+const nota = (r, peso = 0.5) => r.ret - peso * r.dd;
 // v317 · 🧬 EVOLUCIÓN: en cada examen nacen ~200 reglas nuevas (hijas mutadas y cruzadas de las mejores guardadas + algunas al azar).
 // Se eligen SOLO con el 1.er año. Para sustituir a la que está en uso, la mejor tiene que:
 //  1) ganar en el 2.º año (que no vio) por ≥ 3 puntos a la que está en uso, sin caer más;
 //  2) aprobar los 2 años completos;
 //  3) no perder con las criptos del OTRO exchange (lección de la caza: si solo gana con un grupo de criptos, es suerte);
 //  4) no ir peor que la que está en uso en los últimos 4 meses (mercado actual).
-const GEN = { ent: [10, 15, 20, 25, 30, 40, 55, 70, 100], sale: [5, 7, 10, 15, 20, 30, 40], kN: [1.5, 2, 2.5, 3, 4], stopMax: [0.05, 0.06, 0.08, 0.1, 0.12, 0.15], filtro: [false, true], maxPos: [2, 3, 4, 5, 6], mFil: [20, 50, 100, 200], atrMax: [0, 0.04, 0.06, 0.1] };
-const valido = (P) => P.sale < P.ent;
-export function hijas(padres, n, rnd = Math.random) { const pick = (a) => a[Math.floor(rnd() * a.length)], out = [], vistos = new Set(padres.map((p) => JSON.stringify(conP(p))));
+const GEN = { ent: [10, 15, 20, 25, 30, 40, 55, 70, 100], sale: [5, 7, 10, 15, 20, 30, 40], kN: [1.5, 2, 2.5, 3, 4], stopMax: [0.05, 0.06, 0.08, 0.1, 0.12, 0.15], filtro: [false, true], maxPos: [1, 2, 3, 4, 5, 6], mFil: [20, 50, 100, 200], atrMax: [0, 0.04, 0.06, 0.1] };
+const valido = (P) => P.sale < P.ent && P.maxPos >= perfil(P.riesgo).maxPosMin;
+export function hijas(padres, n, rnd = Math.random, riesgo = "medio") { const pick = (a) => a[Math.floor(rnd() * a.length)], out = [], vistos = new Set(padres.map((p) => JSON.stringify(conP(p))));
   for (let k = 0; out.length < n && k < n * 20; k++) { let P; const u = rnd();
     if (u < 0.2 || !padres.length) P = Object.fromEntries(Object.entries(GEN).map(([g, v]) => [g, pick(v)]));   // al azar
     else if (u < 0.55 && padres.length > 1) { const a = conP(pick(padres)), b = conP(pick(padres)); P = Object.fromEntries(Object.keys(GEN).map((g) => [g, rnd() < 0.5 ? a[g] : b[g]])); }   // cruce
     else { P = { ...conP(pick(padres)) }; const m = 1 + Math.floor(rnd() * 2); for (let q = 0; q < m; q++) { const g = pick(Object.keys(GEN)), v = GEN[g], i = v.indexOf(P[g]); P[g] = i < 0 ? pick(v) : v[Math.max(0, Math.min(v.length - 1, i + (rnd() < 0.5 ? -1 : 1)))]; } }   // mutación
-    P = conP(P); const key = JSON.stringify(P); if (!valido(P) || vistos.has(key)) continue; vistos.add(key); out.push(P); }
+    P = conP({ ...P, riesgo }); const key = JSON.stringify(P); if (!valido(P) || vistos.has(key)) continue; vistos.add(key); out.push(P); }
   return out; }
 export function aprende(series, fee, actual, opts = {}) {
-  const { otra = null, feeOtra = fee, pob = [], n = 200, rnd = Math.random } = opts;
+  const { otra = null, feeOtra = fee, pob = [], n = 200, rnd = Math.random, riesgo = "medio" } = opts, F = perfil(riesgo);
   const ts = [...new Set(Object.values(series).flatMap((d) => d.map((x) => x[0])))].sort((a, b) => a - b), corte = ts[Math.floor(ts.length / 2)], reciente = ts[ts.length - 1] - 120 * 864e5;
-  const inc = conP(actual), incTr = simula(series, fee, 0.002, inc, 0, corte), incTe = simula(series, fee, 0.002, inc, corte), incRe = simula(series, fee, 0.002, inc, reciente);
-  const padres = [inc, ...pob.map(conP)], nuevas = hijas(padres, n, rnd);
+  const inc = conP({ ...(actual || {}), riesgo }), incTr = simula(series, fee, 0.002, inc, 0, corte), incTe = simula(series, fee, 0.002, inc, corte), incRe = simula(series, fee, 0.002, inc, reciente);
+  const padres = [inc, ...pob.map((q) => conP({ ...q, riesgo }))].filter(valido), nuevas = hijas(padres, n, rnd, riesgo);
   const todas = [...padres, ...nuevas].filter((P, i, a) => valido(P) && a.findIndex((q) => JSON.stringify(q) === JSON.stringify(P)) === i);
-  const cands = todas.map((P) => ({ P, tr: simula(series, fee, 0.002, P, 0, corte) })).filter((x) => x.tr.n >= 10).sort((a, b) => nota(b.tr) - nota(a.tr));
+  const cands = todas.map((P) => ({ P, tr: simula(series, fee, 0.002, P, 0, corte) })).filter((x) => x.tr.n >= 10).sort((a, b) => nota(b.tr, F.peso) - nota(a.tr, F.peso));
   const nuevaPob = cands.length ? cands.slice(0, 20).map((x) => x.P) : [inc];   // las 20 mejores del 1.er año son las madres del próximo examen
   const base = { probadas: cands.length, nuevas: nuevas.length, pob: nuevaPob, enUso: { ano1: incTr.ret, ano2: incTe.ret, dd2: incTe.dd, reciente: incRe.ret } };
   // se revisan las 5 mejores del 1.er año, en orden: la primera que cumple todo, sustituye
   let motivo = "la que está en uso sigue siendo la mejor", mejorInfo = null;
   for (const c of cands.slice(0, 5)) { const igual = JSON.stringify(c.P) === JSON.stringify(inc); if (igual) { motivo = "la que está en uso sigue siendo la mejor"; break; }
-    const te = simula(series, fee, 0.002, c.P, corte), full = simula(series, fee, 0.002, c.P), v = veredicto(full), re = simula(series, fee, 0.002, c.P, reciente), ot = otra ? simula(otra, feeOtra, 0.002, c.P) : null;
+    const te = simula(series, fee, 0.002, c.P, corte), full = simula(series, fee, 0.002, c.P), v = veredicto(full, F.ddMax), re = simula(series, fee, 0.002, c.P, reciente), ot = otra ? simula(otra, feeOtra, 0.002, c.P) : null;
     const info = { P: c.P, ano1: c.tr.ret, ano2: te.ret, dd2: te.dd, reciente: re.ret, otra: ot ? ot.ret : null }; if (!mejorInfo) mejorInfo = info;
-    const fallo = !(te.ret >= incTe.ret + 3 && te.dd <= Math.max(incTe.dd, 10) + 5) ? "no gana claramente en el año que no vio" : !v.ok ? "no aprueba los 2 años" : ot && !(ot.ret > 0) ? "pierde con las criptos del otro exchange" : !(re.ret >= incRe.ret - 2) ? "va peor en los últimos 4 meses" : null;
+    const fallo = !(te.ret >= incTe.ret + 3 && te.dd <= Math.max(incTe.dd, 10) + (riesgo === "alto" ? 15 : 5)) ? "no gana claramente en el año que no vio" : !v.ok ? "no aprueba los 2 años" : ot && !(ot.ret > 0) ? "pierde con las criptos del otro exchange" : !(re.ret >= incRe.ret - 2) ? "va peor en los últimos 4 meses" : null;
     if (!fallo) return { ...base, P: c.P, cambia: true, nueva: info, motivo: "la nueva gana en el año que no vio, aprueba los 2 años, también gana con las criptos del otro exchange y va bien en el mercado actual" };
     motivo = "la mejor nueva " + fallo; }
   return { ...base, P: inc, cambia: false, nueva: mejorInfo, motivo }; }
