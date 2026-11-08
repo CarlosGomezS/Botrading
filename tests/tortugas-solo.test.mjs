@@ -83,3 +83,14 @@ test("Real v318: 🎚️ riesgo máximo: compra con casi todo el dinero y el sto
   ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen }, tk(ex.px), T(1), deps));
   const p = RS.pos["A-EUR"]; assert.ok(p && p.cost > 90, "casi todo: " + (p && p.cost)); assert.ok(Math.abs(p.stop / p.px - 0.88) < 0.006, "stop 3N = −12 %");
 });
+
+test("Real v319: 🧹 vender lo de los métodos antiguos: vende lo que no es de las Tortugas, una sola vez", async () => {
+  delete process.env.SOLO_TORT;
+  const ex = exchange({ "A-EUR": 1, "B-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  const sen = { t: Date.now(), P: { maxPos: 2, riesgo: "medio" }, sen: { "A-EUR": { t: 1, c: 1, N: 0.03, hi20: 0.98, lo10: 0.9, entra: true, sale: false } } };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 100 }, tk(ex.px), T(0), deps);
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen }, tk(ex.px), T(1), deps));
+  RS.pos["B-EUR"] = { src: "consenso", sym: "B", q: 5, q0: 5, px: 1, cost: 5, cost0: 5, t0: new Date(T(1)).toISOString(), last: 1 }; ex.bal && (ex.bal.B = 5);
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen, liquidar: "2026-11-08T10:00:00Z" }, tk(ex.px), T(2), deps));
+  assert.ok(RS.pos["A-EUR"], "la de las Tortugas se queda"); assert.ok(!RS.pos["B-EUR"], "la del método antiguo se vende"); assert.equal(RS.liqAt, "2026-11-08T10:00:00Z");
+});

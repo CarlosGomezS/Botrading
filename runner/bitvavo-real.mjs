@@ -287,6 +287,10 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (RS.pausaDia === d) { if (Object.keys(RS.pos).length) await vendeTodo("descanso hasta mañana (freno diario)"); RS.estado = "pausa"; return { RS, msgs, ctl }; }
       if (RS.pausaDia && RS.pausaDia !== d) { delete RS.pausaDia; L(RS, now, "▶️ nuevo día: vuelve a operar tras el freno diario"); msgs.push("💶 ▶️ REAL: nuevo día, vuelve a operar tras el descanso del freno diario."); }
       if (eq < RS.dia.eq0 * (1 - FRENO_DIA)) { await vendeTodo(`freno diario: hoy ha perdido un ${FRENO_DIA * 100} %`); RS.pausaDia = d; RS.estado = "pausa"; msgs.push(`💶 ⏸️ REAL: hoy ha perdido más de un ${FRENO_DIA * 100} % (de ${r2(RS.dia.eq0)} € a ${r2(eq)} €). He vendido todo y descansa hasta mañana; mañana vuelve solo.`); return { RS, msgs, ctl }; } }
+    // v319 · 🧹 lo pides tú (una vez): vender TODO lo que quede de los métodos antiguos (todo lo que no sea de las Tortugas ni tuyo)
+    if (ctl.liquidar && RS.liqAt !== ctl.liquidar) { RS.liqAt = ctl.liquidar; let n = 0;
+      for (const m of Object.keys(RS.pos)) { const p = RS.pos[m]; if (!p || p.src === "tortuga" || (ctl.conservar || []).includes(p.sym)) continue; await cerrar(m, "la vendes tú: era de un método antiguo"); n++; }
+      L(RS, now, `🧹 vendidas ${n} criptos de los métodos antiguos; el dinero queda libre para las Tortugas`); msgs.push(`💶 🧹 ${EX}: vendidas ${n} criptos de los métodos antiguos. El dinero queda libre para las 🐢 Tortugas.`); }
     // 3) lo que tengo: ¿el submodo lo ha vendido entero, o una parte, o ha añadido (piramidar)?
     for (const [m, p] of Object.entries(RS.pos)) {
       // v301 · 🧺 CARTERA BASE (BTC/ETH con tendencia): sale cuando la tendencia se gira (cierre por debajo de su media de 50 días) o si cae un 15 % desde la compra
@@ -445,7 +449,7 @@ export function cuentas(ctl) {
   const c = ctl.cuentas && typeof ctl.cuentas === "object" ? ctl.cuentas : null, act = EXS.includes(ctl.ex) ? ctl.ex : "bitvavo";
   return Object.fromEntries(EXS.map((ex) => { const x = (c && c[ex]) || {}; return [ex, {
     on: c ? !!x.on : ex === act, copia: SUBS_OK.includes(x.copia) || x.copia === "auto" ? x.copia : def.copia, capital: x.capital ? Math.max(10, Math.round(+x.capital)) : def.capital,
-    parado: !!x.parado, motivo: x.motivo || null, avisoSinSaldo: x.avisoSinSaldo || 0, auto: x.copia === "auto", adoptarAt: x.adoptarAt || null, espejo: !!x.espejo, convertir: x.convertir || null, conservar: Array.isArray(x.conservar) ? x.conservar : [], riesgo: ["bajo", "medio", "alto"].includes(x.riesgo) ? x.riesgo : "alto" }]; }));   // v318 · 🎚️ riesgo (de momento, máximo)
+    parado: !!x.parado, motivo: x.motivo || null, avisoSinSaldo: x.avisoSinSaldo || 0, auto: x.copia === "auto", adoptarAt: x.adoptarAt || null, espejo: !!x.espejo, convertir: x.convertir || null, conservar: Array.isArray(x.conservar) ? x.conservar : [], riesgo: ["bajo", "medio", "alto"].includes(x.riesgo) ? x.riesgo : "alto", liquidar: x.liquidar || null }]; }));   // v318 · 🎚️ riesgo (de momento, máximo)
 }
 const NOMBRE_EX = { bitvavo: "Bitvavo", okx: "OKX" };
 export async function paso(S, tick, now, io) { const tick0 = tick;
@@ -508,7 +512,7 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
     if (soloT()) { R0.solo = "tortugas"; R0.tortReglas = tortDesc(TE && TE.P); R0.riesgoNombre = tortPerfil(rk).nombre; R0.tortAprende = TE && TE.aprende ? { motivo: TE.aprende.motivo, desde: TE.aprende.desde, total: TE.aprende.total || 0, hoy: TE.aprende.hoy || 0 } : null; R0.bloqueo = R0.tortugas === "activas" ? "" : "🐢 las Tortugas " + R0.tortugas + ": espera sin comprar"; }
     console.log(soloT() ? `💶 ${N}: 🐢 solo Tortugas · riesgo ${R0.riesgoNombre || rk} (${R0.tortugas})${TE && TE.P ? " · " + tortDesc(TE.P) : ""}` : `💶 ${N}: campeón «${copia}» (${estadoAnio(copia)}${R0.auto && R0.auto.motivo ? " · " + R0.auto.motivo : ""}) · ${noCompra ? "⏸️ " + (R0.bloqueo || "no compra") : "compra cuando su método da señal"} · 🐢 Tortugas ${R0.tortugas} · 🧺 base ${R0.base}`);
     const BW = S.ballenas && now - S.ballenas.t < 30 * 60e3 ? S.ballenas : null; R0.ballenas = BW ? "activa" : "sin datos recientes de Hyperliquid";
-    const c2 = { copia, extra, noCompra, ballenas: BW, tort: tortOk && TS ? TS : null, base: baseOk && T ? T : null, conservar: Array.isArray(cfg.conservar) ? cfg.conservar.map((x) => String(x).toUpperCase()) : [], capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
+    const c2 = { copia, extra, noCompra, ballenas: BW, tort: tortOk && TS ? TS : null, base: baseOk && T ? T : null, conservar: Array.isArray(cfg.conservar) ? cfg.conservar.map((x) => String(x).toUpperCase()) : [], capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, liquidar: cfg.liquidar || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
       parado: !cfg.on || !!ctl.parado || cfg.parado, motivo: !cfg.on ? `has apagado ${N}` : ctl.parado ? ctl.motivo || "lo has parado tú" : cfg.motivo };
     const out = await vuelta(RS, fuentes, c2, tick, now, { ex: X });
     const msgs = out.msgs.map((m) => (m.includes(N) ? m : m.replace(/^💶 /, `💶 ${N} · `)));
