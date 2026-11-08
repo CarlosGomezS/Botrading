@@ -43,5 +43,7 @@ export function simula(series, fee, spread = 0.002) {
   const fin = curva.length ? curva[curva.length - 1][1] : 1, q = [0, 1, 2, 3].map((j) => { const a = Math.floor((curva.length * j) / 4), b = Math.floor((curva.length * (j + 1)) / 4) - 1; return curva.length ? Math.round((curva[b][1] / (j ? curva[a - 1][1] : 1) - 1) * 10000) / 100 : 0; });
   return { ret: Math.round((fin - 1) * 10000) / 100, dd: Math.round(dd * 10000) / 100, n, aciertos: n ? Math.round((gan / n) * 100) : 0, pf: pb > 0 ? Math.round((gb / pb) * 100) / 100 : gb > 0 ? 99 : 0, semestres: q, curva };
 }
-export function veredicto(r) { const ok = r.n >= 30 && r.ret > 0 && r.pf >= 1.2 && r.dd < 35 && r.semestres.filter((x) => x > 0).length >= 2;
-  return { ok, motivo: ok ? "aprueba 2 años" : r.n < 30 ? "pocas operaciones" : r.ret <= 0 ? "en 2 años pierde" : r.pf < 1.2 ? "gana poco por cada euro perdido" : r.dd >= 35 ? "cae demasiado" : "pierde en 3 de 4 semestres" }; }
+// v305 · tamaño completo, elegido por ti: se acepta una caída de hasta el 50 % por el camino (las Tortugas ganan con pocas operaciones grandes)
+export const T_DDMAX = 50;
+export function veredicto(r) { const ok = r.n >= 30 && r.ret > 0 && r.pf >= 1.2 && r.dd < T_DDMAX && r.semestres.filter((x) => x > 0).length >= 2;
+  return { ok, motivo: ok ? "aprueba 2 años" : r.n < 30 ? "pocas operaciones" : r.ret <= 0 ? "en 2 años pierde" : r.pf < 1.2 ? "gana poco por cada euro perdido" : r.dd >= T_DDMAX ? "cae demasiado" : "pierde en 3 de 4 semestres" }; }
