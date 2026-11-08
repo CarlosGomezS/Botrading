@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 332 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#332</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 333 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#333</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2879,7 +2879,7 @@ function hlpHtml(){const Z=(MM.S||{}).hlp;if(!Z||!Z.t0)return"";const pc=(Z.eq/1
  ${(Z.cerradas||[]).length?`<div class="tw" style="margin-top:6px"><table><tr><th>Cripto</th><th>Resultado</th></tr>${Z.cerradas.slice(0,12).map(x=>`<tr><td><b>${esc(x.c)}</b> <small class="m">${new Date(x.t1).toLocaleString("es-ES",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</small></td><td class="n ${x.pnl>=0?"up":"dn"}">${x.pc>=0?"+":""}${String(x.pc).replace(".",",")} %</td></tr>`).join("")}</table></div>`:""}
  </div></details>`}
 function bvExchanges(f){const cur=bvModo(),X=MM.bvX||{},b=(k,ex,n)=>{const R=(X[ex]||{}).R,C=R&&R.cuenta,tot=C?C.total:null,Lb=R&&R.libro,ce=Lb?(Lb.cerradas||[]).reduce((s2,c)=>s2+c.pnl,0):null;
-  return`<button class="mt-ch${k===cur?" on":""}" data-bvm="${k}" data-nobusy><b>${n}</b><span>${tot!=null?E2r(tot*f):"🔒"}</span><small class="${ce==null?"":ce>=0?"up":"dn"}">${ce==null?"desbloquea para ver":"ganado de verdad "+E2r(ce*f)}</small></button>`};
+  return`<button class="mt-ch${k===cur?" on":""}" data-bvm="${k}" data-nobusy><b>${n}</b><span>${tot!=null?(tot*f).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €":"🔒"}</span><small class="${ce==null?"":ce>=0?"up":"dn"}">${ce==null?"desbloquea para ver":"ganado de verdad "+E2r(ce*f)}</small></button>`};
  return`<div class="mt-chs" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:8px">${b("ia","bitvavo","🇪🇺 Bitvavo")}${b("okx","okx","🟦 OKX")}</div>`}
 function bvModos(f){const M=[["ia","🇪🇺 Bitvavo"],["okx","🟦 OKX"]],cur=bvModo(),ops=(md,o)=>!o?"":md==="rej"?((o.st||{}).ventas||0)+" ventas":((o.st||{}).trades||0)+" operaciones";
  const tot=md=>{const xs=bvVis(md).map(([k])=>bvCuenta(md,k)).filter(o=>o&&o.lastEq!=null);if(!xs.length)return null;const bs=xs.map(o=>bvBase0(o));return{lastEq:xs.reduce((a,o)=>a+ +o.lastEq,0),start:xs.reduce((a,o)=>a+(o.start||100),0),base0:bs.every(v=>v!=null)?bs.reduce((a,v)=>a+v,0):null,st:{trades:xs.reduce((a,o)=>a+((o.st||{}).trades||0),0),ventas:xs.reduce((a,o)=>a+((o.st||{}).ventas||0),0)}}};
@@ -3532,7 +3532,7 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
    if(s!==SHA0){window.__NEWDATA=true;paint();
     var busy=!!TOK||/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||"");
     var last=+sessionStorage.getItem("vw_last")||0;
-    if(!busy&&Date.now()-idleAt>45000&&Date.now()-last>2*60000){try{sessionStorage.setItem("vw_last",String(Date.now()));sessionStorage.setItem("vw_scroll",String(scrollY))}catch(e){}location.reload()}}}
+    if(!busy&&Date.now()-idleAt>10000&&Date.now()-last>60000){try{sessionStorage.setItem("vw_last",String(Date.now()));sessionStorage.setItem("vw_scroll",String(scrollY))}catch(e){}location.reload()}}}
   /* v199 · cada minuto (antes cada 5): si hay datos nuevos y no estás tocando la pantalla, se recarga sola y vuelve al mismo sitio */
   try{var y0=+sessionStorage.getItem("vw_scroll");if(y0>0){sessionStorage.removeItem("vw_scroll");setTimeout(function(){scrollTo(0,y0)},1500)}}catch(e){}
   tick();setInterval(tick,60000);
@@ -4325,7 +4325,7 @@ details .fb,details .rb{padding:0 4px 16px!important}
 main,.wrap,#app{gap:0!important}
 /* botones: negros en píldora (blancos en oscuro); los secundarios, gris muy suave */
 button{border-radius:999px!important;border:0!important;background:var(--soft)!important;color:var(--ink)!important;box-shadow:none!important}
-button.go,.go,button.primary,#run,#btr,[data-cta],button.on:not(#nav button){background:var(--acc)!important;color:var(--accink)!important}
+button.go,.go,button.primary,#run,#btr,button.on:not(#nav button):not(.mt-ch){background:var(--acc)!important;color:var(--accink)!important}
 input,select,textarea{border-radius:12px!important;border:1px solid var(--line)!important;background:var(--soft)!important;color:var(--ink)!important}
 /* avisos: tono suave, sin borde */
 .warn,.note,[class*="aviso"]{border:0!important}
@@ -4368,6 +4368,21 @@ td{border-bottom:1px solid var(--line)!important}
 .b-buy,.b-hold,.b-sell,.badge,.tag:not(.vtag),[class^="b-"]{border:0!important;font-weight:500!important}
 /* ids de método (#abc): discretos */
 code,.mid,[class*="hash"]{background:var(--soft)!important;color:var(--muted)!important;border:0!important}
+/* Cripto: selector Bitvavo/OKX como un control segmentado (pista gris, el elegido en blanco) */
+.mt-chs{background:var(--soft);border-radius:16px;padding:4px;gap:4px!important}
+.mt-ch{background:transparent!important;border:0!important;border-radius:12px!important;box-shadow:none!important;color:var(--ink)!important;padding:10px 12px!important}
+.mt-ch.on{background:var(--panel)!important;box-shadow:0 1px 3px rgba(0,0,0,.12)!important}
+.mt-ch span{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.mt-ch small{font-size:12px;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+th,thead tr,thead{background:transparent!important}
+/* Cripto: tarjetas planas como el resto; las cajas de dentro, gris suave sin borde */
+.mt-p{background:var(--panel)!important;border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;box-shadow:none!important;padding:16px 2px!important;margin:0!important}
+.mt-p .mt-p,.mt-ag,.mt-p [style*="border:1px solid"]{background:var(--soft)!important;border:0!important;border-radius:14px!important;padding:12px!important}
+.mt-bdg{border:0!important;background:var(--soft)!important;color:var(--muted)!important;font-weight:500}
+.mt-dim{color:var(--muted)!important}
+.mt-w{color:var(--ink)!important}
+/* gráficas: línea fina y limpia */
+svg polyline,svg path[fill="none"]{stroke-width:2!important;stroke-linejoin:round;stroke-linecap:round}
 /* selector de apariencia */
 .tema-chs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .tema-chs button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;border-radius:16px!important}
