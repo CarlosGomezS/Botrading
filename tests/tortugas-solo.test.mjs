@@ -94,3 +94,21 @@ test("Real v319: 🧹 vender lo de los métodos antiguos: vende lo que no es de 
   ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen, liquidar: "2026-11-08T10:00:00Z" }, tk(ex.px), T(2), deps));
   assert.ok(RS.pos["A-EUR"], "la de las Tortugas se queda"); assert.ok(!RS.pos["B-EUR"], "la del método antiguo se vende"); assert.equal(RS.liqAt, "2026-11-08T10:00:00Z");
 });
+
+test("Tortugas v323: 💰 recoger ganancias: con tp vende al +X % (toda o la mitad) y el examen lo puede elegir", () => {
+  const dia = 864e5, d = []; let p = 100; for (let i = 0; i < 120; i++) { p = i < 60 ? 100 + Math.sin(i) : i < 70 ? p * 1.03 : p * 0.97; d.push([i * dia, p, p * 1.01, p * 0.99, p, 1]); }
+  const sin = TT.simula({ "A-EUR": d }, 0.001, 0.002, { maxPos: 1, riesgo: "alto" }), con = TT.simula({ "A-EUR": d }, 0.001, 0.002, { maxPos: 1, riesgo: "alto", tp: 0.2, tpFrac: 1 });
+  assert.ok(con.ret > sin.ret, `con recogida al +20 % gana más cuando luego se desploma: ${con.ret} vs ${sin.ret}`);
+  assert.match(TT.describe({ tp: 0.1, tpFrac: 0.5 }), /recoge la mitad de la ganancia al \+10 %/);
+});
+
+test("Real v323: 💰 recoger ganancias vende la mitad al llegar al objetivo y sigue con el resto", async () => {
+  delete process.env.SOLO_TORT;
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  const sen = { t: Date.now(), P: { maxPos: 2, riesgo: "medio", tp: 0.1, tpFrac: 0.5 }, sen: { "A-EUR": { t: 1, c: 1, N: 0.03, hi20: 0.98, lo10: 0.9, entra: true, sale: false } } };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 100 }, tk(ex.px), T(0), deps);
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen }, tk(ex.px), T(1), deps));
+  const q0 = RS.pos["A-EUR"].q; ex.px["A-EUR"] = 1.15;
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen }, tk(ex.px), T(2), deps));
+  const p = RS.pos["A-EUR"]; assert.ok(p && p.tpHecho, "sigue abierta y marcada"); assert.ok(Math.abs(p.q / q0 - 0.5) < 0.05, "vendió la mitad: " + p.q / q0);
+});

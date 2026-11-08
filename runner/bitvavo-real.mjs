@@ -305,6 +305,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         continue; }
       if (p.src === "tortuga") { if ((ctl.conservar || []).includes(p.sym)) { delete RS.pos[m]; continue; } const b = tick[m] ? tick[m].bid : p.px, S1 = ctl.tort && ctl.tort.sen && ctl.tort.sen[m];
         if (b <= p.stop) { await cerrar(m, `🐢 stop de las Tortugas (${r2((p.stop / p.px - 1) * 100)} %)`); continue; }
+        { const TPt = tortP(ctl.tort && ctl.tort.P); if (TPt.tp > 0 && !p.tpHecho && b >= p.px * (1 + TPt.tp)) { const fr = TPt.tpFrac >= 1 ? 1 : TPt.tpFrac; p.tpHecho = now.toISOString(); await cerrar(m, `💰 recoge ganancias: +${Math.round(TPt.tp * 100)} % (${fr >= 1 ? "toda" : "la mitad"}), comisiones incluidas sigue en positivo`, fr); if (fr >= 1 || !RS.pos[m]) continue; } }   // v323
         if (S1 && S1.sale) { const neto = (p.q * b * (1 - X.fee) + (p.cob || 0)) / p.cost - 1; if (neto > 0 || now - Date.parse(p.t0) > T_ESPERA_D * 86400e3) { await cerrar(m, `🐢 cierra por debajo de su mínimo de ${tortP(ctl.tort && ctl.tort.P).sale} días${neto > 0 ? " (con ganancia neta)" : " (7 días sin cubrir comisiones)"}`); continue; }
           if (!p.espera) { p.espera = now.toISOString(); L(RS, now, `⏳ ${p.sym}: señal de salida de las Tortugas, pero aún no cubre comisiones (${r2(neto * 100)} %); espera (stop activo)`); } }
         continue; }
