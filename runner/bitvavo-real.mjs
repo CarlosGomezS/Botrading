@@ -268,6 +268,8 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         if (!vale) await protege(m); } }
       if (B.EUR != null && RS.cash > +B.EUR + 0.01) RS.cash = +B.EUR;
       RS.cuenta = { t: now.toISOString(), eur: r2(+(B.EUR || 0)), total: r2(tot), activos: act.sort((a, b) => b.eur - a.eur) };
+      // v309 · 📈 gráfica de la cuenta: un punto cada 30 min (unas 3 semanas)
+      RS.curva = RS.curva || []; if (!RS.curva.length || now - RS.curva[RS.curva.length - 1][0] >= 30 * 60e3) { RS.curva.push([now.getTime(), r2(tot)]); RS.curva = RS.curva.slice(-1000); }
       // v282 · 📒 el historial real del exchange, cada 10 min o en cuanto cambian las monedas de la cuenta
       const firmaB = Object.keys(B).sort().join(",");
       if (X.operaciones && (!RS.libro || RS.libro.firma !== firmaB || now - Date.parse(RS.libro.t) > 10 * 60000)) { try {
