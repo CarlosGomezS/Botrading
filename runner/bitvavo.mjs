@@ -639,6 +639,12 @@ async function main() {
       const sen = {}; for (const { m, par, k } of lista) { try { const d = await TT.diarias(ex, m, 40, par, k || 1), x = TT.senal(d); if (x) sen[m] = x; } catch (e) {} }
       if (Object.keys(sen).length >= 5) { S.tort[ex] = { t: now.getTime(), dia: hoyT, sen }; const en = Object.entries(sen).filter(([, x]) => x.entra).map(([m]) => m.split("-")[0]);
         console.log(`🐢 Tortugas ${ex}: ${Object.keys(sen).length} criptos vigiladas · rompen su máximo de 20 días: ${en.length ? en.join(", ") : "ninguna hoy"}`); } } catch (e) { console.log(`🐢 Tortugas ${ex}: sin velas diarias (${String(e.message).slice(0, 40)})`); } }
+  // v306 · 🐋 COPIA A LOS PROFESIONALES: los mejores traders de Hyperliquid (cuentas > 500.000 $ que ganan este mes y en total).
+  // Si la mayoría de su dinero está COMPRADO en una cripto (≥ 60 %, al menos 4 de ellos) y además están metiendo más (sube en la última hora), es señal.
+  if (hlFresco && S.hl && S.hl.snap) { const pv = HLm.hace(S.hl, S.hl.at || now.getTime(), 3600e3) || {}, m = {};
+    for (const [c, x] of Object.entries(S.hl.snap)) { const d = pv[c] ? x.s - pv[c].s : 0; m[c + "-EUR"] = { s: x.s, nl: x.nl, ns: x.ns, d: Math.round(d * 1000) / 1000, entra: x.s >= 0.6 && x.nl >= 4 && d >= 0.05, sale: x.s < 0.2 }; }
+    S.ballenas = { t: now.getTime(), m }; const en = Object.entries(m).filter(([, x]) => x.entra).map(([k]) => k.split("-")[0]);
+    console.log(`🐋 Profesionales de Hyperliquid: ${Object.keys(m).length} criptos seguidas · están comprando fuerte: ${en.length ? en.join(", ") : "ninguna ahora"}`); }
   if (S.base) console.log("Cartera base: " + Object.entries(S.base.m).map(([m, T]) => `${m.split("-")[0]} ${T.up ? "📈 por encima" : "📉 por debajo"} de su media de 50 días (${Math.round((T.px / T.sma - 1) * 1000) / 10} %)`).join(" · "));
   if (Date.now() - t0 < 55e3) try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI, tickOkx: tickOkxReal }); } catch (e) { console.log("Real: error"); } else console.log("Real: vuelta larga, espera a la siguiente");
   console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + Object.keys(S.sub[k].pos).length + " abiertas, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);

@@ -387,3 +387,12 @@ test("Real v304: 🐢 Tortugas: compra al romper el máximo de 20 días, respeta
   ex.px["A-EUR"] = 1.05; ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, tort: sen({ entra: false, sale: true }) }, tk(ex.px), T(3), deps));
   assert.ok(!RS.pos["A-EUR"], "con ganancia neta, sale");
 });
+
+test("Real v306: 🐋 copia a los profesionales: compra el 10 % cuando están comprando fuerte y sale cuando dejan de estarlo (con ganancia neta)", async () => {
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado }, W = (o) => ({ t: Date.now(), m: { "A-EUR": { s: 0.8, nl: 6, ns: 1, d: 0.1, entra: true, sale: false, ...o } } });
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 100 }, tk(ex.px), T(0), deps);
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, ballenas: W({}) }, tk(ex.px), T(1), deps));
+  assert.ok(RS.pos["A-EUR"] && RS.pos["A-EUR"].src === "ballena" && Math.abs(RS.pos["A-EUR"].cost - 10) < 0.2);
+  ex.px["A-EUR"] = 1.05; ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, ballenas: W({ entra: false, sale: true, s: 0.1 }) }, tk(ex.px), T(2), deps));
+  assert.ok(!RS.pos["A-EUR"]);
+});

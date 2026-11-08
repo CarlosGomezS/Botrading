@@ -288,6 +288,12 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (p.src === "base") { if ((ctl.conservar || []).includes(p.sym)) { delete RS.pos[m]; continue; } const T = ctl.base && ctl.base.m && ctl.base.m[m], b = tick[m] ? tick[m].bid : p.px;
         if (ctl.base && T && T.up === false) await cerrar(m, "cartera base: la tendencia se ha girado (por debajo de su media de 50 días)"); else if (b <= p.px * (1 - BASE_STOP)) await cerrar(m, `cartera base: stop −${BASE_STOP * 100} %`); continue; }
       // v304 · 🐢 posiciones de las Tortugas: stop 2N (≤ −8 %) siempre; salida por mínimo de 10 días solo si cubre comisiones (o tras 7 días)
+      // v306 · 🐋 copias de los profesionales: salen cuando ellos dejan de estar comprados (si cubre comisiones; máx. 48 h esperando), stop −6 % siempre
+      if (p.src === "ballena") { const b = tick[m] ? tick[m].bid : p.px, W = ctl.ballenas && ctl.ballenas.m && ctl.ballenas.m[m];
+        if (b <= p.px * (1 - STOP_REAL)) { await cerrar(m, `🐋 stop −${STOP_REAL * 100} %`); continue; }
+        if (W && W.sale) { const neto = (p.q * b * (1 - X.fee) + (p.cob || 0)) / p.cost - 1; if (neto > 0 || (p.espera && now - Date.parse(p.espera) > 48 * 3600e3)) { await cerrar(m, `🐋 los profesionales ya no están comprados${neto > 0 ? " (con ganancia neta)" : " (48 h sin cubrir comisiones)"}`); continue; }
+          if (!p.espera) { p.espera = now.toISOString(); L(RS, now, `⏳ ${p.sym}: los profesionales salen, pero aún no cubre comisiones; espera (stop activo)`); } }
+        continue; }
       if (p.src === "tortuga") { if ((ctl.conservar || []).includes(p.sym)) { delete RS.pos[m]; continue; } const b = tick[m] ? tick[m].bid : p.px, S1 = ctl.tort && ctl.tort.sen && ctl.tort.sen[m];
         if (b <= p.stop) { await cerrar(m, `🐢 stop de las Tortugas (2N, ${r2((p.stop / p.px - 1) * 100)} %)`); continue; }
         if (S1 && S1.sale) { const neto = (p.q * b * (1 - X.fee) + (p.cob || 0)) / p.cost - 1; if (neto > 0 || now - Date.parse(p.t0) > T_ESPERA_D * 86400e3) { await cerrar(m, `🐢 cierra por debajo de su mínimo de 10 días${neto > 0 ? " (con ganancia neta)" : " (7 días sin cubrir comisiones)"}`); continue; }
@@ -329,6 +335,14 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
           RS.pos[m] = { src: "tortuga", sym: m.split("-")[0], q: r.q, q0: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), last: tk.bid, stop: r.px - stopD, N: x.N };
           L(RS, now, `🐢 compra ${m.split("-")[0]} por ${r2(r.coste)} €: cerró por encima de su máximo de 20 días · stop ${r2((-stopD / r.px) * 100)} % · sale con su mínimo de 10 días`); msgs.push(`💶 🐢 ${EX}: compra ${m.split("-")[0]} (${r2(r.coste)} €) por ruptura de su máximo de 20 días.`); await protege(m);
         } catch (e) { L(RS, now, `⚠️ 🐢 no pude comprar ${m.split("-")[0]}: ${String(e.message).slice(0, 60)}`); } } }
+    // v306 · 🐋 COPIA A LOS PROFESIONALES de Hyperliquid: como mucho 2 a la vez, 10 % de la cuenta cada una (máx. 20 % en total), solo criptos de este exchange
+    if (ctl.ballenas && ctl.ballenas.m) { const V = valor(RS, tick); let nB = Object.values(RS.pos).filter((p) => p.src === "ballena").length;
+      for (const [m, w] of Object.entries(ctl.ballenas.m).filter(([, w]) => w.entra).sort((a, b) => b[1].s - a[1].s)) { if (nB >= 2) break; const tk = tick[m]; if (RS.pos[m] || !tk || !(tk.ask > 0) || tk.sp > HUECO_MAX || (ctl.conservar || []).includes(m.split("-")[0])) continue;
+        const clave = "W|" + m + "|" + new Date(now).toISOString().slice(0, 13); if (RS.vistos[clave]) continue; RS.vistos[clave] = now.toISOString();
+        const hueco = Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())), mk = await mercado(m), eur = Math.min(0.10 * V, hueco, RS.cash, Math.max(0, (await libre()) - 0.5)); if (eur < Math.max(mk.min, 5) * 1.02) continue;
+        try { const r = await X.comprar(m, eur); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nB++; RS.pos[m] = { src: "ballena", sym: m.split("-")[0], q: r.q, q0: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), last: tk.bid };
+          L(RS, now, `🐋 compra ${m.split("-")[0]} por ${r2(r.coste)} €: los mejores traders de Hyperliquid están comprados al ${Math.round(w.s * 100)} % (${w.nl} de ellos) y metiendo más`); msgs.push(`💶 🐋 ${EX}: copia a los profesionales: compra ${m.split("-")[0]} (${r2(r.coste)} €).`); await protege(m);
+        } catch (e) { L(RS, now, `⚠️ 🐋 no pude comprar ${m.split("-")[0]}: ${String(e.message).slice(0, 60)}`); } } }
     const lista = ctl.noCompra ? [] : [copia, ...(ctl.extra || [])].filter((k, i, a) => fuentes[k] && a.indexOf(k) === i);   // v295 · sin método aprobado: no compra (sí vigila y vende lo abierto)
     for (const kS of lista) { const srcK = fuentes[kS], eqSrc = +srcK.lastEq || 100;
     // v253 · «📥 Copiar ya lo abierto» (lo pides tú): compra ahora lo que el método YA tiene abierto (lo que esté en este exchange), a precio de ahora
@@ -482,7 +496,8 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
     R0.tortugas = tortOk ? (TS ? "activas" : "sin velas diarias todavía") : TE ? `no aprueban (${TE.motivo || "examen"})` : "pendientes del examen";
     // v304 · 🖥️ la terminal cuenta qué sigue cada cuenta y por qué
     console.log(`💶 ${N}: campeón «${copia}» (${estadoAnio(copia)}${R0.auto && R0.auto.motivo ? " · " + R0.auto.motivo : ""}) · ${noCompra ? "⏸️ " + (R0.bloqueo || "no compra") : "compra cuando su método da señal"} · 🐢 Tortugas ${R0.tortugas} · 🧺 base ${R0.base}`);
-    const c2 = { copia, extra, noCompra, tort: tortOk && TS ? TS : null, base: baseOk && T ? T : null, conservar: Array.isArray(cfg.conservar) ? cfg.conservar.map((x) => String(x).toUpperCase()) : [], capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
+    const BW = S.ballenas && now - S.ballenas.t < 30 * 60e3 ? S.ballenas : null; R0.ballenas = BW ? "activa" : "sin datos recientes de Hyperliquid";
+    const c2 = { copia, extra, noCompra, ballenas: BW, tort: tortOk && TS ? TS : null, base: baseOk && T ? T : null, conservar: Array.isArray(cfg.conservar) ? cfg.conservar.map((x) => String(x).toUpperCase()) : [], capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
       parado: !cfg.on || !!ctl.parado || cfg.parado, motivo: !cfg.on ? `has apagado ${N}` : ctl.parado ? ctl.motivo || "lo has parado tú" : cfg.motivo };
     const out = await vuelta(RS, fuentes, c2, tick, now, { ex: X });
     const msgs = out.msgs.map((m) => (m.includes(N) ? m : m.replace(/^💶 /, `💶 ${N} · `)));
