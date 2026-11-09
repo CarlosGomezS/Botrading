@@ -176,7 +176,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   const protege = async (m) => { const p = RS.pos[m]; if (!p || (ctl.conservar || []).includes(p.sym)) return; if (!X.ponStop) { p.stopEst = "no disponible"; return; }
     try { if (p.stopId) { await X.quitaStop(m, p.stopId); delete p.stopId; } const id = await X.ponStop(m, p.q, p.src === "tortuga" && p.stop > 0 ? Math.min(p.px * (1 - STOP_EMERG), p.stop * 0.97) : p.px * (1 - (p.src === "base" ? BASE_STOP + 0.03 : STOP_EMERG)));   /* v318 · el de emergencia, siempre por debajo del stop de su regla */ if (id) { p.stopId = id; p.stopEst = "ok"; delete p.stopErr; }
       else { if (p.stopEst !== "no disponible") L(RS, now, `ℹ️ ${p.sym}: ${EX} no permite stop de emergencia en este mercado (la vigila el bot con su stop −6 %)`); p.stopEst = "no disponible"; } }
-    catch (e) { if (p.stopEst !== "error") L(RS, now, `⚠️ ${p.sym}: no pude poner el stop de emergencia en ${EX} (sigue el del bot; lo reintenta cada 30 min)`); p.stopEst = "error"; } };
+    catch (e) { if (p.stopEst !== "error") L(RS, now, `⚠️ ${p.sym}: no pude poner el stop de emergencia en ${EX} (sigue el del bot; lo reintenta cada 30 min) · motivo: ${String((e && e.message) || e).replace(/[A-Za-z0-9+/=_-]{24,}/g, "…").slice(0, 90)}`); p.stopEst = "error"; } };
   async function cerrar(m, por, frac = 1) {
     const p = RS.pos[m], mk = await mercado(m), bid = tick[m] ? tick[m].bid : p.px;
     if (frac < 1 && p.q * (1 - frac) * bid < mk.min) frac = 1;   // si lo que quedaría es menos que el mínimo, se vende todo
