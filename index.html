@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 352 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#352</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 353 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#353</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -579,7 +579,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <div class="p adv"><h2>Diagnóstico técnico</h2><pre id="dg">—</pre></div>
 </section>
 <section class="tab" id="t-ayuda">
-<div class="p"><h2>📱 La app, en 5 pestañas</h2><div class="m">• <b>💶 Real</b>: tu cuenta de Trading 212 (saldo, ingresado, invertido, efectivo, ganancia y la gráfica; desliza el dedo sobre ella para ver cada día). • <b>🤖 Laboratorio</b>: el podio de métodos ganadores. • <b>🪙 Cripto</b>: Bitvavo y OKX con dinero real. • <b>🖥️ Terminal</b>: todo lo que hace la app por detrás, línea a línea y con su hora (cripto, laboratorio, cartera real, cambios de método y cada proceso de GitHub); se filtra por pestañas, se busca, se exporta entero o por día y «Limpiar» despeja la pantalla sin borrar nada. • <b>⚙️ Ajustes</b>: apariencia (claro, oscuro o como el móvil), copias y lo técnico. En cada pantalla, lo que no es del día a día está en <b>«⋯ Más»</b>. Los datos se actualizan solos: precios de cripto cada 2 segundos y el resto en cuanto el bot publica algo nuevo (la app se recarga sola si llevas 10 segundos sin tocarla). Todos los avisos llegan por <b>Telegram</b>.</div></div>
+<div class="p"><h2>📱 La app, en 5 pestañas</h2><div class="m">• <b>💶 Real</b>: tu cuenta de Trading 212 (saldo, ingresado, invertido, efectivo, ganancia y la gráfica; desliza el dedo sobre ella para ver cada día). • <b>🤖 Laboratorio</b>: el podio de métodos ganadores. • <b>🪙 Cripto</b>: Bitvavo y OKX con dinero real. • <b>🖥️ Terminal</b>: todo lo que hace la app por detrás, línea a línea y con su hora (cripto, laboratorio, cartera real, cambios de método y cada proceso de GitHub); incluye 🩺 comprobaciones de que todo funciona (bot de cripto, conexiones, cartera real, laboratorio, precios y procesos) y el filtro «⚠️ Errores» para ver solo lo que ha fallado; se busca, se exporta entero o por día y «Limpiar» despeja la pantalla sin borrar nada. • <b>⚙️ Ajustes</b>: apariencia (claro, oscuro o como el móvil), copias y lo técnico. En cada pantalla, lo que no es del día a día está en <b>«⋯ Más»</b>. Los datos se actualizan solos: precios de cripto cada 2 segundos y el resto en cuanto el bot publica algo nuevo (la app se recarga sola si llevas 10 segundos sin tocarla). Todos los avisos llegan por <b>Telegram</b>.</div></div>
 
 <div class="p hlp"><h2>Cómo funciona, en 1 minuto</h2>
 <div class="steps">
@@ -4553,17 +4553,18 @@ h1{font-size:20px!important;font-weight:600!important;letter-spacing:-.02em}
 (function(){"use strict";
 const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
-const SRC={cripto:["🪙","Cripto"],lab:["🤖","Laboratorio"],real:["💶","Real"],proc:["⚙️","Procesos"]};
-const FIL=[["todo","Todo"],["cripto","🪙 Cripto"],["lab","🤖 Laboratorio"],["real","💶 Real"],["met","🔄 Métodos"],["proc","⚙️ Procesos"]];
+const SRC={cripto:["🪙","Cripto"],lab:["🤖","Laboratorio"],real:["💶","Real"],proc:["⚙️","Procesos"],chk:["🩺","Comprobación"]};
+const FIL=[["todo","Todo"],["err","⚠️ Errores"],["chk","🩺 Comprobaciones"],["cripto","🪙 Cripto"],["lab","🤖 Laboratorio"],["real","💶 Real"],["met","🔄 Métodos"],["proc","⚙️ Procesos"]];
+const ERR=/⚠️|❌|🔴 Falla|error|Error|ERROR|falla|fallo|no pude|no se pudo|no puedo|sin precios|HTTP [45]\d\d|agotad|caído|caida del servicio|rechaz/;
 const T={toque:0,arriba:false,ev:new Map(),db:null,dirty:new Map(),fil:LS.get("termFil","todo"),q:"",abajo:true,n:500,limpio:+LS.get("termLimpio",0)||0,at:0,srvAt:0,srvN:0,ghAt:0,realAt:0,criAt:0,ok:{cripto:0,real:0,lab:0,proc:0}};
 const dk=t=>{const d=new Date(t);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 const hh=t=>new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
 const hs=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0).toString(36)};
 const MET=/🧬|CAMBIA|cambia a |cambia de m(é|e)todo|cambia sola|nuevo n(ú|u)mero 1|pasa a seguir|reglas nuevas|perfil de riesgo|riesgo (🟢|🟡|🔴)/i;
 function add(src,t,txt,n,met){t=typeof t==="number"?t:Date.parse(t);if(!(t>0)||!txt)return;txt=String(txt).replace(/\s+/g," ").trim().slice(0,900);if(!txt)return;
- const id=src+"|"+dk(t)+"|"+hs(txt),e=T.ev.get(id),m=met||(src!=="proc"&&MET.test(txt))?1:0;
+ const nz=txt.replace(/generación \d+/g,"generación #"),id=src+"|"+dk(t)+"|"+hs(nz),e=T.ev.get(id),m=met||(src!=="proc"&&src!=="chk"&&MET.test(txt))?1:0;
  if(!e){const o={id,t,src,txt,n:n||1,met:m};T.ev.set(id,o);T.dirty.set(id,o);return}
- let ch=false;if(t>e.t){e.t=t;ch=true}if((n||1)>e.n){e.n=n;ch=true}if(m&&!e.met){e.met=1;ch=true}if(ch)T.dirty.set(id,e)}
+ let ch=false;if(t>e.t){e.t=t;if(e.txt!==txt){e.txt=txt;e.n=(e.n||1)+1}ch=true}if((n||1)>e.n){e.n=n;ch=true}if(m&&!e.met){e.met=1;ch=true}if(ch)T.dirty.set(id,e)}
 /* ---------- base de datos del móvil ---------- */
 function abre(){return new Promise(ok=>{try{const r=indexedDB.open("bt-terminal",1);r.onupgradeneeded=()=>{r.result.createObjectStore("ev",{keyPath:"id"})};r.onsuccess=()=>ok(r.result);r.onerror=()=>ok(null)}catch(e){ok(null)}})}
 async function carga(){/* v345 · NO tocar IndexedDB hasta que la copia del laboratorio esté restaurada y cargada (si no, la carga del laboratorio se quedaba colgada) */try{if(window.__SNAPREADY)await window.__SNAPREADY}catch(e){}for(let i=0;i<120&&!window.__loaded;i++)await new Promise(r=>setTimeout(r,500));T.db=await abre();if(!T.db)return;await new Promise(ok=>{try{const q=T.db.transaction("ev").objectStore("ev").getAll();q.onsuccess=()=>{for(const o of q.result||[])if(!T.ev.has(o.id))T.ev.set(o.id,o);ok()};q.onerror=()=>ok()}catch(e){ok()}})}
@@ -4575,7 +4576,7 @@ function cripto(){const M=typeof MM!=="undefined"?MM:null;if(!M)return;const C=(
  const X=M.bvX||{};for(const ex of ["bitvavo","okx"]){const R=(X[ex]||{}).R;if(R){T.ok.cripto=1;for(const x of R.log||[])add("cripto",x.t,"💶 "+(ex==="okx"?"OKX":"Bitvavo")+" REAL · "+x.txt)}}}
 function lab(){if(typeof S==="undefined"||!S||!window.__loaded)return;const L=S.lab||{},sv=S.savedAt||Date.now(),hd=d=>d===dk(sv)?sv:Date.parse(d+"T23:59:00");T.ok.lab=1;
  for(const j of S.journal||[])if(j&&j.ts)add("lab",j.ts,"Ronda del laboratorio"+(j.marketDate?" (sesión "+j.marketDate+")":"")+": "+(j.status||"")+(j.message?" · "+j.message:""));
- for(const r of S.runLog||[])if(r&&(r.finishedAt||r.startedAt)){const er=Object.keys(r.providerErrors||{}).length;add("lab",r.finishedAt||r.startedAt,"📥 Precios: "+(r.freshAssets??"?")+" de "+(r.requestedAssets??"?")+" valores al día"+(er?" · "+er+" proveedores con fallos":"")+(r.status?" · "+r.status:""))}
+ for(const r of S.runLog||[])if(r&&(r.finishedAt||r.startedAt)){const er=Object.keys(r.providerErrors||{}).length;add("lab",r.finishedAt||r.startedAt,"📥 Precios: "+(r.freshAssets??"?")+" de "+(r.requestedAssets??"?")+" valores al día"+(er?" · "+er+" proveedores no respondieron (se usaron otros)":"")+(r.status?" · "+r.status:""))}
  const EV={nace:"🐣 Nace",aprueba:"✅ Aprueba y entra en la liga",sale:"⬇️ Sale de la liga",vuelve:"↩️ Vuelve a la liga"};
  for(const x of L.log||[])if(x&&x.d)add("lab",hd(x.d),(EV[x.ev]||x.ev)+": "+(x.n||nom(x.k))+(x.why?" · "+x.why:""),1,1);
  for(const x of S.siglog||[])if(x&&x.d)add("lab",hd(x.d),"🧪 "+nom(x.m)+" · "+(x.k==="compra"?"🟢 compra ":x.k==="venta"?"🔴 vende ":x.k+" ")+(x.s||"")+(x.amt!=null?" · "+(+x.amt).toFixed(2)+" € ficticios":""));
@@ -4591,16 +4592,33 @@ async function servidor(){/* histórico largo de cripto (48 h, cifrado) */
  if(Date.now()-T.srvAt<5*60e3||typeof memeGet!=="function")return;T.srvAt=Date.now();try{const pw=(typeof pwGet==="function"&&pwGet())||"";const j=await memeGet("terminal-cripto","terminal.json");if(!j||j.nada||!j.enc||!pw)return;const d=JSON.parse(await decrypt(j,pw));if(d&&d.l){T.srvN=d.l.length;T.ok.cripto=1;for(const [t,x,n] of d.l)add("cripto",t,x,n)}}catch(e){}}
 async function procesos(){if(Date.now()-T.ghAt<5*60e3)return;T.ghAt=Date.now();
  try{const c=window.__CLOUD,r=c&&c.ri?c.ri():null,o=r?r.o:"CarlosGomezS",rr=r?r.r:"Botrading",h={Accept:"application/vnd.github+json"};try{if(c&&c.tok&&c.tok())h.Authorization="Bearer "+c.tok()}catch(e){}
-  const x=await fetch(`https://api.github.com/repos/${o}/${rr}/actions/runs?per_page=60`,{headers:h,cache:"no-store"});if(!x.ok)return;const j=await x.json();T.ok.proc=1;
+  const x=await fetch(`https://api.github.com/repos/${o}/${rr}/actions/runs?per_page=60`,{headers:h,cache:"no-store"});if(!x.ok){add("chk",Date.now(),"⚠️ GitHub: no pude leer la lista de procesos (HTTP "+x.status+"); lo reintento en 5 min");return}const j=await x.json();T.ok.proc=1;T.runs=j.workflow_runs||[];
   for(const w of j.workflow_runs||[]){const ini=w.run_started_at||w.created_at,n=w.name||w.display_title||"Proceso",min=Math.max(0,Math.round((Date.parse(w.updated_at)-Date.parse(ini))/60000));
    add("proc",ini,"▶️ Empieza: "+n+(w.event==="schedule"?" (programado)":w.event==="workflow_dispatch"?" (lanzado a mano o por otro proceso)":""));
    if(w.status==="completed"){const c2=w.conclusion;add("proc",w.updated_at,(c2==="success"?"✅ Termina bien: ":c2==="cancelled"?"⏹️ Cancelado: ":c2==="skipped"?"⏭️ Saltado: ":"❌ Falla ("+c2+"): ")+n+" · "+min+" min")}}}catch(e){}}
 function refresca(){try{const M=typeof MM!=="undefined"?MM:null;if(M&&typeof memeLoad==="function"&&Date.now()-T.criAt>60e3&&!M.busy){T.criAt=Date.now();memeLoad(false).catch(()=>{})}}catch(e){}
  try{const RL=window.__RLs;if(RL&&RL.R&&!RL.busy&&!RL.loading&&Date.now()-(RL.at||0)>120e3&&typeof window.__realReload==="function"&&!$("#t-real.on"))window.__realReload()}catch(e){}}
-async function recoge(){try{cripto()}catch(e){}try{lab()}catch(e){}try{real()}catch(e){}await Promise.all([servidor(),procesos()]);try{cripto()}catch(e){}T.at=Date.now();guarda()}
+/* v353 · 🩺 COMPROBACIONES: cada vez que el terminal mira los datos, revisa que todo esté vivo y lo apunta (✅ bien / ⚠️ vigilar / ❌ falla).
+   Los textos no llevan números que cambien cada minuto, así una comprobación que sigue igual es una sola línea (×n) y no llena la pantalla. */
+function checks(){const now=Date.now(),hm=t=>new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}),h=new Date().getHours(),wd=new Date().getDay(),lab0=wd>=1&&wd<=5;
+ try{const M=typeof MM!=="undefined"?MM:null,C=M&&((M.ch==="bitvavo"&&M.S)||(M.oth&&M.oth.bitvavo));if(C&&C.consola&&C.consola.length){const last=Math.max(Date.parse(C.last)||0,...C.consola.map(x=>x[0]));
+   add("chk",now,now-last<10*60e3?"✅ Bot de cripto: funcionando (da una vuelta cada minuto)":"❌ Bot de cripto: sin dar vueltas desde las "+hm(last)+" (lo normal es cada minuto)");
+   const cx=C.conex||{};for(const ex of ["bitvavo","okx"]){const e=cx[ex];if(e)add("chk",now,e.estado==="ok"?"✅ Conexión con "+(ex==="okx"?"OKX":"Bitvavo")+": bien":"❌ Conexión con "+(ex==="okx"?"OKX":"Bitvavo")+": "+e.estado)}
+   const tor=C.tort||{};for(const ex of ["bitvavo","okx"]){const x=tor[ex];if(x&&x.t)add("chk",now,now-x.t<8*3600e3?"✅ Señales de Tortugas en "+(ex==="okx"?"OKX":"Bitvavo")+": al día ("+Object.keys(x.sen||{}).length+" criptos vigiladas)":"⚠️ Señales de Tortugas en "+(ex==="okx"?"OKX":"Bitvavo")+": sin recalcular desde las "+hm(x.t))}}}catch(e){}
+ try{const R=window.__RLs&&window.__RLs.R;if(R){const r0=(R.reports||[])[0],tr=r0&&Date.parse(r0.ts);if(tr)add("chk",now,lab0&&now-tr>30*3600e3?"⚠️ Cartera real: la revisión diaria no se ha hecho desde el "+new Date(tr).toLocaleDateString("es-ES")+" "+hm(tr):"✅ Cartera real: revisión diaria hecha («"+(r0.titulo||r0.tipo)+"»)");
+   if(R.paused)add("chk",now,"⚠️ Cartera real: en pausa ("+(R.paused.motivo||R.paused.why||"freno")+")");
+   const lv=R.live&&Date.parse(R.live);if(lv&&lab0&&h>=10&&h<=17)add("chk",now,now-lv<60*60e3?"✅ Cartera real: valor en directo al día":"⚠️ Cartera real: el valor en directo no se actualiza desde las "+hm(lv));
+   const bad=(R.orders||[]).filter(o=>o&&o.err&&now-Date.parse(o.ts)<7*864e5);if(bad.length)add("chk",now,"⚠️ Cartera real: "+bad.length+" órdenes con error en los últimos 7 días (míralas en 💶 Real)");else add("chk",now,"✅ Cartera real: ninguna orden con error en 7 días")}}catch(e){}
+ try{if(typeof S!=="undefined"&&S&&window.__loaded){const j=(S.journal||[])[0],tj=j&&Date.parse(j.ts),sv=S.savedAt;if(sv)add("chk",now,h>=6&&h<=22&&now-sv>3*3600e3?"⚠️ Laboratorio: sin rondas nuevas desde las "+hm(sv)+" (lo normal es cada ~30 min de 4 a 21 h)":"✅ Laboratorio: haciendo rondas");
+   if(j&&j.marketDate){const d=new Date();d.setDate(d.getDate()-1);while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()-1);const ult=dk(+d);   /* última sesión de bolsa que ya debería estar (la de ayer o el viernes) */
+   add("chk",now,j.marketDate>=ult||h<5?"✅ Actualización de precios de la noche: hecha (sesión del "+j.marketDate+")":"⚠️ Actualización de precios de la noche: falta la sesión del "+ult+" (la última es la del "+j.marketDate+")")}
+   const rl=(S.runLog||[])[0];if(rl&&rl.requestedAssets){const fr=(rl.freshAssets||0)/rl.requestedAssets;add("chk",now,fr>=0.97?"✅ Precios: casi todos al día (si un proveedor no responde, se usan otros)":"⚠️ Precios: solo "+Math.round(fr*100)+" % de los valores están al día")}}}catch(e){}
+ try{const rs=T.runs||[];if(rs.length){const d24=rs.filter(w=>now-Date.parse(w.updated_at)<24*3600e3&&w.status==="completed"),fl=d24.filter(w=>w.conclusion==="failure"||w.conclusion==="timed_out");
+   add("chk",now,fl.length?"❌ GitHub: "+fl.length+" procesos han fallado en 24 h ("+[...new Set(fl.map(w=>w.name))].slice(0,3).join(" · ")+")":"✅ GitHub: ningún proceso ha fallado en 24 h")}}catch(e){}}
+async function recoge(){try{cripto()}catch(e){}try{lab()}catch(e){}try{real()}catch(e){}await Promise.all([servidor(),procesos()]);try{cripto()}catch(e){}try{checks()}catch(e){}T.at=Date.now();guarda()}
 /* ---------- pantalla ---------- */
 const col=x=>/⚠️|🔻|🛑|❌|ERROR|[Ee]rror|no pude|no se pudo|PIERDE|Falla/.test(x)?"var(--stop)":/✅|💰|🟢|➕|GANA|aprueba|Aprueba|COMPRA|compra/.test(x)?"var(--go)":"var(--ink)";
-function lista(){const q=T.q.toLowerCase();return[...T.ev.values()].filter(e=>e.t>=T.limpio&&(T.fil==="todo"||(T.fil==="met"?e.met:e.src===T.fil))&&(!q||e.txt.toLowerCase().includes(q))).sort((a,b)=>a.t-b.t)}
+function lista(){const q=T.q.toLowerCase();return[...T.ev.values()].filter(e=>e.t>=T.limpio&&(T.fil==="todo"||(T.fil==="met"?e.met:T.fil==="err"?ERR.test(e.txt)&&!/✅/.test(e.txt):e.src===T.fil))&&(!q||e.txt.toLowerCase().includes(q))).sort((a,b)=>a.t-b.t)}
 function linea(e){const s=SRC[e.src]||["•",e.src];return`<div class="tl"><span class="tt">${hh(e.t)}</span> <span class="tg tg-${e.src}">${s[0]}</span> <span style="color:${col(e.txt)}">${esc(e.txt)}</span>${e.n>1?` <span class="tt">×${e.n}</span>`:""}</div>`}
 function cuerpo(){const L=lista().reverse(),V=L.slice(0,T.n);let h="",d0="";
  for(const e of V){const d=dk(e.t);if(d!==d0){d0=d;h+=`<div class="td">── ${d===dk(Date.now())?"Hoy, ":""}${new Date(e.t).toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})} ──</div>`}h+=linea(e)}
