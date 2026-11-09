@@ -42,6 +42,9 @@ jobs:
       - name: Vueltas (una por minuto, ~28 min)
         if: steps.dup.outputs.go == 'true'
         env:
+          DIARIO_LOG: /tmp/diario.jsonl
+          NODE_OPTIONS: --import ${{ github.workspace }}/runner/diario-captura.mjs
+          DIARIO_SOLO_TG: "1"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
           REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
@@ -60,6 +63,16 @@ jobs:
             timeout 100 node runner/bitvavo.mjs > /tmp/m-bv.log 2>&1 || true; cat /tmp/m-bv.log
             w=$(( 60 - ($(date +%s) - s) )); if [ "$w" -gt 0 ]; then sleep "$w"; fi
           done
+      - name: Diario para el terminal (cifrado)
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          DIARIO_LOG: /tmp/diario.jsonl
+          REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node runner/diario.mjs terminal-cripto-tg
       - name: Siguiente tramo (en cadena)
         if: always() && steps.dup.outputs.go == 'true'
         env:

@@ -59,6 +59,8 @@ jobs:
         if: steps.libre.outputs.go == 'true'
         working-directory: runner
         env:
+          DIARIO_LOG: /tmp/diario.jsonl
+          NODE_OPTIONS: --import ${{ github.workspace }}/runner/diario-captura.mjs
           LAB_EXTRA: "1"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
@@ -74,6 +76,16 @@ jobs:
           if node runner.mjs backtest; then exit 0; fi
           e=$(( $(date +%s) - s ))
           if [ "$e" -lt 900 ]; then echo "::warning title=Laboratorio::La ronda falló a los ${e} s; se reintenta una vez"; sleep 45; node runner.mjs backtest; else exit 1; fi
+      - name: Diario para el terminal (cifrado)
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          DIARIO_LOG: /tmp/diario.jsonl
+          REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node runner/diario.mjs terminal-lab
       - name: Mantener vivo el bot (procesos activos y actividad en el repositorio)
         if: always()
         continue-on-error: true

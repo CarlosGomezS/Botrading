@@ -52,6 +52,8 @@ jobs:
       - name: Cartera real
         working-directory: runner
         env:
+          DIARIO_LOG: /tmp/diario.jsonl
+          NODE_OPTIONS: --import ${{ github.workspace }}/runner/diario-captura.mjs
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACCION: ${{ github.event_name == 'schedule' && (github.event.schedule == '47 16 * * 1-5' && 'foto' || 'normal') || inputs.accion }}
           PLAN_ID: ${{ inputs.plan }}
@@ -68,3 +70,14 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
         run: node real.mjs
+
+      - name: Diario para el terminal (cifrado)
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          DIARIO_LOG: /tmp/diario.jsonl
+          REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node runner/diario.mjs terminal-real

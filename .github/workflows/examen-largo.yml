@@ -33,8 +33,20 @@ jobs:
           restore-keys: largo-
       - name: Examen largo
         env:
+          DIARIO_LOG: /tmp/diario.jsonl
+          NODE_OPTIONS: --import ${{ github.workspace }}/runner/diario-captura.mjs
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: timeout 3000 node --max-old-space-size=12000 runner/examen-largo.mjs   # v295 · si falla, sale en rojo (y queda anotado)
+      - name: Diario para el terminal (cifrado)
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          DIARIO_LOG: /tmp/diario.jsonl
+          REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node runner/diario.mjs terminal-examen
       - name: Guardar el año de velas
         if: always()
         uses: actions/cache/save@v4

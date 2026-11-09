@@ -45,6 +45,8 @@ jobs:
         if: steps.hora.outputs.go == 'true'
         working-directory: runner
         env:
+          DIARIO_LOG: /tmp/diario.jsonl
+          NODE_OPTIONS: --import ${{ github.workspace }}/runner/diario-captura.mjs
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACCION: pulso
           T212_KEY: ${{ secrets.T212_KEY }}
@@ -52,6 +54,16 @@ jobs:
           REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
           REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
         run: node real.mjs
+      - name: Diario para el terminal (cifrado)
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          DIARIO_LOG: /tmp/diario.jsonl
+          REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node runner/diario.mjs terminal-pulso
   cadena:
     needs: pulso
     if: always()
