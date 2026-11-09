@@ -479,6 +479,8 @@ export async function construirH(raw, tick, opt = {}) {
 }
 export async function cargarHist(hm, tick, paginas = 4, S = null, now = new Date(), hilos = 6, opt = {}) { void S; void now; return construirH(await descargar(hm, paginas, hilos, opt.ritmo || 0), tick, opt); }
 // precios de todo (una petición) → tick y los mercados líquidos ordenados por volumen
+// v354 · el bot ficticio de cripto ya no decide nada (el dinero real solo sigue a las Tortugas): sus líneas de estado salen cada 30 min, no cada minuto
+const soloTortugasRuido = (now) => process.env.SOLO_TORT === "0" || now.getUTCMinutes() % 30 === 0;
 export async function universo() {
   const T = await J(`${API}/ticker/24h`); if (!Array.isArray(T)) return null;
   const tick = {}, uni = [];
@@ -578,7 +580,7 @@ async function main() {
       for (const v of cands) { const g = { ...BASE, ...v.g }; let c = 0; for (const m of ms) { for (const f of HX[m]) if (f && entra(g, f)) { c++; if (c > 300) break; } } if (c > bn) { bn = c; best = v; } }
       if (best) { C.practG = best.g; C.practAt = now.toISOString(); C.practN = bn; } }
     console.log(`Señales en 24 h (fg ${TMx && TMx.fg ? TMx.fg[TMx.fg.length - 1][1] : "?"}, fund ${TMx && TMx.fund ? TMx.fund[TMx.fund.length - 1][1] : "?"}):` + SUBS.concat(["eq"]).map((k) => { const C = k === "eq" ? S : S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, ms = Object.keys(HF).filter((m) => !PERF[k] || !PERF[k].soloOkx || enOkx(OKX, m)); let n = 0; for (const m of ms) for (const f of HF[m]) if (f && entra(g, f)) n++; return ` ${k} ${n}`; }).join(",")); }
-  { console.log(`Señales ahora (OKX: ${OKX ? OKX.size : "SIN LISTA"} criptos, ${Object.keys(FO).length} con datos):` + SUBS.map((k) => { const C = S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, FF = PERF[k].soloOkx ? FO : F; return ` ${k} ${Object.values(FF).filter((f) => f && entra(g, f)).length}${C.prueba ? "🧪" : "⭐"}`; }).join(",")); }
+  { if (soloTortugasRuido(now)) console.log(`Señales ahora (OKX: ${OKX ? OKX.size : "SIN LISTA"} criptos, ${Object.keys(FO).length} con datos):` + SUBS.map((k) => { const C = S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, FF = PERF[k].soloOkx ? FO : F; return ` ${k} ${Object.values(FF).filter((f) => f && entra(g, f)).length}${C.prueba ? "🧪" : "⭐"}`; }).join(",")); }
   for (const k of SUBS) paso(S.sub[k], PERF[k].soloOkx ? tickO : tick, PERF[k].soloOkx ? FO : F, now);
   // v224/v225 · cobrar financiación y rejilla: tres submodos cada uno, con sus propios 100 € ficticios
   // v271 · «Cobrar financiación» y «Rejilla» QUITADOS (no aportaban; necesitaban futuros o perdían): el código queda, pero ya no se ejecuta
@@ -671,8 +673,8 @@ async function main() {
     console.log(`🐋 Profesionales de Hyperliquid: ${Object.keys(m).length} criptos seguidas · están comprando fuerte: ${en.length ? en.join(", ") : "ninguna ahora"}`); }
   if (S.base) console.log("Cartera base: " + Object.entries(S.base.m).map(([m, T]) => `${m.split("-")[0]} ${T.up ? "📈 por encima" : "📉 por debajo"} de su media de 50 días (${Math.round((T.px / T.sma - 1) * 1000) / 10} %)`).join(" · "));
   if (Date.now() - t0 < 55e3) try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI, tickOkx: tickOkxReal }); } catch (e) { console.log("Real: error"); } else console.log("Real: vuelta larga, espera a la siguiente");
-  console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + Object.keys(S.sub[k].pos).length + " abiertas, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);
-  console.log(`Bitvavo: ${U.length} mercados · saldo ${S.lastEq} € · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · gen ${S.lab.gen} · ${S.diag.seg} s`);
+  if (soloTortugasRuido(now)) console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + Object.keys(S.sub[k].pos).length + " abiertas, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);
+  if (soloTortugasRuido(now)) console.log(`Bitvavo: ${U.length} mercados · saldo ${S.lastEq} € · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · gen ${S.lab.gen} · ${S.diag.seg} s`);
   // v302 · 🖥️ terminal: una línea que se repite igual (mismo texto) no se duplica: se actualiza su hora y cuántas veces lleva así
   { const C = S.consola || [], NUEVAS = CONSOLA.splice(0); S.termPend = PW() ? (S.termPend || []).concat(NUEVAS).slice(-4000) : []; for (const [t, x] of NUEVAS) { let hit = null; for (let k = C.length - 1; k >= Math.max(0, C.length - 60); k--) if (C[k][1] === x) { hit = C[k]; break; } if (hit) { hit[0] = t; hit[2] = (hit[2] || 1) + 1; } else C.push([t, x, 1]); } S.consola = C.slice(-500); }
   // v341 · 🖥️ TERMINAL LARGO: cada 5 min, lo nuevo se añade (cifrado) a terminal.json en su propia rama, con las últimas 48 h; la app lo lee en la pestaña Terminal
