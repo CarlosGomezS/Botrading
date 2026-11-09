@@ -1,6 +1,10 @@
 name: Cripto · prueba de la hucha de memecoins (Bitvavo, solo datos)
 on:
   workflow_dispatch:
+    inputs:
+      sinfreno:
+        description: "1 = sin el freno de 25 €"
+        default: "0"
 permissions:
   contents: read
 jobs:
@@ -17,4 +21,5 @@ jobs:
       - name: Probar
         env:
           GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          SIN_FRENO: ${{ github.event.inputs.sinfreno }}
         run: timeout 3300 node --max-old-space-size=6000 runner/memes-bv.mjs

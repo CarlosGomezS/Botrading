@@ -7,7 +7,7 @@
 // Examen: gana en toda la historia, no pierde en ≥ 60 % de 24 tramos al azar (la mitad acaban hoy), no pierde > 10 % en los últimos
 // 6 meses y sus vecinos (parámetros parecidos) también ganan en ≥ 60 %.
 const MEMES = ["PEPE", "SHIB", "DOGE", "BONK", "WIF", "FLOKI", "BOME", "TURBO", "BRETT", "POPCAT", "MEW", "NEIRO", "PENGU", "TRUMP", "PNUT", "GOAT", "FARTCOIN", "MOG", "SPX", "DOGS", "MEME", "PEOPLE", "ACT", "MOODENG", "BABYDOGE", "CAT", "SNEK", "DEGEN", "TOSHI", "SUNDOG", "GIGA", "AI16Z", "MYRO", "SLERF", "WEN", "ELON", "LADYS", "BAN", "CHILLGUY", "HIPPO", "SPX6900", "VINE", "KEKIUS"];
-const FEE = 0.0025, SPREAD = 0.003, HORAS = 2 * 365 * 24, H = 3600e3;
+const SIN_FRENO = process.env.SIN_FRENO === "1", FEE = 0.0025, SPREAD = 0.003, HORAS = 2 * 365 * 24, H = 3600e3;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function get(url) { for (let t = 0; t < 5; t++) { try { const r = await fetch(url, { signal: AbortSignal.timeout(30000) }); if (r.ok) return await r.json(); if (r.status === 429) await wait(3000 * (t + 1)); } catch (e) { await wait(1500 * (t + 1)); } } return null; }
 async function datos() {
@@ -50,7 +50,7 @@ function hucha(D, S, g, i0, i1) {
       if (lo <= lim) sal = Math.min(op, lim); else if (i - p.i >= g.Hh || i === i1) sal = d.C[i];
       if (sal != null) { const v = p.q * sal * (1 - SPREAD / 2) * (1 - FEE); cash += v; n++; if (v > p.coste) gan++; else if (cd) frio = i + cd; pos = pos.filter((x) => x !== p); } else if (hi > p.pk) p.pk = hi; }
     const eq = eqDe(i); if (eq > pico) pico = eq; dd = Math.max(dd, 1 - eq / pico);
-    if (!parada && eq <= 25) { for (const p of pos) cash += p.q * D.M[p.c].C[i] * (1 - SPREAD / 2) * (1 - FEE); pos = []; parada = true; }
+    if (!parada && !SIN_FRENO && eq <= 25) { for (const p of pos) cash += p.q * D.M[p.c].C[i] * (1 - SPREAD / 2) * (1 - FEE); pos = []; parada = true; }
     if (!parada && eq >= 100 && cash > 0) { const x = Math.min(cash, eq - 50); cash -= x; banco += x; pico = eqDe(i); }   // a la Tortuga
     if (parada || i === i1) continue;
     // entradas
@@ -76,6 +76,7 @@ async function main() {
   const ord = (A) => A.sort((u, v) => Math.round(v.a.ret * 1000) - Math.round(u.a.ret * 1000) || u.a.dd - v.a.dd);
   const pc = (x) => (x >= 0 ? "+" : "") + (x * 100).toFixed(0) + " %", desc = (p) => (p.fam === "A" ? `ruptura de ${p.N} h${p.m ? `, volumen ×${p.m}` : ""}${p.r0 ? `, +${p.r0 * 100} % en 24 h` : ""}` : `impulso +${p.th * 100} % en ${p.L} h sobre media ${p.E}`) + ` · stop −${p.sl * 100} %${p.tr < 1 ? ` · persigue −${p.tr * 100} %` : ""} · máx ${p.Hh} h · ${p.f === 1 ? "todo" : "la mitad"} por operación · hasta ${p.k} a la vez`;
   const ganan = res.filter((r) => r.a.ret > 0).length;
+  if (SIN_FRENO) console.log("\n⚠️ SIN el freno de 25 €: aguanta hasta el final");
   console.log(`\nCombinaciones probadas: ${k} · ganan en la historia completa: ${ganan} (${Math.round((ganan / k) * 100)} %) · APRUEBAN el examen: ${pasa.length}`);
   for (const r of ord(pasa).slice(0, 8)) console.log(`✅ ${desc(r.p)}\n   historia ${pc(r.a.ret)} (a la Tortuga ${r.a.banco.toFixed(0)} €) · peor caída −${(r.a.dd * 100).toFixed(0)} % · ${r.a.n} operaciones · aciertos ${Math.round(r.a.aciertos * 100)} % · no pierde en ${Math.round(r.g * 100)} % de los tramos (tramo típico ${pc(r.med)}) · últimos 6 meses ${pc(r.rec)} · vecinos ${Math.round(r.vec * 100)} %${r.a.parada ? " · ⚠️ llegó a pararse" : ""}`);
   if (!pasa.length) for (const r of ord(res.filter((r) => r.g != null)).slice(0, 6)) console.log(`· ${desc(r.p)}\n   historia ${pc(r.a.ret)} · caída −${(r.a.dd * 100).toFixed(0)} % · ${r.a.n} op · no pierde en ${Math.round(r.g * 100)} % de los tramos · últimos 6 meses ${pc(r.rec)}${r.a.parada ? " · ⚠️ se paró" : ""}`);
