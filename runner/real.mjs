@@ -439,11 +439,17 @@ export function sugerencia(S, cur, map, excl) {
 
 // v362 · 🥇 SIEMPRE EL PRIMERO: el n.º 1 del laboratorio (el mismo orden que ves en la app: S.lab.top3). Si el n.º 1 aún no tiene su cartera
 // calculada en el bot (entra en la ficticia esa noche), se coge el siguiente que sí la tiene; y siempre que se pueda comprar en tu cuenta.
+export const MARGEN_1 = 0.01;
+export function pesosDistintos(a, b) { const ks = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]); let d = 0; for (const z of ks) d += Math.abs((+(a || {})[z] || 0) - (+(b || {})[z] || 0)); return d / 2 > 0.05; }
 export function primero(S, cur, map, excl) {
   const top = (S && S.lab && Array.isArray(S.lab.top3) && S.lab.top3) || [], books = (S && S.books) || {};
   const buyable = (k) => { if (!map || !Object.keys(map).length) return true; const B = books[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})), bad = sy.filter((s) => map[s] && !map[s].t); return !bad.length ? true : bad.every((s) => /acciones desactivadas|Divisa: solo euros/.test(map[s].why || "")) ? "acc" : false; };
   for (const [i, x] of top.entries()) { const k = x && x.k; if (!k || !books[k] || !books[k].tgt || !books[k].tgt.w) continue; if (k === cur || (excl || []).includes(k)) return null; const bu = buyable(k); if (bu === false) continue;
-    const c = (S.labConf || []).find((z) => z.k === k) || {}; return { k, n: c.n || nombreDe(S, k).replace(/ \(#.*\)$/, ""), an: (S.labAn || {})[k] ?? x.an ?? null, pos: i + 1, needAcc: bu === "acc", primero: 1 }; }
+    const an = (S.labAn || {})[k] ?? x.an ?? null;
+    // v363: si el nuevo n.º 1 compra cosas distintas, solo cambia si le saca al actual al menos 1 punto al año (evita vender y comprar por empates)
+    const wc = books[cur] && books[cur].tgt && books[cur].tgt.w, anC = (S.labAn || {})[cur];
+    if (wc && pesosDistintos(books[k].tgt.w, wc) && typeof an === "number" && typeof anC === "number" && an - anC < MARGEN_1) return null;
+    const c = (S.labConf || []).find((z) => z.k === k) || {}; return { k, n: c.n || nombreDe(S, k).replace(/ \(#.*\)$/, ""), an, pos: i + 1, needAcc: bu === "acc", primero: 1 }; }
   return null;
 }
 // ---------- v117: la cartera real puede repartirse entre 1, 2 o 3 métodos (a partes iguales) ----------
