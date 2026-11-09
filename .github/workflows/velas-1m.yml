@@ -1,0 +1,23 @@
+name: Datos · velas de 1 minuto de Bitvavo (CSV)
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  velas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: runner
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Descargar velas
+        run: mkdir -p out && node runner/velas-1m.mjs && cd out && zip -9 velas_1m_bitvavo.zip *.csv && ls -la
+      - name: Publicar en la rama velas-1m
+        run: |
+          cd out && git init -q && git checkout -q -b velas-1m && git add velas_1m_bitvavo.zip
+          git -c user.name=bot -c user.email=bot@users.noreply.github.com commit -qm "Velas 1m Bitvavo"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" velas-1m
