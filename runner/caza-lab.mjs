@@ -75,7 +75,7 @@ export async function lab(log = console.log) {
   for (const [f, v] of Object.entries(famStat)) { const top = v.sort((a, b) => b - a).slice(0, 5), m = top.reduce((a, b) => a + b, 0) / top.length; mem.pesos[f] = +((mem.pesos[f] || 1) * 0.7 + 0.3 * Math.max(0.2, m)).toFixed(3); }
   mem.casi = mem.casi.sort((a, b) => b.nota - a.nota).filter((x, i, A) => A.findIndex((y) => y.n === x.n) === i).slice(0, 60);
   // las aprobadas se vuelven a examinar cada ronda con los datos nuevos: si dejan de aprobar, salen del podio
-  mem.aprobadas = mem.aprobadas.filter((x) => { const g2 = fixG(x.g); if (!g2 || !S[g2.a]) return false; x.g = g2; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t }); return r.okA && r.okB; }).sort((a, b) => Math.round(b.t.med * 1000) - Math.round(a.t.med * 1000) || a.t.dd - b.t.dd);   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
+  mem.aprobadas = mem.aprobadas.filter((x) => { const g2 = fixG(x.g); if (!g2 || !S[g2.a]) return false; x.g = g2; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t }); return r.okA && r.okB; }).sort((a, b) => Math.round(b.a.ret * 1000) - Math.round(a.a.ret * 1000) || a.a.dd - b.a.dd);   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
   const ks = Object.keys(mem.probadas); if (ks.length > 40000) for (const k of ks.slice(0, ks.length - 40000)) delete mem.probadas[k];
   mem.hist.unshift({ t: new Date().toISOString(), probadas: cand.length, aprobadas: nOk, total: Object.keys(mem.probadas).length }); mem.hist = mem.hist.slice(0, 120);
   // v366 · 🤖 resultados de cada receta de la IA (el ayudante los lee para aprender qué ideas funcionan)
