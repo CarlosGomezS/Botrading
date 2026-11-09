@@ -3424,7 +3424,7 @@ G0.__SEAL={blake2b,seal,from_string:s=>new TextEncoder().encode(s),from_base64:t
  var b=document.createElement("div");
  b.style.cssText="position:sticky;top:0;z-index:9999;padding:8px 12px;font:600 13px/1.35 system-ui,sans-serif;background:#1f2937;color:#fff;text-align:center";
  b.id="viewer-banner";document.body.insertBefore(b,document.body.firstChild);
- function paint(){var cr=document.getElementById("t-memes"),cs=cr&&cr.classList.contains("on")&&typeof MM!=="undefined"&&MM.S&&MM.S.last?new Date(Math.max(Date.parse(MM.S.last)||0,Date.parse(MM.S.lastQ||0)||0)).toLocaleString("es-ES",{day:"numeric",month:"numeric",year:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"}):null;b.textContent=window.__VIEWER_ERR?("⚠️ "+window.__VIEWER_ERR):(window.__NEWDATA&&!cs?"🔄 Hay datos nuevos · toca aquí para actualizar":"👁️ Modo visor · el bot corre solo en la nube · datos de: "+(cs||when())+" · se refresca solo")}
+ function paint(){var cr=document.getElementById("t-memes"),cs=cr&&cr.classList.contains("on")&&typeof MM!=="undefined"&&MM.S&&MM.S.last?new Date(Math.max(Date.parse(MM.S.last)||0,Date.parse(MM.S.lastQ||0)||0)).toLocaleString("es-ES",{day:"numeric",month:"numeric",year:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"}):null;b.textContent=window.__VIEWER_ERR?("⚠️ "+window.__VIEWER_ERR):(window.__NEWDATA&&!cs?"🔄 Hay datos nuevos · toca aquí para actualizar":"");b.style.display=b.textContent?"":"none"}   /* v366 · la franja solo sale si hay un error o datos nuevos */
  setInterval(paint,5000);
  paint();
  b.style.cursor="pointer";b.onclick=function(){if(window.__NEWDATA)location.reload()};

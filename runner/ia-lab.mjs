@@ -20,17 +20,18 @@ async function modelos() {
   try { const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": KEY }, signal: AbortSignal.timeout(20000) }); const j = await r.json();
     const ms = (j.models || []).filter((m) => (m.supportedGenerationMethods || []).includes("generateContent")).map((m) => m.name.replace(/^models\//, "")).filter((n) => /gemini/i.test(n) && /flash/i.test(n) && !/image|tts|audio|live|embed|vision|thinking-exp/i.test(n));
     const ver = (n) => +((n.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0), lite = (n) => (/lite/.test(n) ? 1 : 0), pre = (n) => (/preview|exp/.test(n) ? 1 : 0);
-    ms.sort((a, b) => lite(a) - lite(b) || ver(b) - ver(a) || pre(a) - pre(b)); if (ms.length) return ms.slice(0, 4);
+    ms.sort((a, b) => lite(a) - lite(b) || ver(b) - ver(a) || pre(a) - pre(b)); if (ms.length) return ms.slice(0, 6);
   } catch (e) {}
   return ["gemini-2.5-flash", "gemini-2.0-flash"];
 }
+const T0 = Date.now(), QUEDA = () => 11 * 60e3 - (Date.now() - T0);   // como mucho ~11 min en total: siempre da tiempo a guardar
 async function gemini(prompt, MS) {
   let ultimo = "";
-  for (const m of MS) for (let t = 0; t < 2; t++) {
-    try { const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": KEY }, signal: AbortSignal.timeout(120000),
+  for (const m of MS) for (let t = 0; t < 2; t++) { if (QUEDA() < 90e3) throw new Error("sin tiempo · " + ultimo);
+    try { const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": KEY }, signal: AbortSignal.timeout(Math.max(30000, Math.min(150000, QUEDA() - 60000))),
         body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 1.0 } }) });
-      if (r.status === 429 || r.status >= 500) { ultimo = m + " HTTP " + r.status; await new Promise((z) => setTimeout(z, 20000)); continue; }
-      if (!r.ok) { ultimo = m + " HTTP " + r.status; break; }
+      if (r.status === 429 || r.status >= 500) { ultimo = m + " HTTP " + r.status; log(`${m}: ocupado (HTTP ${r.status}), reintento`); await new Promise((z) => setTimeout(z, 8000)); continue; }
+      if (!r.ok) { ultimo = m + " HTTP " + r.status; log(`${m}: no disponible con esta clave (HTTP ${r.status}), pruebo otro`); break; }
       const j = await r.json(), txt = (((j.candidates || [])[0] || {}).content || {}).parts?.map((p) => p.text || "").join("") || "";
       return { modelo: m, json: JSON.parse(txt.replace(/^```(json)?|```$/g, "").trim()) };
     } catch (e) { ultimo = m + " " + String(e.message).slice(0, 60); }

@@ -13,7 +13,7 @@ concurrency:
 jobs:
   ia:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
         with:
@@ -28,4 +28,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
-        run: timeout 900 node runner/ia-lab.mjs
+        run: timeout 1200 node runner/ia-lab.mjs
