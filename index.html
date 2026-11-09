@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 353 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#353</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 355 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#355</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4554,7 +4554,7 @@ h1{font-size:20px!important;font-weight:600!important;letter-spacing:-.02em}
 const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 const SRC={cripto:["🪙","Cripto"],lab:["🤖","Laboratorio"],real:["💶","Real"],proc:["⚙️","Procesos"],chk:["🩺","Comprobación"]};
-const FIL=[["todo","Todo"],["err","⚠️ Errores"],["chk","🩺 Comprobaciones"],["cripto","🪙 Cripto"],["lab","🤖 Laboratorio"],["real","💶 Real"],["met","🔄 Métodos"],["proc","⚙️ Procesos"]];
+const FIL=[["todo","Todo"],["err","⚠️ Errores"],["chk","🩺 Checks"],["cripto","🪙 Cripto"],["lab","🤖 Lab"],["real","💶 Real"],["met","🔄 Métodos"],["proc","⚙️ Procesos"]];
 const ERR=/⚠️|❌|🔴 Falla|error|Error|ERROR|falla|fallo|no pude|no se pudo|no puedo|sin precios|HTTP [45]\d\d|agotad|caído|caida del servicio|rechaz/;
 const T={toque:0,arriba:false,ev:new Map(),db:null,dirty:new Map(),fil:LS.get("termFil","todo"),q:"",abajo:true,n:500,limpio:+LS.get("termLimpio",0)||0,at:0,srvAt:0,srvN:0,ghAt:0,realAt:0,criAt:0,ok:{cripto:0,real:0,lab:0,proc:0}};
 const dk=t=>{const d=new Date(t);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
@@ -4650,7 +4650,7 @@ function pinta(force){const tab=$("#t-terminal");if(!tab)return;let b=$("#tm-bod
 function finBtn(){const x=$("#tm-fin");if(x)x.style.display=on()&&!alPrincipio()?"block":"none"}
 function txt(L,tit){return"BOT TRADING · TERMINAL · "+tit+"\nExportado el "+new Date().toLocaleString("es-ES")+" · "+L.length+" líneas\n\n"+L.map(e=>dk(e.t)+" "+hh(e.t)+" ["+(SRC[e.src]||["",e.src])[1]+"]"+(e.met?" [método]":"")+" "+e.txt+(e.n>1?" ×"+e.n:"")).join("\n")+"\n"}
 function baja(nombre,s){try{const b=new Blob([s],{type:"text/plain;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=nombre;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}catch(e){alert("No se pudo exportar: "+e.message)}}
-document.addEventListener("click",e=>{const f=e.target.closest&&e.target.closest("[data-tmf]");if(f){e.preventDefault();T.fil=f.dataset.tmf;LS.set("termFil",T.fil);T.n=500;T.abajo=true;T.toque=0;const sx=(f.parentNode||{}).scrollLeft||0;pinta(true);const ch=document.querySelector("#t-terminal .tm-chips");if(ch)ch.scrollLeft=sx;return}
+document.addEventListener("click",e=>{const f=e.target.closest&&e.target.closest("[data-tmf]");if(f){e.preventDefault();T.fil=f.dataset.tmf;LS.set("termFil",T.fil);T.n=500;T.abajo=true;T.toque=0;pinta(true);return}
  const b=e.target.closest&&e.target.closest("[data-tm]");if(!b)return;const k=b.dataset.tm,todo=()=>[...T.ev.values()].sort((a,b)=>a.t-b.t);
  if(k==="mas"){T.n+=1000;T.arriba=true;T.toque=0;pinta()}
  else if(k==="exp")baja("terminal-completo-"+dk(Date.now())+".txt",txt(todo(),"histórico completo"));
@@ -4680,9 +4680,9 @@ window.__terminal={T,recoge,pinta};
 #t-terminal .tm-h{font-size:24px!important;font-weight:700;letter-spacing:-.02em;color:var(--ink);line-height:1.15}
 #t-terminal .tm-live{font-size:11px!important;color:var(--go);font-weight:600;margin-top:6px;white-space:nowrap}
 #t-terminal .tt{color:var(--muted)!important;font-size:11px!important}
-#t-terminal .tm-chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+#t-terminal .tm-chips{display:flex;flex-wrap:wrap;gap:5px;padding-bottom:6px}   /* v355 · en varias filas: sin scroll de lado */
 #t-terminal .tm-chips::-webkit-scrollbar{display:none}
-#t-terminal .tm-chips button{flex:0 0 auto;font-size:12px!important;padding:6px 11px!important;min-height:0!important;white-space:nowrap}
+#t-terminal .tm-chips button{flex:0 0 auto;font-size:12px!important;padding:6px 10px!important;min-height:0!important;white-space:nowrap;touch-action:manipulation}
 #t-terminal .tm-chips button.on{background:var(--acc)!important;color:var(--accink)!important}
 #t-terminal #tm-q{width:100%;box-sizing:border-box;font-size:14px!important;padding:8px 12px!important;margin:0 0 6px}
 #t-terminal #tm-body{background:var(--note)!important;border-radius:14px;padding:8px 10px 12px;margin-top:8px;color:var(--ink);white-space:pre-wrap;word-break:break-word}
