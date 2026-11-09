@@ -445,9 +445,10 @@ export function primero(S, cur, map, excl) {
   const top = (S && S.lab && Array.isArray(S.lab.top3) && S.lab.top3) || [], books = (S && S.books) || {};
   const buyable = (k) => { if (!map || !Object.keys(map).length) return true; const B = books[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})), bad = sy.filter((s) => map[s] && !map[s].t); return !bad.length ? true : bad.every((s) => /acciones desactivadas|Divisa: solo euros/.test(map[s].why || "")) ? "acc" : false; };
   for (const [i, x] of top.entries()) { const k = x && x.k; if (!k || !books[k] || !books[k].tgt || !books[k].tgt.w) continue; if (k === cur || (excl || []).includes(k)) return null; const bu = buyable(k); if (bu === false) continue;
-    const an = (S.labAn || {})[k] ?? x.an ?? null;
+    const TVr = (S.btm && S.btm.tr && S.btm.tr.v) || {}, anDe = (z) => (TVr[z] && TVr[z].mA != null ? TVr[z].mA : (S.labAn || {})[z]);   // v365 · misma medida que el ranking (tramo típico)
+    const an = anDe(k) ?? x.an ?? null;
     // v363: si el nuevo n.º 1 compra cosas distintas, solo cambia si le saca al actual al menos 1 punto al año (evita vender y comprar por empates)
-    const wc = books[cur] && books[cur].tgt && books[cur].tgt.w, anC = (S.labAn || {})[cur];
+    const wc = books[cur] && books[cur].tgt && books[cur].tgt.w, anC = anDe(cur);
     if (wc && pesosDistintos(books[k].tgt.w, wc) && typeof an === "number" && typeof anC === "number" && an - anC < MARGEN_1) return null;
     const c = (S.labConf || []).find((z) => z.k === k) || {}; return { k, n: c.n || nombreDe(S, k).replace(/ \(#.*\)$/, ""), an, pos: i + 1, needAcc: bu === "acc", primero: 1 }; }
   return null;

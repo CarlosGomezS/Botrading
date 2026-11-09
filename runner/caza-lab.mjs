@@ -5,7 +5,7 @@
 //  · COMBINACIONES DE 2 SEÑALES: una señal decide y otra la confirma (las dos en el mismo sentido en las últimas horas).
 //  · IDEAS NUEVAS: lee cada vez fuentes públicas de estudios de trading (arXiv, Alpha Architect, Quantpedia) y, por palabras clave, sube el
 //    peso de las familias de las que más se publica.
-// Examen igual de duro: ≥ 4 operaciones al día, gana en el 60 % antiguo (entreno) y en las dos mitades del 40 % reciente (prueba), con
+// Examen (v365): ≥ 4 operaciones al día; gana en la historia completa hasta hoy, en los últimos 6 meses y en ≥60 % de 16 tramos al azar (la mitad acaban hoy), con
 // comisión + deslizamiento + financiación reales de Hyperliquid, caída < 30 % y factor de beneficio ≥ 1,15 / 1,10.
 import { datos, cartera } from "./caza-hl.mjs";
 import { senales, FILTROS } from "./caza-hl2.mjs";
@@ -31,6 +31,7 @@ export async function lab(log = console.log) {
   const ID = await ideas(M0.ideas); const recientes = ID.filter((x) => Date.now() - Date.parse(x.visto) < 30 * 864e5), menc = {}; for (const x of recientes) for (const f of x.fams) menc[f] = (menc[f] || 0) + 1;
   log(`🧠 Ronda ${mem.rondas} · memoria: ${Object.keys(mem.probadas).length} combinaciones ya probadas · ideas nuevas leídas: ${ID.length - (M0.ideas || []).length}`);
   const D = await datos(() => {}), { T, M, U } = D, n = T.length, corte = Math.floor(n * 0.6), mitad = Math.floor((corte + n) / 2);
+  const TRAMOS = []; for (let q = 0; q < 16; q++) { const len = Math.round((30 + Math.random() * 150) * 24), fin = q < 8 ? n - 1 : 260 + len + Math.floor(Math.random() * Math.max(1, n - 1 - 260 - len)); TRAMOS.push([Math.max(260, fin - len), fin]); }   // v365 · nuevos en cada ronda
   const X = { btcUp: null, up: {}, vol: {}, volMed: {} }; { const { ema, atr } = await import("./caza-hl2.mjs"); const e = ema(M.BTC.C, 200); X.btcUp = Uint8Array.from(M.BTC.C, (c, i) => (c > e[i] ? 1 : 0)); for (const c of U) { const e2 = ema(M[c].C, 100); X.up[c] = Uint8Array.from(M[c].C, (x, i) => (x > e2[i] ? 1 : 0)); X.vol[c] = atr(M[c], 24); const s = [...X.vol[c].slice(250, corte)].filter(Number.isFinite).sort((a, b) => a - b); X.volMed[c] = s[Math.floor(s.length / 2)]; } }
   const S = senales(D), FAM = [...new Set(S.map((s) => s.fam))], cache = new Map(), sig = (j) => { if (!cache.has(j)) { const o = {}; for (const c of U) { try { o[c] = S[j].fn(M[c], T, M.BTC); } catch (e) { o[c] = new Int8Array(n); } } cache.set(j, o); if (cache.size > 40) cache.delete(cache.keys().next().value); } return cache.get(j); };
   // peso de cada familia: lo cerca que se ha quedado de aprobar (mejor factor de beneficio en la prueba) + empujón por ideas recientes
@@ -45,29 +46,33 @@ export async function lab(log = console.log) {
   const nombre = (g) => `${S[g.a].fam} ${JSON.stringify(S[g.a].p)}${g.b != null ? " + confirma " + S[g.b].fam + " " + JSON.stringify(S[g.b].p) : ""} · ${g.f} · sale a las ${g.h} h · stop ${g.sl ? "−" + g.sl * 100 + " %" : "no"}`;
   const evalua = (g) => { const A = sig(g.a), B = g.b != null ? sig(g.b) : null, f = FILTROS[g.f], ops = [];
     for (const c of U) { const a = A[c], b = B && B[c]; let lib = 0; for (let i = 260; i < n - 1; i++) { if (i < lib || !a[i]) continue; if (b) { let ok = false; for (let k = 0; k < 6 && !ok; k++) if (b[i - k] === a[i]) ok = true; if (!ok) continue; } if (!f(a[i], i, X, c)) continue; ops.push([i, c, a[i], i + g.h]); lib = i + g.h; } }
-    const r = { a: cartera(ops, M, 260, corte, 5, g.sl), b: cartera(ops, M, corte, n - 1, 5, g.sl), b1: cartera(ops, M, corte, mitad, 5, g.sl), b2: cartera(ops, M, mitad, n - 1, 5, g.sl) };
-    r.okA = r.a.opsDia >= 4 && r.a.ret > 0 && r.a.pf >= 1.15 && r.a.dd < 0.3; r.okB = r.b.opsDia >= 4 && r.b.ret > 0 && r.b.pf >= 1.1 && r.b.dd < 0.3 && r.b1.ret > 0 && r.b2.ret > 0;
-    r.nota = Math.min(r.a.pf, r.b.pf) * (r.a.opsDia >= 4 && r.b.opsDia >= 4 ? 1 : 0.5); return r; };
+    // v365 · 🎲 TRAMOS AL AZAR (distintos en cada ronda) + regla estricta «hasta hoy»: la historia completa hasta hoy, los últimos 6 meses
+    //   y 16 tramos de 1 a 6 meses (la mitad acaban HOY). Aprueba si gana en la historia completa, en los últimos 6 meses y en ≥60 % de los tramos.
+    const a = cartera(ops, M, 260, n - 1, 5, g.sl), rec = cartera(ops, M, Math.max(260, n - 1 - 180 * 24), n - 1, 5, g.sl), r = { a, b: rec, t: null };
+    if (a.ret > 0 && a.opsDia >= 3) { const xs = []; for (const [i0, i1] of TRAMOS) { const z = cartera(ops, M, i0, i1, 5, g.sl); xs.push({ m: Math.pow(Math.max(0.01, 1 + z.ret), 720 / (i1 - i0)) - 1, dd: z.dd, ok: z.ret > 0 }); }
+      const ms = xs.map((x) => x.m).sort((p, q) => p - q), dds = xs.map((x) => x.dd).sort((p, q) => q - p); r.t = { n: xs.length, g: xs.filter((x) => x.ok).length / xs.length, med: ms[Math.floor(ms.length / 2)], dd: dds[Math.floor(dds.length / 4)] }; }
+    r.okA = a.opsDia >= 4 && a.ret > 0 && a.pf >= 1.15 && a.dd < 0.3; r.okB = !!r.t && r.t.g >= 0.6 && rec.ret > 0 && rec.opsDia >= 3;
+    r.nota = a.pf * (r.t ? 0.5 + r.t.g : 0.5) * (a.opsDia >= 4 ? 1 : 0.5); return r; };
   // candidatos: 30 % mutaciones de las «casi», 70 % nuevas (con los pesos aprendidos); nunca se repite una ya probada
   const cand = [], vistas = new Set(Object.keys(mem.probadas));
   for (let z = 0; z < PRUEBAS * 20 && cand.length < PRUEBAS; z++) { const base = mem.casi.length && Math.random() < 0.3 ? mem.casi[Math.floor(Math.random() * mem.casi.length)].g : null; const g = base && S[base.a] ? muta(base) : sinEco(nuevo()); if (g.a == null || !S[g.a]) continue; const k = hs(clave(g)); if (vistas.has(k)) continue; vistas.add(k); cand.push(g); }
   cand.sort((x, y) => x.a - y.a); const famStat = {}; let nOk = 0;
   for (const g of cand) { const r = evalua(g), k = hs(clave(g)), f = S[g.a].fam; mem.probadas[k] = +r.nota.toFixed(3); (famStat[f] = famStat[f] || []).push(r.nota);
-    if (r.a.ret > 0 && r.b.ret > 0 && r.a.opsDia >= 3) { mem.casi.push({ g, n: nombre(g), nota: r.nota, a: r.a, b: r.b }); }
-    if (r.okA && r.okB) { nOk++; if (!mem.aprobadas.some((x) => x.k === k)) mem.aprobadas.push({ k, g, n: nombre(g), a: r.a, b: r.b, b1: r.b1, b2: r.b2, desde: new Date().toISOString() }); } }
+    if (r.a.ret > 0 && r.t && r.t.g >= 0.5 && r.a.opsDia >= 3) { mem.casi.push({ g, n: nombre(g), nota: r.nota, a: r.a, b: r.b, t: r.t }); }
+    if (r.okA && r.okB) { nOk++; if (!mem.aprobadas.some((x) => x.k === k)) mem.aprobadas.push({ k, g, n: nombre(g), a: r.a, b: r.b, t: r.t, desde: new Date().toISOString() }); } }
   for (const [f, v] of Object.entries(famStat)) { const top = v.sort((a, b) => b - a).slice(0, 5), m = top.reduce((a, b) => a + b, 0) / top.length; mem.pesos[f] = +((mem.pesos[f] || 1) * 0.7 + 0.3 * Math.max(0.2, m)).toFixed(3); }
   mem.casi = mem.casi.sort((a, b) => b.nota - a.nota).filter((x, i, A) => A.findIndex((y) => y.n === x.n) === i).slice(0, 60);
   // las aprobadas se vuelven a examinar cada ronda con los datos nuevos: si dejan de aprobar, salen del podio
-  mem.aprobadas = mem.aprobadas.filter((x) => { if (!S[x.g.a]) return false; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, b1: r.b1, b2: r.b2 }); return r.okA && r.okB; }).sort((a, b) => b.b.ret - a.b.ret || a.b.dd - b.b.dd);
+  mem.aprobadas = mem.aprobadas.filter((x) => { if (!S[x.g.a]) return false; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t }); return r.okA && r.okB; }).sort((a, b) => Math.round(b.t.med * 1000) - Math.round(a.t.med * 1000) || b.b.ret - a.b.ret || a.t.dd - b.t.dd);   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
   const ks = Object.keys(mem.probadas); if (ks.length > 40000) for (const k of ks.slice(0, ks.length - 40000)) delete mem.probadas[k];
   mem.hist.unshift({ t: new Date().toISOString(), probadas: cand.length, aprobadas: nOk, total: Object.keys(mem.probadas).length }); mem.hist = mem.hist.slice(0, 120);
-  const out = { v: 1, t: new Date().toISOString(), dias: Math.round(n / 24), criptos: U, ...mem, ideas: ID, podio: mem.aprobadas.slice(0, 3), mejoresCasi: mem.casi.slice(0, 5).map((x) => ({ n: x.n, a: x.a, b: x.b })), pesosVista: Object.fromEntries(FAM.map((f) => [f, +peso(f).toFixed(2)])) };
+  const out = { v: 1, t: new Date().toISOString(), dias: Math.round(n / 24), criptos: U, ...mem, ideas: ID, podio: mem.aprobadas.slice(0, 3), mejoresCasi: mem.casi.slice(0, 5).map((x) => ({ n: x.n, a: x.a, b: x.b, t: x.t })), pesosVista: Object.fromEntries(FAM.map((f) => [f, +peso(f).toFixed(2)])) };
   log(`🧠 Probadas ahora ${cand.length} (en total ${Object.keys(mem.probadas).length}) · aprueban ${nOk} · en el podio ${out.podio.length} · familias con más peso: ${Object.entries(out.pesosVista).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([f, w]) => f + " " + w).join(", ")}`);
   // v364 · 🔔 Telegram solo cuando un método ENTRA en el podio
   try { const ant = new Set((M0.podio || []).map((x) => x.k)), nuevos = out.podio.map((x, i) => ({ x, i })).filter(({ x }) => !ant.has(x.k));
-    if (nuevos.length) { const AV = await import("./avisos.mjs"); await AV.tg(nuevos.map(({ x, i }) => `🏆 Laboratorio de cripto (muchas operaciones): nuevo método en el podio, puesto ${i + 1}.º\n${x.n}\nEn la prueba: ${(x.b.ret * 100).toFixed(1).replace(".", ",")} % · ${x.b.opsDia.toFixed(1).replace(".", ",")} operaciones al día · caída máxima ${(x.b.dd * 100).toFixed(1).replace(".", ",")} %`).join("\n\n") + "\n\nNo mueve dinero: antes de meterlo en Hyperliquid te lo preguntaré."); } } catch (e) { log("aviso del podio no enviado"); }
-  out.podio.forEach((x, i) => log(`  🏆 ${i + 1}.º ${x.n} · prueba ${(x.b.ret * 100).toFixed(1)} % (${x.b.opsDia.toFixed(1)} op/día, caída ${(x.b.dd * 100).toFixed(1)} %) · en el podio desde ${x.desde}`));
-  mem.casi.slice(0, 3).forEach((x) => log(`  🟡 casi: ${x.n} · entreno ${(x.a.ret * 100).toFixed(1)} % · prueba ${(x.b.ret * 100).toFixed(1)} %`));
+    if (nuevos.length) { const AV = await import("./avisos.mjs"); await AV.tg(nuevos.map(({ x, i }) => `🏆 Laboratorio de cripto (muchas operaciones): nuevo método en el podio, puesto ${i + 1}.º\n${x.n}\nEn los últimos 6 meses: ${(x.b.ret * 100).toFixed(1).replace(".", ",")} % · ${x.b.opsDia.toFixed(1).replace(".", ",")} operaciones al día · caída máxima ${(x.b.dd * 100).toFixed(1).replace(".", ",")} %`).join("\n\n") + "\n\nNo mueve dinero: antes de meterlo en Hyperliquid te lo preguntaré."); } } catch (e) { log("aviso del podio no enviado"); }
+  out.podio.forEach((x, i) => log(`  🏆 ${i + 1}.º ${x.n} · últimos 6 meses ${(x.b.ret * 100).toFixed(1)} % (${x.b.opsDia.toFixed(1)} op/día, caída ${(x.b.dd * 100).toFixed(1)} %) · en el podio desde ${x.desde}`));
+  mem.casi.slice(0, 3).forEach((x) => log(`  🟡 casi: ${x.n} · historia completa ${(x.a.ret * 100).toFixed(1)} % · últimos 6 meses ${(x.b.ret * 100).toFixed(1)} % · gana en ${x.t ? Math.round(x.t.g * 100) : "?"} % de los tramos`));
   return out;
 }
 async function guarda(out) {
