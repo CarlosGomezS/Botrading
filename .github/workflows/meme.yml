@@ -73,6 +73,19 @@ jobs:
           REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node runner/diario.mjs terminal-cripto-tg
+      - name: ¿Toca examen de las Tortugas? (cada 3 h aunque GitHub se salte la programación)
+        if: always() && steps.dup.outputs.go == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # v361 · GitHub se salta a menudo las tareas programadas: si el último examen tiene más de 3 h y no hay otro en marcha, se lanza
+          last=$(gh api "repos/${{ github.repository }}/actions/workflows/examen-largo.yml/runs?per_page=1" --jq '.workflow_runs[0] | (.status) + " " + (.created_at)' 2>/dev/null || echo "")
+          st=${last%% *}; t=${last#* }
+          if [ -n "$t" ] && [ "$st" = "completed" ] && [ $(( $(date +%s) - $(date -d "$t" +%s) )) -gt 10500 ]; then gh api -X POST "repos/${{ github.repository }}/actions/workflows/examen-largo.yml/dispatches" -f ref=main && echo "Examen de las Tortugas pedido (el último tenía más de 3 h)."; else echo "Examen de las Tortugas: al día ($st)."; fi
+          last=$(gh api "repos/${{ github.repository }}/actions/workflows/caza-lab.yml/runs?per_page=1" --jq '.workflow_runs[0] | (.status) + " " + (.created_at)' 2>/dev/null || echo "")
+          st=${last%% *}; t=${last#* }
+          if [ -z "$last" ] || { [ "$st" = "completed" ] && [ $(( $(date +%s) - $(date -d "$t" +%s) )) -gt 21600 ]; }; then gh api -X POST "repos/${{ github.repository }}/actions/workflows/caza-lab.yml/dispatches" -f ref=main && echo "Laboratorio de cripto pedido."; else echo "Laboratorio de cripto: al día ($st)."; fi
       - name: Siguiente tramo (en cadena)
         if: always() && steps.dup.outputs.go == 'true'
         env:

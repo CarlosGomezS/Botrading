@@ -1,0 +1,40 @@
+name: Cripto · laboratorio de muchas operaciones (Hyperliquid, solo datos)
+# v361 · cada 6 h: aprende solo (memoria, pesos por familia, mutaciones, combinaciones de 2 señales e ideas de fuentes públicas) y busca
+# métodos de 4+ operaciones al día que ganen con los costes reales de Hyperliquid. Nunca toca dinero.
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: caza-lab
+  cancel-in-progress: false
+jobs:
+  lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: runner
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Ronda del laboratorio de cripto
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CAZA_N: "3000"
+          DIARIO_LOG: /tmp/diario.jsonl
+          NODE_OPTIONS: --import ${{ github.workspace }}/runner/diario-captura.mjs
+        run: timeout 3200 node --max-old-space-size=8000 runner/caza-lab.mjs
+      - name: Diario para el terminal (cifrado)
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          DIARIO_LOG: /tmp/diario.jsonl
+          REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node runner/diario.mjs terminal-cazalab

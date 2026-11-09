@@ -5,14 +5,14 @@
 // Supertrend, arbitraje estadístico contra BTC y financiación extrema.
 // Validación igual de dura que la caza anterior: entreno (60 % antiguo) + prueba (40 % reciente) + vecinos + mitades de la prueba.
 import { datos, cartera } from "./caza-hl.mjs";
-const ema = (C, n) => { const o = new Float64Array(C.length), k = 2 / (n + 1); let e = C[0]; for (let i = 0; i < C.length; i++) { e = Number.isFinite(C[i]) ? e + k * (C[i] - e) : e; o[i] = e; } return o; };
+export const ema = (C, n) => { const o = new Float64Array(C.length), k = 2 / (n + 1); let e = C[0]; for (let i = 0; i < C.length; i++) { e = Number.isFinite(C[i]) ? e + k * (C[i] - e) : e; o[i] = e; } return o; };
 const sma = (C, n) => { const o = new Float64Array(C.length); let s = 0; for (let i = 0; i < C.length; i++) { s += C[i] || 0; if (i >= n) s -= C[i - n] || 0; o[i] = i >= n - 1 ? s / n : NaN; } return o; };
 const sd = (C, n, m) => { const o = new Float64Array(C.length); for (let i = n - 1; i < C.length; i++) { let s = 0; for (let k = i - n + 1; k <= i; k++) s += (C[k] - m[i]) ** 2; o[i] = Math.sqrt(s / n); } return o; };
 const rsi = (C, n) => { const o = new Float64Array(C.length).fill(50); let g = 0, l = 0; for (let i = 1; i < C.length; i++) { const d = C[i] - C[i - 1] || 0, up = Math.max(d, 0), dn = Math.max(-d, 0); if (i <= n) { g += up / n; l += dn / n; } else { g = (g * (n - 1) + up) / n; l = (l * (n - 1) + dn) / n; } o[i] = l === 0 ? 100 : 100 - 100 / (1 + g / l); } return o; };
-const atr = (d, n) => { const tr = new Float64Array(d.C.length); for (let i = 1; i < d.C.length; i++) tr[i] = Math.max(d.Hi[i] - d.Lo[i], Math.abs(d.Hi[i] - d.C[i - 1]), Math.abs(d.Lo[i] - d.C[i - 1])) / d.C[i]; return sma(tr, n); };
+export const atr = (d, n) => { const tr = new Float64Array(d.C.length); for (let i = 1; i < d.C.length; i++) tr[i] = Math.max(d.Hi[i] - d.Lo[i], Math.abs(d.Hi[i] - d.C[i - 1]), Math.abs(d.Lo[i] - d.C[i - 1])) / d.C[i]; return sma(tr, n); };
 
 // cada señal devuelve, para una cripto, un Int8Array con +1 (comprar), −1 (corto) o 0 en cada hora
-function senales(D) {
+export function senales(D) {
   const S = [], add = (fam, p, fn) => S.push({ fam, p, fn });
   for (const n of [2, 7, 14]) for (const [lo, hi] of [[10, 90], [20, 80], [30, 70]]) add("RSI rebote", { n, lo, hi }, (d) => { const r = rsi(d.C, n); return Int8Array.from(r, (x) => (x < lo ? 1 : x > hi ? -1 : 0)); });
   for (const n of [20, 50]) for (const k of [2, 2.5, 3]) { add("Bollinger rebote", { n, k }, (d) => { const m = sma(d.C, n), s = sd(d.C, n, m); return Int8Array.from(d.C, (c, i) => (c < m[i] - k * s[i] ? 1 : c > m[i] + k * s[i] ? -1 : 0)); }); add("Bollinger ruptura", { n, k }, (d) => { const m = sma(d.C, n), s = sd(d.C, n, m); return Int8Array.from(d.C, (c, i) => (c > m[i] + k * s[i] ? 1 : c < m[i] - k * s[i] ? -1 : 0)); }); }
@@ -28,7 +28,7 @@ function senales(D) {
   for (const t of [0.00005, 0.0001, 0.0002]) add("Financiación extrema, contra", { t }, (d) => { const o = new Int8Array(d.C.length); for (let i = 8; i < d.C.length; i++) { let f = 0; for (let k = i - 8; k < i; k++) f += d.F[k]; f /= 8; o[i] = f > t ? -1 : f < -t ? 1 : 0; } return o; });
   return S;
 }
-const FILTROS = { "sin filtro": () => true, "a favor de BTC (media 200 h)": (dir, i, X) => (dir > 0) === X.btcUp[i], "a favor de la propia cripto (media 100 h)": (dir, i, X, c) => (dir > 0) === X.up[c][i], "solo con poca volatilidad": (dir, i, X, c) => X.vol[c][i] <= X.volMed[c], "solo con mucha volatilidad": (dir, i, X, c) => X.vol[c][i] > X.volMed[c] };
+export const FILTROS = { "sin filtro": () => true, "a favor de BTC (media 200 h)": (dir, i, X) => (dir > 0) === X.btcUp[i], "a favor de la propia cripto (media 100 h)": (dir, i, X, c) => (dir > 0) === X.up[c][i], "solo con poca volatilidad": (dir, i, X, c) => X.vol[c][i] <= X.volMed[c], "solo con mucha volatilidad": (dir, i, X, c) => X.vol[c][i] > X.volMed[c] };
 
 export async function caza2(log = console.log) {
   log("Descargando velas de 1 h, volumen y financiación de Hyperliquid (últimos 540 días)…");

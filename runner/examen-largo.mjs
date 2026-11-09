@@ -139,7 +139,14 @@ async function main() {
       const v = MZ.veredicto(mejor); memes[ex] = { v: VEX, ...mejor, ...v, criptos: Object.keys(series) };
       console.log(`Examen largo · 🐸 Memecoins rápido ${ex} (${Object.keys(series).join(", ")}): ${v.ok ? "✅" : "❌"} ${v.motivo} · mejor combinación ${JSON.stringify(mejor.P)} · año ${mejor.ret} % · trimestres ${mejor.trimestres.join(" / ")} % · peor caída ${mejor.dd} % · ${mejor.ops} operaciones (${mejor.opsDia} al día) · ${mejor.aciertos} % aciertos`); }
   } catch (e) { console.log("Examen largo · Memecoins: " + String(e.message).slice(0, 80)); }
-  B.publicar("examen-largo.json", { t: new Date().toISOString(), estado: "ok", dias, mercados: mer.length, res, anio, combinada, base, tortugas, rejilla, memes }, "examen-largo");
+  // v361 · 🏆 PODIO CRIPTO: los 3 mejores perfiles de las Tortugas (exchange × riesgo) por rentabilidad de 2 años y, si empatan, la menor caída;
+  //   se guarda la fecha y hora en que cada uno entró en el podio (se conserva mientras siga en él)
+  let podio = [];
+  try { let prev = null; try { prev = await B.leer("examen-largo.json", "examen-largo"); } catch (e) {} const P0 = Object.fromEntries(((prev && prev.podio) || []).map((x) => [x.id, x.desde])), ahora = new Date().toISOString();
+    const L = []; for (const [ex, t] of Object.entries(tortugas)) for (const [rk, r] of Object.entries((t && t.perfiles) || {})) if (r && r.ok && r.ret != null) L.push({ id: ex + ":" + rk, ex, rk, ret: r.ret, dd: r.dd, n: r.n, pf: r.pf, aciertos: r.aciertos, semestres: r.semestres, P: r.P, criptos: (t.criptos || []).length });
+    L.sort((a, b) => Math.round(b.ret * 10) - Math.round(a.ret * 10) || a.dd - b.dd); podio = L.slice(0, 3).map((x) => ({ ...x, desde: P0[x.id] || ahora }));
+    console.log("Examen largo · 🏆 Podio cripto: " + podio.map((x, i) => `${i + 1}.º ${x.ex} ${x.rk} (${x.ret} % en 2 años, caída ${x.dd} %)`).join(" · ")); } catch (e) {}
+  B.publicar("examen-largo.json", { t: new Date().toISOString(), estado: "ok", dias, mercados: mer.length, res, anio, combinada, base, tortugas, rejilla, memes, podio }, "examen-largo");
   console.log(`Examen largo: hecho en ${Math.round((Date.now() - t0) / 1000)} s`);
 }
 // v295 · si falla, se ANOTA el fallo (sin tocar la fecha del último examen bueno, que es la que mira el dinero real) y el trabajo sale en rojo
