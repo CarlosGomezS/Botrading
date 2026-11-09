@@ -437,6 +437,15 @@ export function sugerencia(S, cur, map, excl) {
   return best ? { ...best, needAcc: buyable(best.k) === "acc" } : null;
 }
 
+// v362 · 🥇 SIEMPRE EL PRIMERO: el n.º 1 del laboratorio (el mismo orden que ves en la app: S.lab.top3). Si el n.º 1 aún no tiene su cartera
+// calculada en el bot (entra en la ficticia esa noche), se coge el siguiente que sí la tiene; y siempre que se pueda comprar en tu cuenta.
+export function primero(S, cur, map, excl) {
+  const top = (S && S.lab && Array.isArray(S.lab.top3) && S.lab.top3) || [], books = (S && S.books) || {};
+  const buyable = (k) => { if (!map || !Object.keys(map).length) return true; const B = books[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})), bad = sy.filter((s) => map[s] && !map[s].t); return !bad.length ? true : bad.every((s) => /acciones desactivadas|Divisa: solo euros/.test(map[s].why || "")) ? "acc" : false; };
+  for (const [i, x] of top.entries()) { const k = x && x.k; if (!k || !books[k] || !books[k].tgt || !books[k].tgt.w) continue; if (k === cur || (excl || []).includes(k)) return null; const bu = buyable(k); if (bu === false) continue;
+    const c = (S.labConf || []).find((z) => z.k === k) || {}; return { k, n: c.n || nombreDe(S, k).replace(/ \(#.*\)$/, ""), an: (S.labAn || {})[k] ?? x.an ?? null, pos: i + 1, needAcc: bu === "acc", primero: 1 }; }
+  return null;
+}
 // ---------- v117: la cartera real puede repartirse entre 1, 2 o 3 métodos (a partes iguales) ----------
 // cambia «de» por «a» (si «de» es uno de los métodos extra, se sustituye ese; si no, el principal)
 export function aplicaCambio(A, de, a) { if (de && Array.isArray(A.extra) && A.extra.includes(de)) A.extra = A.extra.map((x) => (x === de ? a : x)).filter((x) => x !== A.metodo); else { A.metodo = a; if (Array.isArray(A.extra)) A.extra = A.extra.filter((x) => x !== a); } }
@@ -1129,12 +1138,12 @@ async function main() {
     // v77: propuesta de cambio de método (una vez; si la rechazas, no se repite en 60 días)
     try {
       if ((tipo === "normal" || tipo === "foto") && estado !== "error" && A.on) {
-        const b = getBot(), ksA = metodosDe(A, b && b.S), anS = (b && b.S && b.S.labAn) || {}, flojo = ksA.slice().sort((x, y) => (anS[x] ?? -9) - (anS[y] ?? -9))[0] || A.metodo, sg0 = b && b.S ? sugerencia(b.S, flojo, R.map, ksA) : null, sg = sg0 ? { ...sg0, de: flojo } : null, P = R.metSug;
+        const b = getBot(), ksA = metodosDe(A, b && b.S), anS = (b && b.S && b.S.labAn) || {}, flojo = ksA.slice().sort((x, y) => (anS[x] ?? -9) - (anS[y] ?? -9))[0] || A.metodo, auto = !(A.metAuto === 0 || A.metAuto === false), sg0 = b && b.S ? (auto ? primero(b.S, flojo, R.map, ksA) : sugerencia(b.S, flojo, R.map, ksA)) : null, sg = sg0 ? { ...sg0, de: flojo } : null, P = R.metSug;
         // v103: como mucho un cambio de método cada 90 días (los costes y los impuestos de cambiar a menudo se comen la ventaja);
         // si el nuevo es MUCHO mejor (≥4 puntos al año más que el tuyo), basta con 30 días desde el último cambio
         const lastCh = Math.max(0, R.metOv && R.metOv.ts ? Date.parse(R.metOv.ts) : 0, ...((R.metHist || []).slice(1).map((h) => Date.parse(h.d || "") || 0)));
         const anCur = b && b.S && b.S.labAn ? b.S.labAn[flojo] : null, muchoMejor = sg && sg.an != null && anCur != null && sg.an - anCur >= 0.04;
-        const busy = (lastCh && now - lastCh < (muchoMejor || (sg && sg.inv) ? 30 : 90) * 864e5) || (P && P.k === (sg && sg.k) && (P.estado === "pendiente" || (P.estado === "rechazada" && now - Date.parse(P.fin || P.ts) < 60 * 864e5)));
+        const busy = auto ? (P && P.k === (sg && sg.k) && P.estado === "pendiente" && sg.needAcc) : (lastCh && now - lastCh < (muchoMejor || (sg && sg.inv) ? 30 : 90) * 864e5) || (P && P.k === (sg && sg.k) && (P.estado === "pendiente" || (P.estado === "rechazada" && now - Date.parse(P.fin || P.ts) < 60 * 864e5)));
         if (sg && !busy) {
           const id = "m" + now.getTime().toString(36);
           if (P && P.estado === "pendiente") { P.estado = "sustituida"; P.fin = now.toISOString(); }
@@ -1143,11 +1152,11 @@ async function main() {
           const txt = `${ksA.length > 1 ? `Tu cartera real se reparte entre ${ksA.length} métodos. El más flojo es «${nombreDe(b.S, flojo)}», y el bot` : `Tu cartera real sigue «${nombreDe(b.S, A.metodo)}». El bot`} ha encontrado uno que lo hace mejor${sg.inv ? " y es ⚡ INVENCIBLE en todas las pruebas (≥5 puntos al año más que el SPY, le gana en las 3 épocas y por ≥10 puntos en los 2 años que no vio, caída máxima ≤30 %). Te lo propongo SIN esperar a la ficticia: todavía no tiene resultados con precios reales" : " y ya está confirmado"}:\n\n🏆 ${sg.n}${sg.fwd ? "\n· Método de acciones en prueba en vivo (sin prueba histórica, que con acciones hace trampa)" : `\n· Prueba histórica (después de impuestos): ${pc(sg.an)}/año${(b.S.labAn || {})[A.metodo] != null ? " (el tuyo " + pc(b.S.labAn[A.metodo]) + "/año)" : ""}`}\n· En la ficticia desde el ${sg.d0}: ${pc(sg.g)} (SPY ${pc(sg.gs)})${sg.fwd ? "" : `\n· Peor caída histórica ${pc(sg.dd || 0)} · ~${Math.max(1, Math.round(sg.opy || 1))} ventas al año`}\n\nSi lo cambias, en la próxima revisión el bot venderá lo de ahora y comprará lo nuevo (las ventas con ganancia tributan).`;
           // v336 · 🤖 SIGUE SOLA AL GANADOR: si no está desactivado (A.metAuto === false), el cambio se aplica sin esperar tu respuesta,
           // con los mismos frenos (como mucho uno cada 90 días, o 30 si el nuevo gana ≥ 4 puntos al año). Los que necesitan acciones de EE. UU. siguen pidiendo permiso.
-          if (!(A.metAuto === 0 || A.metAuto === false) && !sg.needAcc) {
-            const P2 = R.metSug; P2.estado = "aprobada"; P2.fin = now.toISOString(); P2.auto = 1;
+          if (auto && !sg.needAcc) {
+            const P2 = R.metSug, txtA = `Tu cartera real sigue siempre al n.º 1 del laboratorio, y ha cambiado: ahora es 🏆 «${sg.n}» (#${sg.k})${sg.an != null ? `, que gana un ${(sg.an * 100).toFixed(1).replace(".", ",")} % al año en la prueba desde 2000 (tras impuestos)` : ""}${sg.pos > 1 ? ` (es el ${sg.pos}.º de la lista porque los de delante aún no tienen su cartera calculada; mañana ya la tendrán)` : ""}. Antes seguía «${nombreDe(b.S, sg.de || A.metodo)}».`; P2.estado = "aprobada"; P2.fin = now.toISOString(); P2.auto = 1;
             R.metOv = { k: sg.k, n: sg.n, ts: now.toISOString(), de: sg.de || A.metodo, auto: 1 }; aplicaCambio(A, sg.de || A.metodo, sg.k); R.lastNormal = null;
-            rep.push("", "## Cambio automático al método ganador", "", txt.replace(/\n\nSi lo cambias,[\s\S]*$/, ""), "", "✅ Aplicado solo (sigues al ganador del laboratorio). En la próxima revisión con la bolsa abierta venderá lo de ahora y comprará lo nuevo.");
-            await avisa("🔄 Cartera real: cambia sola al método ganador", txt.replace(/\n\nSi lo cambias,[\s\S]*$/, "") + "\n\n✅ Hecho: en la próxima revisión con la bolsa abierta venderá lo de ahora y comprará lo nuevo (las ventas con ganancia tributan). No volverá a cambiar en al menos 30-90 días.", { prio: 3 });
+            rep.push("", "## Cambio automático al n.º 1 del laboratorio", "", txtA, "", "✅ Aplicado solo. En la próxima revisión con la bolsa abierta venderá lo de ahora y comprará lo nuevo.");
+            await avisa("🔄 Cartera real: sigue al nuevo n.º 1 del laboratorio", txtA + "\n\n✅ Hecho: en la próxima revisión con la bolsa abierta venderá lo de ahora y comprará lo nuevo (las ventas con ganancia tributan).", { prio: 3 });
           } else {
           rep.push("", "## Propuesta de cambio de método", "", txt);
           await avisa("🔎 Cartera real: hay un método mejor", txt + (sg.needAcc ? "\n\nCompra acciones de EE. UU.: si pulsas «✅ Cambiar» se activa también la compra de acciones y de productos en dólares. Cotizan en dólares (0,15 % de cambio por operación, salvo que tengas saldo en dólares en Trading 212)." : ""), { prio: 3, kb: [[{ text: "✅ Cambiar", callback_data: "mc:" + id }, { text: "❌ No cambiar", callback_data: "mr:" + id }]] });
