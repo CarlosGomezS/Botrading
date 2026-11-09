@@ -39,7 +39,8 @@ export async function lab(log = console.log) {
   const idxDe = (f) => { const js = S.map((s, j) => (s.fam === f ? j : -1)).filter((j) => j >= 0); return js[Math.floor(Math.random() * js.length)]; };
   const FN = Object.keys(FILTROS), SAL = [1, 2, 4, 8, 16, 24], STP = [0, 0.02, 0.03, 0.05];
   const nuevo = () => ({ a: idxDe(elige()), b: Math.random() < 0.35 ? idxDe(elige()) : null, f: FN[Math.floor(Math.random() * FN.length)], h: SAL[Math.floor(Math.random() * SAL.length)], sl: STP[Math.floor(Math.random() * STP.length)] });
-  const muta = (g) => { const x = { ...g }, q = Math.floor(Math.random() * 5); if (q === 0) x.f = FN[Math.floor(Math.random() * FN.length)]; else if (q === 1) x.h = SAL[Math.floor(Math.random() * SAL.length)]; else if (q === 2) x.sl = STP[Math.floor(Math.random() * STP.length)]; else if (q === 3) x.b = Math.random() < 0.5 ? null : idxDe(elige()); else x.a = idxDe(S[x.a] ? S[x.a].fam : elige()); return x; };
+  const sinEco = (g) => { if (g.b === g.a) g.b = null; return g; };
+  const muta = (g) => { const x = { ...g }, q = Math.floor(Math.random() * 5); if (q === 0) x.f = FN[Math.floor(Math.random() * FN.length)]; else if (q === 1) x.h = SAL[Math.floor(Math.random() * SAL.length)]; else if (q === 2) x.sl = STP[Math.floor(Math.random() * STP.length)]; else if (q === 3) x.b = Math.random() < 0.5 ? null : idxDe(elige()); else x.a = idxDe(S[x.a] ? S[x.a].fam : elige()); return sinEco(x); };
   const clave = (g) => `${S[g.a] && S[g.a].fam}${JSON.stringify(S[g.a] && S[g.a].p)}|${g.b != null && S[g.b] ? S[g.b].fam + JSON.stringify(S[g.b].p) : "-"}|${g.f}|${g.h}|${g.sl}`;
   const nombre = (g) => `${S[g.a].fam} ${JSON.stringify(S[g.a].p)}${g.b != null ? " + confirma " + S[g.b].fam + " " + JSON.stringify(S[g.b].p) : ""} · ${g.f} · sale a las ${g.h} h · stop ${g.sl ? "−" + g.sl * 100 + " %" : "no"}`;
   const evalua = (g) => { const A = sig(g.a), B = g.b != null ? sig(g.b) : null, f = FILTROS[g.f], ops = [];
@@ -49,7 +50,7 @@ export async function lab(log = console.log) {
     r.nota = Math.min(r.a.pf, r.b.pf) * (r.a.opsDia >= 4 && r.b.opsDia >= 4 ? 1 : 0.5); return r; };
   // candidatos: 30 % mutaciones de las «casi», 70 % nuevas (con los pesos aprendidos); nunca se repite una ya probada
   const cand = [], vistas = new Set(Object.keys(mem.probadas));
-  for (let z = 0; z < PRUEBAS * 20 && cand.length < PRUEBAS; z++) { const base = mem.casi.length && Math.random() < 0.3 ? mem.casi[Math.floor(Math.random() * mem.casi.length)].g : null; const g = base && S[base.a] ? muta(base) : nuevo(); if (g.a == null || !S[g.a]) continue; const k = hs(clave(g)); if (vistas.has(k)) continue; vistas.add(k); cand.push(g); }
+  for (let z = 0; z < PRUEBAS * 20 && cand.length < PRUEBAS; z++) { const base = mem.casi.length && Math.random() < 0.3 ? mem.casi[Math.floor(Math.random() * mem.casi.length)].g : null; const g = base && S[base.a] ? muta(base) : sinEco(nuevo()); if (g.a == null || !S[g.a]) continue; const k = hs(clave(g)); if (vistas.has(k)) continue; vistas.add(k); cand.push(g); }
   cand.sort((x, y) => x.a - y.a); const famStat = {}; let nOk = 0;
   for (const g of cand) { const r = evalua(g), k = hs(clave(g)), f = S[g.a].fam; mem.probadas[k] = +r.nota.toFixed(3); (famStat[f] = famStat[f] || []).push(r.nota);
     if (r.a.ret > 0 && r.b.ret > 0 && r.a.opsDia >= 3) { mem.casi.push({ g, n: nombre(g), nota: r.nota, a: r.a, b: r.b }); }
