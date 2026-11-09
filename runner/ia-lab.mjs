@@ -56,7 +56,9 @@ Ideas recientes leídas (títulos): ${JSON.stringify(((cl && cl.ideas) || []).sl
 ${mejores.length ? `TUS recetas anteriores que MEJOR fueron (mejóralas o combínalas): ${JSON.stringify(mejores.map((x) => ({ nombre: x.r.nombre, regla: describe(x.r), resultado: x.s })))}` : ""}
 ${peores.length ? `TUS recetas anteriores que PEOR fueron (no repitas esa idea): ${JSON.stringify(peores.map((x) => ({ nombre: x.r.nombre, regla: describe(x.r), resultado: x.s })))}` : ""}
 
-FORMATO OBLIGATORIO. Responde SOLO un JSON: {"recetas":[ ... 15 recetas ... ]}. Cada receta:
+TU CUADERNO DE LECCIONES (lo que has aprendido en rondas anteriores; respétalo): ${JSON.stringify((prev && prev.lecciones) || [])}
+
+FORMATO OBLIGATORIO. Responde SOLO un JSON: {"lecciones":[hasta 12 lecciones breves en castellano: tu cuaderno ACTUALIZADO con lo que confirman los resultados de arriba; conserva las que sigan valiendo, corrige las que los datos desmientan y añade las nuevas], "recetas":[ ... 15 recetas ... ]}. Cada receta:
 {"nombre": "corto, en castellano", "idea": "por qué debería funcionar (1 frase, castellano)", "largo": [condiciones], "corto": [condiciones], "salida_h": una de ${JSON.stringify(SALIDAS)}, "stop": uno de ${JSON.stringify(STOPS)}, "filtro": uno de ${JSON.stringify(FN)}}
 "largo" = condiciones que TODAS deben cumplirse para comprar (0 a 4); "corto" = para vender en corto (0 a 4). Al menos una de las dos con condiciones.
 Condición: {"a": EXPR, "op": uno de ${JSON.stringify(OPS)}, "b": EXPR o número, "x": multiplicador opcional de b entre 0.5 y 2}
@@ -67,7 +69,9 @@ Que las 15 sean MUY distintas entre sí y distintas de lo ya probado.`;
   const nuevas = ((json && json.recetas) || []).map((r) => validaReceta(r, FN)).filter(Boolean);
   const todas = [...nuevas.map((r) => ({ ...r, t: new Date().toISOString(), modelo })), ...mias].filter((r, i, A) => A.findIndex((z) => z.id === r.id) === i).slice(0, 150);
   log(`cripto: la IA (${modelo}) propone ${((json && json.recetas) || []).length} recetas · válidas ${nuevas.length}`); for (const r of nuevas.slice(0, 15)) log(`  · ${r.nombre}: ${describe(r)}`);
-  return { recetas: todas, nuevas: nuevas.length, modelo };
+  const lec = Array.isArray(json && json.lecciones) ? json.lecciones.map((x) => String(x).replace(/[<>`]/g, "").slice(0, 220)).filter(Boolean).slice(0, 12) : null;
+  if (lec && lec.length) { log("cripto · cuaderno de lecciones:"); for (const x of lec) log("  📓 " + x); }
+  return { recetas: todas, nuevas: nuevas.length, modelo, lecciones: lec && lec.length ? lec : (prev && prev.lecciones) || [] };
 }
 
 // ---------- ETF / acciones ----------
@@ -80,10 +84,11 @@ function valoresETF() {
 }
 async function etf(MS, prev) {
   const VV = valoresETF(); if (!VV.V.u || !VV.V.u.length) throw new Error("no se pudieron leer los valores del laboratorio");
-  let top = [];
+  let top = [], res = [];
   try { const st = await raw("data", "state.json"), S = JSON.parse(st.ls.pb19), L = S.lab || {}, an = S.labAn || {}, TV = (S.btm && S.btm.tr && S.btm.tr.v) || {};
     const ks = (L.top3 || []).map((x) => x.k).concat(Object.keys(L.pop || {})).filter((k, i, A) => A.indexOf(k) === i);
     top = ks.map((k) => ({ k, g: (L.pop[k] || L.pend[k] || {}).g, an: an[k], t: TV[k] })).filter((x) => x.g).slice(0, 12).map((x) => ({ gen: x.g, rentab_anual: x.an != null ? +(x.an * 100).toFixed(1) : null, tramos: x.t ? { gana_al_sp500: x.t.g, tipico: x.t.mA, ult18m: x.t.rec } : null }));
+    res = Object.values(L.iaRes || {}).map((x) => ({ gen: x.g, rentab_anual: x.an != null ? +(x.an * 100).toFixed(1) : null, aprobo: x.ok, por_que_no: x.por || undefined }));
   } catch (e) { log("ETF: no se pudo leer el estado del laboratorio (" + String(e.message).slice(0, 60) + ")"); }
   const P = `Eres un gestor cuantitativo. Diseña estrategias NUEVAS de rotación mensual/trimestral de ETF para una cartera real en Trading 212 (Europa), usando SOLO las piezas de este laboratorio.
 Examen: 300 tramos al azar de 3 a 7 años desde el año 2000 (la mitad acaban hoy); tiene que ganarle al S&P 500 en ≥ 60 % de los tramos, no ir mal en los últimos 18 meses, y se ordena por la rentabilidad típica en esos tramos (empate: menos caída).
@@ -92,14 +97,18 @@ Valores permitidos (USA SOLO ESTOS): ${JSON.stringify(VV.V)}
 Grupos de ETF (u): ${JSON.stringify(VV.U)}
 Plazos de fuerza (l = índice): ${JSON.stringify(VV.LB.map((x, i) => [i, x.join("/") + " días"]))}
 Los mejores del laboratorio ahora mismo: ${JSON.stringify(top)}
+${res.length ? `RESULTADOS de tus ideas anteriores en el examen (aprende de ellos): ${JSON.stringify(res.slice(-25))}` : ""}
 ${prev && prev.genes && prev.genes.length ? `Tus propuestas anteriores (no las repitas): ${JSON.stringify(prev.genes.slice(0, 16).map((x) => x.g))}` : ""}
-Responde SOLO un JSON: {"genes":[{"g": {pieza: valor, ...}, "idea": "por qué (1 frase, castellano)"} ... 10 genes ...]}. Cada g debe traer las piezas u, l, s, t, f, i, a, r, p (y las demás si quieres). Que sean muy distintos entre sí: grupos de ETF, estilos (z), regímenes (rg) y refugios distintos.`;
+TU CUADERNO DE LECCIONES (de rondas anteriores; respétalo): ${JSON.stringify((prev && prev.lecciones) || [])}
+Responde SOLO un JSON: {"lecciones":[hasta 12 lecciones breves en castellano: tu cuaderno ACTUALIZADO según lo que muestran los mejores métodos y tus propuestas anteriores], "genes":[{"g": {pieza: valor, ...}, "idea": "por qué (1 frase, castellano)"} ... 10 genes ...]}. Cada g debe traer las piezas u, l, s, t, f, i, a, r, p (y las demás si quieres). Que sean muy distintos entre sí: grupos de ETF, estilos (z), regímenes (rg) y refugios distintos.`;
   const { modelo, json } = await gemini(P, MS);
   const ok = (g) => { if (!g || typeof g !== "object") return null; const o = {}; for (const [k, v] of Object.entries(g)) { if (!VV.V[k]) return null; if (!VV.V[k].some((z) => z === v)) return null; o[k] = v; } for (const k of ["u", "l", "t"]) if (o[k] == null) return null; return o; };
   const nuevos = ((json && json.genes) || []).map((x) => ({ g: ok(x && x.g), idea: String((x && x.idea) || "").replace(/[<>`]/g, "").slice(0, 200) })).filter((x) => x.g);
   const todos = [...nuevos.map((x) => ({ ...x, t: new Date().toISOString(), modelo })), ...((prev && prev.genes) || [])].filter((x, i, A) => A.findIndex((z) => JSON.stringify(z.g) === JSON.stringify(x.g)) === i).slice(0, 80);
   log(`ETF: la IA (${modelo}) propone ${((json && json.genes) || []).length} genes · válidos ${nuevos.length}`); for (const x of nuevos) log(`  · ${JSON.stringify(x.g)} — ${x.idea}`);
-  return { genes: todos, nuevos: nuevos.length, modelo };
+  const lec = Array.isArray(json && json.lecciones) ? json.lecciones.map((x) => String(x).replace(/[<>`]/g, "").slice(0, 220)).filter(Boolean).slice(0, 12) : null;
+  if (lec && lec.length) { log("ETF · cuaderno de lecciones:"); for (const x of lec) log("  📓 " + x); }
+  return { genes: todos, nuevos: nuevos.length, modelo, lecciones: lec && lec.length ? lec : (prev && prev.lecciones) || [] };
 }
 
 async function main() {
