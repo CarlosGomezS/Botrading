@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 347 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#347</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 348 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#348</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -530,7 +530,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  <label class="btrow btstk"><span>Incluir métodos de acciones sueltas<small>Momentum de acciones, IA… Más lento (30-60 min).</small></span><input type="checkbox" id="btacc"></label>
  <label class="btrow btstk"><span>Quitar las acciones que más subieron<small id="btxl">Prueba de estrés: quita la ventaja de saber hoy quién ganó (Nvidia, Broadcom, Netflix, Tesla…). Si un método sigue ganando sin ellas, es de fiar.</small></span><select id="btx"><option value="0">No</option><option value="10">Las 10</option><option value="20">Las 20</option><option value="30">Las 30</option><option value="40">Las 40</option></select></label>
  <div class="btrow btstk"><span>Acciones a probar<small>Cada día se sortea un número entre mínimo y máximo. Al pulsar «Ejecutar» se usa el máximo.</small></span><span class="btnum"><input id="btmin" type="number" min="10" max="500" value="200"> – <input id="btn" type="number" min="10" max="500" value="300"></span></div>
- <label class="btrow"><span>Empezar en el año<small>1999 incluye las crisis de 2000-2002 y 2008.</small></span><select id="btini"><option value="1999">1999</option><option value="2000">2000</option><option value="2001">2001</option><option value="2002">2002</option><option value="2003">2003</option><option value="2004">2004</option><option value="2005">2005</option><option value="2006">2006</option><option value="2007">2007</option><option value="2008">2008</option><option value="2009">2009</option><option value="2010">2010</option><option value="2011">2011</option><option value="2012">2012</option><option value="2013">2013</option><option value="2014">2014</option><option value="2015">2015</option><option value="2016">2016</option><option value="2017">2017</option><option value="2018">2018</option><option value="2019">2019</option><option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option></select></label>
+ <select id="btini" hidden><option value="1999" selected>1999</option></select>
  <label class="btrow"><span>Prueba automática cada día<small>Después de la actualización de precios.</small></span><input type="checkbox" id="btauto"></label>
  <div class="m" id="btfee"></div>
  <button id="btsv">💾 Guardar ajustes</button> <span class="m" id="btsvst"></span>
@@ -597,7 +597,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 <div class="m">• <b>Estilos</b>: momentum clásico (comprar lo que más sube), 🧘 los más tranquilos, 🔁 compra en caídas dentro de una tendencia, ⚡ aceleración y ⚖️ paridad de riesgo.<br>
 • <b>Régimen del mercado</b> (lo que miran los gestores antes de arriesgar): amplitud de los sectores, tipos de interés, estrés de crédito y huida a la seguridad. Con régimen malo, el método se refugia en oro o bonos.<br>
 • <b>Aprende solo</b>: un modelo predice la nota de cada candidato antes de probarlo y cada pieza que acierta se usa más.<br>
-• <b>Liga</b>: los 20 mejores (como mucho 12 de la misma familia). <b>📦 Archivo</b>: los que salen nunca se borran; cada ronda se reexaminan 15 y vuelven solos si vuelven a ser de los mejores.<br>
+• <b>Liga</b>: los 20 mejores (como mucho 12 de la misma familia), ordenados por su <b>🎲 nota de fiabilidad</b>: cada método se prueba en 300 tramos al azar de 3 a 7 años desde 2000 y en la historia completa, siempre contra el S&amp;P 500 en el mismo periodo; la nota es la media de lo que gana en un tramo normal, en sus tramos malos (el 25 % peor) y en la historia completa. Gana el que gana casi siempre, no el que tuvo suerte una vez. Tu cartera real solo cambia de método si el nuevo tiene al menos 1,5 puntos más de nota. <b>📦 Archivo</b>: los que salen nunca se borran; cada ronda se reexaminan 15 y vuelven solos si vuelven a ser de los mejores.<br>
 • <b>🔭 En observación</b>: mixtos (ETF + acciones + bitcoin), acciones y el experimento de noticias, que no se pueden probar con 26 años. Cada día nacen 3 nuevos; se prueban con precios reales y, si ganan al S&amp;P 500 por ≥2 puntos durante 12 meses, entran solos en la ficticia.</div></div>
 <div class="p hlp"><h2>La cartera real, en pocas palabras</h2>
 <div class="m">• <b>Método</b>: la cartera real sigue <b>sola</b> al n.º 1 del Laboratorio (con un freno para no cambiar cada pocos días). Si quieres elegirlo tú, pon «No» en «🤖 Seguir solo al método ganador del laboratorio» (⚙️ Ajustes → Real) y elige en «🧭 Elige el método». Puedes <b>repartir</b> el dinero a partes iguales entre 2 o 3 métodos (mejor de familias distintas).<br>
@@ -1757,7 +1757,7 @@ function labJudge(b,trials){const L=labS(),d=T0();let born=0;const keepRow=new S
   if(e.ok&&!L.pop[k]){L.pop[k]={g:A.g,born:A.born,an:e.an};delete L.arch[k];L.log.unshift({d,k,n:labName(A.g),ev:"vuelve",why:`vuelve del archivo: con los datos de hoy aprueba otra vez (${P(e.an*100)}/año)`})}
   else if(!L.pop[k]&&!L.keep[k]&&!L.pend[k]&&!(S.promo||[]).includes(k)){delete BTX[k];delete b.rows[k]}}
  L.archQ=[];
- const ks0=Object.keys(L.pop).sort((x,y)=>(L.pop[y].an||0)-(L.pop[x].an||0)),fc={},sel=[];
+ const TVj=b.tr&&b.tr.v,nt=k=>TVj?(TVj[k]?TVj[k].nota:(L.pop[k].an||0)-1):(L.pop[k].an||0),ks0=Object.keys(L.pop).sort((x,y)=>nt(y)-nt(x)),fc={},sel=[];   /* v348 · la liga se ordena por la nota de tramos */
   /* v119 · variedad: como mucho LABFAMMAX de la misma familia en la liga si hay otras familias que también aprueban (si no, se rellena con los mejores) */
   for(const k of ks0){const f=labFam(L.pop[k].g);if(sel.length<LABMAX&&(fc[f]||0)<LABFAMMAX){sel.push(k);fc[f]=(fc[f]||0)+1}}for(const k of ks0)if(sel.length<LABMAX&&!sel.includes(k))sel.push(k);
   const ks=[...sel,...ks0.filter(k=>!sel.includes(k))];for(const k of ks.slice(LABMAX)){L.log.unshift({d,k,n:labName(L.pop[k].g),ev:"sale",why:"hay "+LABMAX+" mejores en la liga · se guarda en el archivo"});labArch(L,k,d,"hay "+LABMAX+" mejores");delete L.pop[k];if(!L.keep[k]){delete BTX[k];delete b.rows[k]}}
@@ -1775,8 +1775,8 @@ function labValTxt(pc,v){if(pc==="u")return LABU[v]?LABU[v].n:v;if(pc==="l")retu
 function labInv(b,k,v){try{const c=(v||btmVerd(b,k)||{}).ck||{},H=b.hold&&b.hold.v;if(!(v||{}).c==="ok")return false;
  const hm=H&&H[k]&&H.spy?H[k].ht-H.spy.ht:null;return (v||{}).c==="ok"&&c.gap>=0.05&&c.beat===3&&c.n===3&&c.ddm>=-0.30&&hm!=null&&hm>=0.10&&labHoldOk(k)}catch(e){return false}}
 /* v105 · aviso solo cuando aparece uno MEJOR QUE EL 3.º del top (entra en el podio desde fuera) */
-function labTop3Check(){try{const L=labS(),T=top5List(winAll(),3).T.map(x=>({k:x.h?x.h.k:x.lv.k,sc:+x.sc.toFixed(5)}));const old=Array.isArray(L.top3)?L.top3:null;L.topEv=[];
- if(old){const th=old.length>=3?old[2].sc:-1;T.forEach((x,i)=>{if(!old.some(o=>o.k===x.k)&&x.sc>th+1e-6)L.topEv.push({k:x.k,n:(MX(x.k)||{n:x.k}).n,an:x.sc,pos:i+1,d:T0()})})}
+function labTop3Check(){try{const L=labS(),T=top5List(winAll(),3).T.map(x=>({k:x.h?x.h.k:x.lv.k,sc:+x.sc.toFixed(5),an:x.an!=null?+x.an.toFixed(5):null}));const old=Array.isArray(L.top3)?L.top3:null;L.topEv=[];
+ if(old){const th=old.length>=3?old[2].sc:-1;T.forEach((x,i)=>{if(!old.some(o=>o.k===x.k)&&x.sc>th+1e-6)L.topEv.push({k:x.k,n:(MX(x.k)||{n:x.k}).n,an:x.an!=null?x.an:x.sc,pos:i+1,d:T0()})})}
  L.top3=T}catch(e){}}
 function labConfUpdate(){try{const b=S.btm,L=labS();if(!b||!b.rows||!b.rows.spy)return;const tx=!!(b.rows.spy[0]&&b.rows.spy[0].atax!=null),AN=r=>tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts);
  const H=hG(),spyRows=H.SPY&&H.SPY.r||[],spyAt=d=>{const n=dayN(d);let v=null;for(const x of spyRows){if(x[0]<=n)v=x[4];else break}return v},spyNow=spyRows.length?spyRows[spyRows.length-1][4]:null,today=T0();
@@ -1785,7 +1785,7 @@ function labConfUpdate(){try{const b=S.btm,L=labS();if(!b||!b.rows||!b.rows.spy)
   const r=b.rows[k],dd=r&&r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null;
   if(nd>=365&&g!=null&&gs!=null&&g<gs-0.05&&k!=="sect"&&!L.off[k]){L.off[k]=today;L.log.unshift({d:today,k,n:MX(k).n,ev:"apartado",why:`en 12 meses de ficticia va ${P((g-gs)*100)} peor que el SPY`})}
   C.push({k,n:MX(k).n,an:fwd?null:(S.labAn[k]??null),dd:fwd?null:dd,opy:v.opy,d0,g,gs,nd,fwd,inv:fwd?false:labInv(b,k,v),ok:fwd?(!L.off[k]&&nd>=365&&g!=null&&gs!=null&&g-gs>=0.02):(v.c==="ok"&&!L.off[k]&&labHoldOk(k)&&((nd>=30&&g!=null&&(gs==null||g>=gs-0.02))||(labInv(b,k,v)&&nd>=1)))})}
- S.labConf=C}catch(e){}}
+ try{const TV=b.tr&&b.tr.v;if(TV)for(const c of C){const t=TV[c.k];if(t)c.nota=t.nota}}catch(e){}S.labConf=C}catch(e){}}
 
 /* ===== v81 · ACCIONES QUE EVOLUCIONAN EN VIVO: cada 3 meses, el método de acciones que peor va frente al SPY (con ≥6 meses en la
    ficticia) se sustituye por una VARIACIÓN del que mejor va. Siempre hay 3. Sin fin y sin prueba histórica (que con acciones hace trampa). */
@@ -1928,7 +1928,7 @@ const ML0=MOM_UNI.length;if((+($("#btn")&&$("#btn").value)||0)>ML0){const ex0=ne
   const sp=LONG.SPY,M={};for(const s of BT){M[s]={};LONG[s].forEach((x,j)=>M[s][x.d]=j)}
   let fxH={},fxMode="tipo de cambio histórico EUR/USD";try{fxH=await getFxHistory(sp[0].d,sp[sp.length-1].d,S.fx);if(!fxH[sp[0].d])throw new Error("serie incompleta")}catch(e){fxMode="tipo de cambio fijo (histórico no disponible)";for(const x of sp)fxH[x.d]=S.fx;}
   const fxAt=d=>fxH[d]||S.fx;let i0=260;{const xk=LONG.XLK;if(xk&&xk.length>260){const d0=xk[260].d,j=sp.findIndex(x=>x.d>=d0);if(j>i0)i0=j}} // el SPY tiene más historia que los sectores: todos empiezan el mismo día
-  {const y0=+BTC.ini||1999;if(y0>1999){const j=sp.findIndex(x=>x.d>=y0+"-01-01");if(j>i0)i0=j}}
+  {const y0=1999;   /* v348 · sin selector de año: siempre toda la historia */if(y0>1999){const j=sp.findIndex(x=>x.d>=y0+"-01-01");if(j>i0)i0=j}}
   // División cronológica 60/20/20. Cada tramo empieza con 500 € nuevos y sin posiciones
   // heredadas. El histórico anterior solo sirve para calentar indicadores (evita usar futuro).
   const N=sp.length-i0-1,cuts=[0,Math.floor(N*.6),Math.floor(N*.8),N],rows={},DET={};
@@ -1955,7 +1955,8 @@ const ML0=MOM_UNI.length;if((+($("#btn")&&$("#btn").value)||0)>ML0){const ex0=ne
     let pk=START,dd=0;for(let i=0;i<=j;i++){pk=Math.max(pk,cv[i][1]);dd=Math.min(dd,cv[i][1]/pk-1)}const eH=cv[j][1],eE=cv[cv.length-1][1];
     const n=((DET[k][2].operaciones)||[]).filter(o=>o.resultado!=null&&o.d<hd).length;
     v[k]={r:eH/START-1,ra:tx(eH,START),dd,n,ht:tx(eE,eH)}}return{d:hd,v}}catch(e){return null}})();
-    S.btm={hold:HOLD,cfg:{...BTC,n:btStocks()?nS:0,excl:ex,exList:[...EXC]},lev:SPLD,nAcc:btStocks()?pool.length:0,excl:ex,main:mainRows,d:T0(),from:sp[i0+1].d,to:sp[sp.length-1].d,basket:BT,rows,cuts:cuts.map(c=>sp[Math.min(i0+1+c,sp.length-1)].d),fxMode,omitidos:SKIPB,omit:Object.fromEntries(Object.keys(AM).map(m=>[m,rows[m].reduce((n,x)=>n+(x&&x.omitSize||0),0)]))};try{labJudge(S.btm,LT);applySimx();labConfUpdate();labTop3Check()}catch(e){}await save();btmDraw();$("#btst").textContent="Listo.";await archiveReport(window.__LABX?"prueba-historica-completada-lab":"prueba-historica-completada",`${window.__LABX?"Ronda extra del laboratorio · ":""}Prueba histórica completada: ${S.btm.from} a ${S.btm.to}; ${BT.length} activos (${btStocks()?"muestra aleatoria de "+nS+" acciones pedidas"+(ex?", sin las "+ex+" que más subieron":""):"solo ETF, sin acciones sueltas"}; ${Object.keys(AM).length} métodos, ${LT.length} nuevos del laboratorio); divisa: ${fxMode}.`,{detalle:DET})}
+    let TRAM=null;try{TRAM=tramosCalc(DET,T0())}catch(e){}
+    S.btm={tr:TRAM,hold:HOLD,cfg:{...BTC,n:btStocks()?nS:0,excl:ex,exList:[...EXC]},lev:SPLD,nAcc:btStocks()?pool.length:0,excl:ex,main:mainRows,d:T0(),from:sp[i0+1].d,to:sp[sp.length-1].d,basket:BT,rows,cuts:cuts.map(c=>sp[Math.min(i0+1+c,sp.length-1)].d),fxMode,omitidos:SKIPB,omit:Object.fromEntries(Object.keys(AM).map(m=>[m,rows[m].reduce((n,x)=>n+(x&&x.omitSize||0),0)]))};try{labJudge(S.btm,LT);applySimx();labConfUpdate();labTop3Check()}catch(e){}await save();btmDraw();$("#btst").textContent="Listo.";await archiveReport(window.__LABX?"prueba-historica-completada-lab":"prueba-historica-completada",`${window.__LABX?"Ronda extra del laboratorio · ":""}Prueba histórica completada: ${S.btm.from} a ${S.btm.to}; ${BT.length} activos (${btStocks()?"muestra aleatoria de "+nS+" acciones pedidas"+(ex?", sin las "+ex+" que más subieron":""):"solo ETF, sin acciones sueltas"}; ${Object.keys(AM).length} métodos, ${LT.length} nuevos del laboratorio); divisa: ${fxMode}.`,{detalle:DET})}
  catch(e){btOk=false;const dly=isDaily(e),prog0=Object.keys(LONG).length+" de "+BT.length+" activos ya descargados y guardados",again=isTransient(e)&&!dly&&BTA.n<3;
   if(again){btAgain=true;BTA.n++;$("#btst").textContent="Fallo temporal ("+mask(e.message||e)+"). "+prog0+". Reintento automático en 2 min (intento "+BTA.n+" de 3); continúa por donde se quedó, no hace falta que hagas nada."}
   else{BTA.n=0;const msg=mask(e.message||"Error desconocido")+" · Progreso guardado: "+prog0+"."+(dly?" La cuota diaria del proveedor está agotada: mañana (o con otra clave) al pulsar de nuevo continúa por donde se quedó.":" Al pulsar de nuevo continúa por donde se quedó.");$("#btst").textContent="Error: "+msg;await archiveReport("prueba-historica-error",msg)}}
@@ -2015,7 +2016,7 @@ function btmVerd(b,k){const r=b.rows[k],sp=b.rows.spy;if(!r||!sp)return null;con
  /* v74 · filtro para la cartera real: ≥2 puntos al año más que el SPY, le gana en ≥2 de 3 tramos, peor caída no peor del −35 %, ≤12 ventas al año y datos desde el principio */
  /* v77 · examen contra la suerte: también tiene que ganar al SPY en 2000-2015 y, por separado, en 2016-hoy */
  const ep=n===3?RV(0)>SV(0):false,lp=n===3?(1+RV(1))*(1+RV(2))>(1+SV(1))*(1+SV(2)):false;
- const ck={gap:ar!=null&&as!=null?ar-as:null,beat,n,ddm,opy,pos,late,ep,lp};const v=btmVerd0();if(v)v.ck=ck;return v;function btmVerd0(){
+ const ck={gap:ar!=null&&as!=null?ar-as:null,beat,n,ddm,opy,pos,late,ep,lp};const v=btmVerd0();if(v){v.ck=ck;try{const t=b.tr&&b.tr.v&&b.tr.v[k];if(t&&v.x)v.x+=" "+tramosTxt(t,b.tr)}catch(e){}}return v;function btmVerd0(){
  if(ar!=null&&as!=null&&ar-as>=0.02&&beat>=2&&ddm>=-0.35&&opy<=12&&pos===n&&!late&&ep&&lp)return{tx,c:"ok",t:"✅ Ganador",x:`Gana ${((ar-as)*100).toFixed(1).replace(".",",")} puntos al año más que el SPY${tx?" después de impuestos":""}, le gana en ${beat} de ${n} tramos, su peor caída es del ${(ddm*100).toFixed(0)} % y hace unas ${Math.max(1,Math.round(opy))} ventas al año. Pasa el filtro para tu cartera real.`,beat,less,pos,n,opy,ddm};
  if(ar!=null&&as!=null&&ar>as)return{tx,c:"mid",t:"🟡 Gana poco al SPY",x:`Gana algo más que el SPY (${((ar-as)*100).toFixed(1).replace(".",",")} puntos al año${tx?" después de impuestos":""}), pero no pasa el filtro para tu cartera real: hace falta ≥2 puntos al año, ganarle en 2000-2015 y también en 2016-hoy, caídas no peores del −35 % y pocas operaciones.${ar-as>=0.02&&n===3&&!(ep&&lp)?" Este gana sobre todo en "+(ep?"2000-2015":"2016-hoy")+": podría ser suerte de una época.":""}`,beat,less,pos,n,opy,ddm};
  if(ar!=null&&as!=null&&ar>as)return{c:"mid",t:"🟡 Gana más, cae más",x:`Gana más que el SPY en el total, pero con caídas iguales o mayores en ${n-less} de ${n} tramos.`,beat,less,pos,n};
@@ -2036,15 +2037,32 @@ function labHtml(){try{const L=S.lab;if(!L||!L.last&&!Object.keys(L.pop||{}).len
 /* v94 · arriba, los 5 que más ganan al SPY con tus condiciones: ✅ Ganadores de la prueba histórica (después de impuestos, caída ≤35 %, ganan en 2000-2015 y 2016-hoy)
    y los mixtos (ETF + acciones + cripto) que lo demuestran en vivo: 12 meses ganando al SPY por ≥2 puntos (su prueba histórica no es fiable) */
 function winAll(){const b=S.btm;if(!b||!b.rows||!b.rows.spy)return[];return Object.keys(b.rows).filter(k=>k!=="spy"&&MX(k)&&t212Of(k)!=="no").map(k=>{const r=b.rows[k];let v=null;try{v=btmVerd(b,k)}catch(e){}const t0=r[0]&&r[0].t0,late=!!(t0&&r[0].from&&dayN(t0)-dayN(r[0].from)>120);return{k,r,v,late}})}
+/* v348 · 🎲 TRAMOS AL AZAR + HISTORIA COMPLETA. Con la curva diaria de cada método (sus 3 tramos encadenados) se sacan 300 periodos al azar
+   de 3 a 7 años desde 2000 y en cada uno se compara con el S&P 500 en ese MISMO periodo. Nota = media de: lo que gana en un tramo normal (mediana),
+   lo que gana en sus tramos malos (el 25 % peor) y lo que gana en la historia completa (todo en puntos al año frente al SPY).
+   Así sube el que gana casi siempre y, cuando pierde, pierde poco; no el que tuvo un par de tramos de suerte. El sorteo es fijo cada día. */
+function tramosCalc(DET,seed){const N=300,YA=3,YB=7;
+ const chain=k=>{const z=DET[k];if(!z||z.length<3||z.some(x=>!x||!x.curva||x.curva.length<2))return null;const m=new Map();let f=1;for(const sg of z){let last=f;for(const [d,e] of sg.curva){last=f*e/START;m.set(d,last)}f=last}return m};
+ const SPm=chain("spy");if(!SPm)return null;const ds=[...SPm.keys()].filter((d,i)=>i%5===0),sp=ds.map(d=>SPm.get(d)),L=ds.length,W=52;if(L<YB*W+10)return null;
+ let h=2166136261;for(const c of String(seed))h=Math.imul(h^c.charCodeAt(0),16777619);let st=h>>>0;const rnd=()=>{st=(st+0x6D2B79F5)>>>0;let t=st;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296};
+ const WIN=[];for(let i=0;i<N;i++){const len=Math.round((YA+(YB-YA)*rnd())*W),s0=Math.floor(rnd()*(L-len));WIN.push([s0,s0+len])}
+ const cg=(a,b,n)=>a>0&&b>0?Math.pow(b/a,W/n)-1:null,q=(arr,p)=>{const a=arr.slice().sort((x,y)=>x-y);const i=(a.length-1)*p,lo=Math.floor(i),hi=Math.ceil(i);return a[lo]+(a[hi]-a[lo])*(i-lo)};
+ const v={};for(const k of Object.keys(DET)){if(k==="spy")continue;const m=chain(k);if(!m)continue;let prev=null;const eq=ds.map(d=>{const x=m.get(d);if(x!=null)prev=x;return prev});if(eq[0]==null)continue;
+  const ex=[];for(const [a,b] of WIN){const r=cg(eq[a],eq[b],b-a),rs=cg(sp[a],sp[b],b-a);if(r!=null&&rs!=null)ex.push(r-rs)}if(ex.length<N*0.8)continue;
+  const full=cg(eq[0],eq[L-1],L-1)-cg(sp[0],sp[L-1],L-1),med=q(ex,0.5),p25=q(ex,0.25),p10=q(ex,0.1),g=ex.filter(x=>x>0).length/ex.length,r4=x=>+x.toFixed(4);
+  v[k]={g:r4(g),med:r4(med),p25:r4(p25),p10:r4(p10),full:r4(full),nota:r4((med+p25+full)/3)}}
+ return{n:N,a:YA,b:YB,seed:String(seed),v}}
+function tramosTxt(t,T){const pt=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",",");return`🎲 En ${T.n} tramos al azar de ${T.a} a ${T.b} años le gana al S&P 500 en el ${Math.round(t.g*100)} %: en un tramo normal ${pt(t.med)} puntos al año, en sus tramos malos (el 25 % peor) ${pt(t.p25)} y en la historia completa ${pt(t.full)}. Nota de fiabilidad: ${pt(t.nota)}.`}
 function top5List(all,N){N=N||5;try{const b=S.btm,tx=b&&b.rows&&b.rows.spy&&b.rows.spy[0]&&b.rows.spy[0].atax!=null,AT=r=>tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts),as=b&&b.rows.spy?AT(b.rows.spy):null;
- const H=all.filter(x=>x.k!=="spy"&&x.v&&x.v.c==="ok"&&!x.late&&labHoldOk(x.k)).map(x=>({h:x,sc:AT(x.r)}));
- const LV=(S.labConf||[]).filter(c=>c.fwd&&c.ok&&STR[c.k]).map(c=>({lv:c,sc:c.nd>0?Math.pow(1+c.g,365/c.nd)-1:null}));
+ const TV=b&&b.tr&&b.tr.v||null;
+ const H=all.filter(x=>x.k!=="spy"&&x.v&&x.v.c==="ok"&&!x.late&&labHoldOk(x.k)).map(x=>{const an=AT(x.r),t=TV&&TV[x.k];return{h:x,an,sc:t?t.nota:(an!=null&&as!=null?an-as:null)}});
+ const LV=(S.labConf||[]).filter(c=>c.fwd&&c.ok&&STR[c.k]).map(c=>{const an=c.nd>0?Math.pow(1+c.g,365/c.nd)-1:null,asl=c.nd>0&&c.gs!=null?Math.pow(1+c.gs,365/c.nd)-1:null;return{lv:c,an,sc:an!=null&&asl!=null?an-asl:null}});
  /* v338 · empate (menos de 0,2 puntos al año de diferencia) → va antes el que cae menos */
  const ddOf=x=>x.h&&x.h.dd!=null?x.h.dd:x.lv&&x.lv.dd!=null?x.lv.dd:null;
  return{T:[...H,...LV].filter(x=>x.sc!=null).sort((p,q)=>{const d=q.sc-p.sc,a=ddOf(p),c=ddOf(q);return Math.abs(d)<0.002&&a!=null&&c!=null&&a!==c?c-a:d}).slice(0,N),as}}catch(e){return{T:[],as:null}}}
 function top5Html(all,card){try{const {T,as}=top5List(all,20);
  const lvCard=(c,j)=>`<details class="btc"><summary><span class="rk">${j}</span><span class="nm">${esc(STR[c.k].n)}${midB(c.k)}</span><span class="pa ${c.g>=0?"up":"dn"}">${P(c.g*100)}<small style="font-size:11px;font-weight:400;color:var(--muted)"> en vivo</small></span><span class="sb"><span class="bdg ok">✅ Probado en vivo</span><span class="bdg t">🔭 mixto</span></span></summary><div class="bd"><div>En ${Math.round(c.nd/30.4)} meses con precios reales: ${P(c.g*100)} frente al ${P(c.gs*100)} del SPY. Sus resultados son de verdad, no de una prueba histórica.</div><div class="m">${esc(STR[c.k].d||"")}</div></div></details>`;
- let h=`<input type="search" class="mfilter" data-filter="details.btc" data-scope=".labtop" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="🔎 Buscar por #id o nombre" style="width:100%;margin:6px 0"><div class="m" style="margin:10px 0 4px"><b>🏆 Los 20 que más ganan al SPY</b> (los 5 primeros a la vista) (después de impuestos, con caídas no peores del −35 % y ganando en 2000-2015 y en 2016-hoy${as!=null?` · el SPY: ${P(as*100)}/año`:""})</div><div class="btl">`;
+ let h=`<input type="search" class="mfilter" data-filter="details.btc" data-scope=".labtop" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="🔎 Buscar por #id o nombre" style="width:100%;margin:6px 0"><div class="m" style="margin:10px 0 4px"><b>🏆 Los 20 más fiables frente al S&amp;P 500</b> (los 5 primeros a la vista) · ${S.btm&&S.btm.tr?`ordenados por su nota: ${S.btm.tr.n} tramos al azar de ${S.btm.tr.a} a ${S.btm.tr.b} años + la historia completa desde 2000`:"ordenados por lo que ganan al SPY (la nota por tramos llega con la próxima ronda)"} · todos ganan en 2000-2015 y en 2016-hoy y caen menos del −35 %${as!=null?` · el SPY: ${P(as*100)}/año`:""}</div><div class="btl">`;
  const rb=k=>{let mine=false;try{mine=curMets().includes(k)}catch(e){}const W=(c,t)=>`<div style="margin-top:8px"><span class="bdg ${c}" style="white-space:normal">${t}</span></div>`;if(mine)return W("ok","💶 Es el que sigue tu cartera real");
   /* v347 · se distingue claramente qué puede pasar YA a la real y qué tiene que esperar (y cuánto) */
   try{const c=(S.labConf||[]).find(z=>z.k===k),B=(S.books||{})[k],fd2=n=>new Date(Date.now()+n*864e5).toLocaleDateString("es-ES",{day:"numeric",month:"short"});

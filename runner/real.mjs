@@ -428,7 +428,12 @@ export function sugerencia(S, cur, map, excl) {
   // v78: solo métodos que se pueden comprar enteros en tu cuenta (si un ETF no está en Trading 212, esa parte se quedaría en efectivo)
   // v80: «acc» = solo falla porque tienes desactivada la compra de acciones en los ajustes (se te avisa, sin botón de cambiar)
   const buyable = (k) => { if (!map || !Object.keys(map).length) return true; const B = (S.books || {})[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})), bad = sy.filter((s) => map[s] && !map[s].t); return !bad.length ? true : bad.every((s) => /acciones desactivadas|Divisa: solo euros/.test(map[s].why || "")) ? "acc" : false; };
-  const L = S.labConf.filter((x) => x && x.ok && x.k !== cur && !(excl || []).includes(x.k) && (S.books || {})[x.k] && (x.fwd || an == null || x.an >= an + 0.02) && buyable(x.k)).filter((x) => { const gc = fw(x.d0); return gc == null || x.g >= gc - 0.02; })   // v103: ≥2 puntos al año más que tu método (tras 30 días en la ficticia sin quedarse atrás).sort((a, b) => b.an - a.an);
+  // v348 · 🎲 se compara por la NOTA DE FIABILIDAD (300 tramos al azar + historia completa, en puntos/año frente al SPY) cuando ambos la tienen:
+  //   hace falta ≥1,5 puntos de nota más que tu método; si alguno no la tiene aún, la regla de siempre (≥2 puntos al año más). Y se ordena de verdad
+  //   (antes el «.sort» había quedado dentro de un comentario y se cogía el primero de la lista que cumplía, no el mejor).
+  const nc = ((S.labConf || []).find((z) => z && z.k === cur) || {}).nota, mejora = (x) => x.fwd || (x.nota != null && nc != null ? x.nota >= nc + 0.015 : (an == null || x.an >= an + 0.02));
+  const L = S.labConf.filter((x) => x && x.ok && x.k !== cur && !(excl || []).includes(x.k) && (S.books || {})[x.k] && mejora(x) && buyable(x.k)).filter((x) => { const gc = fw(x.d0); return gc == null || x.g >= gc - 0.02; })   // v103: tras 30 días en la ficticia sin quedarse atrás
+    .sort((a, b) => ((b.nota ?? -1) - (a.nota ?? -1)) || ((b.an ?? -9) - (a.an ?? -9)));
   const best = L[0] || null;
   return best ? { ...best, needAcc: buyable(best.k) === "acc" } : null;
 }
