@@ -5,32 +5,33 @@
 // Validación: se elige con el 60 % más antiguo de los datos (entreno) y solo vale si también gana en el 40 % más reciente (prueba), con
 // ≥ 3 operaciones al día, factor de beneficio ≥ 1,15, caída < 30 % y si sus vecinos (parámetros parecidos) también ganan.
 const INFO = "https://api.hyperliquid.xyz/info";
+export const COST_EXP = 0.00095;
 const COST = 0.00045 + 0.0005, N_COINS = 24, H = 3600e3;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function post(body) { for (let i = 0; i < 5; i++) { try { const r = await fetch(INFO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) }); if (r.status === 429) { await sleep(5000 * (i + 1)); continue; } if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); } catch (e) { if (i === 4) throw e; await sleep(3000 * (i + 1)); } } }
 
-async function datos(log) {
+export async function datos(log) {
   const [meta, ctxs] = await post({ type: "metaAndAssetCtxs" });
   const U = meta.universe.map((u, i) => ({ c: u.name, v: +ctxs[i].dayNtlVlm || 0, d: !!u.isDelisted })).filter((x) => !x.d && x.v > 0).sort((a, b) => b.v - a.v).slice(0, N_COINS).map((x) => x.c);
   const fin = Math.floor(Date.now() / H) * H, ini = fin - 540 * 864e5, D = {};
   for (const c of U) {
     const k = new Map();
-    for (let t = ini; t < fin; t += 4000 * H) { const r = await post({ type: "candleSnapshot", req: { coin: c, interval: "1h", startTime: t, endTime: Math.min(fin, t + 4000 * H) } }); for (const x of r || []) k.set(+x.t, +x.c); await sleep(250); }
+    for (let t = ini; t < fin; t += 4000 * H) { const r = await post({ type: "candleSnapshot", req: { coin: c, interval: "1h", startTime: t, endTime: Math.min(fin, t + 4000 * H) } }); for (const x of r || []) k.set(+x.t, [+x.c, +x.v || 0, +x.h, +x.l]); await sleep(250); }
     const f = new Map(); let t = ini;
     for (let g = 0; g < 40 && t < fin; g++) { const r = await post({ type: "fundingHistory", coin: c, startTime: t }); if (!r || !r.length) break; for (const x of r) f.set(Math.floor(+x.time / H) * H, +x.fundingRate); const last = +r[r.length - 1].time; if (last <= t) break; t = last + 1; await sleep(250); }
     D[c] = { k, f }; log(`  ${c}: ${k.size} velas de 1 h · ${f.size} horas de financiación`);
   }
   const T = []; for (let t = ini; t < fin; t += H) T.push(t);
-  const out = {}; for (const c of U) { const C = new Float64Array(T.length), F = new Float64Array(T.length); let last = NaN; T.forEach((t, i) => { const x = D[c].k.get(t); if (x > 0) last = x; C[i] = last; F[i] = D[c].f.get(t) || 0; }); out[c] = { C, F }; }
+  const out = {}; for (const c of U) { const C = new Float64Array(T.length), F = new Float64Array(T.length), V = new Float64Array(T.length), Hi = new Float64Array(T.length), Lo = new Float64Array(T.length); let last = NaN; T.forEach((t, i) => { const x = D[c].k.get(t); if (x && x[0] > 0) { last = x[0]; V[i] = x[1]; Hi[i] = x[2]; Lo[i] = x[3]; } else { Hi[i] = Lo[i] = last; } C[i] = last; F[i] = D[c].f.get(t) || 0; }); out[c] = { C, F, V, Hi, Lo }; }
   return { T, M: out, U };
 }
 
 // Simulación de cartera: plazas iguales; cada operación [i0, coin, dir, i1] ocupa una plaza de i0 a i1 (horas). Se paga comisión+deslizamiento al
 // entrar y al salir, y cada hora la financiación (dir=+1 comprado paga si la tasa es positiva; dir=-1 corto la cobra).
-function cartera(ops, M, i0, i1, plazas) {
+export function cartera(ops, M, i0, i1, plazas, sl = 0) {
   const ev = ops.filter((o) => o[0] >= i0 && o[0] < i1).sort((a, b) => a[0] - b[0]);
   let eq = 1, pico = 1, dd = 0, n = 0, gan = 0, per = 0, libres = plazas; const abiertas = [];
-  const cierra = (o) => { const d = M[o[1]], p0 = d.C[o[0]], p1 = d.C[Math.min(o[3], d.C.length - 1)]; if (!(p0 > 0 && p1 > 0)) return 0; let r = o[2] * (p1 / p0 - 1); for (let i = o[0]; i < o[3] && i < d.F.length; i++) r -= o[2] * d.F[i]; return r - 2 * COST; };
+  const cierra = (o) => { const d = M[o[1]], p0 = d.C[o[0]]; let fin = Math.min(o[3], d.C.length - 1), r = null; if (!(p0 > 0)) return 0; if (sl > 0) for (let i = o[0] + 1; i <= fin; i++) { const malo = o[2] > 0 ? d.Lo[i] / p0 - 1 : 1 - d.Hi[i] / p0; if (malo <= -sl) { r = -sl - 0.001; fin = i; break; } } if (r == null) { const p1 = d.C[fin]; if (!(p1 > 0)) return 0; r = o[2] * (p1 / p0 - 1); } for (let i = o[0]; i < fin && i < d.F.length; i++) r -= o[2] * d.F[i]; return r - 2 * COST; };
   for (const o of ev) {
     for (let j = abiertas.length - 1; j >= 0; j--) if (abiertas[j][3] <= o[0]) { const r = cierra(abiertas[j]); eq += r / plazas * eq0(abiertas[j]); r > 0 ? (gan += r) : (per -= r); n++; abiertas.splice(j, 1); libres++; pico = Math.max(pico, eq); dd = Math.max(dd, 1 - eq / pico); }
     if (libres > 0 && !abiertas.some((a) => a[1] === o[1])) { o.eqIn = eq; abiertas.push(o); libres--; }
