@@ -15,4 +15,6 @@ jobs:
         with:
           node-version: 22
       - name: Probar
+        env:
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
         run: timeout 3300 node --max-old-space-size=6000 runner/memes-bv.mjs
