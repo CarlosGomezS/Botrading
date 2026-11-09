@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 344 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#344</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 345 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#345</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4511,14 +4511,14 @@ function add(src,t,txt,n,met){t=typeof t==="number"?t:Date.parse(t);if(!(t>0)||!
  let ch=false;if(t>e.t){e.t=t;ch=true}if((n||1)>e.n){e.n=n;ch=true}if(m&&!e.met){e.met=1;ch=true}if(ch)T.dirty.set(id,e)}
 /* ---------- base de datos del móvil ---------- */
 function abre(){return new Promise(ok=>{try{const r=indexedDB.open("bt-terminal",1);r.onupgradeneeded=()=>{r.result.createObjectStore("ev",{keyPath:"id"})};r.onsuccess=()=>ok(r.result);r.onerror=()=>ok(null)}catch(e){ok(null)}})}
-async function carga(){T.db=await abre();if(!T.db)return;await new Promise(ok=>{try{const q=T.db.transaction("ev").objectStore("ev").getAll();q.onsuccess=()=>{for(const o of q.result||[])if(!T.ev.has(o.id))T.ev.set(o.id,o);ok()};q.onerror=()=>ok()}catch(e){ok()}})}
+async function carga(){/* v345 · NO tocar IndexedDB hasta que la copia del laboratorio esté restaurada y cargada (si no, la carga del laboratorio se quedaba colgada) */try{if(window.__SNAPREADY)await window.__SNAPREADY}catch(e){}for(let i=0;i<120&&!window.__loaded;i++)await new Promise(r=>setTimeout(r,500));T.db=await abre();if(!T.db)return;await new Promise(ok=>{try{const q=T.db.transaction("ev").objectStore("ev").getAll();q.onsuccess=()=>{for(const o of q.result||[])if(!T.ev.has(o.id))T.ev.set(o.id,o);ok()};q.onerror=()=>ok()}catch(e){ok()}})}
 function guarda(){if(!T.db||!T.dirty.size)return;const v=[...T.dirty.values()];T.dirty.clear();try{const tx=T.db.transaction("ev","readwrite"),st=tx.objectStore("ev");for(const o of v)st.put(o)}catch(e){}}
 /* ---------- de dónde sale cada línea ---------- */
 const nom=k=>{try{const m=typeof MX==="function"&&MX(k);if(m&&m.n)return m.n}catch(e){}try{if(typeof labName==="function"&&typeof S!=="undefined"&&S.lab&&S.lab.pop){const g=(S.lab.pop||[]).find(x=>x&&x.k===k);if(g)return labName(g)}}catch(e){}return k};
 function cripto(){const M=typeof MM!=="undefined"?MM:null;if(!M)return;const C=(M.ch==="bitvavo"&&M.S)||(M.oth&&M.oth.bitvavo)||null;
  if(C&&C.consola){T.ok.cripto=1;for(const [t,x,n] of C.consola)add("cripto",t,x,n)}
  const X=M.bvX||{};for(const ex of ["bitvavo","okx"]){const R=(X[ex]||{}).R;if(R){T.ok.cripto=1;for(const x of R.log||[])add("cripto",x.t,"💶 "+(ex==="okx"?"OKX":"Bitvavo")+" REAL · "+x.txt)}}}
-function lab(){if(typeof S==="undefined"||!S)return;const L=S.lab||{},sv=S.savedAt||Date.now(),hd=d=>d===dk(sv)?sv:Date.parse(d+"T23:59:00");T.ok.lab=1;
+function lab(){if(typeof S==="undefined"||!S||!window.__loaded)return;const L=S.lab||{},sv=S.savedAt||Date.now(),hd=d=>d===dk(sv)?sv:Date.parse(d+"T23:59:00");T.ok.lab=1;
  for(const j of S.journal||[])if(j&&j.ts)add("lab",j.ts,"Ronda del laboratorio"+(j.marketDate?" (sesión "+j.marketDate+")":"")+": "+(j.status||"")+(j.message?" · "+j.message:""));
  for(const r of S.runLog||[])if(r&&(r.finishedAt||r.startedAt)){const er=Object.keys(r.providerErrors||{}).length;add("lab",r.finishedAt||r.startedAt,"📥 Precios: "+(r.freshAssets??"?")+" de "+(r.requestedAssets??"?")+" valores al día"+(er?" · "+er+" proveedores con fallos":"")+(r.status?" · "+r.status:""))}
  const EV={nace:"🐣 Nace",aprueba:"✅ Aprueba y entra en la liga",sale:"⬇️ Sale de la liga",vuelve:"↩️ Vuelve a la liga"};
