@@ -145,6 +145,8 @@ async function main() {
   try { let prev = null; try { prev = await B.leer("examen-largo.json", "examen-largo"); } catch (e) {} const P0 = Object.fromEntries(((prev && prev.podio) || []).map((x) => [x.id, x.desde])), ahora = new Date().toISOString();
     const L = []; for (const [ex, t] of Object.entries(tortugas)) for (const [rk, r] of Object.entries((t && t.perfiles) || {})) if (r && r.ok && r.ret != null) L.push({ id: ex + ":" + rk, ex, rk, ret: r.ret, dd: r.dd, n: r.n, pf: r.pf, aciertos: r.aciertos, semestres: r.semestres, P: r.P, criptos: (t.criptos || []).length });
     L.sort((a, b) => Math.round(b.ret * 10) - Math.round(a.ret * 10) || a.dd - b.dd); podio = L.slice(0, 3).map((x) => ({ ...x, desde: P0[x.id] || ahora }));
+    // v364 · 🔔 Telegram solo cuando una combinación ENTRA en el podio (la primera vez que hay podio guardado no avisa)
+    if (prev && Array.isArray(prev.podio) && prev.podio.length) { const nu = podio.map((x, i) => ({ x, i })).filter(({ x }) => !(x.id in P0)); if (nu.length) try { const AV = await import("./avisos.mjs"); await AV.tg(nu.map(({ x, i }) => `🏆 Cripto (Tortugas): nuevo en el podio, puesto ${i + 1}.º\n${x.ex} · riesgo ${x.rk}: ${String(x.ret).replace(".", ",")} % en 2 años, caída máxima ${String(x.dd).replace(".", ",")} %`).join("\n\n")); } catch (e) {} }
     console.log("Examen largo · 🏆 Podio cripto: " + podio.map((x, i) => `${i + 1}.º ${x.ex} ${x.rk} (${x.ret} % en 2 años, caída ${x.dd} %)`).join(" · ")); } catch (e) {}
   B.publicar("examen-largo.json", { t: new Date().toISOString(), estado: "ok", dias, mercados: mer.length, res, anio, combinada, base, tortugas, rejilla, memes, podio }, "examen-largo");
   console.log(`Examen largo: hecho en ${Math.round((Date.now() - t0) / 1000)} s`);

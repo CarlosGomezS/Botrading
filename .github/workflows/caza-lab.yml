@@ -24,6 +24,8 @@ jobs:
       - name: Ronda del laboratorio de cripto
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
           CAZA_N: "3000"
           DIARIO_LOG: /tmp/diario.jsonl
           NODE_OPTIONS: --import ${{ github.workspace }}/runner/diario-captura.mjs

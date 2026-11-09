@@ -616,7 +616,7 @@ async function main() {
           if (!lab.last.ok && lab.near && lab.near[0]) { const z = lab.near[0]; L2.push(`🎯 El que más se acerca: ${z.n.replace(/^🤖 /, "")} (${pc(z.an)}/año, nota ${Math.round((z.sc || 0) * 10)}/10). Le falta: ${z.why}.`); }
           // v105: solo se avisa cuando entra en el podio uno MEJOR QUE EL 3.º (no cada vez que aparece un ganador)
           const tev = lab.topEv || [];
-          if (tev.length) { L2.unshift(...tev.map((x) => `🏆 Nuevo en el top 3 (puesto ${x.pos}): ${x.n.replace(/^🤖 /, "")} · ${pc(x.an)}/año después de impuestos (el SPY ${pc(lab.as)})`), "Podio actual: " + (lab.top3 || []).map((x, i) => `${i + 1}.º ${pc(x.an)}`).join(" · "), "", "Entra ya en la ficticia. Si en 30 días no se queda atrás y gana a tu método por ≥2 puntos al año, te llegará aquí la propuesta con «✅ Cambiar».", ""); }
+          if (tev.length) { L2.unshift(...tev.map((x) => `🏆 Nuevo en el top 3 (puesto ${x.pos}): ${x.n.replace(/^🤖 /, "")} · ${pc(x.an)}/año después de impuestos (el SPY ${pc(lab.as)})`), "Podio actual: " + (lab.top3 || []).map((x, i) => `${i + 1}.º ${pc(x.an)}`).join(" · "), "", "Entra en la ficticia esta noche. Si llega al n.º 1, tu cartera real lo sigue (si compra cosas distintas, cuando le saque 1 punto al año al actual).", ""); }
           shortTxt = L2.join("\n") + "\n\n" + shortTxt;
           labNews = tev.length > 0;
           if (LABX) titleTxt = "🤖 Bot Trading: laboratorio (ronda extra)";
@@ -643,7 +643,7 @@ async function main() {
         }
       } catch (e) { log("revisión:", String(e.message).slice(0, 120)); }
     }
-    await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj, silent: (MODE === "backtest" && !labNews && (/completada/.test(String((rep && rep.status) || "")) || env("LAB_EXTRA") === "1" || /HTTP 429|cuota diaria/i.test(String((rep && rep.message) || "")))) });   /* v322 · las rondas extra (cada 2 h) y el «cuota agotada» del proveedor ya no avisan: solo si entra uno nuevo en el top 3 */   // v105: la prueba de cada noche solo avisa si entra uno nuevo en el top 3 (o si algo falla)
+    await avisar(page, rep, { title: titleTxt, short: shortTxt, subject: subj, silent: (MODE === "backtest" && !labNews)   /* v364 · el laboratorio solo avisa cuando entra un método en el podio (los fallos avisan aparte) */ });   /* v322 · las rondas extra (cada 2 h) y el «cuota agotada» del proveedor ya no avisan: solo si entra uno nuevo en el top 3 */   // v105: la prueba de cada noche solo avisa si entra uno nuevo en el top 3 (o si algo falla)
   } catch (e) {
     // cualquier fallo queda registrado en un informe y avisado
     const msg = `Fallo del proceso automático (${MODE}): ${String(e && e.message || e).slice(0, 400)}`;
