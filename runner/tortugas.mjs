@@ -8,7 +8,7 @@ const BV = "https://api.bitvavo.com/v2";
 export const T_ENTRA = 20, T_SALE = 10, T_N = 20, T_RIESGO = 0.015, T_MAXPOS = 4, T_STOPMAX = 0.08, T_ESPERA_D = 7;
 export const FEES = { bitvavo: 0.0025, okx: 0.001 };
 // v320 · 🌍 TODAS las criptos que se pueden operar con un mínimo de liquidez (volumen de 24 h ≥ 50.000 € y diferencia compra/venta < 0,8 %), hasta 150
-export const UNI_VOL = 50000, UNI_SP = 0.008, UNI_MAX = 150;
+export const UNI_VOL = 1000, UNI_SP = 0.015, UNI_MAX = 2000;   // v352 · 🌍 TODAS las criptos del exchange con algo de mercado (≥1.000 €/día y diferencia compra-venta ≤1,5 %, la misma que se exige al comprar)
 export const universo = (tick, extra = () => true) => Object.entries(tick).filter(([m, x]) => x && x.vq >= UNI_VOL && x.sp < UNI_SP && !/^(USDC|EURC|USDT|EUROC|DAI|PYUSD)-/.test(m) && m !== "USDC-EUR" && extra(m, x)).sort((a, b) => b[1].vq - a[1].vq).slice(0, UNI_MAX);
 // v313 · 🧠 las Tortugas APRENDEN: estos son sus «genes». El examen largo prueba muchas combinaciones con el 1.er año y solo cambia si la nueva
 // gana TAMBIÉN en el 2.º año (que no ha visto) a la que está en uso. Así mejora sola sin «ajustarse» al pasado.
