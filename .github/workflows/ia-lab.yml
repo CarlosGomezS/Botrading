@@ -28,4 +28,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
-        run: timeout 1200 node runner/ia-lab.mjs
+        run: timeout 1080 node runner/ia-lab.mjs

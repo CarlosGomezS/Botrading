@@ -114,9 +114,11 @@ Responde SOLO un JSON: {"lecciones":[hasta 12 lecciones breves en castellano: tu
 async function main() {
   const prev = (await raw(RAMA, "ia-lab.json")) || {}, out = { v: 1, t: new Date().toISOString(), estado: "ok", cripto: prev.cripto || null, etf: prev.etf || null, hist: prev.hist || [] };
   if (!KEY) { out.estado = "sin clave"; log("no hay clave GEMINI_KEY en los secretos de GitHub: los laboratorios siguen igual, sin ayudante"); }
-  else { const MS = await modelos(); log("modelos disponibles:", MS.join(", ")); const h = { t: out.t };
+  else { const MS0 = await modelos(), bueno = prev.modeloOk, MS = bueno ? [bueno, ...MS0.filter((m) => m !== bueno)] : MS0;   // primero el que respondió la última vez
+    log("modelos disponibles:", MS.join(", ")); const h = { t: out.t };
     try { out.cripto = await cripto(MS, prev.cripto); h.cripto = out.cripto.nuevas; } catch (e) { h.errC = String(e.message).slice(0, 80); log("cripto: la IA no respondió (" + h.errC + "); el laboratorio sigue igual"); }
     try { out.etf = await etf(MS, prev.etf); h.etf = out.etf.nuevos; } catch (e) { h.errE = String(e.message).slice(0, 80); log("ETF: la IA no respondió (" + h.errE + "); el laboratorio sigue igual"); }
+    out.modeloOk = (h.cripto != null && out.cripto && out.cripto.modelo) || (h.etf != null && out.etf && out.etf.modelo) || prev.modeloOk || null;
     if (h.errC && h.errE) out.estado = "error"; out.hist = [h, ...out.hist].slice(0, 60); }
   // publicar en la rama ia-lab (pública: solo ideas, nada de dinero ni claves)
   const dir = path.join(process.env.RUNNER_TEMP || "/tmp", "ia-lab-pub"); rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
