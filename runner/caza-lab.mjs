@@ -33,7 +33,15 @@ export async function lab(log = console.log) {
   const D = await datos(() => {}), { T, M, U } = D, n = T.length, corte = Math.floor(n * 0.6), mitad = Math.floor((corte + n) / 2);
   const TRAMOS = []; for (let q = 0; q < 16; q++) { const len = Math.round((30 + Math.random() * 150) * 24), fin = q < 8 ? n - 1 : 260 + len + Math.floor(Math.random() * Math.max(1, n - 1 - 260 - len)); TRAMOS.push([Math.max(260, fin - len), fin]); }   // v365 · nuevos en cada ronda
   const X = { btcUp: null, up: {}, vol: {}, volMed: {} }; { const { ema, atr } = await import("./caza-hl2.mjs"); const e = ema(M.BTC.C, 200); X.btcUp = Uint8Array.from(M.BTC.C, (c, i) => (c > e[i] ? 1 : 0)); for (const c of U) { const e2 = ema(M[c].C, 100); X.up[c] = Uint8Array.from(M[c].C, (x, i) => (x > e2[i] ? 1 : 0)); X.vol[c] = atr(M[c], 24); const s = [...X.vol[c].slice(250, corte)].filter(Number.isFinite).sort((a, b) => a - b); X.volMed[c] = s[Math.floor(s.length / 2)]; } }
-  const S = senales(D), FAM = [...new Set(S.map((s) => s.fam))], cache = new Map(), sig = (j) => { if (!cache.has(j)) { const o = {}; for (const c of U) { try { o[c] = S[j].fn(M[c], T, M.BTC); } catch (e) { o[c] = new Int8Array(n); } } cache.set(j, o); if (cache.size > 40) cache.delete(cache.keys().next().value); } return cache.get(j); };
+  const S = senales(D);
+  // v366 · 🤖 recetas del ayudante IA (Gemini): se añaden como señales extra; tienen que aprobar el mismo examen que todas
+  let IA = []; try { const RX = await import("./ia-receta.mjs"); const j = await (await fetch(`https://raw.githubusercontent.com/${REPO}/ia-lab/ia-lab.json?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) })).json(); const FNk = Object.keys(FILTROS);
+    IA = (((j && j.cripto && j.cripto.recetas) || []).map((r) => RX.validaReceta(r, FNk)).filter(Boolean)).slice(0, 150); for (const r of IA) S.push({ fam: "🤖 IA", p: { ia: r.id, n: r.nombre }, fn: RX.senalReceta(r), ia: r }); } catch (e) { IA = []; }
+  if (IA.length) log(`🤖 Recetas del ayudante IA: ${IA.length}`);
+  const iaIdx = new Map(S.map((x, j) => [x.ia ? x.ia.id : null, j]).filter(([k]) => k));
+  const fixG = (g) => { if (!g) return null; const z = { ...g }; if (z.ia) { const j = iaIdx.get(z.ia); if (j == null) return null; z.a = j; } else if (S[z.a] && S[z.a].ia) return null; if (z.iab) { const j = iaIdx.get(z.iab); if (j == null) z.b = null; else z.b = j; } return z; };
+  const marcaIA = (g) => { if (S[g.a] && S[g.a].ia) g.ia = S[g.a].ia.id; else delete g.ia; if (g.b != null && S[g.b] && S[g.b].ia) g.iab = S[g.b].ia.id; else delete g.iab; return g; };
+  const FAM = [...new Set(S.map((s) => s.fam))], cache = new Map(), sig = (j) => { if (!cache.has(j)) { const o = {}; for (const c of U) { try { o[c] = S[j].fn(M[c], T, M.BTC); } catch (e) { o[c] = new Int8Array(n); } } cache.set(j, o); if (cache.size > 40) cache.delete(cache.keys().next().value); } return cache.get(j); };
   // peso de cada familia: lo cerca que se ha quedado de aprobar (mejor factor de beneficio en la prueba) + empujón por ideas recientes
   const peso = (f) => Math.max(0.2, (mem.pesos[f] || 1)) * (1 + 0.15 * Math.min(4, menc[f] || 0));
   const elige = () => { const tot = FAM.reduce((a, f) => a + peso(f), 0); let r = Math.random() * tot; for (const f of FAM) { r -= peso(f); if (r <= 0) return f; } return FAM[0]; };
@@ -43,7 +51,8 @@ export async function lab(log = console.log) {
   const sinEco = (g) => { if (g.b === g.a) g.b = null; return g; };
   const muta = (g) => { const x = { ...g }, q = Math.floor(Math.random() * 5); if (q === 0) x.f = FN[Math.floor(Math.random() * FN.length)]; else if (q === 1) x.h = SAL[Math.floor(Math.random() * SAL.length)]; else if (q === 2) x.sl = STP[Math.floor(Math.random() * STP.length)]; else if (q === 3) x.b = Math.random() < 0.5 ? null : idxDe(elige()); else x.a = idxDe(S[x.a] ? S[x.a].fam : elige()); return sinEco(x); };
   const clave = (g) => `${S[g.a] && S[g.a].fam}${JSON.stringify(S[g.a] && S[g.a].p)}|${g.b != null && S[g.b] ? S[g.b].fam + JSON.stringify(S[g.b].p) : "-"}|${g.f}|${g.h}|${g.sl}`;
-  const nombre = (g) => `${S[g.a].fam} ${JSON.stringify(S[g.a].p)}${g.b != null ? " + confirma " + S[g.b].fam + " " + JSON.stringify(S[g.b].p) : ""} · ${g.f} · sale a las ${g.h} h · stop ${g.sl ? "−" + g.sl * 100 + " %" : "no"}`;
+  const nomS = (x) => (x.ia ? `🤖 IA «${x.ia.nombre}»` : `${x.fam} ${JSON.stringify(x.p)}`);
+  const nombre = (g) => `${nomS(S[g.a])}${g.b != null ? " + confirma " + nomS(S[g.b]) : ""} · ${g.f} · sale a las ${g.h} h · stop ${g.sl ? "−" + g.sl * 100 + " %" : "no"}`;
   const evalua = (g) => { const A = sig(g.a), B = g.b != null ? sig(g.b) : null, f = FILTROS[g.f], ops = [];
     for (const c of U) { const a = A[c], b = B && B[c]; let lib = 0; for (let i = 260; i < n - 1; i++) { if (i < lib || !a[i]) continue; if (b) { let ok = false; for (let k = 0; k < 6 && !ok; k++) if (b[i - k] === a[i]) ok = true; if (!ok) continue; } if (!f(a[i], i, X, c)) continue; ops.push([i, c, a[i], i + g.h]); lib = i + g.h; } }
     // v365 · 🎲 TRAMOS AL AZAR (distintos en cada ronda) + regla estricta «hasta hoy»: la historia completa hasta hoy, los últimos 6 meses
@@ -55,7 +64,10 @@ export async function lab(log = console.log) {
     r.nota = a.pf * (r.t ? 0.5 + r.t.g : 0.5) * (a.opsDia >= 4 ? 1 : 0.5); return r; };
   // candidatos: 30 % mutaciones de las «casi», 70 % nuevas (con los pesos aprendidos); nunca se repite una ya probada
   const cand = [], vistas = new Set(Object.keys(mem.probadas));
-  for (let z = 0; z < PRUEBAS * 20 && cand.length < PRUEBAS; z++) { const base = mem.casi.length && Math.random() < 0.3 ? mem.casi[Math.floor(Math.random() * mem.casi.length)].g : null; const g = base && S[base.a] ? muta(base) : sinEco(nuevo()); if (g.a == null || !S[g.a]) continue; const k = hs(clave(g)); if (vistas.has(k)) continue; vistas.add(k); cand.push(g); }
+  // v366 · 🤖 como mucho el 15 % de la ronda son recetas de la IA (su propuesta tal cual + variaciones de filtro, salida y stop); el resto, como siempre
+  if (IA.length) { const cupo = Math.floor(PRUEBAS * 0.15); for (let z = 0; z < cupo * 20 && cand.length < cupo; z++) { const r = IA[z < IA.length ? z : Math.floor(Math.random() * IA.length)], a = iaIdx.get(r.id); if (a == null) continue;
+      const g = z < IA.length ? { a, b: null, f: r.filtro, h: r.salida_h, sl: r.stop } : muta({ a, b: null, f: r.filtro, h: r.salida_h, sl: r.stop }); if (g.a !== a && !(S[g.a] && S[g.a].ia)) g.a = a; marcaIA(g); const k = hs(clave(g)); if (vistas.has(k)) continue; vistas.add(k); cand.push(g); } }
+  for (let z = 0; z < PRUEBAS * 20 && cand.length < PRUEBAS; z++) { const b0 = mem.casi.length && Math.random() < 0.3 ? mem.casi[Math.floor(Math.random() * mem.casi.length)].g : null, base = fixG(b0); const g = marcaIA(base && S[base.a] ? muta(base) : sinEco(nuevo())); if (g.a == null || !S[g.a]) continue; const k = hs(clave(g)); if (vistas.has(k)) continue; vistas.add(k); cand.push(g); }
   cand.sort((x, y) => x.a - y.a); const famStat = {}; let nOk = 0;
   for (const g of cand) { const r = evalua(g), k = hs(clave(g)), f = S[g.a].fam; mem.probadas[k] = +r.nota.toFixed(3); (famStat[f] = famStat[f] || []).push(r.nota);
     if (r.a.ret > 0 && r.t && r.t.g >= 0.5 && r.a.opsDia >= 3) { mem.casi.push({ g, n: nombre(g), nota: r.nota, a: r.a, b: r.b, t: r.t }); }
@@ -63,10 +75,16 @@ export async function lab(log = console.log) {
   for (const [f, v] of Object.entries(famStat)) { const top = v.sort((a, b) => b - a).slice(0, 5), m = top.reduce((a, b) => a + b, 0) / top.length; mem.pesos[f] = +((mem.pesos[f] || 1) * 0.7 + 0.3 * Math.max(0.2, m)).toFixed(3); }
   mem.casi = mem.casi.sort((a, b) => b.nota - a.nota).filter((x, i, A) => A.findIndex((y) => y.n === x.n) === i).slice(0, 60);
   // las aprobadas se vuelven a examinar cada ronda con los datos nuevos: si dejan de aprobar, salen del podio
-  mem.aprobadas = mem.aprobadas.filter((x) => { if (!S[x.g.a]) return false; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t }); return r.okA && r.okB; }).sort((a, b) => Math.round(b.t.med * 1000) - Math.round(a.t.med * 1000) || b.b.ret - a.b.ret || a.t.dd - b.t.dd);   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
+  mem.aprobadas = mem.aprobadas.filter((x) => { const g2 = fixG(x.g); if (!g2 || !S[g2.a]) return false; x.g = g2; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t }); return r.okA && r.okB; }).sort((a, b) => Math.round(b.t.med * 1000) - Math.round(a.t.med * 1000) || b.b.ret - a.b.ret || a.t.dd - b.t.dd);   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
   const ks = Object.keys(mem.probadas); if (ks.length > 40000) for (const k of ks.slice(0, ks.length - 40000)) delete mem.probadas[k];
   mem.hist.unshift({ t: new Date().toISOString(), probadas: cand.length, aprobadas: nOk, total: Object.keys(mem.probadas).length }); mem.hist = mem.hist.slice(0, 120);
-  const out = { v: 1, t: new Date().toISOString(), dias: Math.round(n / 24), criptos: U, ...mem, ideas: ID, podio: mem.aprobadas.slice(0, 3), mejoresCasi: mem.casi.slice(0, 5).map((x) => ({ n: x.n, a: x.a, b: x.b, t: x.t })), pesosVista: Object.fromEntries(FAM.map((f) => [f, +peso(f).toFixed(2)])) };
+  // v366 · 🤖 resultados de cada receta de la IA (el ayudante los lee para aprender qué ideas funcionan)
+  const iaRes = M0.ia || {}; for (const g of cand) { if (!g.ia) continue; const k = hs(clave(g)), nt = mem.probadas[k]; if (nt == null) continue; const z = (iaRes[g.ia] = iaRes[g.ia] || { n: 0, nota: 0 }); z.n++; if (nt > z.nota) z.nota = nt; }
+  for (const x of mem.casi) if (x.g && x.g.ia && iaRes[x.g.ia]) { const z = iaRes[x.g.ia]; z.casi = Math.max(z.casi || 0, 1); z.mejor = z.mejor || { historia: +(x.a.ret * 100).toFixed(1), ult6m: +(x.b.ret * 100).toFixed(1), tramos_ok: x.t ? x.t.g : null }; }
+  for (const x of mem.aprobadas) if (x.g && x.g.ia && iaRes[x.g.ia]) iaRes[x.g.ia].aprobada = 1;
+  const iaN = cand.filter((g) => g.ia).length, iaCasi = mem.casi.filter((x) => x.g && x.g.ia).length, iaOk = mem.aprobadas.filter((x) => x.g && x.g.ia).length;
+  if (IA.length) log(`🤖 IA: ${IA.length} recetas · ${iaN} combinaciones probadas en esta ronda · ${iaCasi} entre las «casi» · ${iaOk} aprobadas`);
+  const out = { v: 1, t: new Date().toISOString(), ia: iaRes, iaVista: { recetas: IA.length, probadas: iaN, casi: iaCasi, aprobadas: iaOk }, dias: Math.round(n / 24), criptos: U, ...mem, ideas: ID, podio: mem.aprobadas.slice(0, 3), mejoresCasi: mem.casi.slice(0, 5).map((x) => ({ n: x.n, a: x.a, b: x.b, t: x.t })), pesosVista: Object.fromEntries(FAM.map((f) => [f, +peso(f).toFixed(2)])) };
   log(`🧠 Probadas ahora ${cand.length} (en total ${Object.keys(mem.probadas).length}) · aprueban ${nOk} · en el podio ${out.podio.length} · familias con más peso: ${Object.entries(out.pesosVista).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([f, w]) => f + " " + w).join(", ")}`);
   // v364 · 🔔 Telegram solo cuando un método ENTRA en el podio
   try { const ant = new Set((M0.podio || []).map((x) => x.k)), nuevos = out.podio.map((x, i) => ({ x, i })).filter(({ x }) => !ant.has(x.k));

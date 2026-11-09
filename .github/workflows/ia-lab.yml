@@ -1,0 +1,31 @@
+name: Laboratorio · ayudante IA (Gemini, gratis)
+# v366 · cada 6 h (antes de las rondas del laboratorio de cripto) pide a Gemini ideas nuevas para los laboratorios.
+# Solo propone: sus ideas pasan el mismo examen que todas. Sin la clave GEMINI_KEY no hace nada.
+on:
+  schedule:
+    - cron: "3 */6 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: ia-lab
+  cancel-in-progress: false
+jobs:
+  ia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            runner
+            index.html
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Pedir ideas a la IA
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+        run: timeout 900 node runner/ia-lab.mjs

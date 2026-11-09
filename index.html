@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 365 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#365</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 366 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#366</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1684,6 +1684,8 @@ function labPred(L,g){const H=L.hist||[];if(H.length<30)return null;const v=labV
 function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=k=>!(T.has(k)||L.pop[k]||L.pend[k]||BTX[k]||STR[k]||seen.has(k)),
   add=(g,why,pr)=>{g=labNorm(g);const k=labKey(g);if(!ok(k))return false;seen.add(k);BTX[k]=labM(g);out.push({k,g,why,pr:pr==null?null:+pr.toFixed(3)});return true};
  for(const g of LABSEED)add(g,"creado por Claude");
+ /* v366 · 🤖 ideas del ayudante IA (Gemini): como mucho 7 por ronda; solo se aceptan piezas y valores del laboratorio; tienen que aprobar como todas */
+ try{const IAg=(window.__IALAB&&window.__IALAB.etf&&window.__IALAB.etf.genes)||[];let nI=0;for(const x of IAg){if(nI>=7)break;const g=x&&x.g;if(!g||typeof g!=="object")continue;if(!Object.entries(g).every(([k,v])=>LABV[k]&&LABV[k].some(z=>z===v)))continue;if(add({...g},"🤖 idea de la IA"+(x.idea?": "+String(x.idea).slice(0,140):"")))nI++}}catch(e){}
  /* v141 · INVENTAR SIEMPRE: el 40 % de cada ronda son métodos NUEVOS de verdad (no variaciones de los que ya hay): piezas al azar,
     cualquier grupo de ETF, cualquier estilo, y de entre muchos candidatos se prueban los MÁS DISTINTOS a todo lo ya probado. */
  {const nNew=Math.round(n*0.4),H=(L.hist||[]),uk=Object.keys(LABU),zs=LABV.z||["mom"],cand=[];
@@ -2087,10 +2089,18 @@ function top5List(all,N){N=N||5;try{const b=S.btm,tx=b&&b.rows&&b.rows.spy&&b.ro
 /* v361 · 🪙 SECCIÓN CRIPTO DEL LABORATORIO: los 3 mejores (Tortugas por exchange y riesgo, del examen de 2 años) con la fecha en que
    entraron en el podio, más el laboratorio de MUCHAS OPERACIONES de Hyperliquid (aprende solo, sin IA externa) y las ideas que ha leído. */
 window.__LABC=window.__LABC||{t:0,el:null,cl:null};
+/* v366 · 🤖 ayudante IA: se carga su archivo de ideas (rama ia-lab) al abrir la app */
+window.__IALAB=window.__IALAB||null;(function(){try{fetch("https://raw.githubusercontent.com/CarlosGomezS/Botrading/ia-lab/ia-lab.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{if(j)window.__IALAB=j}).catch(()=>{})}catch(e){}})();
 function labCriptoCarga(){const C=window.__LABC;if(Date.now()-C.t<10*60e3||C.cargando||typeof memeGet!=="function")return;C.cargando=1;
  Promise.all([memeGet("examen-largo","examen-largo.json").catch(()=>null),memeGet("caza-lab","caza-lab.json").catch(()=>null)]).then(([el,cl])=>{C.el=el&&!el.nada?el:C.el;C.cl=cl&&!cl.nada?cl:C.cl;C.t=Date.now();C.cargando=0;try{btmDraw0()}catch(e){}}).catch(()=>{C.cargando=0})}
 function labCriptoHtml(){try{labCriptoCarga();const C=window.__LABC,el=C.el,cl=C.cl,fp=t=>new Date(t).toLocaleString("es-ES",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}),EX={bitvavo:"Bitvavo",okx:"OKX"},RK={bajo:"🟢 bajo",medio:"🟡 medio",alto:"🔴 alto"},PP=x=>(x>=0?"+":"")+(+x).toFixed(1).replace(".",",")+" %";
- let h=`<h3 class="labsec" style="margin-top:18px">🪙 Cripto · los 3 mejores</h3>`;
+ let h="";try{const I=window.__IALAB,cv=cl&&cl.iaVista,fi=t=>new Date(t).toLocaleString("es-ES",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+  h+=`<details class="rd" data-id="labia"${opn("labia",false)} style="margin-top:14px"><summary><span>🤖 Ayudante IA (Gemini) · ${!I?"cargando…":I.estado==="sin clave"?"sin activar":I.estado==="error"?"no respondió la última vez":"activo"}</span></summary><div class="rb"><div class="m">Cada 6 horas le enseña a una IA gratuita (Google Gemini) lo que han aprendido los laboratorios y le pide ideas nuevas. <b>Solo propone</b>: sus ideas son unas candidatas más (como mucho el 15 % de cada ronda), con las piezas de siempre, y tienen que aprobar el mismo examen que todas. No puede cambiar el examen, la memoria ni tu dinero. Si falla, los laboratorios siguen igual.</div>`;
+  if(I&&I.estado==="sin clave")h+=`<div class="m" style="margin-top:6px">🔑 Falta la clave: crea una gratis en aistudio.google.com («Get API key», sin tarjeta) y guárdala en GitHub → Settings → Secrets → Actions con el nombre <b>GEMINI_KEY</b>.</div>`;
+  else if(I){const rc=(I.cripto&&I.cripto.recetas)||[],ge=(I.etf&&I.etf.genes)||[];h+=`<div style="margin-top:6px">Última vez: ${fi(I.t)}${I.cripto&&I.cripto.modelo?` · modelo ${esc(I.cripto.modelo)}`:""}</div><div>🪙 Cripto: ${rc.length} recetas propuestas${cv?` · ${cv.probadas} combinaciones probadas en la última ronda · ${cv.casi} entre las «casi» · ${cv.aprobadas} aprobadas`:""}</div><div>📈 ETF: ${ge.length} ideas propuestas (entran hasta 7 en cada ronda del laboratorio)</div>`;
+   if(rc.length)h+=`<div class="m" style="margin-top:6px">Últimas ideas: ${rc.slice(0,5).map(r=>"«"+esc(r.nombre)+"»"+(r.idea?" — "+esc(r.idea):"")).join(" · ")}</div>`}
+  h+=`</div></details>`}catch(e){}
+ h+=`<h3 class="labsec" style="margin-top:18px">🪙 Cripto · los 3 mejores</h3>`;
  let pod=el&&el.podio;if(!(el&&Array.isArray(el.podio))&&el&&el.tortugas){const L=[];for(const [ex,t] of Object.entries(el.tortugas))for(const [rk,r] of Object.entries((t&&t.perfiles)||{}))if(r&&r.ok)L.push({ex,rk,ret:r.ret,dd:r.dd,n:r.n,pf:r.pf,aciertos:r.aciertos,semestres:r.semestres,P:r.P});pod=L.sort((a,b)=>Math.round(b.ret*10)-Math.round(a.ret*10)||a.dd-b.dd).slice(0,3)}
  if(!el)h+=`<div class="m">Cargando el examen de las Tortugas…</div>`;
  else if(!pod||!pod.length)h+=`<div class="m">Ahora mismo ningún perfil de las Tortugas aprueba: tiene que aprobar el examen de 2 años, no perder en al menos el 60 % de 24 tramos al azar (la mitad acaban hoy) y no ir mal en los últimos 6 meses.</div>`;
