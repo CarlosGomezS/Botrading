@@ -591,7 +591,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 397 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#397</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 398 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#398</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4510,7 +4510,7 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
   let NUEVA=false;const st404=u=>fetch(u,{cache:"no-store"}).then(r=>r.status).catch(()=>0);
   (async()=>{try{let enc=false;try{enc=!!localStorage.getItem("ghtok_enc")}catch(e){}if(enc)return;const AP="https://api.github.com/repos/"+RR+"/branches/",[x,y]=await Promise.all([tope(st404(AP+"real"),10000,0),tope(st404(AP+"bitvavo"),10000,0)]);if(x!==404||y!==404||NUEVA)return;
    NUEVA=true;d.querySelector("h2").textContent="👋 Bienvenido a Bot Trading";d.querySelector("p").innerHTML="Es la primera vez: <b>crea tu clave</b>. Con ella entrarás en la app y se cifran todos tus datos. Mínimo <b>12 caracteres</b> (mejor una frase que recuerdes). Apúntala en un sitio seguro.";
-   i.placeholder="Crea tu clave (12 o más)";i.setAttribute("autocomplete","new-password");const i2=document.createElement("input");i2.id="gate-pw2";i2.type="password";i2.autocomplete="new-password";i2.placeholder="Repite la clave";i.after(i2);
+   i.placeholder="Crea tu clave (12 o más)";i.setAttribute("autocomplete","new-password");const i2=document.createElement("input");i2.id="gate-pw2";i2.type="password";i2.autocomplete="new-password";i2.placeholder="Repite la clave";(i.closest(".ojo-w")||i).after(i2);
    i2.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();go()}};b.textContent="Crear clave y empezar"}catch(e){}})();
   const go=async()=>{const pw=i.value||"";if(!pw)return;
    if(NUEVA){const p2=(d.querySelector("#gate-pw2")||{}).value||"";er.style.color="";if(pw.length<12){er.textContent="Tiene que tener 12 caracteres o más.";return}if(pw!==p2){er.textContent="Las dos claves no coinciden.";return}b.disabled=true}
@@ -5195,4 +5195,12 @@ ${estado(conReal)}
 })();
 </script>
 
+<script id="ojo-clave">/* v398 · 👁 ver u ocultar lo que escribes en cualquier campo de clave */
+(function(){const css=document.createElement("style");css.textContent=".ojo-w{position:relative;display:block}.ojo-w>input{padding-right:46px!important}.ojo-b{position:absolute!important;right:6px;top:50%;transform:translateY(-50%);width:36px!important;height:36px!important;min-width:0!important;padding:0!important;margin:0!important;border:0!important;background:transparent!important;box-shadow:none!important;font-size:19px!important;line-height:1!important;cursor:pointer;opacity:.75;z-index:2}#gate .ojo-b,#onb .ojo-b,#iaP .ojo-b{background:transparent!important;border:0!important;width:36px!important;padding:0!important}#gate .ojo-w{margin-bottom:10px}#gate .ojo-w>input{margin-bottom:0!important}";document.head.appendChild(css);
+ const mete=i=>{if(i.dataset.ojo||!i.parentNode||i.type!=="password")return;i.dataset.ojo=1;const w=document.createElement("span");w.className="ojo-w";if(i.style.width)w.style.width=i.style.width;if(i.style.marginTop){w.style.marginTop=i.style.marginTop;i.style.marginTop="0"}
+  i.parentNode.insertBefore(w,i);w.appendChild(i);const b=document.createElement("button");b.type="button";b.className="ojo-b";b.setAttribute("data-nobusy","");b.setAttribute("aria-label","Mostrar la clave");b.textContent="👁";
+  b.onmousedown=e=>e.preventDefault();b.onclick=e=>{e.preventDefault();e.stopPropagation();const ver=i.type==="password";i.type=ver?"text":"password";b.textContent=ver?"🙈":"👁";b.setAttribute("aria-label",ver?"Ocultar la clave":"Mostrar la clave");try{i.focus()}catch(x){}};w.appendChild(b)};
+ const todo=r=>{try{(r.querySelectorAll?r:document).querySelectorAll('input[type="password"]').forEach(mete);if(r.matches&&r.matches('input[type="password"]'))mete(r)}catch(e){}};
+ const go=()=>{todo(document);new MutationObserver(m=>{for(const x of m)for(const n of x.addedNodes)if(n.nodeType===1)todo(n)}).observe(document.body,{childList:true,subtree:true})};
+ if(document.body)go();else document.addEventListener("DOMContentLoaded",go)})();</script>
 </body></html>
