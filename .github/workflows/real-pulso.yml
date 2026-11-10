@@ -2,7 +2,7 @@ name: Cartera real · valor en directo (cada 15 min)
 
 # Las 24 horas (cada ~15 min con la bolsa abierta, ~20 min el resto) LEE tu cuenta de Trading 212 y actualiza el valor del bot para la web
 # (gráfica y «Dinero del bot hoy»). No envía órdenes, no avisa y no crea informes. Va cifrado igual que todo lo demás.
-# v119 · EN CADENA: cada lectura pide la siguiente y espera ~14 min.
+# v119 · EN CADENA: cada lectura pide la siguiente y espera (v403: ~2-3 min con bolsa abierta, ~20 min el resto).
 # v138 · GUARDIÁN 24 HORAS: GitHub a veces no lanza NINGÚN horario durante horas. Por eso esta cadena ya no se para por la
 # noche ni el fin de semana: fuera del horario de bolsa no lee la cuenta, solo hace de vigilante (revisión de la cartera real,
 # actualización de precios, cadena del laboratorio) y lee los botones de Telegram. El laboratorio, a su vez, la vigila a ella.
@@ -84,14 +84,16 @@ jobs:
           R="repos/${{ github.repository }}/actions/workflows/real-pulso.yml"
           # primero se pide la siguiente vuelta (queda en cola): aunque algo fallara después, la cadena no se corta
           timeout 60 gh api -X POST "$R/dispatches" -f ref=main && echo "Siguiente vuelta pedida."
-          timeout 90 bash runner/vigia.sh || true
           D=$(date -u +%u); M=$((10#$(date -u +%H) * 60 + 10#$(date -u +%M)))
-          if [ "$D" -le 5 ] && [ "$M" -ge 420 ] && [ "$M" -le 1000 ]; then T=840; else T=1200; fi
+          # v403 · con bolsa abierta (Europa y EE. UU., 7:00-21:00 UTC entre semana) lee la cuenta cada ~2-3 min; el resto, cada ~20 min
+          if [ "$D" -le 5 ] && [ "$M" -ge 420 ] && [ "$M" -le 1260 ]; then T=90; else T=1200; fi
+          # el vigilante, como mucho una vez cada ~15 min (antes iba en cada vuelta)
+          if [ "$T" -ge 600 ] || [ $(( M % 15 )) -lt 3 ]; then timeout 90 bash runner/vigia.sh || true; fi
           # mientras espera, lee los botones de Telegram cada ~2,5 min (si el flujo de Telegram no está ya en marcha) y vuelve a vigilar a mitad
           end=$(( $(date +%s) + T )); half=$(( $(date +%s) + T / 2 )); vh=0
           while [ "$(date +%s)" -lt "$end" ]; do
             tg=$(timeout 30 gh api "repos/${{ github.repository }}/actions/workflows/telegram.yml/runs?status=in_progress&per_page=1" -q .total_count 2>/dev/null || echo 0)
             if [ "${tg:-0}" -eq 0 ]; then timeout 120 node runner/telegram.mjs || true; fi
-            if [ "$vh" = 0 ] && [ "$(date +%s)" -ge "$half" ]; then vh=1; timeout 90 bash runner/vigia.sh || true; fi
+            if [ "$vh" = 0 ] && [ "$T" -ge 600 ] && [ "$(date +%s)" -ge "$half" ]; then vh=1; timeout 90 bash runner/vigia.sh || true; fi
             left=$(( end - $(date +%s) )); [ "$left" -gt 0 ] && sleep $(( left < 150 ? left : 150 ))
           done
