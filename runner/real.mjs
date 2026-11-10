@@ -319,6 +319,7 @@ export function ensureLedger(R, A, positions, m, notas) {
     let target;
     if (Math.abs(A.limite - L.limBase) > 0.004) { L.limBase = A.limite; L.auto = 0; target = A.limite; } else target = r2(L.limBase + (L.auto || 0));
     let topado = false; if (tope != null && target > tope + 0.004) { target = r2(tope); topado = true; L.auto = r2(Math.max(0, target - L.limBase)); }
+    try { console.log(`Tope del bot: ${tope == null ? "sin dato de ingresos (" + (R.deposits ? "n=" + R.deposits.n + " full=" + R.deposits.full : "no leídos") + ")" : topado ? "APLICADO (pedía más de lo ingresado)" : "ok, dentro de lo ingresado"}`); } catch {}
     if (Math.abs(target - L.limite) > 0.004) {
     // al cambiar el ajuste, el bot pasa a trabajar con ESA cantidad: la diferencia con lo que vale ahora es lo que le das (+) o le quitas (−)
     const byT0 = Object.fromEntries(positions.map((p) => [p.instrument.ticker, p]));
