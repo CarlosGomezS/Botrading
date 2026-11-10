@@ -26,7 +26,7 @@ async function modelos() {
   return ["gemini-2.5-flash", "gemini-2.0-flash"];
 }
 const T0 = Date.now(), QUEDA = () => 16 * 60e3 - (Date.now() - T0);   // como mucho ~11 min en total: siempre da tiempo a guardar
-async function gemini(prompt, MS) {
+async function geminiSolo(prompt, MS) {
   let ultimo = "";
   for (const m of MS) for (let t = 0; t < 2; t++) { if (QUEDA() < 90e3) throw new Error("sin tiempo · " + ultimo);
     try { const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": KEY }, signal: AbortSignal.timeout(Math.max(30000, Math.min(150000, QUEDA() - 60000))),
@@ -114,8 +114,24 @@ Responde SOLO un JSON: {"lecciones":[hasta 20 lecciones breves en castellano: tu
   return { genes: todos, nuevos: nuevos.length, modelo, lecciones: lec && lec.length ? lec : (prev && prev.lecciones) || [] };
 }
 
+// v414 · 🔁 si Gemini no deja (clave sin cuota, pide pago, caída…), la misma pregunta va a Groq u OpenRouter (gratis), si hay clave
+const GROQ = env("GROQ_KEY"), OR = env("OPENROUTER_KEY");
+async function compat(url, key, modelos, prompt, extra = {}) { let ultimo = "";
+  for (const m of modelos) { if (QUEDA() < 90e3) break;
+    try { const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key, ...extra }, signal: AbortSignal.timeout(Math.max(30000, Math.min(120000, QUEDA() - 60000))),
+        body: JSON.stringify({ model: m, messages: [{ role: "system", content: "Responde SOLO con un objeto JSON válido, sin texto alrededor." }, { role: "user", content: prompt }], temperature: 0.9, response_format: { type: "json_object" } }) });
+      if (!r.ok) { ultimo = m + " HTTP " + r.status; log(`${m}: no responde (HTTP ${r.status}), pruebo otro`); continue; }
+      const j = await r.json(), txt = ((((j.choices || [])[0] || {}).message || {}).content || "").replace(/^```(json)?|```$/g, "").trim(); return { modelo: m, json: JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1)) };
+    } catch (e) { ultimo = m + " " + String(e.message).slice(0, 60); } }
+  throw new Error(ultimo || "sin respuesta"); }
+async function gemini(prompt, MS) { let err = null;
+  if (KEY && !globalThis.__GEMINI_KO) { try { return await geminiSolo(prompt, MS); } catch (e) { err = e; if (/HTTP (401|402|403)/.test(String(e.message))) { globalThis.__GEMINI_KO = 1; log("Gemini no deja usar esta clave: paso a los otros proveedores gratis"); } } }
+  if (GROQ) try { return await compat("https://api.groq.com/openai/v1/chat/completions", GROQ, ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3-32b", "moonshotai/kimi-k2-instruct"], prompt); } catch (e) { err = e; }
+  if (OR) try { return await compat("https://openrouter.ai/api/v1/chat/completions", OR, ["deepseek/deepseek-chat-v3.1:free", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-120b:free"], prompt, { "HTTP-Referer": "https://github.com/" + REPO, "X-Title": "Bot Trading" }); } catch (e) { err = e; }
+  throw err || new Error("sin clave de IA (GEMINI_KEY, GROQ_KEY u OPENROUTER_KEY)"); }
+
 // ---------- v413 · 🐢 TORTUGAS (cripto diario, Bitvavo y OKX): la IA propone reglas nuevas con las piezas del motor ----------
-async function buscaWeb(MS) {   // la IA busca en internet estrategias diarias de cripto actuales (Google Search); si no se puede, se sigue sin ello
+async function buscaWeb(MS) { if (!KEY || globalThis.__GEMINI_KO) return "";   // la IA busca en internet estrategias diarias de cripto actuales (Google Search); si no se puede, se sigue sin ello
   for (const m of MS.slice(0, 3)) { if (QUEDA() < 240e3) return "";
     try { const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": KEY }, signal: AbortSignal.timeout(90000),
         body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "Busca en internet (fuentes de 2024-2026: estudios, backtests publicados, traders cuantitativos) qué estrategias de trading DIARIO de criptomonedas en spot (solo compras, sin apalancamiento, 1-4 semanas por operación) están funcionando mejor ahora: rupturas tipo Tortugas/Donchian, momentum, filtros de volumen, RSI, compresión de volatilidad, filtros de tendencia de BTC, salidas, etc. Resume en castellano, en 12 puntos concretos con números (días, umbrales) y qué dicen los datos. Sin relleno." }] }], tools: [{ google_search: {} }] }) });
@@ -151,8 +167,8 @@ async function main() {
   const MEM = { cripto: [], etf: [], tort: [], ...(prev.memoria || {}) }; MEM.tort = MEM.tort || []; globalThis.__MEM = MEM;
   const guarda = (k, L) => { const ya = new Set(MEM[k].map((x) => x.l)); for (const l of L || []) if (l && !ya.has(l)) { MEM[k].unshift({ t: out.t, l }); ya.add(l); } MEM[k] = MEM[k].slice(0, 500); };
   guarda("cripto", prev.cripto && prev.cripto.lecciones); guarda("etf", prev.etf && prev.etf.lecciones); guarda("tort", prev.tort && prev.tort.lecciones);
-  if (!KEY) { out.estado = "sin clave"; log("no hay clave GEMINI_KEY en los secretos de GitHub: los laboratorios siguen igual, sin ayudante"); }
-  else { const MS0 = await modelos(), bueno = prev.modeloOk, MS = bueno ? [bueno, ...MS0.filter((m) => m !== bueno)] : MS0;   // primero el que respondió la última vez
+  if (!KEY && !GROQ && !OR) { out.estado = "sin clave"; log("no hay clave GEMINI_KEY en los secretos de GitHub: los laboratorios siguen igual, sin ayudante"); }
+  else { const MS0 = KEY ? await modelos() : [], bueno = prev.modeloOk, MS = bueno ? [bueno, ...MS0.filter((m) => m !== bueno)] : MS0;   // primero el que respondió la última vez
     log("modelos disponibles:", MS.join(", ")); const h = { t: out.t };
     try { out.cripto = await cripto(MS, prev.cripto); h.cripto = out.cripto.nuevas; } catch (e) { h.errC = String(e.message).slice(0, 80); log("cripto: la IA no respondió (" + h.errC + "); el laboratorio sigue igual"); }
     try { out.tort = await tortugas(MS, prev.tort); h.tort = out.tort.nuevas; } catch (e) { h.errT = String(e.message).slice(0, 80); log("Tortugas: la IA no respondió (" + h.errT + "); el examen sigue igual"); }
