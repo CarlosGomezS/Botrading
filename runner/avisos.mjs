@@ -6,7 +6,8 @@
 const env = (k) => (process.env[k] || "").trim();
 export async function tg(text) {
   const tok = env("TELEGRAM_TOKEN"), chat = env("TELEGRAM_CHAT"); let ok = false;
-  if (tok && chat) try { const r = await fetch(`https://api.telegram.org/bot${tok}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: chat, text, disable_web_page_preview: true }), signal: AbortSignal.timeout(10000) }); ok = r.ok; } catch (e) {}
+  // v380 · hasta 3 intentos: los avisos de compras y ventas tienen que llegar sí o sí
+  if (tok && chat) for (let t = 0; t < 3 && !ok; t++) { try { const r = await fetch(`https://api.telegram.org/bot${tok}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: chat, text, disable_web_page_preview: true }), signal: AbortSignal.timeout(10000) }); ok = r.ok; if (!ok && r.status === 429) await new Promise((z) => setTimeout(z, 3000 * (t + 1))); else if (!ok && r.status < 500) break; } catch (e) {} if (!ok) await new Promise((z) => setTimeout(z, 1500 * (t + 1))); }
   return ok;
 }
 const r2 = (x) => Math.round(x * 100) / 100;

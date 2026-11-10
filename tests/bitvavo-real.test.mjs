@@ -50,7 +50,7 @@ test("Real: firma bien, copia una compra nueva en la misma proporción y vende c
   assert.equal(ex.orders[1].side, "sell"); assert.ok(Math.abs(+ex.orders[1].amount - RS.pos["AAA-EUR"].q) < 0.01, "vende ~50 % (v286: con 12,50 € el 80 % dejaría menos del mínimo)"); assert.ok(RS.pos["AAA-EUR"].tp);
   // el método cierra → vende el resto, con ganancia
   ({ RS, msgs } = await RL.vuelta(RS, { mix: fuente({}) }, { copia: "mix" }, tk(ex.px), T(4), deps));
-  assert.equal(Object.keys(RS.pos).length, 0); assert.equal(RS.closed.length, 1); assert.ok(RS.closed[0].pnl > 0, JSON.stringify(RS.closed[0])); assert.ok(msgs.some((x) => x.includes("vende AAA")));
+  assert.equal(Object.keys(RS.pos).length, 0); assert.equal(RS.closed.length, 1); assert.ok(RS.closed[0].pnl > 0, JSON.stringify(RS.closed[0])); assert.ok(msgs.some((x) => x.includes("VENTA REAL") && x.includes("AAA")));
   assert.ok(RS.cash > 50 && RS.cash < 52, "ganancia con comisiones reales: " + RS.cash);
 });
 

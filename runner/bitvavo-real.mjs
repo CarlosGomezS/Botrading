@@ -199,7 +199,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     if (frac >= 1 || p.q * (tick[m] ? tick[m].bid : p.px) < mk.min) {
       const pnl = p.cob - p.cost; RS.st.pnl += pnl; if (pnl >= 0) RS.st.wins++; else RS.st.losses++;
       RS.closed.unshift({ m, sym: p.sym, t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(p.cob), pnl: r2(pnl), pc: r2((p.cob / p.cost - 1) * 100), why: por }); RS.closed = RS.closed.slice(0, 300); delete RS.pos[m];
-      L(RS, now, `${pnl >= 0 ? "✅" : "🔻"} vende ${p.sym}: ${pnl >= 0 ? "+" : ""}${r2(pnl)} € (${r2((p.cob / p.cost - 1) * 100)} %) · ${por}`); msgs.push(`💶 ${pnl >= 0 ? "✅" : "🔻"} REAL: vende ${p.sym} → ${pnl >= 0 ? "+" : ""}${r2(pnl)} € (${r2((p.cob / p.cost - 1) * 100)} %) · ${por}`);
+      L(RS, now, `${pnl >= 0 ? "✅" : "🔻"} vende ${p.sym}: ${pnl >= 0 ? "+" : ""}${r2(pnl)} € (${r2((p.cob / p.cost - 1) * 100)} %) · ${por}`); msgs.push(`🔴 VENTA REAL · ${EX}\n${pnl >= 0 ? "✅ Ganancia" : "🔻 Pérdida"}: ${p.sym} → ${pnl >= 0 ? "+" : ""}${r2(pnl)} € (${r2((p.cob / p.cost - 1) * 100)} %)\nPagó ${r2(p.cost)} € y ha recibido ${r2(p.cob)} €\nPor qué: ${por}\nEuros libres ahora: ${r2(RS.cash)} €`);
     } else { p.tp = 1; await protege(m); L(RS, now, `💰 vende parte de ${p.sym} (+${r2(r.got)} €) · ${por}`); msgs.push(`💶 💰 REAL: vende parte de ${p.sym} (${r2(r.got)} €) · ${por}`); }
   }
   try {
@@ -345,7 +345,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         const eur = Math.min(tortTam(V, stopD / tk.ask, TP), hueco, RS.cash, Math.max(0, (await libre()) - 0.5)); if (eur < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ 🐢 ${m.split("-")[0]}: rompe su máximo, pero no quedan euros libres para comprarla (lo demás está invertido)`); continue; }
         try { RS.vistos[clave] = now.toISOString(); const r = await X.comprar(m, eur); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nT++;   /* v324 · «vista» solo al comprar o si ya se escapó: si faltaba dinero, lo vuelve a intentar cuando lo haya */
           RS.pos[m] = { src: "tortuga", sym: m.split("-")[0], q: r.q, q0: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), last: tk.bid, stop: r.px - stopD, N: x.N };
-          L(RS, now, `🐢 compra ${m.split("-")[0]} por ${r2(r.coste)} €: cerró por encima de su máximo de ${TP.ent} días · stop ${r2((-stopD / r.px) * 100)} % · sale con su mínimo de ${TP.sale} días`); msgs.push(`💶 🐢 ${EX}: compra ${m.split("-")[0]} (${r2(r.coste)} €) por ruptura de su máximo de ${TP.ent} días.`); await protege(m);
+          L(RS, now, `🐢 compra ${m.split("-")[0]} por ${r2(r.coste)} €: cerró por encima de su máximo de ${TP.ent} días · stop ${r2((-stopD / r.px) * 100)} % · sale con su mínimo de ${TP.sale} días`); msgs.push(`🟢 COMPRA REAL · ${EX}\n🐢 ${m.split("-")[0]} por ${r2(r.coste)} € (precio ${r.px})\nPor qué: ha cerrado por encima de su máximo de ${TP.ent} días.\nProtección: stop ${r2((-stopD / r.px) * 100)} % (guardado en ${EX}); vende si cae por debajo de su mínimo de ${TP.sale} días.\nEuros libres que quedan: ${r2(RS.cash)} €`); await protege(m);
         } catch (e) { L(RS, now, `⚠️ 🐢 no pude comprar ${m.split("-")[0]}: ${String(e.message).slice(0, 60)}`); } } }
     // v306 · 🐋 COPIA A LOS PROFESIONALES de Hyperliquid: como mucho 2 a la vez, 10 % de la cuenta cada una (máx. 20 % en total), solo criptos de este exchange
     if (!soloT() && ctl.ballenas && ctl.ballenas.m) { const V = valor(RS, tick); let nB = Object.values(RS.pos).filter((p) => p.src === "ballena").length;
@@ -530,7 +530,7 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
     out.RS.ex = ex; out.RS.savedAt = Date.now(); const enc = await encrypt(JSON.stringify(out.RS), pw);
     io.publicar("real.json", { enc: 1, v: 1, ...enc, meta: { estado: out.RS.estado || "activo", copia: out.RS.copia, ex, t: now.toISOString() } }, RAMAS[ex]);
     R0.estado = cfg.on ? out.RS.estado : "apagada"; R0.copia = out.RS.copia;
-    for (const m of msgs.slice(0, 6)) await io.tg(m);
+    { const imp = msgs.filter((m) => /COMPRA REAL|VENTA REAL|REAL: vende|REAL: compra|compra |vende|freno|PAUSA|🛡️|⏸️|⚠️/i.test(m)), resto = msgs.filter((m) => !imp.includes(m)).slice(0, 6); for (const m of [...imp, ...resto]) await io.tg(m); }   // v380 · las compras, ventas y frenos se mandan TODOS (antes como mucho 6 mensajes)
     // v254 · diagnóstico público SIN criptos ni importes: qué ha hecho en esta vuelta (cuántas compras, ventas y saltos, y por qué)
     { const nuevos = (out.RS.log || []).filter((x) => x.t === now.toISOString()), cat = {};
       for (const x of nuevos) { const k = /^🟢|^📥 copia lo abierto: compra|^➕/.test(x.txt) ? "compra" : /^✅|^🔻|vende/.test(x.txt) ? "venta" : /no está en/.test(x.txt) ? "salta: no está en el exchange" : /mínimo/.test(x.txt) ? "salta: menos que el mínimo" : /subido más/.test(x.txt) ? "salta: ya subió" : /tarde/.test(x.txt) ? "salta: señal tarde" : /nada que se pudiera copiar/.test(x.txt) ? "copiar abierto: nada" : /^⚠️/.test(x.txt) ? "aviso/error" : "otro"; cat[k] = (cat[k] || 0) + 1; }
