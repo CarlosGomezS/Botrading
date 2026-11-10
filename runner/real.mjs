@@ -958,7 +958,7 @@ async function main() {
       account = await T.call("GET", "/equity/account/summary");
       positions = (await T.call("GET", "/equity/positions")) || [];
       pending = (await T.call("GET", "/equity/orders")) || [];
-    } catch (e) { estado = "error"; titulo = "No pude conectar con Trading 212"; rep.push(explainT212(e)); aviso = { title: "✖ Cartera real: sin conexión con Trading 212", msg: explainT212(e), prio: 4 }; return; }
+    } catch (e) { log("Trading 212 rechazó la conexión: " + (e.st ? "HTTP " + e.st : "sin respuesta (" + String((e.cause && e.cause.code) || "red").slice(0, 40) + ")")); estado = "error"; titulo = "No pude conectar con Trading 212"; rep.push(explainT212(e)); aviso = { title: "✖ Cartera real: sin conexión con Trading 212", msg: explainT212(e), prio: 4 }; return; }
     const { id: _id, ...acc } = account || {};   // el número de cuenta no se guarda
     R.account = { ...acc, at: now.toISOString() };
     R.positions = mapPos(positions, R);
@@ -1137,7 +1137,7 @@ async function main() {
     } catch {}
     try { const ps = await T.call("GET", "/equity/positions"); R.positions = mapPos(ps, R); noteSeen(R, ps); } catch {}
   } catch (e) {
-    estado = "error"; titulo = "Error inesperado"; rep.push("✖ " + String((e && e.stack) || e).slice(0, 800));
+    log("Error inesperado: " + String((e && e.message) || e).split("\n")[0].replace(/\d[\d.,]*/g, "#").slice(0, 160)); estado = "error"; titulo = "Error inesperado"; rep.push("✖ " + String((e && e.stack) || e).slice(0, 800));
     log("Error inesperado (detalle en el informe cifrado)");
     aviso = { title: "✖ Cartera real: error", msg: String((e && e.message) || e).slice(0, 500), prio: 4 };
   } finally {
