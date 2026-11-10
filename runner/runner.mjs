@@ -117,11 +117,14 @@ function publish(snap) {
   rmSync(pub, { recursive: true, force: true });
   mkdirSync(pub);
   writeFileSync(path.join(pub, "state.json"), txt);
+  // v372 · vista.json: la misma copia SIN el archivo de informes antiguos (~40 MB), para que la app del móvil cargue mucho más rápido
+  try { const v = { ...snap, idb: { ...(snap.idb || {}) } }; delete v.idb["bot-trading-pro-report-archive-v1"]; writeFileSync(path.join(pub, "vista.json"), JSON.stringify(v)); } catch (e) { log("vista.json no se pudo preparar:", String(e.message).slice(0, 80)); }
   const g = (c) => sh(`git -C "${pub}" ${c}`);
   g("init -q -b data");
   g('config user.name "bot-trading"');
   g('config user.email "bot-trading@users.noreply.github.com"');
   g("add state.json");
+  try { g("add vista.json"); } catch (e) {}
   g(`commit -q -m "estado ${new Date().toISOString()}"`);
   g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git data`);
   lastHash = h;

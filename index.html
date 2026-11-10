@@ -506,7 +506,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
 </head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 371 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#371</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 372 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#372</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -623,18 +623,22 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  if(window.__RUNNER)return;
  if(!/^https?:$/.test(location.protocol))return;
  window.__VIEWER=true;
- var q=new URLSearchParams(location.search),src=q.get("src");
+ /* v372 · ⚡ sin clave en este móvil no se descarga nada: la pantalla de la clave sale al momento; al escribirla se recarga y entonces sí se cargan los datos */
+ var tienePw=false;try{tienePw=!!(sessionStorage.getItem("rlpw")||localStorage.getItem("rlpw2")||localStorage.getItem("rlpw"))}catch(e){tienePw=true}
+ if(!tienePw){window.__NEEDPW=true;window.__SNAP=null;window.__SNAPREADY=Promise.resolve();return}
+ var q=new URLSearchParams(location.search),src=q.get("src"),src2=null;
  if(!src){var m=location.hostname.match(/^([^.]+)\.github\.io$/),repo=location.pathname.split("/")[1];
-  src=(m&&repo)?"https://raw.githubusercontent.com/"+m[1]+"/"+repo+"/data/state.json":"state.json"}
+  src=(m&&repo)?"https://raw.githubusercontent.com/"+m[1]+"/"+repo+"/data/vista.json":"state.json";if(m&&repo)src2=src.replace("/vista.json","/state.json")}
  var snap=null;
- try{var x=new XMLHttpRequest();x.open("GET",src+(src.indexOf("?")>0?"&":"?")+"t="+Math.floor(Date.now()/60000),false);x.send();
-  if(x.status===200)snap=JSON.parse(x.responseText)}catch(e){}
+ /* v372 · primero la copia ligera (sin el archivo de informes antiguos); si aún no existe, la completa */
+ [src,src2].forEach(function(u){if(snap||!u)return;try{var x=new XMLHttpRequest();x.open("GET",u+(u.indexOf("?")>0?"&":"?")+"t="+Math.floor(Date.now()/60000),false);x.send();
+  if(x.status===200)snap=JSON.parse(x.responseText)}catch(e){}});
  window.__SNAP=snap;
  if(!snap||!snap.ls){window.__VIEWER_ERR="No se pudo cargar la copia de datos ("+src+"). Si acabas de desplegar, espera a la primera ejecución automática.";return}
  try{Object.keys(localStorage).forEach(function(k){if((k==="pb19"||k==="pbh3"||k==="pbi1"||k==="vgidx"||k==="pbReportsFallback"||k.indexOf("vgd:")===0)&&!(k in snap.ls))localStorage.removeItem(k)})}catch(e){}
  try{for(var k in snap.ls)localStorage.setItem(k,snap.ls[k])}catch(e){}
  window.__SNAPREADY=(async function(){
-  try{if(indexedDB.databases){var ds=await indexedDB.databases();for(var q=0;q<ds.length;q++){if(ds[q].name&&ds[q].name!=="bt-terminal"&&!(snap.idb&&ds[q].name in snap.idb))await new Promise(function(r){var d=indexedDB.deleteDatabase(ds[q].name);d.onsuccess=d.onerror=d.onblocked=function(){r()}})}}}catch(e){}
+  try{if(indexedDB.databases){var ds=await indexedDB.databases();for(var q=0;q<ds.length;q++){if(ds[q].name&&ds[q].name!=="bt-terminal"&&ds[q].name!=="bot-trading-pro-report-archive-v1"&&!(snap.idb&&ds[q].name in snap.idb))await new Promise(function(r){var d=indexedDB.deleteDatabase(ds[q].name);d.onsuccess=d.onerror=d.onblocked=function(){r()}})}}}catch(e){}
   try{for(var name in (snap.idb||{})){var db=snap.idb[name];
    await new Promise(function(r){var d=indexedDB.deleteDatabase(name);d.onsuccess=d.onerror=d.onblocked=function(){r()}});
    var conn=await new Promise(function(ok,no){var o=indexedDB.open(name,db.version||1);
@@ -3135,7 +3139,9 @@ function memeDraw0(){const el=$("#mm-body");if(!el)return;if(memeCh()[0]==="noti
  <b>🧬 Aprende solo, con 4 estilos:</b> 🐣 como el vídeo (monedas recién nacidas) · 🐋 memecoins grandes en tendencia (más de 7 días y 20 M$ a 5.000 M$, menos riesgo de estafa) · 🪃 rebote tras una caída fuerte (−15 % o más en 6 h y empezando a recuperar) · 💥 explosión de volumen (el volumen de la última hora triplica lo normal). 30 variantes por red compiten a la vez con 100 € ficticios cada una, <b>sin techo</b>: si las mejores se pegan al límite de algún rango (por ejemplo, el tamaño de compra o el stop), ese rango se ensancha solo para seguir probando más allá. Además de filtros, nota y stops, aprenden a <b>vender una parte</b> al llegar a una ganancia (y dejar correr el resto) y a exigir <b>actividad real</b> (el «organic score» de Jupiter, que descuenta bots y volumen falso). Cada hora se archivan las peores (nunca se borran) y nacen otras: mutaciones y cruces de las mejores, y alguna inventada de cero. Si una demuestra con 30 o más operaciones que es claramente mejor, el terminal adopta sus reglas solo. La cuenta «como el vídeo» y la variante v0 conservan siempre las reglas originales para comparar.<br>
  <b>Límites honestos:</b> vigila lo abierto cada ~20 s y busca monedas cada minuto (un bot real, al instante); las «carteras listas» las aprende él (los servicios de pago traen listas hechas). Es una prueba, no una recomendación.</div></details></div>`;
  el.innerHTML=h;memeCharts(S,P0,!!op,f)}
-{const g0=go;go=function(t){g0(t);if(t==="memes")memeLoad(false)}}
+{const g0=go;go=function(t){g0(t);if(t==="memes"){if(MM.S&&!document.querySelector("#mm-body .mt"))try{memeDraw()}catch(e){}memeLoad(false)}}}
+/* v372 · ⚡ Cripto se carga en segundo plano nada más entrar con la clave (y se mantiene al día), así al abrir la pestaña ya está */
+(function(){const pre=()=>{try{if(window.__NEEDPW||!(typeof pwGet==="function"&&pwGet()))return;if(!MM.busy&&(!MM.S||Date.now()-MM.at>90000))memeLoad(false).catch(()=>{})}catch(e){}};setTimeout(pre,2500);setInterval(()=>{if(!document.hidden)pre()},120000)})();
 setInterval(()=>{const t=document.getElementById("t-memes");if(t&&t.classList.contains("on")&&!document.hidden)memeLoad(true)},15000);
 // v194 · 🔴 EN DIRECTO: cada 2 s el móvil pide él mismo el precio de lo abierto a DexScreener y actualiza el saldo y cada posición al momento
 // (las decisiones de compra y venta las sigue tomando el bot en la nube, cada 20 s)
