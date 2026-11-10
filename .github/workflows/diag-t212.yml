@@ -14,7 +14,33 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+      - run: node -e 'for (const n of process.argv.slice(1)) console.log("secreto", n.padEnd(16), process.env[n] ? "✔ puesto" : "· vacío")' T212_KEY T212_SECRET REAL_VIEW_PASS TELEGRAM_TOKEN TELEGRAM_CHAT BITVAVO_KEY BITVAVO_SECRET OKX_KEY OKX_SECRET OKX_PASSPHRASE GEMINI_KEY ALPACA_KEY TWELVEDATA_KEY
+        env:
+          T212_KEY: ${{ secrets.T212_KEY }}
+          T212_SECRET: ${{ secrets.T212_SECRET }}
+          REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          BITVAVO_KEY: ${{ secrets.BITVAVO_KEY }}
+          BITVAVO_SECRET: ${{ secrets.BITVAVO_SECRET }}
+          OKX_KEY: ${{ secrets.OKX_KEY }}
+          OKX_SECRET: ${{ secrets.OKX_SECRET }}
+          OKX_PASSPHRASE: ${{ secrets.OKX_PASSPHRASE }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
       - run: node runner/diag-t212.mjs
         env:
           T212_KEY: ${{ secrets.T212_KEY }}
           T212_SECRET: ${{ secrets.T212_SECRET }}
+          REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          BITVAVO_KEY: ${{ secrets.BITVAVO_KEY }}
+          BITVAVO_SECRET: ${{ secrets.BITVAVO_SECRET }}
+          OKX_KEY: ${{ secrets.OKX_KEY }}
+          OKX_SECRET: ${{ secrets.OKX_SECRET }}
+          OKX_PASSPHRASE: ${{ secrets.OKX_PASSPHRASE }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
