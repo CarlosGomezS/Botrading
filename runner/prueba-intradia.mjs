@@ -3,7 +3,7 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const DIAS = 365, FIN = Date.now(), INI = FIN - DIAS * 864e5, M15 = 15 * 60e3;
-const MON = ["BTC", "ETH", "SOL", "AVAX", "SUI", "FET"];
+const EXS = (process.env.EX || "bitvavo,okx").split(","), SH = +(process.env.SHARD || 0), NSH = +(process.env.NSH || 1);
 const FEES = { bitvavo: { mk: 0.0020, tk: 0.0025 }, okx: { mk: 0.0008, tk: 0.0010 } }, SLIP = 0.0005;
 
 async function getJ(u) { for (let t = 0; t < 6; t++) { try { const r = await fetch(u); if (r.ok) return await r.json(); } catch {} await wait(1500 * (t + 1)); } return null; }
@@ -61,11 +61,13 @@ function M3(v, fee) { // VWAP anclado 00:00 UTC; barrido del mínimo previo entr
 const res = (T, desde) => { const X = T.filter((x) => x.t >= desde); let eq = 1, pk = 1, dd = 0; for (const x of X) { eq *= 1 + x.r; pk = Math.max(pk, eq); dd = Math.max(dd, 1 - eq / pk); }
   return { n: X.length, gan: X.length ? X.filter((x) => x.r > 0).length / X.length : 0, ret: eq - 1, dd }; };
 const out = []; const P = (x) => (x * 100).toFixed(1) + "%";
-for (const ex of ["bitvavo", "okx"]) for (const c of MON) {
+async function lista(ex) { if (ex === "bitvavo") { const j = await getJ("https://api.bitvavo.com/v2/markets"); return (j || []).filter((m) => m.quote === "EUR" && m.status === "trading").map((m) => m.base).sort(); }
+  const j = await getJ("https://www.okx.com/api/v5/public/instruments?instType=SPOT"); return ((j && j.data) || []).filter((m) => m.quoteCcy === "USDT" && m.state === "live").map((m) => m.baseCcy).sort(); }
+for (const ex of EXS) { const L = (await lista(ex)).filter((c, i) => i % NSH === SH); console.log(ex, "monedas en este trozo:", L.length); for (const c of L) {
   let v = []; try { v = ex === "bitvavo" ? await bitvavo(c) : await okx(c); } catch (e) {}
-  if (v.length < 5000) { console.log(ex, c, "sin datos suficientes", v.length); continue; }
+  if (v.length < 5000) continue;
   const bh = v.at(-1)[4] / v[0][4] - 1, mitad = FIN - 182 * 864e5;
   for (const [nom, f] of [["1-reversion15m", M1], ["2-ruptura1H", M2], ["3-vwapNY", M3]]) { const T = f(v, FEES[ex]), a = res(T, 0), b = res(T, mitad);
     const row = { ex, c, met: nom, n: a.n, gan: a.gan, ret: a.ret, dd: a.dd, ret6m: b.ret, n6m: b.n, bh };
-    out.push(row); console.log(`${ex.padEnd(8)} ${c.padEnd(5)} ${nom.padEnd(15)} ops ${String(a.n).padStart(4)} acierto ${P(a.gan).padStart(6)} 12m ${P(a.ret).padStart(7)} caída ${P(a.dd).padStart(6)} | 6m ${P(b.ret).padStart(7)} (${b.n}) | comprar y mantener ${P(bh)}`); } }
-mkdirSync("out", { recursive: true }); writeFileSync("out/prueba-intradia.json", JSON.stringify(out));
+    out.push(row); if (a.ret > 0) console.log(`${ex.padEnd(8)} ${c.padEnd(5)} ${nom.padEnd(15)} ops ${String(a.n).padStart(4)} acierto ${P(a.gan).padStart(6)} 12m ${P(a.ret).padStart(7)} caída ${P(a.dd).padStart(6)} | 6m ${P(b.ret).padStart(7)} (${b.n}) | comprar y mantener ${P(bh)}`); } } }
+mkdirSync("out", { recursive: true }); writeFileSync(`out/res-${EXS.join("_")}-${SH}.json`, JSON.stringify(out));
