@@ -574,7 +574,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 373 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#373</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 374 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#374</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -692,6 +692,8 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  if(!/^https?:$/.test(location.protocol))return;
  window.__VIEWER=true;
  /* v372 · ⚡ sin clave en este móvil no se descarga nada: la pantalla de la clave sale al momento; al escribirla se recarga y entonces sí se cargan los datos */
+ /* v374 · 🔐 la sesión caduca tras 30 min sin usar la app: se borra la clave recordada y vuelve a pedirse */
+ try{var act=+localStorage.getItem("rlact")||0;if(act&&Date.now()-act>30*60000){["rlpw2","rlk","rlpw","ghpw2"].forEach(function(k){localStorage.removeItem(k)});sessionStorage.removeItem("rlpw");localStorage.removeItem("rlact")}}catch(e){}
  var tienePw=false;try{tienePw=!!(sessionStorage.getItem("rlpw")||localStorage.getItem("rlpw2")||localStorage.getItem("rlpw"))}catch(e){tienePw=true}
  if(!tienePw){window.__NEEDPW=true;window.__SNAP=null;window.__SNAPREADY=Promise.resolve();return}
  var q=new URLSearchParams(location.search),src=q.get("src"),src2=null;
@@ -4422,13 +4424,13 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
   try{if(window.__CLOUD&&__CLOUD.hasEnc()){await __CLOUD.unlock(pw);ok=true}}catch(e){}
   return ok||(red&&pw.length>=8)}
  function muestra(){if(document.getElementById("gate"))return;css();const d=document.createElement("div");d.id="gate";
-  d.innerHTML=`<form class="gx" autocomplete="on" onsubmit="return false"><h2>🔐 Bot Trading</h2><p>Escribe tu clave para entrar. Solo hace falta una vez en este móvil.</p>
+  d.innerHTML=`<form class="gx" autocomplete="on" onsubmit="return false"><h2>🔐 Bot Trading</h2><p>Escribe tu clave para entrar. Por seguridad, se vuelve a pedir tras 30 minutos sin usar la app.</p>
    <input type="text" name="username" autocomplete="username" value="botrading" style="display:none">
    <input id="gate-pw" type="password" name="password" autocomplete="current-password" placeholder="Tu clave" autofocus>
    <input type="checkbox" class="pwrem" checked style="display:none"><button id="gate-go" type="submit">Entrar</button><div class="er" id="gate-er"></div></form>`;
   document.body.appendChild(d);const i=d.querySelector("#gate-pw"),b=d.querySelector("#gate-go"),er=d.querySelector("#gate-er");
   const go=async()=>{const pw=i.value||"";if(!pw)return;b.disabled=true;er.textContent="Comprobando…";const ok=await valida(pw);if(!ok){b.disabled=false;er.textContent="Clave incorrecta.";i.select();return}
-   try{sessionStorage.setItem("rlpw",pw)}catch(e){}try{if(!(await remSave(pw)))er.textContent="Este móvil no deja recordarla: te la pedirá al abrir."}catch(e){}
+   try{sessionStorage.setItem("rlpw",pw);localStorage.setItem("rlact",String(Date.now()))}catch(e){}try{if(!(await remSave(pw)))er.textContent="Este móvil no deja recordarla: te la pedirá al abrir."}catch(e){}
    try{if(typeof RL!=="undefined")RL.noAuto=false}catch(e){}location.reload()};
   b.onclick=go;i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();go()}};setTimeout(()=>{try{i.focus()}catch(e){}},50)}
  window.pedirClave=muestra;
@@ -4437,6 +4439,14 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
  window.abrirNube=nube;
  async function inicio(){try{await remLoad()}catch(e){}if(!(typeof pwGet==="function"&&pwGet())){muestra();return}nube()}
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",inicio);else inicio();
+ /* v374 · 🔐 caducidad: cada vez que usas la app se apunta la hora; si pasan 30 min sin tocarla, se cierra la sesión y pide la clave */
+ (function(){if(!/^https?:$/.test(location.protocol)||window.__RUNNER)return;const MAX=30*60000;let ult=0;
+  const marca=()=>{const n=Date.now();if(n-ult<20000)return;ult=n;try{if(sessionStorage.getItem("rlpw"))localStorage.setItem("rlact",String(n))}catch(e){}};
+  ["pointerdown","keydown","scroll","touchstart"].forEach(ev=>addEventListener(ev,marca,{passive:true,capture:true}));
+  const cierra=()=>{try{["rlpw2","rlk","rlpw","ghpw2","rlact"].forEach(k=>localStorage.removeItem(k));sessionStorage.removeItem("rlpw")}catch(e){}location.reload()};
+  const mira=()=>{try{const a=+localStorage.getItem("rlact")||0;if(sessionStorage.getItem("rlpw")&&a&&Date.now()-a>MAX)cierra()}catch(e){}};
+  try{if(sessionStorage.getItem("rlpw")&&!localStorage.getItem("rlact"))localStorage.setItem("rlact",String(Date.now()))}catch(e){}
+  setInterval(mira,60000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)mira()})})();
 })();
 </script>
 <script id="simplifica">
