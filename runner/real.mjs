@@ -308,14 +308,17 @@ export function ensureLedger(R, A, positions, m, notas) {
   // v21: «Sumar mis ingresos al bot»: L.limBase = último «Dinero que trabaja el bot» que pusiste; L.auto = ingresos/retiradas sumados solos desde entonces
   if (L.limite != null && L.limBase == null) { L.limBase = L.limite; L.auto = 0; }
   // capital: el ajuste manda. La primera vez se crea; después, cada cambio es una aportación (+) o retirada (−) del bot
+  // v402 · TOPE: el bot nunca trabaja con más de lo que hay ingresado (neto) en Trading 212, si se ha podido leer el historial entero
+  const dFull = R.deposits && (R.deposits.full != null ? R.deposits.full : R.deposits.n != null && R.deposits.n < 1000), tope = dFull && R.deposits.net > 0 ? R.deposits.net : null;
   if (L.limite == null) {
-    const cost = Object.values(L.lots).reduce((t, x) => t + x.cost, 0);
-    L.cap = A.limite; L.cash = r2(A.limite - cost); L.limite = A.limite; L.limBase = A.limite; L.auto = 0;
-    hist(R, { tipo: "capital", eur: A.limite, nota: `capital inicial del bot: ${eur(A.limite)}` }); flowAdd(R, m.date, A.limite);
+    const cost = Object.values(L.lots).reduce((t, x) => t + x.cost, 0), c0 = tope != null ? Math.min(A.limite, tope) : A.limite;
+    L.cap = c0; L.cash = r2(c0 - cost); L.limite = c0; L.limBase = A.limite; L.auto = 0;
+    hist(R, { tipo: "capital", eur: c0, nota: `capital inicial del bot: ${eur(c0)}${c0 < A.limite ? ` (pediste ${eur(A.limite)}, pero en Trading 212 solo hay ingresado ${eur(tope)})` : ""}` }); flowAdd(R, m.date, c0);
   } else {
     // si cambias el ajuste, manda tu cifra (y se olvidan los ingresos sumados solos); si no, es tu cifra + lo ingresado/retirado desde entonces
     let target;
     if (Math.abs(A.limite - L.limBase) > 0.004) { L.limBase = A.limite; L.auto = 0; target = A.limite; } else target = r2(L.limBase + (L.auto || 0));
+    let topado = false; if (tope != null && target > tope + 0.004) { target = r2(tope); topado = true; L.auto = r2(Math.max(0, target - L.limBase)); }
     if (Math.abs(target - L.limite) > 0.004) {
     // al cambiar el ajuste, el bot pasa a trabajar con ESA cantidad: la diferencia con lo que vale ahora es lo que le das (+) o le quitas (−)
     const byT0 = Object.fromEntries(positions.map((p) => [p.instrument.ticker, p]));
@@ -323,7 +326,7 @@ export function ensureLedger(R, A, positions, m, notas) {
     const dlt = r2(target - eqNow);
     L.cap = r2(L.cap + dlt); L.cash = r2(L.cash + dlt); L.limite = target; R.applied = null;   // se recalcula la cartera entera con el dinero nuevo (el freno de pérdidas no se ve afectado: usa la rentabilidad)
     hist(R, { tipo: dlt > 0 ? "aportación" : "retirada", eur: dlt, nota: `has cambiado el dinero que trabaja el bot a ${eur(target)}: valía ${eur(eqNow)}, así que ${dlt >= 0 ? "le das" : "le quitas"} ${eur(Math.abs(dlt))}` }); flowAdd(R, m.date, dlt);
-    notas.push(`Has cambiado el dinero que trabaja el bot a ${eur(target)}. Valía ${eur(eqNow)}: ${dlt >= 0 ? "le das" : "le quitas"} ${eur(Math.abs(dlt))}. Cuenta como ${dlt >= 0 ? "aportación" : "retirada"}, no como ganancia ni pérdida.`);
+    notas.push(topado ? `El bot no puede trabajar con más de lo que hay ingresado en Trading 212 (${eur(tope)}): pasa a trabajar con ${eur(target)}.` : `Has cambiado el dinero que trabaja el bot a ${eur(target)}. Valía ${eur(eqNow)}: ${dlt >= 0 ? "le das" : "le quitas"} ${eur(Math.abs(dlt))}. Cuenta como ${dlt >= 0 ? "aportación" : "retirada"}, no como ganancia ni pérdida.`);
     }
   }
   return L;
@@ -998,15 +1001,15 @@ async function main() {
       const tx = await T.pages("/equity/history/transactions?limit=50", 20);
       let net = 0, n = 0;
       for (const x of tx) { const a = Math.abs(+x.amount || 0); if (x.type === "DEPOSIT") { net += a; n++; } else if (x.type === "WITHDRAW") { net -= a; n++; } else if (x.type === "TRANSFER") { net += +x.amount || 0; n++; } }
-      R.deposits = { net: r2(net), n, at: now.toISOString() };
+      R.deposits = { net: r2(net), n, at: now.toISOString(), full: tx.length < 1000 };
       if (prevNet != null && Math.abs(net - prevNet) > 0.004) {
         const d = r2(net - prevNet);
         R.cuenta = (R.cuenta || []); R.cuenta.unshift({ ts: now.toISOString(), eur: d, net: r2(net) });
         if (A.sumarIngresos !== 0 && R.ledger && R.ledger.limite != null) {
           // v21: lo que ingresas (o retiras) en Trading 212 pasa al bot (o sale de él) automáticamente
-          const L = R.ledger, dd = d < 0 ? Math.max(d, -L.cap) : d;
+          const L = R.ledger, dd = d < 0 ? Math.max(d, -L.cap) : R.deposits.full ? Math.min(d, Math.max(0, r2(net - L.limite))) : d;   /* v402: lo que ya estaba contado no se suma dos veces */
           L.auto = r2((L.auto || 0) + dd); L.cap = r2(L.cap + dd); L.cash = r2(L.cash + dd); L.limite = r2(L.limite + dd); R.applied = null;
-          hist(R, { tipo: dd > 0 ? "aportación" : "retirada", eur: dd, nota: dd > 0 ? `ingreso en Trading 212 sumado al bot (${eur(dd)})` : `retirada de Trading 212 descontada del bot (${eur(-dd)})` }); flowAdd(R, m.date, dd);
+          if (dd) hist(R, { tipo: dd > 0 ? "aportación" : "retirada", eur: dd, nota: dd > 0 ? `ingreso en Trading 212 sumado al bot (${eur(dd)})` : `retirada de Trading 212 descontada del bot (${eur(-dd)})` }); flowAdd(R, m.date, dd);
           notasL.push(dd > 0 ? `Has ingresado ${eur(dd)} en tu cuenta de Trading 212: se suma al bot, que ahora trabaja con ${eur(L.limite)}. Lo invertirá según el método en esta misma revisión (cuenta como aportación, no como ganancia).` : `Has retirado ${eur(-dd)} de tu cuenta de Trading 212: se descuenta del bot, que ahora trabaja con ${eur(L.limite)}. Si no le llega el efectivo, venderá lo necesario.`);
         } else notasL.push(d > 0 ? `Has ingresado ${eur(d)} en tu cuenta de Trading 212. El bot NO lo usa: sigue trabajando con ${eur(A.limite)} más sus ganancias. Si quieres que invierta también lo nuevo, sube «Dinero que trabaja el bot».` : `Has retirado ${eur(-d)} de tu cuenta de Trading 212. Si el efectivo libre queda por debajo del del bot, este usará solo lo que haya.`);
         aviso = { title: d > 0 ? `💶 Cartera real: has ingresado ${eur(d)}` : `💶 Cartera real: has retirado ${eur(-d)}`, msg: notasL[notasL.length - 1], prio: 3 };
