@@ -591,7 +591,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 400 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#400</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 401 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#401</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3817,7 +3817,7 @@ const MS=a=>[...new Set([a.metodo,...(a.extra||[])].filter(k=>k))].slice(0,3);
 const MN=a=>{const ks=MS(a),n=k=>(NOMB[k]||((typeof MX==="function"&&MX(k))||STR[k]||{}).n||k)+" #"+k;return ks.length>1?"Reparto a partes iguales: "+ks.map(n).join(" + "):n(ks[0])};
 function A(){const o=A0();try{if(RL.cfg||(RL.R&&RL.R.cfg))window.__realMets=MS(o)}catch(e){}return o}
 function A0(){const o=Object.assign({},DEF);/* v125: se mezcla campo a campo y un valor vacío o roto (null, NaN…) nunca pisa uno bueno */for(const src of [(RL.R&&RL.R.cfg)||{},RL.cfg||{}])for(const [k,v] of Object.entries(src)){if(v==null||v==="")continue;if(NUM[k]&&!Number.isFinite(+v))continue;o[k]=v}const _o=o,ov=RL.R&&RL.R.metOv;o.extra=Array.isArray(o.extra)?o.extra.slice():[];if(ov&&ov.k&&!(RL.cfg&&RL.cfg.savedAt&&Date.parse(RL.cfg.savedAt)>=Date.parse(ov.ts))){if(ov.de&&o.extra.includes(ov.de))o.extra=o.extra.map(x=>x===ov.de?ov.k:x).filter(x=>x!==o.metodo);else{o.metodo=ov.k;o.extra=o.extra.filter(x=>x!==ov.k)}if(ov.acc){o.acciones=1;o.divisa="cualquiera"}}return o}
-function say(t){RL.msg=t;["#rl-st","#rl-st2"].forEach(id=>{const e=$r(id);if(e)e.textContent=t})}
+function say(t){RL.msg=t;["#rl-st","#rl-st2","#rl-st3"].forEach(id=>{const e=$r(id);if(e)e.textContent=t})}
 
 /* ---------- datos: real.json (rama real) y real-ajustes.json (rama main) ---------- */
 function b64u(t){const s=atob(t),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}
@@ -4045,7 +4045,7 @@ ${Math.abs(own)>=1?`<div class="hero-live">🤖 El bot maneja ${E(botMon)}; el r
 `<div class="hero-chg">${s?`<b class="${cls(s.res)}">${SG(s.res)} (${PC(s.pct)})</b> desde el ${esc(fd(s.d0))}${s.dia!=null?` · hoy <b class="${cls(s.dia)}">${SG(s.dia)}</b>`:""}`:"Aún sin historial"}</div>
 <div class="hero-row"><span>Invertido <b>${s?E(s.invBot):"—"}</b></span><span>Efectivo <b>${s?E(s.cashBot):"—"}</b></span></div>`}
 ${/^✅ Todo en orden/.test(mood)?"":`<div class="hero-mood">${mood}</div>`}
-<div class="hero-live">${lv?`<i class="${ago!=null&&ago<40?"on":""}"></i> Actualizado ${agoT}`:""} · ${a.modo==="auto"?"invierte solo":a.modo==="pausa"?"solo mira":"te pide aprobación"}</div></div>`}
+<div class="hero-live">${lv?`<i class="${ago!=null&&ago<40?"on":""}"></i> Actualizado ${agoT}`:""} · ${a.modo==="auto"?"invierte solo":a.modo==="pausa"?"solo mira":"te pide aprobación"}</div><button id="rl-h-rec" type="button" ${RL.busy?"disabled":""} style="margin-top:10px;width:100%;padding:11px;font-weight:700">↻ Actualizar saldo ahora</button><div class="m" id="rl-st3" style="margin-top:6px;font-size:12px">${RL.busy&&RL.msg?esc(RL.msg):""}</div></div>`}
 /* v74 · ¿hay algo mejor que el método de tu cartera real? (según el filtro de la prueba histórica y la ficticia) */
 function betterHtml(){try{const b=S&&S.btm;if(!b||!b.rows||!b.rows.spy)return"";const cur=A().metodo,pc=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",",")+" %";
  const tx=!!(b.rows.spy[0]&&b.rows.spy[0].atax!=null),AN=r=>tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts),as=AN(b.rows.spy);
@@ -4313,7 +4313,7 @@ function bind(){const R=RL.R,on=(id,f)=>{const e=$r(id);if(e)e.onclick=f};
  on("#rl-a-normal",()=>{const a=A();if(a.on&&a.modo==="auto"&&a.env==="live"&&!confirm("Modo AUTOMÁTICO con dinero real: si hay cambios, la revisión ejecutará las órdenes sin preguntar. ¿Seguir?"))return;runCloud("normal","","Revisar ahora")});
  on("#rl-a-foto",()=>runCloud("foto","","Guardar valor de hoy"));
  on("#rl-a-reanudar",()=>{if(confirm("¿Quitar la pausa automática? El freno de pérdidas se vuelve a contar desde el valor de hoy."))runCloud("reanudar","","Reanudar")});
- on("#rl-a-rec",()=>runCloud("pulso","","Leer tu cuenta de Trading 212 ahora"));
+ on("#rl-a-rec",()=>runCloud("pulso","","Leer tu cuenta de Trading 212 ahora"));on("#rl-h-rec",()=>runCloud("pulso","","Actualizar saldo"));
  document.querySelectorAll("#t-real [data-msort]").forEach(e=>e.onclick=()=>{RL.msort=e.dataset.msort;draw()});
  document.querySelectorAll("#t-real details[data-fam]").forEach(e=>e.addEventListener("toggle",()=>{RL.famOpen=RL.famOpen||{};RL.famOpen[e.dataset.fam]=e.open}));
  document.querySelectorAll("#t-real [data-mx]").forEach(e=>e.onclick=ev=>{ev.stopPropagation();const v=e.dataset.mx,k=v.slice(1),cur=RL.pick||A().metodo;let ex=(RL.extraPick||A().extra||[]).filter(x=>x!==cur);
