@@ -11,7 +11,11 @@
  var F=IDBFactory.prototype,o=F.open,d=F.deleteDatabase,dbs=F.databases;F.open=function(n,v){return v===undefined?o.call(this,P+n):o.call(this,P+n,v)};F.deleteDatabase=function(n){return d.call(this,P+n)};
  if(dbs)F.databases=function(){return dbs.call(this).then(function(L){return(L||[]).filter(function(x){return x.name&&x.name.indexOf(P)===0}).map(function(x){return{name:x.name.slice(P.length),version:x.version}})})};
 }catch(e){}})();
-</script><title>Bot Trading v55 · 5 métodos sin bonos</title>
+</script><script id="alta-movil">/* v396 · 📲 PASAR A OTRO MÓVIL: un enlace «#alta=…» trae el permiso de GitHub ya CIFRADO con la clave de la app
+   (sin la clave no sirve de nada). Se guarda en este móvil y se borra de la dirección al momento. */
+(function(){try{var m=(location.hash||"").match(/^#alta=([A-Za-z0-9+/=_%-]+)$/);if(!m)return;var t=atob(decodeURIComponent(m[1]).replace(/-/g,"+").replace(/_/g,"/"));var o=JSON.parse(t);
+ if(o&&o.s&&o.i&&o.c){localStorage.setItem("ghtok_enc",t);sessionStorage.removeItem("onbLuego");window.__ALTA=1}
+ history.replaceState(null,"",location.pathname+location.search)}catch(e){}})();</script><title>Bot Trading v55 · 5 métodos sin bonos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f3f4f2;--panel:#fff;--ink:#1a2220;--muted:#5d6966;--line:#d9dedb;--acc:#0f6b5c;--accink:#fff;--go:#147a3e;--gobg:#e3f3e8;--stop:#b3261e;--stopbg:#fbe5e3;--wait:#9a6400;--waitbg:#fbf0d9;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -587,7 +591,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 395 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#395</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 396 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#396</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4588,7 +4592,7 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
   const avb=$("#simpl-av .fb"); if(avb)[...avb.children].forEach(c=>{if(/Parámetros del bot|Dinero con el que se muestra|Costes de la simulación/.test((c.textContent||"").slice(0,90)))la.appendChild(c)});
   const cr=mk("aj-cripto","🪙 Cripto · Bitvavo y OKX"); if(!$("#aj-cripto-body")){const x=document.createElement("div");x.id="aj-cripto-body";cr.appendChild(x)}
   const cu=mk("aj-cuenta","🔑 Cuenta, claves y copias");
-  if(!$("#aj-onb")){const x=document.createElement("div");x.id="aj-onb";x.className="p";x.innerHTML='<h2>🔑 Claves y puesta en marcha</h2><div class="m">Pon o cambia las claves de Trading 212, Telegram, Bitvavo y OKX paso a paso. Se guardan cifradas en GitHub sin que tengas que entrar allí.</div><button type="button" data-onb="" style="margin-top:8px">🔑 Abrir el asistente de claves</button>';cu.appendChild(x)}
+  if(!$("#aj-onb")){const x=document.createElement("div");x.id="aj-onb";x.className="p";x.innerHTML='<h2>🔑 Claves y puesta en marcha</h2><div class="m">Pon o cambia las claves de Trading 212, Telegram, Bitvavo y OKX paso a paso. Se guardan cifradas en GitHub sin que tengas que entrar allí.</div><button type="button" data-onb="" style="margin-top:8px">🔑 Abrir el asistente de claves</button> <button type="button" data-pasa data-nobusy style="margin-top:8px">📲 Pasar la app a otro móvil</button><div class="m" style="margin-top:4px">«Pasar a otro móvil» crea un enlace: se abre en el otro móvil, se entra con la misma clave y ya funciona todo sin volver a configurar.</div>';cu.appendChild(x)}
   if(!$("#aj-salir")){const x=document.createElement("div");x.id="aj-salir";x.className="p";x.innerHTML='<h2>🔒 Sesión</h2><div class="m">Cierra la sesión en este móvil: la próxima vez te pedirá la clave (y la huella). También se cierra sola tras 30 minutos sin usar la app.</div><button type="button" data-salir data-nobusy style="margin-top:8px">🔒 Cerrar sesión</button>';cu.appendChild(x)}
   [...aj.children].forEach(c=>{if(["simpl-tema","aj-real","aj-lab","aj-cripto","aj-cuenta","simpl-ay"].includes(c.id))return;cu.appendChild(c)});
   /* v351 · en «Cuenta» solo queda a la vista lo que usas (ajustes protegidos con tu clave y Telegram); lo técnico de cuando la app lo hacía todo en el móvil va a «🧰 Técnico» */
@@ -5137,7 +5141,7 @@ ${estado(conReal)}
    <label class="ch"><input type="checkbox" id="ob_ac" ${D.ob_ac?"checked":""}> <span>Entiendo que es <b>dinero real</b>, que puede bajar y que el bot no garantiza ganancias.</span></label></div>`}
    ${t212?"":'<p class="er">Falta la clave de Trading 212 (paso anterior).</p>'}<div class="er" id="ob_st"></div>`;bt=`<button data-nobusy data-x="ant">Atrás</button><button data-nobusy class="pri" data-x="guarda" ${t212?"":"disabled"}>Guardar todo y empezar</button>`}
   else if(p==="listo"){h+=`<h2>✅ ¡Lista!</h2><p>${esc(D.res||"Claves guardadas.")}</p><p>En unos minutos verás tu cuenta en <b>💶 Real</b>${D.tg?" y te llegará un mensaje de prueba por Telegram":""}. A partir de ahora solo tendrás que poner tu clave para entrar.</p>
-   <p class="m">Para cambiar o añadir claves más adelante (por ejemplo las de criptos): ⚙️ Ajustes → «🔑 Claves y puesta en marcha».</p>`;bt=`<button data-nobusy class="pri" data-x="cierra">Entrar en la app</button>`}
+   <div class="bx"><b>📲 ¿Lo has configurado tú para otra persona?</b><p class="m">Envíale este enlace. Lo abre en su móvil, entra con la clave de la app y ya tiene todo (el permiso va cifrado con esa clave).</p><button data-nobusy data-pasa type="button">📲 Enviar el enlace a su móvil</button></div><p class="m">Para cambiar o añadir claves más adelante (por ejemplo las de criptos): ⚙️ Ajustes → «🔑 Claves y puesta en marcha».</p>`;bt=`<button data-nobusy class="pri" data-x="cierra">Entrar en la app</button>`}
   if(p!=="fin"&&p!=="listo")h+=`<div class="er" id="ob_st"></div>`;
   $("#onb .ob").innerHTML=h+`<div class="bt">${bt}</div>`;
   const on=$("#ob_on"),ox=$("#ob_onx");if(on&&ox){const f=()=>ox.style.display=on.checked?"":"none";on.onchange=f;f()}}
@@ -5174,6 +5178,11 @@ ${estado(conReal)}
    if(a==="sig"){x.disabled=true;try{await sig()}finally{x.disabled=false}}else if(a==="ant"){guardaCampos();paso=Math.max(0,paso-1);pinta()}else if(a==="salta"){guardaCampos();paso++;pinta()}
    else if(a==="guarda")await guarda();else if(a==="luego"){try{sessionStorage.setItem("onbLuego","1")}catch(e){}d.remove()}else if(a==="cierra"){d.remove();try{location.reload()}catch(e){}}
    else if(a==="copia"){const ri=RI();try{await navigator.clipboard.writeText(tokUrl(ri));x.textContent="✔ Copiado"}catch(e){prompt("Copia este enlace:",tokUrl(ri))}}})}
+ const altaUrl=()=>{const t=LS.g("ghtok_enc");return t?location.origin+location.pathname+"#alta="+btoa(t).replace(/\+/g,"-").replace(/\//g,"_"):""};
+ async function pasa(btn){const u=altaUrl();if(!u){alert("Primero pon el permiso de GitHub (asistente de claves).");return}
+  try{if(navigator.share){await navigator.share({title:"Bot Trading",text:"Abre este enlace en tu móvil y entra con tu clave:",url:u});return}}catch(e){if(e&&e.name==="AbortError")return}
+  try{await navigator.clipboard.writeText(u);if(btn)btn.textContent="✔ Enlace copiado: envíalo por WhatsApp"}catch(e){prompt("Copia este enlace y envíalo:",u)}}
+ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-pasa]");if(b){e.preventDefault();pasa(b)}},true);
  window.ponerClaves=abre;
  document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-onb]");if(b){e.preventDefault();abre(b.dataset.onb||"")}},true);
  /* se abre sola tras entrar si falta el permiso de GitHub o la clave de Trading 212 */
