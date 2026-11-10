@@ -591,7 +591,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 398 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#398</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 399 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#399</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -5109,7 +5109,7 @@ ${estado(conReal)}
  #onb .pri{background:#16a34a!important;border-color:#16a34a!important;color:#fff!important;font-weight:700;flex:1}#onb .m{font-size:13px;color:#9fb0c3}#onb .ok{color:#4ade80}#onb .er{color:#f87171;min-height:1.2em;margin-top:8px}
  #onb .bx{background:#0b1424;border:1px solid #2b3a55;border-radius:10px;padding:10px;margin:10px 0}#onb .ch{display:flex;gap:8px;align-items:flex-start;font-weight:400}#onb .ch input{margin-top:4px}`;
  let D={},paso=0,PASOS=[],cerrar=null;
- function arma(desde){const c=C(),pre=[];if(pw0().length<12)pre.push("clave");if(!c||!c.hasEnc())pre.push("token");const todo=["t212","tg","cripto","fin"],i=desde?todo.indexOf(desde):-1;
+ function arma(desde){if(desde==="solo"){PASOS=["token","hecho"];paso=0;D.solo=1;return}const c=C(),pre=[];if(pw0().length<12)pre.push("clave");if(!c||!c.hasEnc())pre.push("token");const todo=["t212","tg","cripto","fin"],i=desde?todo.indexOf(desde):-1;
   PASOS=(i>=0?[]:["hola"]).concat(pre,i>=0?todo.slice(i):todo);paso=0}
  const V=id=>{const e=document.getElementById(id);return e?(e.value||"").trim():""};
  const campo=(id,lab,ph,ok,tipo)=>`<label for="${id}">${lab}${ok?' <span class="ok m">✔ ya puesta</span>':""}</label><input id="${id}" type="${tipo||"password"}" autocomplete="off" placeholder="${esc(ok?"ya está puesta · escribe solo para cambiarla":ph||"")}" value="${esc(D[id]||"")}">`;
@@ -5119,6 +5119,10 @@ ${estado(conReal)}
    <p class="m">¿Dudas? Toca la estrella ✨ de la app y pregúntale a la IA, o mira 📖 Ayuda → «Cómo ponerla en marcha».</p>`;bt=`<button data-nobusy data-x="luego">Ahora no</button><button data-nobusy class="pri" data-x="sig">Empezar</button>`}
   else if(p==="clave"){h+=`<h2>🔐 Tu clave de la app</h2><p>Con esta clave entras en la app y se cifran todos tus datos. Tiene que tener <b>12 caracteres o más</b> (mejor una frase que recuerdes, p. ej. <i>“mi perro come a las 8”</i>).</p>
    ${campo("ob_p1","Clave nueva","12 caracteres o más")}${campo("ob_p2","Repítela","otra vez la misma")}<p class="m">Apúntala en un sitio seguro: si se olvida, no hay forma de recuperar los datos cifrados.</p>`;bt=`<button data-nobusy data-x="ant">Atrás</button><button data-nobusy class="pri" data-x="sig">Seguir</button>`}
+  else if(p==="token"&&D.solo){h+=`<h2>📲 Falta el permiso en este móvil</h2><p>La app <b>ya está configurada</b>: las claves están guardadas y el bot funciona solo. No hace falta volver a ponerlas.</p>
+   <p>Solo falta el permiso de GitHub en <b>este móvil</b>, para poder aprobar órdenes o cambiar ajustes desde aquí. Lo más fácil: que quien la configuró te mande el enlace <b>«📲 Pasar la app a otro móvil»</b> y lo abras. O pega aquí el token:</p>
+   ${campo("ob_tok","Token de GitHub (opcional)","github_pat_…")}`;bt=`<button data-nobusy data-x="nunca">No hace falta</button><button data-nobusy class="pri" data-x="sig">Guardar</button>`}
+  else if(p==="hecho"){h+=`<h2>✅ ¡Listo!</h2><p>Este móvil ya tiene el permiso. No tienes que configurar nada más.</p>`;bt=`<button data-nobusy class="pri" data-x="cierra">Entrar en la app</button>`}
   else if(p==="token"){const u=ri?tokUrl(ri):"#";h+=`<h2>🔑 Permiso de GitHub (una sola vez)</h2><p>La app vive en GitHub (repositorio <b>${esc(ri?ri.o+"/"+ri.r:"?")}</b>). Para que pueda guardar tus claves y lanzar los bots necesita un <b>permiso</b> (un «token»).</p>
    <div class="bx"><b>Esto lo hace el dueño de la cuenta de GitHub${ri?" ("+esc(ri.o)+")":""}</b>, una vez:<ol><li>Abre el enlace (ya viene casi todo rellenado).</li><li>En <b>«Repository access»</b> elige <b>«Only select repositories»</b> y marca <b>${esc(ri?ri.r:"este repositorio")}</b>.</li><li>Abajo, pulsa <b>«Generate token»</b> y copia el texto que empieza por <code>github_pat_</code>.</li><li>Pégalo aquí.</li></ol>
    <div class="bt" style="margin-top:8px"><a class="b" href="${esc(u)}" target="_blank" rel="noopener">Abrir GitHub ↗</a><button data-nobusy data-x="copia">Copiar el enlace (para enviarlo)</button></div></div>
@@ -5176,7 +5180,7 @@ ${estado(conReal)}
   D={};arma(desde);const d=document.createElement("div");d.id="onb";d.innerHTML='<div class="ob"></div>';document.body.appendChild(d);pinta();
   d.addEventListener("click",async e=>{const x=e.target.closest("[data-x]");if(!x)return;const a=x.dataset.x;
    if(a==="sig"){x.disabled=true;try{await sig()}finally{x.disabled=false}}else if(a==="ant"){guardaCampos();paso=Math.max(0,paso-1);pinta()}else if(a==="salta"){guardaCampos();paso++;pinta()}
-   else if(a==="guarda")await guarda();else if(a==="luego"){try{sessionStorage.setItem("onbLuego","1")}catch(e){}d.remove()}else if(a==="cierra"){d.remove();try{location.reload()}catch(e){}}
+   else if(a==="guarda")await guarda();else if(a==="nunca"){LS.s("onbOK","1");d.remove()}else if(a==="luego"){try{sessionStorage.setItem("onbLuego","1")}catch(e){}d.remove()}else if(a==="cierra"){d.remove();try{location.reload()}catch(e){}}
    else if(a==="copia"){const ri=RI();try{await navigator.clipboard.writeText(tokUrl(ri));x.textContent="✔ Copiado"}catch(e){prompt("Copia este enlace:",tokUrl(ri))}}})}
  const altaUrl=()=>{const t=LS.g("ghtok_enc");return t?location.origin+location.pathname+"#alta="+btoa(t).replace(/\+/g,"-").replace(/\//g,"_"):""};
  async function pasa(btn){const u=altaUrl();if(!u){alert("Primero pon el permiso de GitHub (asistente de claves).");return}
@@ -5188,9 +5192,11 @@ ${estado(conReal)}
  /* se abre sola tras entrar si falta el permiso de GitHub o la clave de Trading 212 */
  async function mira(){for(let i=0;i<120&&!pw0();i++)await new Promise(r=>setTimeout(r,1000));if(!pw0()||LS.g("onbOK"))return;try{if(sessionStorage.getItem("onbLuego"))return}catch(e){}
   for(let i=0;i<40&&!window.__CLOUD;i++)await new Promise(r=>setTimeout(r,500));const c=C();if(!c)return;
-  if(!c.hasEnc()){abre("");return}
+  /* si la app YA está configurada (la clave de Trading 212 está guardada), no se vuelve a pedir nada: como mucho, el permiso de este móvil */
   for(let i=0;i<30;i++){const m=window.__realOnb&&__realOnb.meta();if(m)break;await new Promise(r=>setTimeout(r,1000))}
-  const t=secs().T212_KEY;if(t===true)LS.s("onbOK","1");else if(t===false)abre("")}
+  const t=secs().T212_KEY;
+  if(t===true){if(c.hasEnc())LS.s("onbOK","1");else abre("solo");return}
+  if(!c.hasEnc()||t===false)abre("")}
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mira);else mira();
 })();
 </script>
