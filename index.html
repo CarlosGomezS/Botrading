@@ -574,7 +574,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 390 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#390</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 391 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#391</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4908,8 +4908,8 @@ try{if(typeof AbortSignal!=="undefined"&&!AbortSignal.timeout)AbortSignal.timeou
  /* proveedores: todos con plan gratuito (salvo DeepSeek, muy barato). ctx = cuánto texto del proyecto se le puede mandar */
  const PROV={
   gemini:{n:"Google Gemini",pais:"🇺🇸",k:"gemkey",donde:"aistudio.google.com → Get API key (gratis, sin tarjeta)",ctx:120000,vision:1,pdf:1},
-  groq:{n:"Groq (Llama de Meta, Qwen 🇨🇳, Kimi 🇨🇳, GPT-OSS)",pais:"🇺🇸",k:"groqkey",donde:"console.groq.com → API Keys (gratis)",base:"https://api.groq.com/openai/v1",ctx:16000,pref:[/kimi-k2/,/qwen3?-32b|qwen/,/llama-3\.3-70b|llama-4-maverick|llama-4/,/gpt-oss-120b|gpt-oss/],vision:/llama-4|vision|maverick|scout/},
-  openrouter:{n:"OpenRouter (modelos «:free»: DeepSeek 🇨🇳, Qwen 🇨🇳, GLM 🇨🇳, Llama…)",pais:"🌍",k:"orkey",donde:"openrouter.ai → Keys (gratis; 50 preguntas al día)",base:"https://openrouter.ai/api/v1",ctx:60000,soloFree:1,pref:[/deepseek.*(r1|v3|chat).*:free/,/qwen.*:free/,/glm.*:free/,/kimi.*:free/,/llama.*:free/,/:free/],vision:/vl|vision|gemma-3|llama-4|qwen2\.5-vl|kimi-vl/}
+  groq:{n:"Groq (Llama de Meta, Qwen 🇨🇳, Kimi 🇨🇳, GPT-OSS)",pais:"🇺🇸",k:"groqkey",donde:"console.groq.com → API Keys (gratis)",base:"https://api.groq.com/openai/v1",ctx:12000,hctx:4000,pref:[/kimi-k2/,/qwen3?-32b|qwen/,/llama-3\.3-70b|llama-4-maverick|llama-4/,/gpt-oss-120b|gpt-oss/],vision:/llama-4|vision|maverick|scout/},
+  openrouter:{n:"OpenRouter (modelos «:free»: DeepSeek 🇨🇳, Qwen 🇨🇳, GLM 🇨🇳, Llama…)",pais:"🌍",k:"orkey",donde:"openrouter.ai → Keys (gratis; 50 preguntas al día)",base:"https://openrouter.ai/api/v1",ctx:60000,hctx:20000,soloFree:1,pref:[/deepseek.*(r1|v3|chat).*:free/,/qwen.*:free/,/glm.*:free/,/kimi.*:free/,/llama.*:free/,/:free/],vision:/vl|vision|gemma-3|llama-4|qwen2\.5-vl|kimi-vl/}
  };
  /* v387 · 🧠 MEMORIA: la conversación y lo aprendido se guardan CIFRADOS en este móvil con tu clave de la app.
     Cuando la conversación crece, lo más antiguo se resume en «lo que recuerda» (notas que la IA lee siempre) y se sigue. */
@@ -4972,7 +4972,7 @@ try{if(typeof AbortSignal!=="undefined"&&!AbortSignal.timeout)AbortSignal.timeou
  /* selector de proveedor y modelo */
  const MODS={};async function listaModelos(p){if(MODS[p])return MODS[p];const P=PROV[p],k=key(p);let L=[];
   try{if(p==="gemini"){const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key="+encodeURIComponent(k),{signal:AbortSignal.timeout(8000)});const j=await r.json();L=(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace("models/","")).filter(n=>/gemini/.test(n)&&!/image|tts|audio|live|embed|thinking-exp/.test(n))}
-   else if(P.fijo)L=P.fijo.slice();else{const r=await fetch(P.base+"/models",{headers:{Authorization:"Bearer "+k},signal:AbortSignal.timeout(8000)});const j=await r.json();L=(j.data||[]).map(m=>m.id).filter(id=>!/whisper|tts|embed|guard|moderation|audio|image|playai|ocr/i.test(id));if(P.soloFree)L=L.filter(id=>/:free$/.test(id))}}catch(e){}
+   else if(P.fijo)L=P.fijo.slice();else{const r=await fetch(P.base+"/models",{headers:{Authorization:"Bearer "+k},signal:AbortSignal.timeout(8000)});const j=await r.json();L=(j.data||[]).map(m=>m.id).filter(id=>/llama|qwen|kimi|gpt-oss|deepseek|gemma|mistral|glm|nemotron|phi/i.test(id)&&!/whisper|tts|orpheus|embed|guard|moderation|audio|image|playai|ocr|compound|distil|vision-only/i.test(id));if(P.soloFree)L=L.filter(id=>/:free$/.test(id))}}catch(e){}
   if(p==="gemini")L=[...new Set(["gemini-3.5-flash",...L,"gemini-flash-latest"])];if(P.fijo)L=[...new Set([...P.fijo,...L])];
   const rank=id=>{const i=(P.pref||[]).findIndex(re=>re.test(id));return i<0?99:i};if(P.pref)L.sort((a,b)=>rank(a)-rank(b));MODS[p]=L;return L}
  function modeloDe(p){return LS.get("iamod_"+p,"")}
@@ -5018,7 +5018,9 @@ ${estado(conReal)}
   try{const x={name:f.name,size:f.size,type:f.type||"text/plain"};if(esTxt)x.text=(await f.text()).slice(0,200000);else x.data=await b64(f);if(/^image\//.test(f.type))x.url=URL.createObjectURL(f);ADJ.push(x);pintaAdj();st.textContent=""}catch(e){st.textContent="No pude leer el archivo."}}
  function pintaAdj(){const b=$("#iaAdj");b.innerHTML=ADJ.map((x,i)=>`<span>${x.url?`<img src="${x.url}" alt="">`:"📄"} ${esc(x.name.slice(0,22))} <b data-i="${i}">✕</b></span>`).join("");b.querySelectorAll("b").forEach(z=>z.onclick=()=>{ADJ.splice(+z.dataset.i,1);pintaAdj()})}
  /* llamada al proveedor elegido; H guarda el historial en formato neutro {role:"user"|"model", parts:[{text}|{inline_data}]} */
- async function llama(p,sys,esp,hist,maxT){hist=hist||H;const P=PROV[p],k=key(p),elegido=modeloDe(p),L=elegido?[elegido]:(await listaModelos(p)).slice(0,6);let err="";const t0=Date.now();
+ async function llama(p,sys,esp,hist,maxT){const P=PROV[p],k=key(p),elegido=modeloDe(p),ok0=LS.get("iaok_"+p,""),L0=elegido?[elegido]:(await listaModelos(p)),L=elegido?L0:[...new Set([ok0,...L0].filter(Boolean))].slice(0,5);
+  /* v391 · historial a medida de cada proveedor: los de plan gratis pequeño (Groq) reciben solo lo último */
+  if(!hist){const cap=P.hctx||60000;let tot=0;hist=[];for(let x=H.length-1;x>=0;x--){const h=H[x],n=h.parts.reduce((a,z)=>a+(z.text?z.text.length:0),0);if(tot+n>cap&&hist.length)break;tot+=n;hist.unshift(h)}if(hist.length&&hist[0].role!=="user")hist.shift()}let err="";const t0=Date.now();
   for(const m of L){if(Date.now()-t0>110000){err=err||"tardaba demasiado";break}const pe=esp&&esp.querySelector(".iapm");if(pe)pe.textContent=" ("+m.replace(/^gemini-|^models\//,"")+")";
    try{let r,out="";
     if(p==="gemini"){r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(k)}`,{method:"POST",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(45000),body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:hist,generationConfig:{temperature:0.4,maxOutputTokens:maxT||1500}})});
@@ -5030,7 +5032,7 @@ ${estado(conReal)}
      const hd={"Content-Type":"application/json",Authorization:"Bearer "+k};if(p==="openrouter"){hd["HTTP-Referer"]=location.origin;hd["X-Title"]="Bot Trading"}
      r=await fetch(P.base+"/chat/completions",{method:"POST",headers:hd,signal:AbortSignal.timeout(60000),body:JSON.stringify({model:m,messages:msgs,temperature:0.4,max_tokens:maxT||1500})});
      if(r.ok){const j=await r.json();out=(((j.choices||[])[0]||{}).message||{}).content||"";out=String(out).replace(/<think>[\s\S]*?<\/think>/g,"").trim()}}
-    if(!r.ok){let d="";try{const j=await r.json();d=((j.error||{}).message||j.message||"")}catch(_){}err="HTTP "+r.status+(d?" · "+String(d).slice(0,140):"");if(r.status===401||r.status===403||(r.status===400&&/api key|apikey|auth/i.test(d)))break;if(elegido)break;continue}
+    if(!r.ok){let d="";try{const j=await r.json();d=((j.error||{}).message||j.message||"")}catch(_){}err="HTTP "+r.status+(d?" · "+String(d).slice(0,140):"");if(r.status===401||r.status===403||(r.status===400&&/api key|apikey|auth/i.test(d)))break;if(r.status===413||/too large|tokens per minute|rate limit/i.test(d)){err="la pregunta es demasiado larga para el plan gratis de este proveedor o has llegado a su límite por minuto: prueba en un minuto o usa Gemini";if(p!=="groq")break}if(elegido)break;continue}
     if(out){if(!elegido)LS.set("iaok_"+p,m);return{out,m}}}
    catch(x){err=/abort|timeout/i.test(String(x&&(x.name+x.message)))?"tardó demasiado":(/fetch/i.test(String(x&&x.message))?"no se pudo conectar (puede que este proveedor no deje usarse desde una app web)":x.message);if(elegido)break}}
   return{err}}
