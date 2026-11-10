@@ -574,7 +574,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 385 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#385</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 386 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#386</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4909,10 +4909,7 @@ try{if(typeof AbortSignal!=="undefined"&&!AbortSignal.timeout)AbortSignal.timeou
  const PROV={
   gemini:{n:"Google Gemini",pais:"🇺🇸",k:"gemkey",donde:"aistudio.google.com → Get API key (gratis, sin tarjeta)",ctx:120000,vision:1,pdf:1},
   groq:{n:"Groq (Llama de Meta, Qwen 🇨🇳, Kimi 🇨🇳, GPT-OSS)",pais:"🇺🇸",k:"groqkey",donde:"console.groq.com → API Keys (gratis)",base:"https://api.groq.com/openai/v1",ctx:16000,pref:[/kimi-k2/,/qwen3?-32b|qwen/,/llama-3\.3-70b|llama-4-maverick|llama-4/,/gpt-oss-120b|gpt-oss/],vision:/llama-4|vision|maverick|scout/},
-  openrouter:{n:"OpenRouter (modelos «:free»: DeepSeek 🇨🇳, Qwen 🇨🇳, GLM 🇨🇳, Llama…)",pais:"🌍",k:"orkey",donde:"openrouter.ai → Keys (gratis; 50 preguntas al día)",base:"https://openrouter.ai/api/v1",ctx:60000,soloFree:1,pref:[/deepseek.*(r1|v3|chat).*:free/,/qwen.*:free/,/glm.*:free/,/kimi.*:free/,/llama.*:free/,/:free/],vision:/vl|vision|gemma-3|llama-4|qwen2\.5-vl|kimi-vl/},
-  mistral:{n:"Mistral AI",pais:"🇫🇷",k:"mistralkey",donde:"console.mistral.ai → API Keys (plan gratuito «Experiment»)",base:"https://api.mistral.ai/v1",ctx:60000,pref:[/mistral-medium-latest/,/mistral-large-latest/,/mistral-small-latest/],vision:/pixtral|medium|small|large/},
-  zhipu:{n:"Zhipu GLM (GLM-4-Flash gratis)",pais:"🇨🇳",k:"zhipukey",donde:"bigmodel.cn (o z.ai) → API Keys",base:"https://open.bigmodel.cn/api/paas/v4",ctx:60000,fijo:["glm-4-flash","glm-4.5-flash","glm-4-flash-250414"],vision:/v-flash|4v/},
-  deepseek:{n:"DeepSeek (de pago, céntimos)",pais:"🇨🇳",k:"dskey",donde:"platform.deepseek.com → API Keys (hay que recargar unos euros)",base:"https://api.deepseek.com/v1",ctx:60000,fijo:["deepseek-chat","deepseek-reasoner"]}
+  openrouter:{n:"OpenRouter (modelos «:free»: DeepSeek 🇨🇳, Qwen 🇨🇳, GLM 🇨🇳, Llama…)",pais:"🌍",k:"orkey",donde:"openrouter.ai → Keys (gratis; 50 preguntas al día)",base:"https://openrouter.ai/api/v1",ctx:60000,soloFree:1,pref:[/deepseek.*(r1|v3|chat).*:free/,/qwen.*:free/,/glm.*:free/,/kimi.*:free/,/llama.*:free/,/:free/],vision:/vl|vision|gemma-3|llama-4|qwen2\.5-vl|kimi-vl/}
  };
  const prov=()=>{const p=LS.get("iaprov","gemini");return PROV[p]?p:"gemini"},key=p=>LS.get(PROV[p||prov()].k,"");
  /* acciones que puede proponer (se ejecutan solo si pulsas el botón; ninguna mueve dinero) */
@@ -4929,7 +4926,8 @@ try{if(typeof AbortSignal!=="undefined"&&!AbortSignal.timeout)AbortSignal.timeou
  #iaBtn .badge{position:absolute;top:-4px;right:-4px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#ef4444;color:#fff;font-size:12.5px;font-weight:800;line-height:22px;box-sizing:border-box;border:2px solid var(--bg,#05070d);display:none}#iaBtn .badge.on{display:block}
  #iaP{position:fixed;inset:0;z-index:90;display:none;flex-direction:column;background:var(--bg,#05070d)}#iaP.on{display:flex}
  #iaP .iah{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #ffffff1a}#iaP .iah b{flex:1;font-size:17px}#iaP .iah button{width:40px;height:40px;min-height:0;padding:0;border-radius:50%}
- #iaP .iamod{padding:8px 14px;border-bottom:1px solid #ffffff14;font-size:13px}#iaP .iamod summary{cursor:pointer;list-style:none}#iaP .iamod select,#iaP .iamod input{width:100%;margin-top:6px}
+ #iaP .iah{position:relative}#iaP .iah .iachip{width:auto;flex:0 1 auto;min-width:0;max-width:60%;min-height:0;height:34px;padding:0 12px;border-radius:17px;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#iaP .iah b{flex:1 0 auto;font-size:17px;white-space:nowrap}
+ #iaP .iamod{position:absolute;left:0;right:0;top:64px;z-index:5;margin:0 10px;padding:12px;border-radius:14px;background:var(--bg,#fff);color:inherit;border:1px solid #8884;box-shadow:0 12px 30px #0006;font-size:13px}#iaP .iamod[hidden]{display:none}#iaP .iamod select,#iaP .iamod input[type=password]{width:100%;margin-top:6px}
  #iaP .iac{flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
  #iaP .bub{padding:10px 12px;border-radius:14px;max-width:90%;white-space:pre-wrap;line-height:1.45;font-size:15px}
  #iaP .iadots{display:inline-flex;gap:4px;margin-right:6px;vertical-align:middle}#iaP .iadots i{width:7px;height:7px;border-radius:50%;background:#34d399;animation:iad 1s infinite ease-in-out}#iaP .iadots i:nth-child(2){animation-delay:.15s}#iaP .iadots i:nth-child(3){animation-delay:.3s}@keyframes iad{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-4px)}}
@@ -4943,11 +4941,11 @@ try{if(typeof AbortSignal!=="undefined"&&!AbortSignal.timeout)AbortSignal.timeou
  #iaP .bub img{max-width:180px;max-height:180px;border-radius:10px;display:block;margin-top:6px}#iaP .sug{display:flex;gap:6px;overflow-x:auto;white-space:nowrap;scrollbar-width:none}#iaP .sug::-webkit-scrollbar{display:none}#iaP .sug button{flex:none;font-size:12.5px;padding:6px 10px;border-radius:999px}`;
  function monta(){if($("#iaBtn"))return;const st=document.createElement("style");st.textContent=css;document.head.appendChild(st);
   const b=document.createElement("button");b.id="iaBtn";b.type="button";b.setAttribute("data-nobusy","");b.title="Asistente";b.innerHTML='🤖<span class="badge" id="iaBadge"></span>';b.onclick=()=>iaAbre();document.body.appendChild(b);
-  const p=document.createElement("div");p.id="iaP";p.innerHTML=`<div class="iah"><b>🤖 Asistente de la app</b><button type="button" data-nobusy id="iaX" aria-label="Minimizar" title="Minimizar (sigue pensando)">⌄</button></div>
-   <details class="iamod" id="iaMod"><summary id="iaModS"></summary><div id="iaModB"></div></details><div class="iac" id="iaC"></div>
-   <div class="iaf"><label class="m" style="font-size:12.5px"><input type="checkbox" id="iaReal" style="width:auto"> Incluir mi cartera real y cripto real (importes)</label>
+  const p=document.createElement("div");p.id="iaP";p.innerHTML=`<div class="iah"><b>🤖 Asistente</b><button type="button" data-nobusy id="iaModS" class="iachip"></button><button type="button" data-nobusy id="iaX" aria-label="Minimizar" title="Minimizar (sigue pensando)">⌄</button></div>
+   <div class="iamod" id="iaMod" hidden><div id="iaModB"></div><label class="m" style="display:block;font-size:12.5px;margin-top:8px"><input type="checkbox" id="iaReal" style="width:auto"> Incluir mi cartera real y cripto real (importes) en las preguntas</label><button type="button" data-nobusy id="iaModOk" style="margin-top:8px;width:100%">Listo</button></div><div class="iac" id="iaC"></div>
+   <div class="iaf">
    <div class="sug" id="iaS"></div><div id="iaAdj" class="iaadj"></div><div class="fila iaescribe"><button id="iaClip" type="button" data-nobusy aria-label="Adjuntar" title="Adjuntar imagen o archivo">📎</button><textarea id="iaQ" rows="1" placeholder="Pregunta o pide lo que quieras…" autocomplete="off"></textarea><button id="iaGo" type="button" data-nobusy aria-label="Enviar">➤</button></div><input id="iaFile" type="file" multiple accept="image/*,application/pdf,text/plain,text/csv,application/json,.txt,.csv,.json,.md,.log" hidden><div class="m" id="iaSt" style="font-size:12.5px"></div></div>`;document.body.appendChild(p);
-  $("#iaX").onclick=()=>p.classList.remove("on");$("#iaGo").onclick=pregunta;const ta=$("#iaQ"),crece=()=>{ta.style.height="auto";ta.style.height=Math.min(ta.scrollHeight,132)+"px"};ta.addEventListener("input",crece);
+  $("#iaX").onclick=()=>p.classList.remove("on");$("#iaModS").onclick=()=>{$("#iaMod").hidden=!$("#iaMod").hidden};$("#iaModOk").onclick=()=>{$("#iaMod").hidden=true};$("#iaC").addEventListener("pointerdown",()=>{$("#iaMod").hidden=true});$("#iaGo").onclick=pregunta;const ta=$("#iaQ"),crece=()=>{ta.style.height="auto";ta.style.height=Math.min(ta.scrollHeight,132)+"px"};ta.addEventListener("input",crece);
   ta.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey&&matchMedia("(pointer:fine)").matches){e.preventDefault();pregunta()}};
   $("#iaClip").onclick=()=>$("#iaFile").click();$("#iaFile").onchange=async e=>{for(const f of [...e.target.files])await adjunta(f);e.target.value=""};
   $("#iaS").innerHTML=["¿Va todo bien hoy?","Lanza una prueba histórica creando métodos nuevos","¿Cómo funciona la app?","¿Por qué mi cartera real está en ese método?","¿Qué mejorarías de la app?","¿Cómo saco la clave de Bitvavo?"].map(t=>`<button type="button" data-nobusy>${esc(t)}</button>`).join("");
@@ -4960,14 +4958,14 @@ try{if(typeof AbortSignal!=="undefined"&&!AbortSignal.timeout)AbortSignal.timeou
   const rank=id=>{const i=(P.pref||[]).findIndex(re=>re.test(id));return i<0?99:i};if(P.pref)L.sort((a,b)=>rank(a)-rank(b));MODS[p]=L;return L}
  function modeloDe(p){return LS.get("iamod_"+p,"")}
  async function pintaMod(){const p=prov(),P=PROV[p],k=key(p),s=$("#iaModS"),b=$("#iaModB");if(!s)return;const m=modeloDe(p);
-  s.innerHTML=`⚙️ <b>${esc(P.n.split(" (")[0])}</b>${m?" · "+esc(m.replace(/^models\//,"")):""} ${k?"":"· 🔑 falta la clave"} <span style="opacity:.6">(toca para cambiar)</span>`;
+  s.textContent=`⚙️ ${P.n.split(" (")[0]}${m?" · "+m.replace(/^models\//,"").split("/").pop():(LS.get("iaok_"+p,"")?" · "+LS.get("iaok_"+p,"").split("/").pop():"")}${k?"":" · 🔑"} ▾`;
   b.innerHTML=`<select id="iaPv">${Object.entries(PROV).map(([id,x])=>`<option value="${id}"${id===p?" selected":""}>${x.pais} ${esc(x.n)}${LS.get(x.k,"")?" ✔":""}</option>`).join("")}</select>
    <div class="m" style="margin-top:6px;font-size:12px">Clave: ${esc(P.donde)}. Se guarda solo en este móvil.</div>
    ${k?`<div style="margin-top:6px;font-size:12.5px">🔑 Clave guardada · <a href="#" id="iaKd">quitar</a></div><select id="iaMd"><option value="">🤖 Automático (el mejor disponible)</option></select>`:`<div class="fila" style="display:flex;gap:8px;margin-top:6px"><input id="iaKi" type="password" autocomplete="off" placeholder="Pega aquí la clave"><button id="iaKs" type="button" data-nobusy>Guardar</button></div>`}`;
   $("#iaPv").onchange=e=>{LS.set("iaprov",e.target.value);pintaMod()};
   if(k){$("#iaKd").onclick=e=>{e.preventDefault();LS.del(P.k);LS.del("iamod_"+p);delete MODS[p];pintaMod()};const L=await listaModelos(p),sel=$("#iaMd");if(!sel)return;sel.innerHTML='<option value="">🤖 Automático (el mejor disponible)</option>'+L.slice(0,60).map(x=>`<option value="${esc(x)}"${x===m?" selected":""}>${esc(x)}</option>`).join("");sel.onchange=e=>{LS.set("iamod_"+p,e.target.value);pintaMod()}}
   else $("#iaKs").onclick=()=>{const v=($("#iaKi").value||"").trim();if(v.length<16){$("#iaSt").textContent="Esa clave parece incompleta.";return}LS.set(P.k,v);delete MODS[p];pintaMod();$("#iaSt").textContent="✔ Clave guardada."}}
- function bur(rol,t,extra){const c=$("#iaC");const d=document.createElement("div");d.className="bub "+(rol==="yo"?"yo":"el");d.innerHTML=esc(t).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>")+(extra||"");c.appendChild(d);c.scrollTop=c.scrollHeight;return d}
+ function bur(rol,t,extra){const c=$("#iaC");const d=document.createElement("div");d.className="bub "+(rol==="yo"?"yo":"el");d.innerHTML=esc(t).replace(/^#{1,4}\s*(.+)$/gm,"<b>$1</b>").replace(/^\s*[*-]\s+/gm,"• ").replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/(^|\s)\*([^*\n]+)\*(?=\s|$|[.,;:])/g,"$1<i>$2</i>").replace(/\n{3,}/g,"\n\n")+(extra||"");c.appendChild(d);c.scrollTop=c.scrollHeight;return d}
  const abajo=()=>{const c=$("#iaC");if(c)requestAnimationFrame(()=>{c.scrollTop=c.scrollHeight})};
  function noLeidos(n){SINLEER=n;const b=$("#iaBadge");if(b){b.textContent=n>9?"9+":String(n);b.classList.toggle("on",n>0)}}
  window.iaAbre=function(){monta();$("#iaP").classList.add("on");noLeidos(0);if(!$("#iaC").children.length)bur("el","¡Hola! Conozco la app de pe a pa y veo cómo está ahora. Pregúntame lo que quieras o pídeme que lance algo (por ejemplo una prueba histórica con métodos nuevos): te pondré un botón para que lo confirmes.");abajo();setTimeout(abajo,120);setTimeout(()=>{try{$("#iaQ").focus({preventScroll:true})}catch(e){}},150)};
@@ -5024,10 +5022,10 @@ ${estado(conReal)}
    else{b.disabled=false;b.textContent=viejo;bur("el",`No se pudo lanzar (GitHub respondió ${r.status}). ${r.status===401||r.status===403?"El token de GitHub no tiene permiso de «Actions: Read and write» o ha caducado.":"Prueba en un momento."}`)}}
   catch(e){b.disabled=false;b.textContent=viejo;bur("el","No se pudo lanzar: "+(e.message||e))}}
  async function pregunta(){let q=($("#iaQ").value||"").trim();const p=prov(),st=$("#iaSt");if(!q&&!ADJ.length)return;if(!q)q="Mira lo que te adjunto y explícamelo.";
-  if(!key(p)){st.textContent="Primero guarda la clave de "+PROV[p].n.split(" (")[0]+" (arriba, en ⚙️).";$("#iaMod").open=true;return}
+  if(!key(p)){st.textContent="Primero guarda la clave de "+PROV[p].n.split(" (")[0]+" (arriba, en ⚙️).";$("#iaMod").hidden=false;return}
   if(/(AIza[\w-]{20,}|ghp_|github_pat_|gsk_[\w]{20,}|sk-or-[\w-]{20,}|sk-[A-Za-z0-9]{20,}|\b\d{6,}:[\w-]{20,}|[A-Za-z0-9]{32,})/.test(q)){st.textContent="⚠️ Parece que has escrito una clave. No la envíes: bórrala del mensaje.";return}
   if(ADJ.some(x=>x.text&&/(AIza[\w-]{20,}|ghp_|github_pat_|gsk_[\w]{20,}|sk-or-|\b\d{6,}:[\w-]{20,})/.test(x.text))){st.textContent="⚠️ Un archivo de texto parece llevar una clave. Quítalo.";return}
-  const adj=ADJ;ADJ=[];pintaAdj();$("#iaQ").value="";$("#iaQ").style.height="auto";
+  const adj=ADJ;ADJ=[];pintaAdj();$("#iaQ").value="";$("#iaQ").style.height="auto";$("#iaS").style.display="none";$("#iaMod").hidden=true;
   bur("yo",q+(adj.length?"\n📎 "+adj.map(x=>x.name).join(", "):""));{const im=adj.filter(x=>x.url);if(im.length){const d=$("#iaC").lastElementChild;im.forEach(x=>{const i=document.createElement("img");i.src=x.url;d.appendChild(i)})}}
   H.push({role:"user",parts:[{text:q},...adj.map(x=>x.text!=null?{text:`\n[Archivo adjunto «${x.name}»]\n${x.text}`}:{inline_data:{mime_type:x.type,data:x.data}})]});H=H.slice(-14);st.textContent="";$("#iaGo").disabled=true;
   const esp=document.createElement("div");esp.className="bub el iaesp";esp.innerHTML='<span class="iadots"><i></i><i></i><i></i></span> Pensando…<small class="iapm" style="opacity:.6"></small>';$("#iaC").appendChild(esp);abajo();
