@@ -574,7 +574,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 380 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#380</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 381 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#381</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -689,36 +689,7 @@ La app vive en GitHub (gratis). Para que desde el móvil se puedan guardar ajust
 • En <b>💶 Real</b> ves el valor de tu cuenta. La primera revisión llega en días laborables, por la mañana.<br>
 • Si algo sale en ❌, pregunta al asistente de abajo copiando el mensaje (sin claves).</div></div></details>
 </div>
-<div class="p" id="guia-ia"><h2>🤖 Asistente para ponerla en marcha</h2>
-<div class="m">Pregúntale cualquier duda de los pasos de arriba (por ejemplo «¿dónde saco la clave de Bitvavo?» o «me sale este error…»). Usa Gemini, gratis, con tu propia clave. <b>Nunca le escribas tus claves ni contraseñas.</b></div>
-<div id="gia-key" style="margin-top:8px"></div>
-<div id="gia-chat" style="margin-top:8px;display:flex;flex-direction:column;gap:8px"></div>
-<div style="display:flex;gap:8px;margin-top:8px"><input id="gia-q" type="text" placeholder="Escribe tu duda…" autocomplete="off" style="flex:1"><button id="gia-go" type="button" data-nobusy>Enviar</button></div>
-<div class="m" id="gia-st" style="margin-top:6px"></div>
-</div>
-<script>
-/* v380 · 🤖 ASISTENTE DE PUESTA EN MARCHA con Gemini (gratis): la clave de Gemini se guarda solo en este móvil.
-   Conoce la guía de arriba y está instruido para no pedir NUNCA claves ni contraseñas. */
-(function(){
- const K="gemkey",$=s=>document.querySelector(s),e=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));let H=[],MOD=null;
- const key=()=>{try{return localStorage.getItem(K)||""}catch(x){return""}};
- function pintaKey(){const b=$("#gia-key");if(!b)return;if(key()){b.innerHTML='<span class="m">🔑 Clave de Gemini guardada en este móvil. <a href="#" id="gia-del">Quitarla</a></span>';$("#gia-del").onclick=ev=>{ev.preventDefault();try{localStorage.removeItem(K)}catch(x){}pintaKey()}}
-  else{b.innerHTML='<div class="m">Pega tu clave de Gemini (paso 7️⃣) para activar el asistente:</div><div style="display:flex;gap:8px;margin-top:4px"><input id="gia-k" type="password" autocomplete="off" placeholder="Clave de Gemini (AIza…)" style="flex:1"><button id="gia-ks" type="button" data-nobusy>Guardar</button></div>';
-   $("#gia-ks").onclick=()=>{const v=($("#gia-k").value||"").trim();if(v.length<20){$("#gia-st").textContent="Esa clave parece incompleta.";return}try{localStorage.setItem(K,v)}catch(x){}pintaKey();$("#gia-st").textContent="✔ Guardada."}}}
- function burbuja(rol,t){const c=$("#gia-chat");if(!c)return;const d=document.createElement("div");d.style.cssText="padding:10px 12px;border-radius:12px;max-width:92%;white-space:pre-wrap;line-height:1.45;"+(rol==="yo"?"align-self:flex-end;background:#2563eb22;border:1px solid #2563eb55":"align-self:flex-start;background:#ffffff0d;border:1px solid #ffffff1f");d.innerHTML=e(t).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");c.appendChild(d);d.scrollIntoView({block:"nearest"})}
- async function modelo(k){if(MOD)return MOD;try{const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",{headers:{"x-goog-api-key":k}});const j=await r.json();const ms=(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace("models/","")).filter(n=>/gemini-[\d.]+-flash$/.test(n)).sort((a,b)=>parseFloat(b.split("-")[1])-parseFloat(a.split("-")[1]));MOD=ms;return ms}catch(x){return["gemini-2.5-flash"]}}
- function sistema(){const g=$("#guia-claves");const guia=g?g.innerText:"";return"Eres el asistente de la app «Bot Trading» (castellano de España, frases cortas y claras, para una persona mayor que no es técnica). Ayudas SOLO a ponerla en marcha y a usarla: sacar las claves de Trading 212, Bitvavo, OKX, Telegram, GitHub y Gemini, y entender las pantallas.\nREGLAS: 1) NUNCA pidas ni aceptes claves, secretos, contraseñas ni frases de paso; si alguien las escribe, dile que no lo haga y que la cambie. 2) Insiste en no dar NUNCA el permiso de retirar dinero. 3) No des consejos de inversión ni prometas ganancias; si preguntan qué comprar, explica que la app lo decide con su laboratorio y que es su decisión cuánto dinero meter. 4) Si no sabes algo de una web externa (menús que cambian), dilo y sugiere buscar en la ayuda oficial de esa web. 5) Respuestas en pasos numerados cuando sea un procedimiento.\nGUÍA DE LA APP (fuente principal):\n"+guia}
- async function pregunta(){const q=($("#gia-q").value||"").trim(),k=key(),st=$("#gia-st");if(!q)return;if(!k){st.textContent="Primero guarda tu clave de Gemini (arriba).";return}
-  if(/(AIza[\w-]{20,}|ghp_|github_pat_|\b\d{6,}:[\w-]{20,}|[A-Za-z0-9]{32,})/.test(q)){st.textContent="⚠️ Parece que has escrito una clave. No la envíes: bórrala del mensaje.";return}
-  $("#gia-q").value="";burbuja("yo",q);H.push({role:"user",parts:[{text:q}]});H=H.slice(-12);st.textContent="Pensando…";$("#gia-go").disabled=true;
-  try{const ms=await modelo(k);let txt=null,err="";for(const m of ms.slice(0,4)){try{const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":k},body:JSON.stringify({systemInstruction:{parts:[{text:sistema()}]},contents:H,generationConfig:{temperature:0.4}})});
-     if(!r.ok){err="HTTP "+r.status;if(r.status===400||r.status===403){break}continue}const j=await r.json();txt=(((j.candidates||[])[0]||{}).content||{}).parts?.map(p=>p.text||"").join("")||"";if(txt)break}catch(x){err=x.message}}
-   if(txt){H.push({role:"model",parts:[{text:txt}]});burbuja("ia",txt);st.textContent=""}else st.textContent=/40[03]/.test(err)?"La clave de Gemini no es válida: revísala (paso 7️⃣).":"Gemini no ha respondido ahora ("+err+"). Prueba en un momento."}
-  finally{$("#gia-go").disabled=false}}
- function init(){if(!$("#guia-ia"))return;pintaKey();$("#gia-go").onclick=pregunta;$("#gia-q").onkeydown=ev=>{if(ev.key==="Enter"){ev.preventDefault();pregunta()}};if(!$("#gia-chat").children.length)burbuja("ia","¡Hola! Soy tu asistente para poner en marcha la app. ¿Por qué paso vas o qué duda tienes?")}
- if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
-})();
-</script>
+<div class="p" id="guia-ia"><h2>🤖 Asistente de la app</h2><div class="m">Pregúntale cualquier duda: cómo sacar una clave, qué significa algo de la app, por qué ha hecho una compra o qué se podría mejorar. Lo tienes siempre en el botón 🤖 de abajo a la derecha.</div><button type="button" data-nobusy onclick="window.iaAbre&&iaAbre()" style="margin-top:8px">🤖 Abrir el asistente</button></div>
 <div class="p"><h2>📱 La app, en 5 pestañas</h2><div class="m">• <b>💶 Real</b>: tu cuenta de Trading 212 (saldo, ingresado, invertido, efectivo, ganancia y la gráfica; desliza el dedo sobre ella para ver cada día). • <b>🤖 Laboratorio</b>: el podio de métodos ganadores. • <b>🪙 Cripto</b>: Bitvavo y OKX con dinero real. • <b>🖥️ Terminal</b>: todo lo que hace la app por detrás, línea a línea y con su hora: cada línea que escribe cada proceso (bot de cripto, examen de las Tortugas, revisión y valor en directo de la cartera real, rondas del laboratorio), una copia de cada Telegram que te llega, los cambios de método y cada proceso de GitHub; todo se guarda cifrado con tu clave; incluye 🩺 comprobaciones de que todo funciona (bot de cripto, conexiones, cartera real, laboratorio, precios y procesos) y el filtro «⚠️ Errores» para ver solo lo que ha fallado; se busca, se exporta entero o por día y «Limpiar» despeja la pantalla sin borrar nada. • <b>⚙️ Ajustes</b>: apariencia (claro, oscuro o como el móvil), copias y lo técnico. En cada pantalla, lo que no es del día a día está en <b>«⋯ Más»</b>. Los datos se actualizan solos: precios de cripto cada 2 segundos y el resto en cuanto el bot publica algo nuevo (la app se recarga sola si llevas 10 segundos sin tocarla). Todos los avisos llegan por <b>Telegram</b>.</div></div>
 
 <div class="p hlp"><h2>Cómo funciona, en 1 minuto</h2>
@@ -4923,6 +4894,63 @@ window.__terminal={T,recoge,pinta};
 #t-terminal .tm-stick{position:sticky;top:0;z-index:6;background:var(--bg);padding:6px 0 2px;margin-bottom:4px}
 #t-terminal #tm-av:empty{display:none}
 #t-terminal #tm-av{margin-top:6px}
-#tm-fin{display:none;position:fixed;right:16px;bottom:96px;z-index:30;width:44px;height:44px;min-height:0!important;padding:0!important;font-size:18px!important;background:var(--acc)!important;color:var(--accink)!important;box-shadow:0 4px 14px rgba(0,0,0,.18)!important}
+#tm-fin{display:none;position:fixed;right:16px;bottom:150px;z-index:30;width:44px;height:44px;min-height:0!important;padding:0!important;font-size:18px!important;background:var(--acc)!important;color:var(--accink)!important;box-shadow:0 4px 14px rgba(0,0,0,.18)!important}
 </style>
+<script id="ia-asistente">
+/* v381 · 🤖 ASISTENTE DE LA APP (Gemini, gratis, con tu propia clave guardada solo en este móvil).
+   Sabe TODO de la app: toda la ayuda y la guía, y el estado en directo (laboratorio, podios, comprobaciones y errores del terminal).
+   Tu cartera real (importes) solo se le envía si marcas la casilla. Nunca pide claves. */
+(function(){
+ const K="gemkey",$=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));let H=[],MOD=null;
+ const key=()=>{try{return localStorage.getItem(K)||""}catch(x){return""}};
+ const css=`#iaBtn{position:fixed;right:14px;bottom:calc(86px + env(safe-area-inset-bottom,0px));z-index:70;width:52px;height:52px;border-radius:50%;border:1px solid #7dd3fc55;background:linear-gradient(135deg,#0ea5e9,#22c55e);color:#05070d;font-size:24px;box-shadow:0 8px 24px #0007;padding:0}
+ #iaP{position:fixed;inset:0;z-index:90;display:none;flex-direction:column;background:var(--bg,#05070d)}#iaP.on{display:flex}
+ #iaP .iah{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #ffffff1a}#iaP .iah b{flex:1;font-size:17px}
+ #iaP .iac{flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+ #iaP .bub{padding:10px 12px;border-radius:14px;max-width:90%;white-space:pre-wrap;line-height:1.45;font-size:15px}
+ #iaP .yo{align-self:flex-end;background:#2563eb33;border:1px solid #2563eb66}#iaP .el{align-self:flex-start;background:#ffffff0f;border:1px solid #ffffff22}
+ #iaP .iaf{padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid #ffffff1a;display:flex;flex-direction:column;gap:8px}
+ #iaP .iaf .fila{display:flex;gap:8px}#iaP .iaf input[type=text]{flex:1}#iaP .sug{display:flex;gap:6px;overflow-x:auto;white-space:nowrap;scrollbar-width:none}#iaP .sug::-webkit-scrollbar{display:none}#iaP .sug button{flex:none}#iaP .sug button{font-size:12.5px;padding:6px 10px;border-radius:999px}`;
+ function monta(){if($("#iaBtn"))return;const st=document.createElement("style");st.textContent=css;document.head.appendChild(st);
+  const b=document.createElement("button");b.id="iaBtn";b.type="button";b.setAttribute("data-nobusy","");b.title="Asistente";b.textContent="🤖";b.onclick=()=>iaAbre();document.body.appendChild(b);
+  const p=document.createElement("div");p.id="iaP";p.innerHTML=`<div class="iah"><b>🤖 Asistente de la app</b><button type="button" data-nobusy id="iaX" aria-label="Cerrar">✕</button></div><div class="iac" id="iaC"></div>
+   <div class="iaf"><div id="iaK"></div><label class="m" style="font-size:12.5px"><input type="checkbox" id="iaReal" style="width:auto"> Incluir mi cartera real y cripto real (importes) en la pregunta</label>
+   <div class="sug" id="iaS"></div><div class="fila"><input id="iaQ" type="text" placeholder="Pregunta lo que quieras de la app…" autocomplete="off"><button id="iaGo" type="button" data-nobusy>Enviar</button></div><div class="m" id="iaSt" style="font-size:12.5px"></div></div>`;document.body.appendChild(p);
+  $("#iaX").onclick=()=>p.classList.remove("on");$("#iaGo").onclick=pregunta;$("#iaQ").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();pregunta()}};
+  $("#iaS").innerHTML=["¿Cómo funciona la app?","¿Por qué mi cartera real está en ese método?","¿Va todo bien hoy?","¿Qué mejorarías de la app?","¿Cómo saco la clave de Bitvavo?"].map(t=>`<button type="button" data-nobusy>${esc(t)}</button>`).join("");
+  $("#iaS").querySelectorAll("button").forEach(x=>x.onclick=()=>{$("#iaQ").value=x.textContent;pregunta()});pintaKey()}
+ function pintaKey(){const b=$("#iaK");if(!b)return;if(key()){b.innerHTML='<span class="m" style="font-size:12.5px">🔑 Clave de Gemini guardada en este móvil · <a href="#" id="iaKd">quitar</a></span>';$("#iaKd").onclick=e=>{e.preventDefault();try{localStorage.removeItem(K)}catch(x){}pintaKey()}}
+  else{b.innerHTML='<div class="m" style="font-size:12.5px">Pega tu clave gratuita de Gemini (aistudio.google.com → Get API key). Se guarda solo en este móvil.</div><div class="fila" style="margin-top:4px"><input id="iaKi" type="password" autocomplete="off" placeholder="AIza…"><button id="iaKs" type="button" data-nobusy>Guardar</button></div>';
+   $("#iaKs").onclick=()=>{const v=($("#iaKi").value||"").trim();if(v.length<20){$("#iaSt").textContent="Esa clave parece incompleta.";return}try{localStorage.setItem(K,v)}catch(x){}pintaKey();$("#iaSt").textContent="✔ Guardada."}}}
+ function bur(rol,t){const c=$("#iaC");const d=document.createElement("div");d.className="bub "+(rol==="yo"?"yo":"el");d.innerHTML=esc(t).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");c.appendChild(d);c.scrollTop=c.scrollHeight}
+ window.iaAbre=function(){monta();$("#iaP").classList.add("on");if(!$("#iaC").children.length)bur("el","¡Hola! Sé cómo funciona toda la app y veo cómo está ahora (laboratorio, podios, comprobaciones y errores). Pregúntame lo que quieras.");setTimeout(()=>{try{$("#iaQ").focus()}catch(e){}},100)};
+ const txt=sel=>{const n=$(sel);if(!n)return"";const c=n.cloneNode(true);c.querySelectorAll("script,style,input,select,textarea,button").forEach(x=>x.remove());return c.textContent.replace(/\s+/g," ").trim()};
+ function estado(conReal){const o=[];const v=(document.querySelector(".vtag")||{}).textContent;o.push("Versión de la app: "+(v||"?").trim());
+  try{const L=(S&&S.lab)||{},n=k=>{let x=((S.labConf||[]).find(c=>c.k===k)||{}).n||(S.names||{})[k]||((typeof STR!=="undefined"&&STR[k])||{}).n||k;try{if(typeof nomCorto==="function")x=nomCorto(x)}catch(e){}return x},an=S.labAn||{};o.push("Podio ETF/acciones/mixtos (orden por dinero ganado desde 2000; a igual ganancia, menos caída): "+(L.top3||[]).map((x,i)=>`${i+1}.º ${n(x.k)} (#${x.k}) ${an[x.k]!=null?(an[x.k]*100).toFixed(1)+"%/año":""}`).join(" · "))}catch(e){}
+  try{const C=window.__LABC||{},el=C.el,cl=C.cl;if(el&&el.podio)o.push("Podio cripto Tortugas: "+el.podio.map((x,i)=>`${i+1}.º ${x.ex} riesgo ${x.rk}: ${x.ret}% en 2 años, caída ${x.dd}%`).join(" · "));if(cl)o.push(`Laboratorio cripto de muchas operaciones (Hyperliquid, solo datos): ${(cl.aprobadas||[]).length} aprobadas, ${cl.n||"?"} combinaciones probadas en total`)}catch(e){}
+  try{const I=window.__IALAB;if(I)o.push("Ayudante IA del laboratorio: "+(I.estado||"?")+(I.cripto&&I.cripto.lecciones?" · lecciones: "+I.cripto.lecciones.slice(0,6).join(" | "):""))}catch(e){}
+  try{const T=window.__terminal&&__terminal.T,ev=T?[...T.ev.values()]:[];ev.sort((a,b)=>(b.t||0)-(a.t||0));const ch=ev.filter(x=>x.src==="chk").slice(0,14).map(x=>x.txt),er=ev.filter(x=>/❌|⚠️|error|falla/i.test(x.txt||"")&&x.src!=="chk").slice(0,10).map(x=>new Date(x.t).toLocaleString("es-ES")+" "+x.txt);
+   if(ch.length)o.push("Comprobaciones más recientes del terminal: "+ch.join(" | "));if(er.length)o.push("Últimos avisos o errores del terminal: "+er.join(" | "))}catch(e){}
+  if(conReal){o.push("CARTERA REAL (Trading 212), tal como se ve en la pestaña Real: "+txt("#t-real").slice(0,2500));o.push("CRIPTO REAL (Bitvavo y OKX), tal como se ve en la pestaña Cripto: "+txt("#t-memes").slice(0,2500))}
+  return o.join("\n")}
+ function sistema(conReal){const ayuda=(txt("#t-ayuda")+" "+txt("#simpl-ay")).slice(0,60000);
+  return`Eres el asistente de la app «Bot Trading». Hablas en castellano de España, claro y cercano, sin tecnicismos innecesarios. Sabes cómo funciona toda la app (la AYUDA de abajo es la fuente principal) y ves su ESTADO ACTUAL.
+Puedes: explicar cualquier pantalla o regla; decir si todo va bien según las comprobaciones; explicar por qué la cartera real sigue a un método; ayudar a sacar claves; y proponer mejoras (dilas como ideas para que el dueño se las pida a su desarrollador; tú no puedes cambiar la app).
+REGLAS: 1) NUNCA pidas ni aceptes claves, secretos, contraseñas ni frases de paso. 2) Nunca recomiendes dar permiso de retirar dinero. 3) No prometas ganancias ni des recomendaciones de compra: explica lo que hace la app y recuerda que las decisiones y el riesgo son del dueño. 4) Si algo no está en la ayuda ni en el estado, dilo en vez de inventarlo. 5) Respuestas cortas; pasos numerados para procedimientos.
+=== ESTADO ACTUAL ===
+${estado(conReal)}
+=== AYUDA Y GUÍA DE LA APP ===
+${ayuda}`}
+ async function modelos(k){if(MOD)return MOD;try{const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",{headers:{"x-goog-api-key":k}});const j=await r.json();MOD=(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace("models/","")).filter(n=>/gemini-[\d.]+-flash$/.test(n)).sort((a,b)=>parseFloat(b.split("-")[1])-parseFloat(a.split("-")[1]));if(!MOD.length)MOD=["gemini-2.5-flash"]}catch(x){MOD=["gemini-2.5-flash"]}return MOD}
+ async function pregunta(){const q=($("#iaQ").value||"").trim(),k=key(),st=$("#iaSt");if(!q)return;if(!k){st.textContent="Primero guarda tu clave de Gemini (arriba).";return}
+  if(/(AIza[\w-]{20,}|ghp_|github_pat_|\b\d{6,}:[\w-]{20,}|[A-Za-z0-9]{32,})/.test(q)){st.textContent="⚠️ Parece que has escrito una clave. No la envíes: bórrala del mensaje.";return}
+  $("#iaQ").value="";bur("yo",q);H.push({role:"user",parts:[{text:q}]});H=H.slice(-14);st.textContent="Pensando…";$("#iaGo").disabled=true;
+  try{const ms=await modelos(k),sys=sistema($("#iaReal").checked);let out=null,err="";
+   for(const m of ms.slice(0,4)){try{const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":k},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:H,generationConfig:{temperature:0.4}})});
+     if(!r.ok){err="HTTP "+r.status;if(r.status===400||r.status===403)break;continue}const j=await r.json();out=(((j.candidates||[])[0]||{}).content||{}).parts?.map(x=>x.text||"").join("")||"";if(out)break}catch(x){err=x.message}}
+   if(out){H.push({role:"model",parts:[{text:out}]});bur("el",out);st.textContent=""}else st.textContent=/40[03]/.test(err)?"La clave de Gemini no es válida: revísala.":"Gemini no responde ahora ("+err+"). Prueba en un momento."}
+  finally{$("#iaGo").disabled=false}}
+ const ini=()=>{if(window.__RUNNER)return;monta()};if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",ini);else ini();
+})();
+</script>
 </body></html>
