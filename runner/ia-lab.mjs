@@ -1,5 +1,5 @@
 // v366 · 🤖 AYUDANTE IA DEL LABORATORIO (Google Gemini, plan gratuito)
-// Cada 6 h lee lo que ha aprendido cada laboratorio y le pide a la IA IDEAS NUEVAS:
+// Cada 3 h (v409) lee lo que ha aprendido cada laboratorio y le pide a la IA IDEAS NUEVAS:
 //   · cripto: «recetas» en un formato cerrado (indicadores + comparaciones + umbrales), ver ia-receta.mjs
 //   · ETF/acciones: «genes» del laboratorio con los valores permitidos de siempre
 // Todo se comprueba aquí y otra vez en el laboratorio; lo que no cumple el formato se descarta. La IA NO cambia el examen, la memoria,
@@ -18,13 +18,14 @@ const log = (...a) => console.log("🤖 IA ·", ...a);
 async function modelos() {
   if (env("GEMINI_MODEL")) return [env("GEMINI_MODEL")];
   try { const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": KEY }, signal: AbortSignal.timeout(20000) }); const j = await r.json();
-    const ms = (j.models || []).filter((m) => (m.supportedGenerationMethods || []).includes("generateContent")).map((m) => m.name.replace(/^models\//, "")).filter((n) => /gemini/i.test(n) && /flash/i.test(n) && !/image|tts|audio|live|embed|vision|thinking-exp/i.test(n));
+    const ms = (j.models || []).filter((m) => (m.supportedGenerationMethods || []).includes("generateContent")).map((m) => m.name.replace(/^models\//, "")).filter((n) => /gemini/i.test(n) && /flash|pro/i.test(n) && !/image|tts|audio|live|embed|vision|thinking-exp|computer|robotics|nano|banana/i.test(n));
     const ver = (n) => +((n.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0), lite = (n) => (/lite/.test(n) ? 1 : 0), pre = (n) => (/preview|exp/.test(n) ? 1 : 0);
-    ms.sort((a, b) => lite(a) - lite(b) || ver(b) - ver(a) || pre(a) - pre(b)); if (ms.length) return ms.slice(0, 6);
+    const pro = (n) => (/pro/.test(n) ? 0 : 1);   /* v409 · primero el modelo más listo («pro»); si el plan gratis no lo deja, el «flash» */
+    ms.sort((a, b) => pro(a) - pro(b) || lite(a) - lite(b) || ver(b) - ver(a) || pre(a) - pre(b)); if (ms.length) return [...ms.filter((n) => /pro/.test(n)).slice(0, 2), ...ms.filter((n) => !/pro/.test(n)).slice(0, 4)];
   } catch (e) {}
   return ["gemini-2.5-flash", "gemini-2.0-flash"];
 }
-const T0 = Date.now(), QUEDA = () => 11 * 60e3 - (Date.now() - T0);   // como mucho ~11 min en total: siempre da tiempo a guardar
+const T0 = Date.now(), QUEDA = () => 13 * 60e3 - (Date.now() - T0);   // como mucho ~11 min en total: siempre da tiempo a guardar
 async function gemini(prompt, MS) {
   let ultimo = "";
   for (const m of MS) for (let t = 0; t < 2; t++) { if (QUEDA() < 90e3) throw new Error("sin tiempo · " + ultimo);
@@ -57,8 +58,9 @@ ${mejores.length ? `TUS recetas anteriores que MEJOR fueron (mejóralas o combí
 ${peores.length ? `TUS recetas anteriores que PEOR fueron (no repitas esa idea): ${JSON.stringify(peores.map((x) => ({ nombre: x.r.nombre, regla: describe(x.r), resultado: x.s })))}` : ""}
 
 TU CUADERNO DE LECCIONES (lo que has aprendido en rondas anteriores; respétalo): ${JSON.stringify((prev && prev.lecciones) || [])}
+TU MEMORIA LARGA (lecciones de todas tus rondas anteriores, de la más reciente a la más antigua; úsala para no repetir errores y para construir sobre lo que ya funcionó): ${JSON.stringify(((globalThis.__MEM || {}).cripto || []).slice(0, 80).map((x) => x.l))}
 
-FORMATO OBLIGATORIO. Responde SOLO un JSON: {"lecciones":[hasta 12 lecciones breves en castellano: tu cuaderno ACTUALIZADO con lo que confirman los resultados de arriba; conserva las que sigan valiendo, corrige las que los datos desmientan y añade las nuevas], "recetas":[ ... 15 recetas ... ]}. Cada receta:
+FORMATO OBLIGATORIO. Responde SOLO un JSON: {"lecciones":[hasta 20 lecciones breves en castellano: tu cuaderno ACTUALIZADO con lo que confirman los resultados de arriba; conserva las que sigan valiendo, corrige las que los datos desmientan y añade las nuevas], "recetas":[ ... 15 recetas ... ]}. Cada receta:
 {"nombre": "corto, en castellano", "idea": "por qué debería funcionar (1 frase, castellano)", "largo": [condiciones], "corto": [condiciones], "salida_h": una de ${JSON.stringify(SALIDAS)}, "stop": uno de ${JSON.stringify(STOPS)}, "filtro": uno de ${JSON.stringify(FN)}}
 "largo" = condiciones que TODAS deben cumplirse para comprar (0 a 4); "corto" = para vender en corto (0 a 4). Al menos una de las dos con condiciones.
 Condición: {"a": EXPR, "op": uno de ${JSON.stringify(OPS)}, "b": EXPR o número, "x": multiplicador opcional de b entre 0.5 y 2}
@@ -69,7 +71,7 @@ Que las 15 sean MUY distintas entre sí y distintas de lo ya probado.`;
   const nuevas = ((json && json.recetas) || []).map((r) => validaReceta(r, FN)).filter(Boolean);
   const todas = [...nuevas.map((r) => ({ ...r, t: new Date().toISOString(), modelo })), ...mias].filter((r, i, A) => A.findIndex((z) => z.id === r.id) === i).slice(0, 150);
   log(`cripto: la IA (${modelo}) propone ${((json && json.recetas) || []).length} recetas · válidas ${nuevas.length}`); for (const r of nuevas.slice(0, 15)) log(`  · ${r.nombre}: ${describe(r)}`);
-  const lec = Array.isArray(json && json.lecciones) ? json.lecciones.map((x) => String(x).replace(/[<>`]/g, "").slice(0, 220)).filter(Boolean).slice(0, 12) : null;
+  const lec = Array.isArray(json && json.lecciones) ? json.lecciones.map((x) => String(x).replace(/[<>`]/g, "").slice(0, 220)).filter(Boolean).slice(0, 20) : null;
   if (lec && lec.length) { log("cripto · cuaderno de lecciones:"); for (const x of lec) log("  📓 " + x); }
   return { recetas: todas, nuevas: nuevas.length, modelo, lecciones: lec && lec.length ? lec : (prev && prev.lecciones) || [] };
 }
@@ -100,26 +102,32 @@ Los mejores del laboratorio ahora mismo: ${JSON.stringify(top)}
 ${res.length ? `RESULTADOS de tus ideas anteriores en el examen (aprende de ellos): ${JSON.stringify(res.slice(-25))}` : ""}
 ${prev && prev.genes && prev.genes.length ? `Tus propuestas anteriores (no las repitas): ${JSON.stringify(prev.genes.slice(0, 16).map((x) => x.g))}` : ""}
 TU CUADERNO DE LECCIONES (de rondas anteriores; respétalo): ${JSON.stringify((prev && prev.lecciones) || [])}
-Responde SOLO un JSON: {"lecciones":[hasta 12 lecciones breves en castellano: tu cuaderno ACTUALIZADO según lo que muestran los mejores métodos y tus propuestas anteriores], "genes":[{"g": {pieza: valor, ...}, "idea": "por qué (1 frase, castellano)"} ... 10 genes ...]}. Cada g debe traer las piezas u, l, s, t, f, i, a, r, p (y las demás si quieres). Que sean muy distintos entre sí: grupos de ETF, estilos (z), regímenes (rg) y refugios distintos.`;
+TU MEMORIA LARGA (lecciones de todas tus rondas anteriores, de la más reciente a la más antigua; úsala para no repetir errores y para construir sobre lo que ya funcionó): ${JSON.stringify(((globalThis.__MEM || {}).etf || []).slice(0, 80).map((x) => x.l))}
+Responde SOLO un JSON: {"lecciones":[hasta 20 lecciones breves en castellano: tu cuaderno ACTUALIZADO según lo que muestran los mejores métodos y tus propuestas anteriores], "genes":[{"g": {pieza: valor, ...}, "idea": "por qué (1 frase, castellano)"} ... 10 genes ...]}. Cada g debe traer las piezas u, l, s, t, f, i, a, r, p (y las demás si quieres). Que sean muy distintos entre sí: grupos de ETF, estilos (z), regímenes (rg) y refugios distintos.`;
   const { modelo, json } = await gemini(P, MS);
   const ok = (g) => { if (!g || typeof g !== "object") return null; const o = {}; for (const [k, v] of Object.entries(g)) { if (!VV.V[k]) return null; if (!VV.V[k].some((z) => z === v)) return null; o[k] = v; } for (const k of ["u", "l", "t"]) if (o[k] == null) return null; return o; };
   const nuevos = ((json && json.genes) || []).map((x) => ({ g: ok(x && x.g), idea: String((x && x.idea) || "").replace(/[<>`]/g, "").slice(0, 200) })).filter((x) => x.g);
   const todos = [...nuevos.map((x) => ({ ...x, t: new Date().toISOString(), modelo })), ...((prev && prev.genes) || [])].filter((x, i, A) => A.findIndex((z) => JSON.stringify(z.g) === JSON.stringify(x.g)) === i).slice(0, 80);
   log(`ETF: la IA (${modelo}) propone ${((json && json.genes) || []).length} genes · válidos ${nuevos.length}`); for (const x of nuevos) log(`  · ${JSON.stringify(x.g)} — ${x.idea}`);
-  const lec = Array.isArray(json && json.lecciones) ? json.lecciones.map((x) => String(x).replace(/[<>`]/g, "").slice(0, 220)).filter(Boolean).slice(0, 12) : null;
+  const lec = Array.isArray(json && json.lecciones) ? json.lecciones.map((x) => String(x).replace(/[<>`]/g, "").slice(0, 220)).filter(Boolean).slice(0, 20) : null;
   if (lec && lec.length) { log("ETF · cuaderno de lecciones:"); for (const x of lec) log("  📓 " + x); }
   return { genes: todos, nuevos: nuevos.length, modelo, lecciones: lec && lec.length ? lec : (prev && prev.lecciones) || [] };
 }
 
 async function main() {
   const prev = (await raw(RAMA, "ia-lab.json")) || {}, out = { v: 1, t: new Date().toISOString(), estado: "ok", cripto: prev.cripto || null, etf: prev.etf || null, hist: prev.hist || [] };
+  /* v409 · 🧠 MEMORIA LARGA: todas las lecciones que ha escrito alguna vez (sin repetir, con fecha), aunque luego las quite del cuaderno corto */
+  const MEM = { cripto: [], etf: [], ...(prev.memoria || {}) }; globalThis.__MEM = MEM;
+  const guarda = (k, L) => { const ya = new Set(MEM[k].map((x) => x.l)); for (const l of L || []) if (l && !ya.has(l)) { MEM[k].unshift({ t: out.t, l }); ya.add(l); } MEM[k] = MEM[k].slice(0, 500); };
+  guarda("cripto", prev.cripto && prev.cripto.lecciones); guarda("etf", prev.etf && prev.etf.lecciones);
   if (!KEY) { out.estado = "sin clave"; log("no hay clave GEMINI_KEY en los secretos de GitHub: los laboratorios siguen igual, sin ayudante"); }
   else { const MS0 = await modelos(), bueno = prev.modeloOk, MS = bueno ? [bueno, ...MS0.filter((m) => m !== bueno)] : MS0;   // primero el que respondió la última vez
     log("modelos disponibles:", MS.join(", ")); const h = { t: out.t };
     try { out.cripto = await cripto(MS, prev.cripto); h.cripto = out.cripto.nuevas; } catch (e) { h.errC = String(e.message).slice(0, 80); log("cripto: la IA no respondió (" + h.errC + "); el laboratorio sigue igual"); }
     try { out.etf = await etf(MS, prev.etf); h.etf = out.etf.nuevos; } catch (e) { h.errE = String(e.message).slice(0, 80); log("ETF: la IA no respondió (" + h.errE + "); el laboratorio sigue igual"); }
     out.modeloOk = (h.cripto != null && out.cripto && out.cripto.modelo) || (h.etf != null && out.etf && out.etf.modelo) || prev.modeloOk || null;
-    if (h.errC && h.errE) out.estado = "error"; out.hist = [h, ...out.hist].slice(0, 60); }
+    if (h.errC && h.errE) out.estado = "error"; out.hist = [h, ...out.hist].slice(0, 200); }
+  try { guarda("cripto", out.cripto && out.cripto.lecciones); guarda("etf", out.etf && out.etf.lecciones); out.memoria = MEM; log(`memoria larga: ${MEM.cripto.length} lecciones de cripto · ${MEM.etf.length} de ETF`); } catch (e) {}
   // publicar en la rama ia-lab (pública: solo ideas, nada de dinero ni claves)
   const dir = path.join(process.env.RUNNER_TEMP || "/tmp", "ia-lab-pub"); rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, "ia-lab.json"), JSON.stringify(out));

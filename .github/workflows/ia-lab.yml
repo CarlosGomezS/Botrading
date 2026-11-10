@@ -3,7 +3,7 @@ name: Laboratorio · ayudante IA (Gemini, gratis)
 # Solo propone: sus ideas pasan el mismo examen que todas. Sin la clave GEMINI_KEY no hace nada.
 on:
   schedule:
-    - cron: "3 */6 * * *"
+    - cron: "3 */3 * * *"
   workflow_dispatch:
 permissions:
   contents: write
