@@ -522,7 +522,25 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 (function(){var t="claro";try{t=localStorage.getItem("tema2")||"claro"}catch(e){}var r=document.documentElement;if(t==="oscuro")r.setAttribute("data-theme","dark");else if(t==="claro")r.setAttribute("data-theme","light");var cs=document.querySelector('meta[name="color-scheme"]');if(cs)cs.setAttribute("content",t==="oscuro"?"only dark":t==="claro"?"only light":"light dark");r.style.colorScheme=t==="oscuro"?"only dark":t==="claro"?"only light":"light dark";
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
-<style id="sin-ficticia">#ficmanw,#ficmanbox{display:none!important}</style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div id="splash" aria-hidden="true"><style>
+<style id="sin-ficticia">#ficmanw,#ficmanbox{display:none!important}</style><style id="legible">/* v407 · MÁS LEGIBLE: letra algo mayor, más aire y botones cómodos de tocar (nada se quita) */
+body{font-size:16px;line-height:1.55}
+.m{font-size:14px!important;line-height:1.5}
+small{font-size:12.5px}
+.p{padding:18px;gap:12px}
+h2{font-size:17px}
+.kv>div{font-size:14px;padding:12px 14px}
+.kv b{font-size:18px}
+details.rd>summary,.rd>summary{font-size:15px;padding:12px 14px;min-height:44px;align-items:center}
+details.rd>.rb{padding:2px 14px 14px;gap:8px}
+.btc .nm{font-size:15px}.btc .sb{font-size:13px}.btc .pa{font-size:19px}
+button{min-height:42px;font-size:15px}
+#nav button{min-height:0;font-size:12px}
+input:not([type=checkbox]):not([type=radio]),select{font-size:16px;padding:9px 10px;border-radius:10px}
+details[data-o="cfg"] .kv>div .m{font-size:13px!important}
+.hero-row span,.hero-chg{font-size:15px}
+</style>
+<style id="sin-ficticia2">/* v407 · ajustes antiguos que ya no se usan (de cuando todo corría en el móvil y de la ficticia) */
+.aj-viejo{display:none!important}</style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div id="splash" aria-hidden="true"><style>
 #splash{position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;overflow:hidden;
  background:radial-gradient(120% 80% at 50% 0%,#14324a 0%,#0b1220 45%,#05070d 100%);color:#e8eef6;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;transition:opacity .55s ease,visibility .55s}
 #splash.fuera{opacity:0;visibility:hidden}
@@ -591,7 +609,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 406 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#406</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 407 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#407</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -5234,4 +5252,8 @@ ${estado(conReal)}
  const todo=r=>{try{(r.querySelectorAll?r:document).querySelectorAll('input[type="password"]').forEach(mete);if(r.matches&&r.matches('input[type="password"]'))mete(r)}catch(e){}};
  const go=()=>{todo(document);new MutationObserver(m=>{for(const x of m)for(const n of x.addedNodes)if(n.nodeType===1)todo(n)}).observe(document.body,{childList:true,subtree:true})};
  if(document.body)go();else document.addEventListener("DOMContentLoaded",go)})();</script>
+<script id="ajustes-limpios">/* v407 · fuera de ⚙️ Ajustes lo que ya no se usa: claves de datos del navegador, auditoría local, parámetros y capital de la ficticia, copias del estado local y diagnóstico antiguo. Todo eso ahora lo hace la nube. */
+(function(){const RX=/^(Conexión de datos|Auditoría de parámetros y datos|Parámetros del bot|Cuenta\b|Copia de seguridad y seguridad de claves|Diagnóstico técnico|Envío automático por correo)/;
+ const limpia=()=>{try{const T=document.getElementById("t-ajustes");if(!T)return;T.querySelectorAll(".fold,.p").forEach(f=>{if(f.id&&/^(aj-|simpl-|cloudset|tgdev|guia)/.test(f.id))return;const h=f.querySelector(":scope > .fh, :scope > h2, :scope > div:first-child, :scope > summary");const t=((h&&h.textContent)||f.textContent||"").trim().replace(/^[–\-+\s]+/,"");if(RX.test(t))f.classList.add("aj-viejo")})}catch(e){}};
+ [800,2000,4000,8000].forEach(t=>setTimeout(limpia,t));document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest("#nav"))setTimeout(limpia,300)},true)})();</script>
 </body></html>
