@@ -1,0 +1,55 @@
+name: Datos · prueba de 3 sistemas diarios (una vez)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  descarga:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {ex: bitvavo, shard: 0, n: 3}
+          - {ex: bitvavo, shard: 1, n: 3}
+          - {ex: bitvavo, shard: 2, n: 3}
+          - {ex: okx, shard: 0, n: 10}
+          - {ex: okx, shard: 1, n: 10}
+          - {ex: okx, shard: 2, n: 10}
+          - {ex: okx, shard: 3, n: 10}
+          - {ex: okx, shard: 4, n: 10}
+          - {ex: okx, shard: 5, n: 10}
+          - {ex: okx, shard: 6, n: 10}
+          - {ex: okx, shard: 7, n: 10}
+          - {ex: okx, shard: 8, n: 10}
+          - {ex: okx, shard: 9, n: 10}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: runner
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: node runner/prueba-diaria.mjs
+        env: {FASE: descarga, EX: "${{ matrix.ex }}", SHARD: "${{ matrix.shard }}", NSH: "${{ matrix.n }}", TOPN: "60"}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v-${{ matrix.ex }}-${{ matrix.shard }}
+          path: out/
+  sim:
+    needs: descarga
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: runner
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          path: res
+      - run: node runner/prueba-diaria.mjs
