@@ -574,7 +574,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 375 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#375</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 376 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#376</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4414,22 +4414,26 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
 /* v263 · 🔐 UNA SOLA CLAVE AL ENTRAR: la app entera queda tapada hasta que la escribes (una vez; se recuerda en este móvil).
    Abre a la vez Cripto, Real y los ajustes de la nube. Ya no se pide en ninguna otra pantalla. */
 (function(){
- const RAW="https://raw.githubusercontent.com/CarlosGomezS/Botrading/bitvavo/bitvavo.json";
+ /* v376 · para comprobar la clave basta un archivo cifrado pequeño (real.json, ~0,4 MB) en vez del de cripto (~6 MB); se descarga mientras escribes */
+ const RAW="https://raw.githubusercontent.com/CarlosGomezS/Botrading/real/real.json",RAW2="https://raw.githubusercontent.com/CarlosGomezS/Botrading/bitvavo/bitvavo.json";
+ const tope=(p,ms,v)=>Promise.race([p,new Promise(r=>setTimeout(()=>r(v),ms))]);
+ let PRE=null;const baja=u=>fetch(u+"?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null);
+ const pre=()=>{if(!PRE)PRE=tope(baja(RAW),12000,null).then(j=>j&&j.enc?j:tope(baja(RAW2),15000,null))};
  function css(){if(document.getElementById("gate-css"))return;const st=document.createElement("style");st.id="gate-css";st.textContent=`#gate{position:fixed;inset:0;z-index:99999;background:var(--bg,#0b0f14);display:flex;align-items:center;justify-content:center;padding:16px}
   #gate .gx{width:100%;max-width:360px;background:#141a22;color:#f2f5f9;border:1px solid #ffffff22;border-radius:16px;padding:22px;box-shadow:0 10px 40px #0008}
   #gate{background:radial-gradient(120% 80% at 50% 0%,#14324a 0%,#0b1220 45%,#05070d 100%)!important}#gate .gx{background:#0f1a2acc!important;border:1px solid #7dd3fc33!important;backdrop-filter:blur(6px);animation:gate-in .45s ease-out}@keyframes gate-in{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}#gate input{background:#0b1220!important;color:#fff!important;border:1px solid #7dd3fc44!important}#gate button{background:linear-gradient(90deg,#0ea5e9,#22c55e)!important;color:#05070d!important;border:0!important;font-weight:800!important}#gate h2{margin:0 0 6px;font-size:24px;color:#ffffff;font-weight:800;line-height:1.2}#gate p{margin:0 0 14px;color:#c9d2dc;font-size:14px}#gate input{background:#0b0f14;color:#fff;border:1px solid #ffffff33}#gate button{background:#2563eb;color:#fff;border:0;font-weight:700}#gate input{width:100%;box-sizing:border-box;font-size:17px;padding:12px;border-radius:10px;margin-bottom:10px}
   #gate button{width:100%;font-size:17px;padding:12px;border-radius:10px}#gate .er{color:#ff5d73;min-height:20px;font-size:14px;margin-top:8px}`;document.head.appendChild(st)}
  async function valida(pw){let ok=false,red=false;
-  try{const r=await fetch(RAW+"?t="+Date.now(),{cache:"no-store"});if(r.ok){const j=await r.json();if(j&&j.enc){try{await decrypt(j,pw);ok=true}catch(e){}}else red=true}else red=true}catch(e){red=true}
-  try{if(window.__CLOUD&&__CLOUD.hasEnc()){await __CLOUD.unlock(pw);ok=true}}catch(e){}
+  pre();try{const j=await PRE;if(j&&j.enc){const d=await tope(decrypt(j,pw).then(()=>1,()=>0),20000,-1);if(d===1)ok=true;else if(d===-1)red=true}else red=true}catch(e){red=true}
+  if(!ok)try{if(window.__CLOUD&&__CLOUD.hasEnc()){const u=await tope(__CLOUD.unlock(pw).then(()=>1,()=>0),15000,0);if(u)ok=true}}catch(e){}
   return ok||(red&&pw.length>=8)}
  /* v375 · 👆 HUELLA (WebAuthn, la del propio móvil): la huella nunca sale del teléfono; aquí solo se guarda el identificador de la llave */
  const HK="rlhuella",b64=u=>btoa(String.fromCharCode(...new Uint8Array(u))),ub64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
- async function huellaPosible(){try{return!!(window.PublicKeyCredential&&navigator.credentials&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())}catch(e){return false}}
+ async function huellaPosible(){try{return!!(window.PublicKeyCredential&&navigator.credentials&&await tope(PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(),3000,false))}catch(e){return false}}
  async function huella(er){if(!(await huellaPosible()))return"no";const rnd=n=>crypto.getRandomValues(new Uint8Array(n));let id=null;try{id=localStorage.getItem(HK)}catch(e){}
-  try{if(id){er.textContent="👆 Pon tu huella…";const r=await navigator.credentials.get({publicKey:{challenge:rnd(32),allowCredentials:[{type:"public-key",id:ub64(id)}],userVerification:"required",timeout:60000}});return r?"ok":"mal"}
+  try{if(id){er.textContent="👆 Pon tu huella…";const r=await tope(navigator.credentials.get({publicKey:{challenge:rnd(32),allowCredentials:[{type:"public-key",id:ub64(id)}],userVerification:"required",timeout:60000}}),65000,null);return r?"ok":"mal"}
    er.textContent="👆 Pon tu huella para activarla (desde ahora se pedirá clave + huella)…";
-   const c=await navigator.credentials.create({publicKey:{challenge:rnd(32),rp:{name:"Bot Trading",id:location.hostname},user:{id:rnd(16),name:"botrading",displayName:"Bot Trading"},pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],authenticatorSelection:{authenticatorAttachment:"platform",userVerification:"required",residentKey:"discouraged"},timeout:60000}});
+   const c=await tope(navigator.credentials.create({publicKey:{challenge:rnd(32),rp:{name:"Bot Trading",id:location.hostname},user:{id:rnd(16),name:"botrading",displayName:"Bot Trading"},pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],authenticatorSelection:{authenticatorAttachment:"platform",userVerification:"required",residentKey:"discouraged"},timeout:60000}}),65000,null);
    if(c){try{localStorage.setItem(HK,b64(c.rawId))}catch(e){}return"ok"}return"no"}
   catch(e){return id?"mal":"no"}}   /* si al activarla la cancelas, entras solo con la clave y se vuelve a ofrecer la próxima vez */
  window.huellaOlvidar=()=>{try{localStorage.removeItem(HK)}catch(e){}};
@@ -4438,11 +4442,11 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
    <input type="text" name="username" autocomplete="username" value="botrading" style="display:none">
    <input id="gate-pw" type="password" name="password" autocomplete="current-password" placeholder="Tu clave" autofocus>
    <input type="checkbox" class="pwrem" checked style="display:none"><button id="gate-go" type="submit">Entrar</button><div class="er" id="gate-er"></div></form>`;
-  document.body.appendChild(d);const i=d.querySelector("#gate-pw"),b=d.querySelector("#gate-go"),er=d.querySelector("#gate-er");
-  const go=async()=>{const pw=i.value||"";if(!pw)return;b.disabled=true;er.textContent="Comprobando…";const ok=await valida(pw);if(!ok){b.disabled=false;er.textContent="Clave incorrecta.";i.select();return}
+  document.body.appendChild(d);const i=d.querySelector("#gate-pw"),b=d.querySelector("#gate-go"),er=d.querySelector("#gate-er");pre();
+  const go=async()=>{const pw=i.value||"";if(!pw)return;b.disabled=true;er.style.color="#9fb0c3";er.textContent="🔐 Comprobando la clave… (unos segundos)";const ok=await valida(pw);if(!ok){b.disabled=false;er.style.color="";er.textContent="Clave incorrecta.";i.select();return}
    /* v375 · 👆 clave + huella: si el móvil tiene huella (o cara), además de la clave se pide la huella */
-   const h=await huella(er);if(h==="mal"){b.disabled=false;er.textContent="👆 Huella no reconocida o cancelada. Vuelve a pulsar «Entrar».";return}
-   try{sessionStorage.setItem("rlpw",pw);localStorage.setItem("rlact",String(Date.now()))}catch(e){}try{if(!(await remSave(pw)))er.textContent="Este móvil no deja recordarla: te la pedirá al abrir."}catch(e){}
+   const h=await huella(er);if(h==="mal"){b.disabled=false;er.style.color="";er.textContent="👆 Huella no reconocida o cancelada. Vuelve a pulsar «Entrar».";return}
+   try{sessionStorage.setItem("rlpw",pw);localStorage.setItem("rlact",String(Date.now()))}catch(e){}try{if(!(await tope(remSave(pw),6000,false)))er.textContent="Este móvil no deja recordarla: te la pedirá al abrir."}catch(e){}
    try{if(typeof RL!=="undefined")RL.noAuto=false}catch(e){}location.reload()};
   b.onclick=go;i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();go()}};setTimeout(()=>{try{i.focus()}catch(e){}},50)}
  window.pedirClave=muestra;
