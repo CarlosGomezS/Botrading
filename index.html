@@ -591,7 +591,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 404 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#404</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 405 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#405</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3692,7 +3692,7 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
    else{st.textContent="Comprobando…";TOK=await decTok(localStorage.getItem(ENC),pw)}
    if(remWanted())await gRemSave(pw);else gRemForget();
    var ri=repoInfo();if(ri)await freshCL(ri);   /* valores reales de la nube, sin esperar a que GitHub Pages se republique */
-   touch();cloudRender()}catch(e){TOK=null;st.textContent=t?("No se pudo guardar: "+e.message):"Clave incorrecta."}}
+   touch();cloudRender();secList(true)}catch(e){TOK=null;st.textContent=t?("No se pudo guardar: "+e.message):"Clave incorrecta."}}
 
  var SODIUM=null;
  function loadSodium(){if(window.__SEAL&&window.nacl)return Promise.resolve(window.__SEAL);   /* v48: cifrado incluido en la propia web (antes se descargaba libsodium de un CDN y fallaba en algunos navegadores) */
@@ -3703,7 +3703,13 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
   var so=await loadSodium(),r=await fetch(base+"public-key",{headers:H});if(!r.ok)throw new Error("HTTP "+r.status+" al pedir la clave pública (¿falta el permiso Secrets: Read and write?)");
   var pk=await r.json(),enc=so.crypto_box_seal(so.from_string(val),so.from_base64(pk.key,so.base64_variants.ORIGINAL)),
    w=await fetch(base+name,{method:"PUT",headers:Object.assign({"Content-Type":"application/json"},H),body:JSON.stringify({encrypted_value:so.to_base64(enc,so.base64_variants.ORIGINAL),key_id:pk.key_id})});
-  if(w.status!==201&&w.status!==204)throw new Error("HTTP "+w.status+(w.status===403||w.status===404?" · al token le falta el permiso «Secrets: Read and write» (lo tiene solo de lectura). Arréglalo en GitHub → Settings → Developer settings → Fine-grained tokens → tu token → Edit, y vuelve a pulsar":""));}
+  if(w.status!==201&&w.status!==204)throw new Error("HTTP "+w.status+(w.status===403||w.status===404?" · al token le falta el permiso «Secrets: Read and write» (lo tiene solo de lectura). Arréglalo en GitHub → Settings → Developer settings → Fine-grained tokens → tu token → Edit, y vuelve a pulsar":""));SEC[name]=true;}
+ /* v405 · estado REAL de las claves: se pregunta a GitHub qué secretos existen (solo los nombres, nunca el valor) */
+ var SEC_ALL=["T212_KEY","T212_SECRET","REAL_VIEW_PASS","TELEGRAM_TOKEN","TELEGRAM_CHAT","OKX_KEY","OKX_SECRET","OKX_PASSPHRASE","BITVAVO_KEY","BITVAVO_SECRET","GEMINI_KEY","ALPACA_KEY","TWELVEDATA_KEY","POLYGON_KEY","ALPHAVANTAGE_KEY","FMP_KEY","SMTP_USER","SMTP_PASS","SMTP_HOST","SMTP_PORT","EMAIL","NTFY_TOPIC","WEB3FORMS_KEY"],secLT=0;
+ async function secList(force){var ri=repoInfo();if(!ri||!TOK)return false;if(!force&&Date.now()-secLT<60000)return true;
+  try{var r=await fetch(apiU(ri,"actions/secrets?per_page=100"),{headers:ghH(),cache:"no-store"});if(!r.ok)return false;var j=await r.json(),has={};(j.secrets||[]).forEach(function(x){has[x.name]=true});
+   SEC_ALL.concat(Object.keys(has)).forEach(function(n){SEC[n]=!!has[n]});secLT=Date.now();try{window.__SECGH=Object.assign({},SEC)}catch(e){}
+   try{cloudRender()}catch(e){}try{if(typeof window.draw==="function")window.draw()}catch(e){}return true}catch(e){return false}}
  async function ghSecretDel(ri,name){var w=await fetch(apiU(ri,"actions/secrets/"+name),{method:"DELETE",headers:ghH()});if(w.status!==204&&w.status!==404)throw new Error("HTTP "+w.status+(w.status===403||w.status===401?" (¿falta el permiso Secrets: Read and write?)":""))}
  /* espera a que termine la ejecución del flujo lanzado a mano y devuelve su resultado (success / failure / …) o null si tarda demasiado */
  async function waitRun(ri,wf,since,maxS){var t0=Date.now();while(Date.now()-t0<maxS*1000){await sleep2(5000);
@@ -3776,9 +3782,9 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
 
  /* ---- v47: la pestaña 💶 Real usa el mismo token cifrado y la misma clave ---- */
  window.__CLOUD={ri:repoInfo,tok:function(){return TOK},hasEnc:function(){try{return!!localStorage.getItem(ENC)}catch(e){return false}},
-  unlock:async function(pw){if(!crypto||!crypto.subtle)throw new Error("este navegador no permite cifrar");TOK=await decTok(localStorage.getItem(ENC),pw);if(remWanted())await gRemSave(pw);else gRemForget();var r=repoInfo();if(r)await freshCL(r);touch();cloudRender();return true},
-  setTok:async function(tok,pw){if(!crypto||!crypto.subtle)throw new Error("este navegador no permite cifrar");localStorage.setItem(ENC,await encTok(tok,pw));try{localStorage.removeItem("ghtok")}catch(e){}TOK=tok;try{await gRemSave(pw)}catch(e){}touch();try{cloudRender()}catch(e){}return true},
-  lock:function(){gRemForget();lockNow()},touch:touch,dispatch:dispatch,waitRun:waitRun,secret:ghSecret,secretDel:ghSecretDel,sec:SEC,
+  unlock:async function(pw){if(!crypto||!crypto.subtle)throw new Error("este navegador no permite cifrar");TOK=await decTok(localStorage.getItem(ENC),pw);if(remWanted())await gRemSave(pw);else gRemForget();var r=repoInfo();if(r)await freshCL(r);touch();cloudRender();secList(true);return true},
+  setTok:async function(tok,pw){if(!crypto||!crypto.subtle)throw new Error("este navegador no permite cifrar");localStorage.setItem(ENC,await encTok(tok,pw));try{localStorage.removeItem("ghtok")}catch(e){}TOK=tok;try{await gRemSave(pw)}catch(e){}touch();try{cloudRender()}catch(e){}secList(true);return true},
+  lock:function(){gRemForget();lockNow()},touch:touch,dispatch:dispatch,waitRun:waitRun,secret:ghSecret,secretDel:ghSecretDel,sec:SEC,secList:secList,
   forget:function(){try{localStorage.removeItem(ENC);localStorage.removeItem("ghtok")}catch(e){}gRemForget();lockNow()}};
  /* al abrir la web: si la clave está recordada, se desbloquea sola */
  (async function(){try{if(TOK||!localStorage.getItem(ENC)||!gRemHas())return;var pw=await gRemLoad();if(!pw)return;try{TOK=await decTok(localStorage.getItem(ENC),pw)}catch(e){gRemForget();return}var r=repoInfo();if(r)await freshCL(r);touch();cloudRender();try{window.dispatchEvent(new Event("cloud-unlocked"))}catch(e){}}catch(e){}})();
