@@ -505,8 +505,76 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
 (function(){var t="claro";try{t=localStorage.getItem("tema2")||"claro"}catch(e){}var r=document.documentElement;if(t==="oscuro")r.setAttribute("data-theme","dark");else if(t==="claro")r.setAttribute("data-theme","light");var cs=document.querySelector('meta[name="color-scheme"]');if(cs)cs.setAttribute("content",t==="oscuro"?"only dark":t==="claro"?"only light":"light dark");r.style.colorScheme=t==="oscuro"?"only dark":t==="claro"?"only light":"light dark";
  var m=document.querySelectorAll('meta[name="theme-color"]');if(t!=="auto")for(var i=0;i<m.length;i++){m[i].setAttribute("content",t==="oscuro"?"#000000":"#ffffff");m[i].removeAttribute("media")}})();
 </script>
-</head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 372 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#372</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+</head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div id="splash" aria-hidden="true"><style>
+#splash{position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;overflow:hidden;
+ background:radial-gradient(120% 80% at 50% 0%,#14324a 0%,#0b1220 45%,#05070d 100%);color:#e8eef6;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;transition:opacity .55s ease,visibility .55s}
+#splash.fuera{opacity:0;visibility:hidden}
+#splash .grid{position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:34px 34px;mask-image:radial-gradient(circle at 50% 45%,#000 0%,transparent 70%);-webkit-mask-image:radial-gradient(circle at 50% 45%,#000 0%,transparent 70%)}
+#splash .glow{position:absolute;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,#22c55e33,transparent 65%);top:50%;left:50%;transform:translate(-50%,-62%);filter:blur(10px);animation:spl-res 3.2s ease-in-out infinite}
+#splash .card{position:relative;width:min(78vw,320px)}
+#splash svg{width:100%;height:auto;display:block;overflow:visible}
+#splash .vela{transform-box:fill-box;transform-origin:50% 100%;animation:spl-sube .6s cubic-bezier(.2,.9,.3,1.2) both}
+#splash .linea{stroke-dasharray:520;stroke-dashoffset:520;animation:spl-traza 1.6s .5s ease-out forwards}
+#splash .area{opacity:0;animation:spl-punto 1s 1.4s ease-out forwards}
+#splash .punto{opacity:0;animation:spl-punto .5s 2s ease-out forwards,spl-late 1.4s 2.5s ease-in-out infinite}
+#splash .bot{position:absolute;top:-34px;right:-6px;width:64px;height:64px;animation:spl-flota 3s ease-in-out infinite}
+#splash h1{margin:0;font-size:34px;font-weight:800;letter-spacing:.5px;background:linear-gradient(90deg,#e8eef6,#7dd3fc 40%,#34d399 70%,#facc15);-webkit-background-clip:text;background-clip:text;color:transparent;opacity:0;animation:spl-entra .7s .25s ease-out forwards}
+#splash p{margin:-8px 0 0;font-size:14px;color:#9fb0c3;letter-spacing:.3px;opacity:0;animation:spl-entra .7s .55s ease-out forwards}
+#splash .chips{display:flex;gap:8px;opacity:0;animation:spl-entra .7s .85s ease-out forwards}
+#splash .chips span{font-size:12px;padding:5px 10px;border-radius:999px;background:#ffffff0d;border:1px solid #ffffff1a;color:#cfe3f5}
+#splash .barra{width:min(60vw,220px);height:4px;border-radius:4px;background:#ffffff14;overflow:hidden;margin-top:6px}
+#splash .barra i{display:block;height:100%;width:40%;border-radius:4px;background:linear-gradient(90deg,transparent,#34d399,#7dd3fc,transparent);animation:spl-carga 1.3s ease-in-out infinite}
+#splash .tick{position:absolute;bottom:22px;left:0;right:0;text-align:center;font-size:12px;color:#6b7c90;font-variant-numeric:tabular-nums}
+@keyframes spl-sube{from{transform:scaleY(0);opacity:0}to{transform:scaleY(1);opacity:1}}
+@keyframes spl-traza{to{stroke-dashoffset:0}}
+@keyframes spl-punto{to{opacity:1}}
+@keyframes spl-late{0%,100%{r:5}50%{r:8}}
+@keyframes spl-flota{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-8px) rotate(4deg)}}
+@keyframes spl-entra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes spl-carga{from{transform:translateX(-110%)}to{transform:translateX(260%)}}
+@keyframes spl-res{0%,100%{opacity:.7;transform:translate(-50%,-62%) scale(1)}50%{opacity:1;transform:translate(-50%,-62%) scale(1.08)}}
+@media (prefers-reduced-motion:reduce){#splash *{animation-duration:.01s!important;animation-iteration-count:1!important}}
+</style>
+<div class="grid"></div><div class="glow"></div>
+<div class="card">
+ <svg viewBox="0 0 300 150" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="spl-g" x1="0" x2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset=".6" stop-color="#34d399"/><stop offset="1" stop-color="#facc15"/></linearGradient>
+   <linearGradient id="spl-a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34d399" stop-opacity=".28"/><stop offset="1" stop-color="#34d399" stop-opacity="0"/></linearGradient></defs>
+  <g stroke-width="2" stroke-linecap="round">
+   <g class="vela" style="animation-delay:.05s"><line x1="20" y1="96" x2="20" y2="134" stroke="#34d399"/><rect x="13" y="104" width="14" height="22" rx="2" fill="#22c55e"/></g>
+   <g class="vela" style="animation-delay:.15s"><line x1="48" y1="100" x2="48" y2="140" stroke="#f87171"/><rect x="41" y="108" width="14" height="20" rx="2" fill="#ef4444"/></g>
+   <g class="vela" style="animation-delay:.25s"><line x1="76" y1="84" x2="76" y2="126" stroke="#34d399"/><rect x="69" y="90" width="14" height="28" rx="2" fill="#22c55e"/></g>
+   <g class="vela" style="animation-delay:.35s"><line x1="104" y1="76" x2="104" y2="116" stroke="#34d399"/><rect x="97" y="82" width="14" height="24" rx="2" fill="#22c55e"/></g>
+   <g class="vela" style="animation-delay:.45s"><line x1="132" y1="80" x2="132" y2="118" stroke="#f87171"/><rect x="125" y="86" width="14" height="18" rx="2" fill="#ef4444"/></g>
+   <g class="vela" style="animation-delay:.55s"><line x1="160" y1="58" x2="160" y2="104" stroke="#34d399"/><rect x="153" y="64" width="14" height="32" rx="2" fill="#22c55e"/></g>
+   <g class="vela" style="animation-delay:.65s"><line x1="188" y1="48" x2="188" y2="88" stroke="#34d399"/><rect x="181" y="54" width="14" height="26" rx="2" fill="#22c55e"/></g>
+   <g class="vela" style="animation-delay:.75s"><line x1="216" y1="52" x2="216" y2="86" stroke="#f87171"/><rect x="209" y="58" width="14" height="16" rx="2" fill="#ef4444"/></g>
+   <g class="vela" style="animation-delay:.85s"><line x1="244" y1="28" x2="244" y2="74" stroke="#34d399"/><rect x="237" y="34" width="14" height="32" rx="2" fill="#22c55e"/></g>
+   <g class="vela" style="animation-delay:.95s"><line x1="272" y1="14" x2="272" y2="58" stroke="#34d399"/><rect x="265" y="20" width="14" height="30" rx="2" fill="#22c55e"/></g>
+  </g>
+  <path class="area" d="M10 118 L48 120 L76 102 L104 94 L132 98 L160 78 L188 66 L216 68 L244 46 L272 30 L292 18 L292 150 L10 150Z" fill="url(#spl-a)"/>
+  <path class="linea" d="M10 118 L48 120 L76 102 L104 94 L132 98 L160 78 L188 66 L216 68 L244 46 L272 30 L292 18" fill="none" stroke="url(#spl-g)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle class="punto" cx="292" cy="18" r="5" fill="#facc15"/>
+ </svg>
+ <svg class="bot" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><line x1="32" y1="6" x2="32" y2="14" stroke="#7dd3fc" stroke-width="3" stroke-linecap="round"/><circle cx="32" cy="5" r="4" fill="#facc15"/>
+  <rect x="10" y="14" width="44" height="34" rx="11" fill="#13233a" stroke="#7dd3fc" stroke-width="2.5"/><rect x="4" y="25" width="6" height="12" rx="3" fill="#7dd3fc"/><rect x="54" y="25" width="6" height="12" rx="3" fill="#7dd3fc"/>
+  <circle cx="24" cy="30" r="5" fill="#34d399"/><circle cx="40" cy="30" r="5" fill="#34d399"/><path d="M22 39 Q32 45 42 39" stroke="#facc15" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M20 52 L26 46 L32 50 L44 40" stroke="#34d399" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</div>
+<h1>Bot Trading</h1>
+<p>Tu dinero trabajando solo, 24 horas</p>
+<div class="chips"><span>📈 ETF</span><span>🐢 Cripto</span><span>🤖 Laboratorio</span></div>
+<div class="barra"><i></i></div>
+<div class="tick" id="splash-tick">Preparando tus datos…</div>
+<script>
+/* v373 · ✨ pantalla de bienvenida: sale al instante; luego deja paso a la clave o a la app */
+(function(){var t0=Date.now(),MIN=2600,quita=function(){var s=document.getElementById("splash");if(!s||s.classList.contains("fuera"))return;var w=Math.max(0,MIN-(Date.now()-t0));setTimeout(function(){s.classList.add("fuera");setTimeout(function(){try{s.remove()}catch(e){}},700)},w)};
+ window.__quitaSplash=quita;
+ var mira=setInterval(function(){if(document.getElementById("gate")||window.__loaded){clearInterval(mira);quita()}},120);
+ setTimeout(function(){clearInterval(mira);quita()},12000);
+})();
+</script></div><div class="w">
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 373 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#373</small></span></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4347,7 +4415,7 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
  const RAW="https://raw.githubusercontent.com/CarlosGomezS/Botrading/bitvavo/bitvavo.json";
  function css(){if(document.getElementById("gate-css"))return;const st=document.createElement("style");st.id="gate-css";st.textContent=`#gate{position:fixed;inset:0;z-index:99999;background:var(--bg,#0b0f14);display:flex;align-items:center;justify-content:center;padding:16px}
   #gate .gx{width:100%;max-width:360px;background:#141a22;color:#f2f5f9;border:1px solid #ffffff22;border-radius:16px;padding:22px;box-shadow:0 10px 40px #0008}
-  #gate{background:#0b0f14!important}#gate h2{margin:0 0 6px;font-size:24px;color:#ffffff;font-weight:800;line-height:1.2}#gate p{margin:0 0 14px;color:#c9d2dc;font-size:14px}#gate input{background:#0b0f14;color:#fff;border:1px solid #ffffff33}#gate button{background:#2563eb;color:#fff;border:0;font-weight:700}#gate input{width:100%;box-sizing:border-box;font-size:17px;padding:12px;border-radius:10px;margin-bottom:10px}
+  #gate{background:radial-gradient(120% 80% at 50% 0%,#14324a 0%,#0b1220 45%,#05070d 100%)!important}#gate .gx{background:#0f1a2acc!important;border:1px solid #7dd3fc33!important;backdrop-filter:blur(6px);animation:gate-in .45s ease-out}@keyframes gate-in{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}#gate input{background:#0b1220!important;color:#fff!important;border:1px solid #7dd3fc44!important}#gate button{background:linear-gradient(90deg,#0ea5e9,#22c55e)!important;color:#05070d!important;border:0!important;font-weight:800!important}#gate h2{margin:0 0 6px;font-size:24px;color:#ffffff;font-weight:800;line-height:1.2}#gate p{margin:0 0 14px;color:#c9d2dc;font-size:14px}#gate input{background:#0b0f14;color:#fff;border:1px solid #ffffff33}#gate button{background:#2563eb;color:#fff;border:0;font-weight:700}#gate input{width:100%;box-sizing:border-box;font-size:17px;padding:12px;border-radius:10px;margin-bottom:10px}
   #gate button{width:100%;font-size:17px;padding:12px;border-radius:10px}#gate .er{color:#ff5d73;min-height:20px;font-size:14px;margin-top:8px}`;document.head.appendChild(st)}
  async function valida(pw){let ok=false,red=false;
   try{const r=await fetch(RAW+"?t="+Date.now(),{cache:"no-store"});if(r.ok){const j=await r.json();if(j&&j.enc){try{await decrypt(j,pw);ok=true}catch(e){}}else red=true}else red=true}catch(e){red=true}
