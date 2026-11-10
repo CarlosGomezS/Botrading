@@ -1,0 +1,26 @@
+name: Asistente · conocimiento del proyecto
+# v382 · junta cómo está hecho todo el proyecto para que el asistente 🤖 de la app lo conozca de pe a pa
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: conocimiento
+  cancel-in-progress: true
+jobs:
+  generar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Generar y publicar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node runner/conocimiento.mjs

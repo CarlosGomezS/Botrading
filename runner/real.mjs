@@ -868,7 +868,7 @@ async function main() {
   const now = NOWF(), m = madrid(now);
   if (!PW) {
     // privacidad: sin contraseña no se lee ni se publica nada de la cuenta (el repositorio es público)
-    if (EVENT === "schedule" && !A.on) { log("Cartera real sin configurar: nada que hacer."); return; }
+    if ((EVENT === "schedule" && !A.on) || !env("T212_KEY")) { log("Cartera real sin configurar todavía (sin contraseña ni claves de Trading 212): nada que hacer."); return; }   // v382 · una copia nueva sin configurar no da error cada 15 min
     const msg = "Falta la contraseña de la cartera real (REAL_VIEW_PASS). Por privacidad el bot no consulta tu cuenta ni guarda nada hasta que la pongas en 💶 Real → Ajustes de la cartera real.";
     log(msg); await avisa("✖ Cartera real: falta la contraseña", msg, { prio: 4 });
     process.exitCode = 1; return;

@@ -574,7 +574,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 381 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#381</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 382 · domingo 8 de noviembre de 2026">✦ 26.11.8 «Fénix» <small>#382</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4908,6 +4908,7 @@ window.__terminal={T,recoge,pinta};
  #iaP .iah{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #ffffff1a}#iaP .iah b{flex:1;font-size:17px}
  #iaP .iac{flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
  #iaP .bub{padding:10px 12px;border-radius:14px;max-width:90%;white-space:pre-wrap;line-height:1.45;font-size:15px}
+ #iaP .iadots{display:inline-flex;gap:4px;margin-right:6px;vertical-align:middle}#iaP .iadots i{width:7px;height:7px;border-radius:50%;background:#34d399;animation:iad 1s infinite ease-in-out}#iaP .iadots i:nth-child(2){animation-delay:.15s}#iaP .iadots i:nth-child(3){animation-delay:.3s}@keyframes iad{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-4px)}}
  #iaP .yo{align-self:flex-end;background:#2563eb33;border:1px solid #2563eb66}#iaP .el{align-self:flex-start;background:#ffffff0f;border:1px solid #ffffff22}
  #iaP .iaf{padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid #ffffff1a;display:flex;flex-direction:column;gap:8px}
  #iaP .iaf .fila{display:flex;gap:8px}#iaP .iaf input[type=text]{flex:1}#iaP .sug{display:flex;gap:6px;overflow-x:auto;white-space:nowrap;scrollbar-width:none}#iaP .sug::-webkit-scrollbar{display:none}#iaP .sug button{flex:none}#iaP .sug button{font-size:12.5px;padding:6px 10px;border-radius:999px}`;
@@ -4933,23 +4934,28 @@ window.__terminal={T,recoge,pinta};
    if(ch.length)o.push("Comprobaciones más recientes del terminal: "+ch.join(" | "));if(er.length)o.push("Últimos avisos o errores del terminal: "+er.join(" | "))}catch(e){}
   if(conReal){o.push("CARTERA REAL (Trading 212), tal como se ve en la pestaña Real: "+txt("#t-real").slice(0,2500));o.push("CRIPTO REAL (Bitvavo y OKX), tal como se ve en la pestaña Cripto: "+txt("#t-memes").slice(0,2500))}
   return o.join("\n")}
- function sistema(conReal){const ayuda=(txt("#t-ayuda")+" "+txt("#simpl-ay")).slice(0,60000);
+ let CON=null;async function conocimiento(){if(CON!=null)return CON;try{const m=location.hostname.match(/^([^.]+)\.github\.io$/),r=location.pathname.split("/")[1],rp=m&&r?m[1]+"/"+r:"CarlosGomezS/Botrading";const x=await fetch("https://raw.githubusercontent.com/"+rp+"/conocimiento/conocimiento.md?t="+Math.floor(Date.now()/3600e3),{cache:"no-store"});CON=x.ok?(await x.text()).slice(0,120000):""}catch(e){CON=""}return CON}
+ function sistema(conReal){const ayuda=CON?"(incluida en el CONOCIMIENTO DEL PROYECTO)":(txt("#t-ayuda")+" "+txt("#simpl-ay")).slice(0,60000);
   return`Eres el asistente de la app «Bot Trading». Hablas en castellano de España, claro y cercano, sin tecnicismos innecesarios. Sabes cómo funciona toda la app (la AYUDA de abajo es la fuente principal) y ves su ESTADO ACTUAL.
-Puedes: explicar cualquier pantalla o regla; decir si todo va bien según las comprobaciones; explicar por qué la cartera real sigue a un método; ayudar a sacar claves; y proponer mejoras (dilas como ideas para que el dueño se las pida a su desarrollador; tú no puedes cambiar la app).
+Conoces el proyecto de pe a pa: cómo está hecho por dentro (procesos, horarios, reglas, ramas de datos) y por fuera. Puedes: explicar cualquier pantalla, regla o proceso; decir si todo va bien según las comprobaciones; explicar por qué la cartera real sigue a un método; ayudar a sacar claves; y proponer mejoras (dilas como ideas para que el dueño se las pida a su desarrollador; tú no puedes cambiar la app).
 REGLAS: 1) NUNCA pidas ni aceptes claves, secretos, contraseñas ni frases de paso. 2) Nunca recomiendes dar permiso de retirar dinero. 3) No prometas ganancias ni des recomendaciones de compra: explica lo que hace la app y recuerda que las decisiones y el riesgo son del dueño. 4) Si algo no está en la ayuda ni en el estado, dilo en vez de inventarlo. 5) Respuestas cortas; pasos numerados para procedimientos.
 === ESTADO ACTUAL ===
 ${estado(conReal)}
+=== CONOCIMIENTO DEL PROYECTO (cómo está hecho todo, por dentro) ===
+${CON||"(no disponible ahora)"}
 === AYUDA Y GUÍA DE LA APP ===
 ${ayuda}`}
- async function modelos(k){if(MOD)return MOD;try{const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",{headers:{"x-goog-api-key":k}});const j=await r.json();MOD=(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace("models/","")).filter(n=>/gemini-[\d.]+-flash$/.test(n)).sort((a,b)=>parseFloat(b.split("-")[1])-parseFloat(a.split("-")[1]));if(!MOD.length)MOD=["gemini-2.5-flash"]}catch(x){MOD=["gemini-2.5-flash"]}return MOD}
+ async function modelos(k){if(MOD)return MOD;let L=[];try{const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key="+encodeURIComponent(k));const j=await r.json();L=(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace("models/","")).filter(n=>/gemini/.test(n)&&/flash/.test(n)&&!/image|tts|audio|live|embed|thinking-exp/.test(n)).sort((a,b)=>(/lite/.test(a)-/lite/.test(b))||(parseFloat((b.match(/gemini-([\d.]+)/)||[])[1]||0)-parseFloat((a.match(/gemini-([\d.]+)/)||[])[1]||0))||(/preview|exp/.test(a)-/preview|exp/.test(b)))}catch(x){}
+  MOD=[...new Set([...L,"gemini-flash-latest","gemini-3.5-flash","gemini-3-flash","gemini-2.5-flash","gemini-flash-lite-latest"])];return MOD}   /* v382 · si un modelo no existe (404) se prueba el siguiente */
  async function pregunta(){const q=($("#iaQ").value||"").trim(),k=key(),st=$("#iaSt");if(!q)return;if(!k){st.textContent="Primero guarda tu clave de Gemini (arriba).";return}
   if(/(AIza[\w-]{20,}|ghp_|github_pat_|\b\d{6,}:[\w-]{20,}|[A-Za-z0-9]{32,})/.test(q)){st.textContent="⚠️ Parece que has escrito una clave. No la envíes: bórrala del mensaje.";return}
-  $("#iaQ").value="";bur("yo",q);H.push({role:"user",parts:[{text:q}]});H=H.slice(-14);st.textContent="Pensando…";$("#iaGo").disabled=true;
-  try{const ms=await modelos(k),sys=sistema($("#iaReal").checked);let out=null,err="";
-   for(const m of ms.slice(0,4)){try{const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":k},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:H,generationConfig:{temperature:0.4}})});
-     if(!r.ok){err="HTTP "+r.status;if(r.status===400||r.status===403)break;continue}const j=await r.json();out=(((j.candidates||[])[0]||{}).content||{}).parts?.map(x=>x.text||"").join("")||"";if(out)break}catch(x){err=x.message}}
-   if(out){H.push({role:"model",parts:[{text:out}]});bur("el",out);st.textContent=""}else st.textContent=/40[03]/.test(err)?"La clave de Gemini no es válida: revísala.":"Gemini no responde ahora ("+err+"). Prueba en un momento."}
-  finally{$("#iaGo").disabled=false}}
+  $("#iaQ").value="";bur("yo",q);H.push({role:"user",parts:[{text:q}]});H=H.slice(-14);st.textContent="";$("#iaGo").disabled=true;
+  const esp=document.createElement("div");esp.className="bub el iaesp";esp.innerHTML='<span class="iadots"><i></i><i></i><i></i></span> Pensando…';$("#iaC").appendChild(esp);$("#iaC").scrollTop=1e9;
+  try{await conocimiento();const ms=await modelos(k),sys=sistema($("#iaReal").checked);let out=null,err="";
+   for(const m of ms.slice(0,7)){try{const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(k)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:H,generationConfig:{temperature:0.4}})});
+     if(!r.ok){let d="";try{d=((await r.json()).error||{}).message||""}catch(_){}err="HTTP "+r.status+(d?" · "+d.slice(0,120):"");if(r.status===400&&/API key/i.test(d)||r.status===403)break;continue}const j=await r.json();out=(((j.candidates||[])[0]||{}).content||{}).parts?.map(x=>x.text||"").join("")||"";if(out)break}catch(x){err=x.message}}
+   esp.remove();if(out){H.push({role:"model",parts:[{text:out}]});bur("el",out);st.textContent=""}else{H.pop();st.textContent=/API key|403/.test(err)?"La clave de Gemini no es válida o no tiene permiso: revísala ("+err+").":"Gemini no ha respondido ("+err+"). Prueba en un momento."}}
+  finally{try{esp.remove()}catch(_){}$("#iaGo").disabled=false}}
  const ini=()=>{if(window.__RUNNER)return;monta()};if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",ini);else ini();
 })();
 </script>
