@@ -12,7 +12,7 @@ export const UNI_VOL = 1000, UNI_SP = 0.015, UNI_MAX = 2000;   // v352 · 🌍 T
 export const universo = (tick, extra = () => true) => Object.entries(tick).filter(([m, x]) => x && x.vq >= UNI_VOL && x.sp < UNI_SP && !/^(USDC|EURC|USDT|EUROC|DAI|PYUSD)-/.test(m) && m !== "USDC-EUR" && extra(m, x)).sort((a, b) => b[1].vq - a[1].vq).slice(0, UNI_MAX);
 // v313 · 🧠 las Tortugas APRENDEN: estos son sus «genes». El examen largo prueba muchas combinaciones con el 1.er año y solo cambia si la nueva
 // gana TAMBIÉN en el 2.º año (que no ha visto) a la que está en uso. Así mejora sola sin «ajustarse» al pasado.
-export const P0 = { ent: T_ENTRA, sale: T_SALE, kN: 2, stopMax: T_STOPMAX, filtro: false, maxPos: T_MAXPOS, mFil: 50, atrMax: 0, tp: 0, tpFrac: 1 };   // v323 · + recoger ganancias (tp: +5/10/20 %, toda o la mitad)   // v317 · + media del filtro de BTC y tope de volatilidad
+export const P0 = { ent: T_ENTRA, sale: T_SALE, kN: 2, stopMax: T_STOPMAX, filtro: false, maxPos: T_MAXPOS, mFil: 50, atrMax: 0, tp: 0, tpFrac: 1, vol: 0, rsiMax: 0, comp: 0, momD: 0, cazar: 0 };   // v413 · + filtros de entrada nuevos (volumen, RSI, compresión, tendencia larga, no perseguir)   // v323 · + recoger ganancias (tp: +5/10/20 %, toda o la mitad)   // v317 · + media del filtro de BTC y tope de volatilidad
 export const conP = (P) => ({ ...P0, ...(P || {}) });
 // v318 · 🎚️ PERFILES DE RIESGO: cada uno evoluciona sus PROPIAS reglas. «alto» = máximo riesgo: pocas criptos a la vez y casi todo el dinero
 // en cada una; busca la que más gana aunque caiga mucho por el camino (hasta un 70 %).
@@ -38,7 +38,7 @@ const atr = (d, i, n) => { let s = 0; for (let j = i - n + 1; j <= i; j++) s += 
 export function senal(d, P) { P = conP(P); const i = d.length - 1; if (i < Math.max(P.ent, T_N) + 2) return null; let hi = -Infinity, lo = Infinity; for (let j = i - P.ent; j < i; j++) hi = Math.max(hi, d[j][2]); for (let j = Math.max(0, i - P.sale); j < i; j++) lo = Math.min(lo, d[j][3]);
   let m50 = 0; const n50 = Math.min(50, i + 1); for (let j = i - n50 + 1; j <= i; j++) m50 += d[j][4]; m50 /= n50;
   let mF = 0; const nF = Math.min(P.mFil, i + 1); for (let j = i - nF + 1; j <= i; j++) mF += d[j][4]; mF /= nF;
-  const N = atr(d, i, T_N), c = d[i][4]; return { t: d[i][0], c, N, hi20: hi, lo10: lo, entra: c > hi, sale: c < lo, sobre50: c > m50, sobreF: c > mF }; }
+  const N = atr(d, i, T_N), c = d[i][4]; return { t: d[i][0], c, N, hi20: hi, lo10: lo, entra: c > hi && filtrosOk(d, i, P), sale: c < lo, sobre50: c > m50, sobreF: c > mF }; }
 
 // v320 · ⚡ cálculos por cripto guardados (para examinar 150 criptos × cientos de reglas en minutos): máximos, mínimos, medias y N
 const CACHE = new WeakMap();
@@ -49,8 +49,24 @@ function pre(d) { let c = CACHE.get(d); if (c) return c; const n = d.length, tr 
 const hiDe = (d, k) => { const c = pre(d); if (c.hi[k]) return c.hi[k]; const o = new Float64Array(d.length).fill(-Infinity); for (let i = 1; i < d.length; i++) { let m = -Infinity; for (let j = Math.max(0, i - k); j < i; j++) m = Math.max(m, d[j][2]); o[i] = m; } return (c.hi[k] = o); };
 const loDe = (d, k) => { const c = pre(d); if (c.lo[k]) return c.lo[k]; const o = new Float64Array(d.length).fill(Infinity); for (let i = 1; i < d.length; i++) { let m = Infinity; for (let j = Math.max(0, i - k); j < i; j++) m = Math.min(m, d[j][3]); o[i] = m; } return (c.lo[k] = o); };
 const meDe = (d, k) => { const c = pre(d); if (c.me[k]) return c.me[k]; const o = new Float64Array(d.length); let s = 0; for (let i = 0; i < d.length; i++) { s += d[i][4]; if (i >= k) s -= d[i - k][4]; o[i] = s / Math.min(k, i + 1); } return (c.me[k] = o); };
+// v413 · 🧪 FILTROS DE ENTRADA NUEVOS (los usan igual el examen y el bot real, porque van dentro de la señal):
+//   vol    → la ruptura tiene que venir con volumen: el de hoy ≥ vol × la media de los 20 días anteriores
+//   rsiMax → no compra si ya está demasiado estirada (RSI de 14 días por encima de rsiMax)
+//   comp   → solo rupturas tras una calma: volatilidad de 10 días < comp × la de 60 días (el día antes)
+//   momD   → solo si en los últimos momD días ha subido (tendencia larga a favor)
+//   cazar  → no la persigue si en los últimos 5 días ya ha subido más de un cazar (p. ej. 0,3 = 30 %)
+const vmDe = (d) => { const c = pre(d); if (c.vm) return c.vm; const o = new Float64Array(d.length).fill(NaN); let s = 0; for (let i = 0; i < d.length; i++) { if (i >= 1) { s += d[i - 1][5] || 0; if (i - 21 >= 0) s -= d[i - 21][5] || 0; } if (i >= 21) o[i] = s / 20; } return (c.vm = o); };
+const rsiDe = (d) => { const c = pre(d); if (c.rsi) return c.rsi; const o = new Float64Array(d.length).fill(NaN); let g = 0, l = 0; for (let i = 1; i < d.length; i++) { const x = d[i][4] - d[i - 1][4], up = Math.max(x, 0), dn = Math.max(-x, 0); if (i <= 14) { g += up / 14; l += dn / 14; if (i === 14) o[i] = 100 - 100 / (1 + g / (l || 1e-12)); } else { g = (g * 13 + up) / 14; l = (l * 13 + dn) / 14; o[i] = 100 - 100 / (1 + g / (l || 1e-12)); } } return (c.rsi = o); };
+const avDe = (d, k) => { const c = pre(d); c.av = c.av || {}; if (c.av[k]) return c.av[k]; const o = new Float64Array(d.length).fill(NaN); let s = 0; for (let i = 1; i < d.length; i++) { const t = Math.abs(d[i][4] / d[i - 1][4] - 1); s += t; if (i - k >= 1) s -= Math.abs(d[i - k][4] / d[i - k - 1][4] - 1); if (i >= k) o[i] = s / k; } return (c.av[k] = o); };
+export function filtrosOk(d, i, P) { P = conP(P);
+  if (P.vol > 0) { const vm = vmDe(d)[i]; if (!(vm > 0) || !((d[i][5] || 0) >= P.vol * vm)) return false; }
+  if (P.rsiMax > 0) { const r = rsiDe(d)[i]; if (!(r < P.rsiMax)) return false; }
+  if (P.comp > 0) { if (i < 62) return false; const a = avDe(d, 10)[i - 1], b = avDe(d, 60)[i - 1]; if (!(b > 0) || !(a < P.comp * b)) return false; }
+  if (P.momD > 0) { if (i < P.momD) return false; if (!(d[i][4] > d[i - P.momD][4])) return false; }
+  if (P.cazar > 0) { if (i < 5) return false; if (d[i][4] / d[i - 5][4] - 1 > P.cazar) return false; }
+  return true; }
 // la misma señal que senal(), pero leyendo lo guardado (idéntica para i ≥ 20)
-export function senalRapida(d, i, P) { if (i < Math.max(P.ent, T_N) + 2) return null; const c = d[i][4], N = pre(d).N[i]; return { c, N, entra: c > hiDe(d, P.ent)[i], sale: c < loDe(d, P.sale)[i], sobreF: c > meDe(d, P.mFil)[i] }; }
+export function senalRapida(d, i, P) { if (i < Math.max(P.ent, T_N) + 2) return null; const c = d[i][4], N = pre(d).N[i]; return { c, N, entra: c > hiDe(d, P.ent)[i] && filtrosOk(d, i, P), sale: c < loDe(d, P.sale)[i], sobreF: c > meDe(d, P.mFil)[i] }; }
 
 // 🧪 SIMULACIÓN DE CARTERA con las reglas EXACTAS del real: dinero compartido, como mucho 4 a la vez, tamaño por volatilidad (10-25 %),
 // comisión del exchange y medio spread en cada orden, salida por mínimo de 10 días solo si cubre comisiones (si no, espera ≤ 7 días), stop 2N (≤ −8 %).
@@ -118,7 +134,8 @@ const nota = (r, peso = 0.5) => r.ret - peso * r.dd;
 //  2) aprobar los 2 años completos;
 //  3) no perder con las criptos del OTRO exchange (lección de la caza: si solo gana con un grupo de criptos, es suerte);
 //  4) no ir peor que la que está en uso en los últimos 4 meses (mercado actual).
-const GEN = { ent: [10, 15, 20, 25, 30, 40, 55, 70, 100], sale: [5, 7, 10, 15, 20, 30, 40], kN: [1.5, 2, 2.5, 3, 4], stopMax: [0.05, 0.06, 0.08, 0.1, 0.12, 0.15], filtro: [false, true], maxPos: [1, 2, 3, 4, 5, 6], mFil: [20, 50, 100, 200], atrMax: [0, 0.04, 0.06, 0.1], tp: [0, 0, 0.05, 0.1, 0.2], tpFrac: [0.5, 1] };
+const GEN = { ent: [10, 15, 20, 25, 30, 40, 55, 70, 100], sale: [5, 7, 10, 15, 20, 30, 40], kN: [1.5, 2, 2.5, 3, 4], stopMax: [0.05, 0.06, 0.08, 0.1, 0.12, 0.15], filtro: [false, true], maxPos: [1, 2, 3, 4, 5, 6], mFil: [20, 50, 100, 200], atrMax: [0, 0.04, 0.06, 0.1], tp: [0, 0, 0.05, 0.1, 0.2], tpFrac: [0.5, 1], vol: [0, 0, 1.5, 2, 3], rsiMax: [0, 0, 70, 80, 90], comp: [0, 0, 0.7, 0.85], momD: [0, 0, 60, 120], cazar: [0, 0, 0.15, 0.3] };
+export const GENES = GEN;
 const valido = (P) => P.sale < P.ent && P.maxPos >= perfil(P.riesgo).maxPosMin;
 export function hijas(padres, n, rnd = Math.random, riesgo = "medio") { const pick = (a) => a[Math.floor(rnd() * a.length)], out = [], vistos = new Set(padres.map((p) => JSON.stringify(conP(p))));
   for (let k = 0; out.length < n && k < n * 20; k++) { let P; const u = rnd();
@@ -145,4 +162,4 @@ export function aprende(series, fee, actual, opts = {}) {
     if (!fallo) return { ...base, P: c.P, cambia: true, nueva: info, motivo: "la nueva gana en el año que no vio, aprueba los 2 años, también gana con las criptos del otro exchange y va bien en el mercado actual" };
     motivo = "la mejor nueva " + fallo; }
   return { ...base, P: inc, cambia: false, nueva: mejorInfo, motivo }; }
-export const describe = (P) => { P = conP(P); return `entra con máximo de ${P.ent} días · sale con mínimo de ${P.sale} · stop ${P.kN}N (≤ −${Math.round(P.stopMax * 100)} %)${P.maxPos !== 4 ? ` · hasta ${P.maxPos} a la vez` : ""}${P.filtro ? ` · solo si BTC está sobre su media de ${P.mFil} días` : ""}${P.atrMax > 0 ? ` · evita las que se mueven más de un ${Math.round(P.atrMax * 100)} % al día` : ""}${P.tp > 0 ? ` · recoge ${P.tpFrac >= 1 ? "toda la" : "la mitad de la"} ganancia al +${Math.round(P.tp * 100)} %` : ""}`; };
+export const describe = (P) => { P = conP(P); return `entra con máximo de ${P.ent} días · sale con mínimo de ${P.sale} · stop ${P.kN}N (≤ −${Math.round(P.stopMax * 100)} %)${P.maxPos !== 4 ? ` · hasta ${P.maxPos} a la vez` : ""}${P.filtro ? ` · solo si BTC está sobre su media de ${P.mFil} días` : ""}${P.atrMax > 0 ? ` · evita las que se mueven más de un ${Math.round(P.atrMax * 100)} % al día` : ""}${P.tp > 0 ? ` · recoge ${P.tpFrac >= 1 ? "toda la" : "la mitad de la"} ganancia al +${Math.round(P.tp * 100)} %` : ""}${P.vol > 0 ? ` · solo con volumen ≥ ${P.vol}× lo normal` : ""}${P.rsiMax > 0 ? ` · no si está estirada (RSI > ${P.rsiMax})` : ""}${P.comp > 0 ? " · solo tras una calma (compresión)" : ""}${P.momD > 0 ? ` · solo si sube en ${P.momD} días` : ""}${P.cazar > 0 ? ` · no la persigue si subió > ${Math.round(P.cazar * 100)} % en 5 días` : ""}`; };

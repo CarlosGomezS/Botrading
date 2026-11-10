@@ -25,7 +25,7 @@ async function modelos() {
   } catch (e) {}
   return ["gemini-2.5-flash", "gemini-2.0-flash"];
 }
-const T0 = Date.now(), QUEDA = () => 13 * 60e3 - (Date.now() - T0);   // como mucho ~11 min en total: siempre da tiempo a guardar
+const T0 = Date.now(), QUEDA = () => 16 * 60e3 - (Date.now() - T0);   // como mucho ~11 min en total: siempre da tiempo a guardar
 async function gemini(prompt, MS) {
   let ultimo = "";
   for (const m of MS) for (let t = 0; t < 2; t++) { if (QUEDA() < 90e3) throw new Error("sin tiempo · " + ultimo);
@@ -114,20 +114,52 @@ Responde SOLO un JSON: {"lecciones":[hasta 20 lecciones breves en castellano: tu
   return { genes: todos, nuevos: nuevos.length, modelo, lecciones: lec && lec.length ? lec : (prev && prev.lecciones) || [] };
 }
 
+// ---------- v413 · 🐢 TORTUGAS (cripto diario, Bitvavo y OKX): la IA propone reglas nuevas con las piezas del motor ----------
+async function buscaWeb(MS) {   // la IA busca en internet estrategias diarias de cripto actuales (Google Search); si no se puede, se sigue sin ello
+  for (const m of MS.slice(0, 3)) { if (QUEDA() < 240e3) return "";
+    try { const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": KEY }, signal: AbortSignal.timeout(90000),
+        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "Busca en internet (fuentes de 2024-2026: estudios, backtests publicados, traders cuantitativos) qué estrategias de trading DIARIO de criptomonedas en spot (solo compras, sin apalancamiento, 1-4 semanas por operación) están funcionando mejor ahora: rupturas tipo Tortugas/Donchian, momentum, filtros de volumen, RSI, compresión de volatilidad, filtros de tendencia de BTC, salidas, etc. Resume en castellano, en 12 puntos concretos con números (días, umbrales) y qué dicen los datos. Sin relleno." }] }], tools: [{ google_search: {} }] }) });
+      if (!r.ok) continue; const j = await r.json(), t = (((j.candidates || [])[0] || {}).content || {}).parts?.map((x) => x.text || "").join("") || "";
+      if (t.length > 200) { log(`🌐 búsqueda en internet hecha con ${m} (${t.length} caracteres)`); return t.slice(0, 6000); } } catch (e) {} }
+  log("🌐 no se pudo buscar en internet esta vez (se sigue igual)"); return ""; }
+async function tortugas(MS, prev) {
+  const TT = await import("./tortugas.mjs"), GEN = TT.GENES, el = await raw("examen-largo", "examen-largo.json");
+  const est = {}; for (const [ex, t] of Object.entries((el && el.tortugas) || {})) for (const [rk, r] of Object.entries((t && t.perfiles) || {})) if (r && r.P) (est[ex] = est[ex] || {})[rk] = { regla: r.P, aprueba: r.ok, gana_2_anos: r.ret, peor_caida: r.dd, operaciones: r.n, semestres: r.semestres, tramos: r.tramos ? { no_pierde_en: r.tramos.g, ult6m: r.tramos.rec, btc6m: r.tramos.btcRec } : null, mejores_madres: (r.pob || []).slice(0, 3) };
+  const web = await buscaWeb(MS);
+  const P = `Eres un gestor cuantitativo experto en cripto. Diseña REGLAS NUEVAS para un bot de «Tortugas» que opera en spot (solo compras) en Bitvavo (comisión 0,25 %) y OKX (0,10 %), con velas DIARIAS de todas las criptos líquidas.
+Cómo funciona: compra una cripto cuando su cierre supera el máximo de «ent» días y la vende cuando cierra bajo el mínimo de «sale» días; stop «kN» veces la volatilidad (ATR 20) con tope «stopMax»; como mucho «maxPos» a la vez; «filtro»: solo compra si BTC está sobre su media de «mFil» días; «atrMax»: evita las que se mueven más de ese % al día; «tp»/«tpFrac»: recoge ganancias; filtros de entrada nuevos: «vol» (volumen de hoy ≥ vol × media de 20 días), «rsiMax» (no compra si RSI14 > rsiMax), «comp» (solo tras calma: volatilidad 10 días < comp × la de 60), «momD» (solo si sube en momD días), «cazar» (no compra si subió más de cazar en 5 días). 0 = apagado.
+Valores permitidos (USA SOLO ESTOS): ${JSON.stringify(GEN)}
+Riesgos: «bajo» (maxPos ≥ 4, caída máx. 30 %), «medio» (maxPos ≥ 2, caída máx. 50 %), «alto» (maxPos ≥ 1, caída máx. 70 %). Siempre sale < ent.
+Examen: 2 años; se elige con el 1.er año y tiene que ganar en el 2.º (que no vio), con las criptos del otro exchange y en los últimos 4 meses; luego 24 tramos al azar (la mitad acaban hoy) y no ir peor que BTC en 6 meses.
+Estado actual por exchange y riesgo: ${JSON.stringify(est)}
+${web ? `LO QUE HAS ENCONTRADO EN INTERNET AHORA (úsalo con criterio): ${web}` : ""}
+${prev && prev.reglas && prev.reglas.length ? `Tus propuestas anteriores (no las repitas): ${JSON.stringify(prev.reglas.slice(0, 20).map((x) => x.P))}` : ""}
+TU CUADERNO DE LECCIONES: ${JSON.stringify((prev && prev.lecciones) || [])}
+TU MEMORIA LARGA: ${JSON.stringify(((globalThis.__MEM || {}).tort || []).slice(0, 80).map((x) => x.l))}
+Responde SOLO un JSON: {"lecciones":[hasta 20 lecciones breves en castellano], "reglas":[{"P":{pieza: valor...}, "ex":"bitvavo"|"okx"|"ambos", "riesgo":"bajo"|"medio"|"alto", "idea":"por qué (1 frase)"} ... 24 reglas muy distintas entre sí, repartidas entre exchanges y riesgos ...]}`;
+  const { modelo, json } = await gemini(P, MS);
+  const ok = (x) => { const P0 = x && x.P; if (!P0 || typeof P0 !== "object") return null; const o = {}; for (const [k, v] of Object.entries(P0)) { if (!GEN[k] || !GEN[k].some((z) => z === v)) return null; o[k] = v; } const rk = ["bajo", "medio", "alto"].includes(x.riesgo) ? x.riesgo : "medio", c = TT.conP({ ...o, riesgo: rk }); if (!(c.sale < c.ent) || c.maxPos < TT.perfil(rk).maxPosMin) return null; return { P: c, ex: ["bitvavo", "okx", "ambos"].includes(x.ex) ? x.ex : "ambos", riesgo: rk, idea: String(x.idea || "").replace(/[<>`]/g, "").slice(0, 200) }; };
+  const nuevas = ((json && json.reglas) || []).map(ok).filter(Boolean), reglas = [...nuevas.map((x) => ({ ...x, t: new Date().toISOString(), modelo })), ...((prev && prev.reglas) || [])].filter((x, i, A) => A.findIndex((z) => JSON.stringify(z.P) === JSON.stringify(x.P)) === i).slice(0, 60);
+  log(`Tortugas: la IA (${modelo}) propone ${((json && json.reglas) || []).length} reglas · válidas ${nuevas.length}`); for (const x of nuevas.slice(0, 8)) log(`  · ${x.ex}/${x.riesgo}: ${TT.describe(x.P)} — ${x.idea}`);
+  const lec = Array.isArray(json && json.lecciones) ? json.lecciones.map((x) => String(x).replace(/[<>`]/g, "").slice(0, 220)).filter(Boolean).slice(0, 20) : null;
+  if (lec && lec.length) { log("Tortugas · cuaderno de lecciones:"); for (const x of lec) log("  📓 " + x); }
+  return { reglas, nuevas: nuevas.length, modelo, web: !!web, lecciones: lec && lec.length ? lec : (prev && prev.lecciones) || [] }; }
+
 async function main() {
-  const prev = (await raw(RAMA, "ia-lab.json")) || {}, out = { v: 1, t: new Date().toISOString(), estado: "ok", cripto: prev.cripto || null, etf: prev.etf || null, hist: prev.hist || [] };
+  const prev = (await raw(RAMA, "ia-lab.json")) || {}, out = { v: 1, t: new Date().toISOString(), estado: "ok", cripto: prev.cripto || null, etf: prev.etf || null, tort: prev.tort || null, hist: prev.hist || [] };
   /* v409 · 🧠 MEMORIA LARGA: todas las lecciones que ha escrito alguna vez (sin repetir, con fecha), aunque luego las quite del cuaderno corto */
-  const MEM = { cripto: [], etf: [], ...(prev.memoria || {}) }; globalThis.__MEM = MEM;
+  const MEM = { cripto: [], etf: [], tort: [], ...(prev.memoria || {}) }; MEM.tort = MEM.tort || []; globalThis.__MEM = MEM;
   const guarda = (k, L) => { const ya = new Set(MEM[k].map((x) => x.l)); for (const l of L || []) if (l && !ya.has(l)) { MEM[k].unshift({ t: out.t, l }); ya.add(l); } MEM[k] = MEM[k].slice(0, 500); };
-  guarda("cripto", prev.cripto && prev.cripto.lecciones); guarda("etf", prev.etf && prev.etf.lecciones);
+  guarda("cripto", prev.cripto && prev.cripto.lecciones); guarda("etf", prev.etf && prev.etf.lecciones); guarda("tort", prev.tort && prev.tort.lecciones);
   if (!KEY) { out.estado = "sin clave"; log("no hay clave GEMINI_KEY en los secretos de GitHub: los laboratorios siguen igual, sin ayudante"); }
   else { const MS0 = await modelos(), bueno = prev.modeloOk, MS = bueno ? [bueno, ...MS0.filter((m) => m !== bueno)] : MS0;   // primero el que respondió la última vez
     log("modelos disponibles:", MS.join(", ")); const h = { t: out.t };
     try { out.cripto = await cripto(MS, prev.cripto); h.cripto = out.cripto.nuevas; } catch (e) { h.errC = String(e.message).slice(0, 80); log("cripto: la IA no respondió (" + h.errC + "); el laboratorio sigue igual"); }
+    try { out.tort = await tortugas(MS, prev.tort); h.tort = out.tort.nuevas; } catch (e) { h.errT = String(e.message).slice(0, 80); log("Tortugas: la IA no respondió (" + h.errT + "); el examen sigue igual"); }
     try { out.etf = await etf(MS, prev.etf); h.etf = out.etf.nuevos; } catch (e) { h.errE = String(e.message).slice(0, 80); log("ETF: la IA no respondió (" + h.errE + "); el laboratorio sigue igual"); }
-    out.modeloOk = (h.cripto != null && out.cripto && out.cripto.modelo) || (h.etf != null && out.etf && out.etf.modelo) || prev.modeloOk || null;
+    out.modeloOk = (h.tort != null && out.tort && out.tort.modelo) || (h.cripto != null && out.cripto && out.cripto.modelo) || (h.etf != null && out.etf && out.etf.modelo) || prev.modeloOk || null;
     if (h.errC && h.errE) out.estado = "error"; out.hist = [h, ...out.hist].slice(0, 200); }
-  try { guarda("cripto", out.cripto && out.cripto.lecciones); guarda("etf", out.etf && out.etf.lecciones); out.memoria = MEM; log(`memoria larga: ${MEM.cripto.length} lecciones de cripto · ${MEM.etf.length} de ETF`); } catch (e) {}
+  try { guarda("cripto", out.cripto && out.cripto.lecciones); guarda("etf", out.etf && out.etf.lecciones); guarda("tort", out.tort && out.tort.lecciones); out.memoria = MEM; log(`memoria larga: ${MEM.cripto.length} lecciones de cripto · ${MEM.tort.length} de Tortugas · ${MEM.etf.length} de ETF`); } catch (e) {}
   // publicar en la rama ia-lab (pública: solo ideas, nada de dinero ni claves)
   const dir = path.join(process.env.RUNNER_TEMP || "/tmp", "ia-lab-pub"); rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, "ia-lab.json"), JSON.stringify(out));

@@ -88,6 +88,7 @@ async function main() {
   } catch (e) { console.log("Examen largo · cartera base: " + String(e.message).slice(0, 80)); }
   // v304 · 🐢 TORTUGAS: 2 años de velas diarias de las 20 criptos más líquidas de CADA exchange, con SUS comisiones, como cartera (máx. 4 a la vez)
   const tortugas = {};
+  let IA_T = null; try { const ia = await B.leer("ia-lab.json", "ia-lab"); IA_T = ia && ia.tort; if (IA_T) console.log(`Examen largo · 🤖 la IA propone ${(IA_T.reglas || []).length} reglas de Tortugas`); } catch (e) {}
   try { const TT = await import("./tortugas.mjs"), OK = await import("./okx.mjs");
     const SER = {};   // v317 · primero los datos de los dos exchanges (cada regla nueva se comprueba también con las criptos del otro)
     for (const ex of ["bitvavo", "okx"]) { try { let lista = [];
@@ -104,7 +105,8 @@ async function main() {
         const TRW = []; for (let q = 0; q < 24; q++) { const len = (90 + Math.random() * 275) * DD, fin = q < 12 ? t1s : t0s + len + Math.random() * Math.max(0, t1s - t0s - len); TRW.push([Math.max(t0s, fin - len), fin]); }
         const btcR = (d0, d1) => { if (!BT) return null; const a = BT.find((x) => x[0] >= d0), b = [...BT].reverse().find((x) => x[0] < d1); return a && b ? (b[4] / a[4] - 1) * 100 : null; };
         for (const rk of Object.keys(TT.PERFILES)) { const F = TT.PERFILES[rk], pv = (prevT && prevT.perfiles && prevT.perfiles[rk]) || (rk === "medio" ? prevT : null) || null;
-          const A = TT.aprende(series, TT.FEES[ex], pv && pv.P, { otra, feeOtra: TT.FEES[otro], pob: (pv && pv.pob) || [], n: 200, riesgo: rk }), P = A.P;
+          const iaR = ((IA_T && IA_T.reglas) || []).filter((x) => (x.ex === ex || x.ex === "ambos") && (!x.riesgo || x.riesgo === rk)).map((x) => x.P).slice(0, 15);   /* v413 · 🤖 las reglas que propone la IA compiten como madres */
+          const A = TT.aprende(series, TT.FEES[ex], pv && pv.P, { otra, feeOtra: TT.FEES[otro], pob: [...((pv && pv.pob) || []), ...iaR], n: 400, riesgo: rk }), P = A.P;   /* v413 · 400 reglas nuevas por perfil (antes 200) */
           const total = ((pv && pv.aprende && pv.aprende.total) || 0) + (A.nuevas || 0), hoyN = (pv && pv.aprende && pv.aprende.dia === hoyD ? pv.aprende.hoy || 0 : 0) + (A.nuevas || 0);
           const r = TT.simula(series, TT.FEES[ex], 0.002, P), v = TT.veredicto(r, F.ddMax); delete r.curva;
           try { const xs = TRW.map(([d0, d1]) => { const z = TT.simula(series, TT.FEES[ex], 0.002, P, d0, d1); return { m: Math.pow(Math.max(0.01, 1 + z.ret / 100), (30 * DD) / (d1 - d0)) - 1, ok: z.ret >= 0, dd: z.dd }; }), zr = TT.simula(series, TT.FEES[ex], 0.002, P, t1s - 182 * DD, t1s), ms = xs.map((x) => x.m).sort((a, b) => a - b), dds = xs.map((x) => x.dd).sort((a, b) => b - a), br = btcR(t1s - 182 * DD, t1s);
