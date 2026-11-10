@@ -25,7 +25,7 @@
   "mins": 8,
   "avisos": {
     "movil": 1,
-    "correo": 1
+    "correo": 0
   },
   "extra": {
     "nt": 1,
