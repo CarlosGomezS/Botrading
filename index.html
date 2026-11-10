@@ -587,7 +587,7 @@ body.simple #hd-tr,body.simple .rl-notas{display:none!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 394 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#394</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 395 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#395</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4502,7 +4502,15 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
    <input id="gate-pw" type="password" name="password" autocomplete="current-password" placeholder="Tu clave" autofocus>
    <input type="checkbox" class="pwrem" checked style="display:none"><button id="gate-go" type="submit">Entrar</button><div class="er" id="gate-er"></div></form>`;
   document.body.appendChild(d);const i=d.querySelector("#gate-pw"),b=d.querySelector("#gate-go"),er=d.querySelector("#gate-er");pre();
-  const go=async()=>{const pw=i.value||"";if(!pw)return;b.disabled=true;er.style.color="#9fb0c3";er.textContent="🔐 Comprobando la clave… (unos segundos)";const ok=await valida(pw);if(!ok){b.disabled=false;er.style.color="";er.textContent="Clave incorrecta.";i.select();return}
+  /* v395 · PRIMERA VEZ: si esta copia aún no tiene clave (no existe su archivo cifrado ni hay token guardado), en vez de «Escribe tu clave» se pide CREARLA */
+  let NUEVA=false;const st404=u=>fetch(u,{cache:"no-store"}).then(r=>r.status).catch(()=>0);
+  (async()=>{try{let enc=false;try{enc=!!localStorage.getItem("ghtok_enc")}catch(e){}if(enc)return;const AP="https://api.github.com/repos/"+RR+"/branches/",[x,y]=await Promise.all([tope(st404(AP+"real"),10000,0),tope(st404(AP+"bitvavo"),10000,0)]);if(x!==404||y!==404||NUEVA)return;
+   NUEVA=true;d.querySelector("h2").textContent="👋 Bienvenido a Bot Trading";d.querySelector("p").innerHTML="Es la primera vez: <b>crea tu clave</b>. Con ella entrarás en la app y se cifran todos tus datos. Mínimo <b>12 caracteres</b> (mejor una frase que recuerdes). Apúntala en un sitio seguro.";
+   i.placeholder="Crea tu clave (12 o más)";i.setAttribute("autocomplete","new-password");const i2=document.createElement("input");i2.id="gate-pw2";i2.type="password";i2.autocomplete="new-password";i2.placeholder="Repite la clave";i.after(i2);
+   i2.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();go()}};b.textContent="Crear clave y empezar"}catch(e){}})();
+  const go=async()=>{const pw=i.value||"";if(!pw)return;
+   if(NUEVA){const p2=(d.querySelector("#gate-pw2")||{}).value||"";er.style.color="";if(pw.length<12){er.textContent="Tiene que tener 12 caracteres o más.";return}if(pw!==p2){er.textContent="Las dos claves no coinciden.";return}b.disabled=true}
+   else{b.disabled=true;er.style.color="#9fb0c3";er.textContent="🔐 Comprobando la clave… (unos segundos)";const ok=await valida(pw);if(!ok){b.disabled=false;er.style.color="";er.textContent="Clave incorrecta.";i.select();return}}
    /* v375 · 👆 clave + huella: si el móvil tiene huella (o cara), además de la clave se pide la huella */
    const h=await huella(er);if(h==="mal"){b.disabled=false;er.style.color="";er.textContent="👆 Huella no reconocida o cancelada. Vuelve a pulsar «Entrar».";return}
    try{sessionStorage.setItem("rlpw",pw);localStorage.setItem("rlact",String(Date.now()))}catch(e){}try{if(!(await tope(remSave(pw),6000,false)))er.textContent="Este móvil no deja recordarla: te la pedirá al abrir."}catch(e){}
