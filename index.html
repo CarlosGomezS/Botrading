@@ -629,7 +629,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 423 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#423</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 424 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#424</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -5306,12 +5306,13 @@ ${estado(conReal)}
 })();
 </script>
 
-<script id="ojo-clave">/* v398 · 👁 ver u ocultar lo que escribes en cualquier campo de clave */
+<script id="ojo-clave">/* v398 · 👁 ver u ocultar lo que escribes en cualquier campo de clave (v424: también los que se tapan con puntos sin ser «password») */
 (function(){const css=document.createElement("style");css.textContent=".ojo-w{position:relative;display:block}.ojo-w>input{padding-right:46px!important}.ojo-b{position:absolute!important;right:6px;top:50%;transform:translateY(-50%);width:36px!important;height:36px!important;min-width:0!important;padding:0!important;margin:0!important;border:0!important;background:transparent!important;box-shadow:none!important;font-size:19px!important;line-height:1!important;cursor:pointer;opacity:.75;z-index:2}#gate .ojo-b,#onb .ojo-b,#iaP .ojo-b{background:transparent!important;border:0!important;width:36px!important;padding:0!important}.ojo-w>input:placeholder-shown{padding-right:12px!important}.ojo-w>input:placeholder-shown+.ojo-b{display:none!important}#gate .ojo-w{margin-bottom:10px}#gate .ojo-w>input{margin-bottom:0!important}";document.head.appendChild(css);
- const mete=i=>{if(i.dataset.ojo||!i.parentNode||i.type!=="password")return;i.dataset.ojo=1;const w=document.createElement("span");w.className="ojo-w";if(i.style.width)w.style.width=i.style.width;if(i.style.marginTop){w.style.marginTop=i.style.marginTop;i.style.marginTop="0"}
+ const oculto=i=>i.type==="password"||/disc|circle|square/.test(i.style.webkitTextSecurity||i.style.getPropertyValue("-webkit-text-security")||"");
+ const mete=i=>{if(i.dataset.ojo||!i.parentNode||!oculto(i))return;const txt=i.type!=="password";i.dataset.ojo=1;const w=document.createElement("span");w.className="ojo-w";if(i.style.width)w.style.width=i.style.width;if(i.style.marginTop){w.style.marginTop=i.style.marginTop;i.style.marginTop="0"}
   i.parentNode.insertBefore(w,i);w.appendChild(i);const b=document.createElement("button");b.type="button";b.className="ojo-b";b.setAttribute("data-nobusy","");b.setAttribute("aria-label","Mostrar la clave");b.textContent="👁";
-  b.onmousedown=e=>e.preventDefault();b.onclick=e=>{e.preventDefault();e.stopPropagation();const ver=i.type==="password";i.type=ver?"text":"password";b.textContent=ver?"🙈":"👁";b.setAttribute("aria-label",ver?"Ocultar la clave":"Mostrar la clave");try{i.focus()}catch(x){}};w.appendChild(b)};
- const todo=r=>{try{(r.querySelectorAll?r:document).querySelectorAll('input[type="password"]').forEach(mete);if(r.matches&&r.matches('input[type="password"]'))mete(r)}catch(e){}};
+  b.onmousedown=e=>e.preventDefault();b.onclick=e=>{e.preventDefault();e.stopPropagation();const ver=i.dataset.ver!=="1";i.dataset.ver=ver?"1":"0";if(ver){if(i.type==="password")i.type="text";i.style.setProperty("-webkit-text-security","none")}else{if(!txt)i.type="password";i.style.setProperty("-webkit-text-security","disc")}b.textContent=ver?"🙈":"👁";b.setAttribute("aria-label",ver?"Ocultar la clave":"Mostrar la clave")};w.appendChild(b)};
+ const todo=r=>{try{const Q='input[type="password"],input[style*="text-security"]';(r.querySelectorAll?r:document).querySelectorAll(Q).forEach(mete);if(r.matches&&r.matches(Q))mete(r)}catch(e){}};
  const go=()=>{todo(document);new MutationObserver(m=>{for(const x of m)for(const n of x.addedNodes)if(n.nodeType===1)todo(n)}).observe(document.body,{childList:true,subtree:true})};
  if(document.body)go();else document.addEventListener("DOMContentLoaded",go)})();</script>
 <script id="ajustes-limpios">/* v407 · fuera de ⚙️ Ajustes lo que ya no se usa: claves de datos del navegador, auditoría local, parámetros y capital de la ficticia, copias del estado local y diagnóstico antiguo. Todo eso ahora lo hace la nube. */
