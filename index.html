@@ -1,4 +1,18 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><script id="espacio-propio">
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><script id="almacen-seguro">
+/* v440 · 🧯 ALMACÉN A PRUEBA DE LLENOS: el navegador da ~5 MB por web y todas las copias de la app comparten la misma (carlosgomezs.github.io).
+   Si al guardar no cabe, se borran primero los DATOS DE OTRAS COPIAS (solo la copia de datos que cada una vuelve a descargar al abrirse; nunca
+   claves ni contraseñas) y se reintenta; si aun así no cabe, se guarda en memoria mientras la app está abierta. Así la app nunca se queda vacía. */
+(function(){try{var SP=Storage.prototype,g=SP.getItem,s=SP.setItem,r=SP.removeItem,k=SP.key,lg=Object.getOwnPropertyDescriptor(SP,"length").get,MEM={};
+ var seg=(location.pathname.split("/")[1]||"").toLowerCase(),mio=/\.github\.io$/.test(location.hostname)&&seg&&seg!=="botrading"?"app:"+seg+":":"";
+ var DATOS=/^(pb19|pbh3|pbi1|vgidx|pbReportsFallback|vgd:.*)$/,ajeno=function(x){var base=x,pre="";var m=x.match(/^(app:[^:]+:)(.*)$/);if(m){pre=m[1];base=m[2]}return pre!==mio&&DATOS.test(base)};
+ var libera=function(st){var n=lg.call(st),del=[];for(var i=0;i<n;i++){var x=k.call(st,i);if(x&&ajeno(x))del.push(x)}del.forEach(function(x){try{r.call(st,x)}catch(e){}});return del.length};
+ SP.setItem=function(x,v){try{s.call(this,x,v);delete MEM[x];return}catch(e){if(this!==window.localStorage)throw e}
+  try{if(libera(this)){s.call(this,x,v);delete MEM[x];return}}catch(e){}
+  try{r.call(this,x)}catch(e){}MEM[x]=String(v);window.__ALMACEN_LLENO=1};
+ SP.getItem=function(x){if(this===window.localStorage&&Object.prototype.hasOwnProperty.call(MEM,x))return MEM[x];return g.call(this,x)};
+ SP.removeItem=function(x){if(this===window.localStorage)delete MEM[x];return r.call(this,x)};
+}catch(e){}})();
+</script><script id="espacio-propio">
 /* v393 · 🔐 CADA COPIA DE LA APP CON SU PROPIO ALMACÉN. Todas las copias viven en la misma web (carlosgomezs.github.io), así que el navegador
    les daría el mismo almacén (clave recordada, token de GitHub, chat de la IA, datos…). Aquí cada copia distinta de la original («Botrading»)
    usa un prefijo propio en localStorage, sessionStorage e IndexedDB. La app original NO cambia nada (sin prefijo). */
@@ -629,7 +643,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 439 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#439</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 440 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#440</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
