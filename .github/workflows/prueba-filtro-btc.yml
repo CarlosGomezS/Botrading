@@ -1,0 +1,17 @@
+name: Datos · prueba con y sin filtro de bitcoin (una vez)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prueba:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: runner
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: node runner/prueba-filtro-btc.mjs
