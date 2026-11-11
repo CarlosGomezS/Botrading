@@ -20,6 +20,7 @@ if (c.cuenta != null) {
   if (c.riesgo != null) { if (!["bajo", "medio", "alto", "auto"].includes(c.riesgo)) throw new Error("riesgo no válido"); k.riesgo = c.riesgo; }   // v318 · 🎚️
   if (c.capital != null) { const v = Math.round(+c.capital); if (!(v >= 10 && v <= 100000)) throw new Error("cantidad no válida"); k.capital = v; }
   if (c.parado === false || c.on === true) { k.parado = false; k.motivo = null; }
+  else if (c.parado === true) { k.parado = true; k.motivo = "lo has parado tú"; }   // v438 · ⏹️ parar solo esta cuenta (vende lo que tenga y no compra)
   ctl.t = new Date().toISOString(); publicar("ctl.json", ctl, "bitvavo-ctl");
   console.log("Guardado (cuenta): " + Object.keys(c).join(", ")); process.exit(0);
 }
