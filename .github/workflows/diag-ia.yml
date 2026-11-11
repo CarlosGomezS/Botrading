@@ -3,16 +3,14 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  models: read
 jobs:
   ia:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: GitHub Models
-        env:
-          T: ${{ secrets.GITHUB_TOKEN }}
+      - name: ¿Se pueden usar desde el navegador (CORS)?
         run: |
-          echo "catálogo: $(curl -s -o /tmp/cat.json -w '%{http_code}' -H "Authorization: Bearer $T" https://models.github.ai/catalog/models)"
-          python3 -c "import json;d=json.load(open('/tmp/cat.json'));print(len(d),'modelos');print(', '.join(sorted(x.get('id','') for x in d))[:3000])" 2>/dev/null || head -c 300 /tmp/cat.json
-          for m in openai/gpt-5 openai/gpt-4.1 deepseek/deepseek-r1 xai/grok-3; do c=$(curl -s -o /tmp/r.json -w '%{http_code}' -H "Authorization: Bearer $T" -H "Content-Type: application/json" https://models.github.ai/inference/chat/completions -d "{\"model\":\"$m\",\"messages\":[{\"role\":\"user\",\"content\":\"di hola\"}],\"max_tokens\":20}"); echo "$m → HTTP $c $(head -c 160 /tmp/r.json)"; done
+          for u in https://integrate.api.nvidia.com/v1/chat/completions https://integrate.api.nvidia.com/v1/models https://api.z.ai/api/paas/v4/chat/completions https://api.groq.com/openai/v1/chat/completions; do
+            h=$(curl -s -m 15 -D - -o /dev/null -X OPTIONS -H "Origin: https://carlosgomezs.github.io" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: authorization,content-type" "$u" | tr -d '\r' | grep -i -E "^HTTP|access-control-allow-(origin|headers)" | tr '\n' ' ')
+            echo "$u → $h"
+          done
