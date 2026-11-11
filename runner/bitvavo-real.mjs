@@ -345,6 +345,11 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
           if (p) { p.px = (p.px * p.q + r.px * r.q) / (p.q + r.q); p.q += r.q; p.cost += r.coste; } else RS.pos[mm] = { src: "base", sym: mm.split("-")[0], q: r.q, q0: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), last: tick[mm].bid };
           L(RS, now, `🧺 cartera base: compra ${r2(r.coste)} € de ${mm.split("-")[0]} (está por encima de su media de 50 días)`); await protege(mm); } catch (e) { L(RS, now, `⚠️ cartera base: no pude comprar ${mm.split("-")[0]}: ${String(e.message).slice(0, 60)}`); } } }
     // v304 · 🐢 TORTUGAS: compra las criptos que cierran por encima de su máximo de 20 días (si su regla aprueba 2 años con las comisiones de este exchange)
+    // v443 · ⚡ AVISO DEL FILTRO DE BITCOIN: cuando BTC cierra el día por encima (o por debajo) de la media en la que se basan las Tortugas, una vez por cruce
+    if (ctl.tort && ctl.tort.sen && ctl.tort.sen["BTC-EUR"]) { const TPb = tortP(ctl.tort.P), b = ctl.tort.sen["BTC-EUR"], on = !TPb.filtro || !!(b.sobreF ?? b.sobre50);
+      if (RS.btcOn != null && RS.btcOn !== on) msgs.push(on ? `⚡ ${EX}: Bitcoin ha cerrado por ENCIMA de su media de ${TPb.mFil} días.\nLas 🐢 Tortugas ya pueden comprar: comprarán cada cripto en cuanto rompa su máximo (te aviso de cada compra).` : `🌧️ ${EX}: Bitcoin ha cerrado por DEBAJO de su media de ${TPb.mFil} días.\nLas 🐢 Tortugas no comprarán nada nuevo hasta que vuelva a superarla; lo que ya tengan sigue con sus stops.`);
+      if (RS.btcOn !== on) L(RS, now, on ? `⚡ Bitcoin por encima de su media de ${TPb.mFil} días: las Tortugas pueden comprar` : `🌧️ Bitcoin por debajo de su media de ${TPb.mFil} días: las Tortugas esperan`);
+      RS.btcOn = on; }
     if (ctl.tort && ctl.tort.sen) { const V = valor(RS, tick), TP = tortP(ctl.tort.P), btc = ctl.tort.sen["BTC-EUR"]; let nT = Object.values(RS.pos).filter((p) => p.src === "tortuga").length;
       for (const [m, x] of Object.entries(ctl.tort.sen).filter(([, x]) => x.entra).sort((a, b) => b[1].c / b[1].hi20 - a[1].c / a[1].hi20)) {
         if (nT >= TP.maxPos) break; const tk = tick[m], clave = "T|" + m + "|" + x.t; if (RS.pos[m] || RS.vistos[clave] || !tk || !(tk.ask > 0) || tk.sp > HUECO_MAX || (ctl.conservar || []).includes(m.split("-")[0]) || !(x.N > 0)) continue;
