@@ -9,9 +9,11 @@ busy() { local wf=$1; for s in in_progress queued pending waiting requested; do 
 
 # 1) Revisión diaria de la cartera real: de lunes a viernes, con la bolsa europea abierta (9:10-17:10), si hoy aún no está hecha
 if [ "$dow" -le 5 ] && [ "$madrid_min" -ge 550 ] && [ "$madrid_min" -le 1030 ]; then
-  revD=$(gh api "$R/contents/real.json?ref=real" -H "Accept: application/vnd.github.raw" 2>/dev/null | python3 -c "import json,sys;print((json.load(sys.stdin).get('meta') or {}).get('revD') or '')" 2>/dev/null || echo "")
-  echo "Cartera real · última revisión diaria: ${revD:-desconocida} · hoy: $madrid_date"
-  if [ -n "$revD" ] && [ "$revD" != "$madrid_date" ]; then
+  rj=$(gh api "$R/contents/real.json?ref=real" -H "Accept: application/vnd.github.raw" 2>/dev/null || echo "")
+  revD=$(printf '%s' "$rj" | python3 -c "import json,sys;print((json.load(sys.stdin).get('meta') or {}).get('revD') or '')" 2>/dev/null || echo "")
+  echo "Cartera real · última revisión diaria: ${revD:-ninguna todavía} · hoy: $madrid_date"
+  # v415 · también cuando aún no ha habido NINGUNA revisión (cartera recién configurada): antes solo miraba si había fecha
+  if [ -n "$rj" ] && [ "$revD" != "$madrid_date" ]; then
     if busy real.yml; then echo "La cartera real ya está en marcha."; else gh api -X POST "$R/actions/workflows/real.yml/dispatches" -f ref=main -f "inputs[accion]=normal" >/dev/null && echo "⚠️ GitHub se saltó la revisión de hoy: lanzada ahora."; fi
   fi
 fi
