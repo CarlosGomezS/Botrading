@@ -124,9 +124,9 @@ async function compat(url, key, modelos, prompt, extra = {}) { let ultimo = "";
       const j = await r.json(), txt = ((((j.choices || [])[0] || {}).message || {}).content || "").replace(/^```(json)?|```$/g, "").trim(); return { modelo: m, json: JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1)) };
     } catch (e) { ultimo = m + " " + String(e.message).slice(0, 60); } }
   throw new Error(ultimo || "sin respuesta"); }
-// v444 · 🧠 CONSEJO DE IAs: la misma pregunta va A LA VEZ a todas las IA gratuitas que tengan clave (Gemini, Groq, OpenRouter, NVIDIA y Mistral)
+// v444 · 🧠 CONSEJO DE IAs: la misma pregunta va A LA VEZ a todas las IA gratuitas que tengan clave (Gemini, Groq, OpenRouter, NVIDIA y Z.ai)
 // y se juntan sus ideas (sin repetidas). Varias IA distintas proponen más y mejor que una sola; el examen del laboratorio decide igual que siempre.
-const NV = env("NVIDIA_KEY"), MI = env("MISTRAL_KEY");
+const NV = env("NVIDIA_KEY"), ZAI = env("ZAI_KEY");
 const LISTAS = ["recetas", "genes", "reglas"];
 // los nombres de los modelos gratuitos cambian a menudo: se pide la lista en vivo y se eligen los más potentes que haya
 async function vivos(url, key, pref, filtro = () => true, n = 4) { try { const r = await fetch(url, { headers: key ? { Authorization: "Bearer " + key } : {}, signal: AbortSignal.timeout(15000) }); const j = await r.json();
@@ -139,8 +139,8 @@ async function consejo(prompt, MS) {
   if (GROQ) { const ms = await vivos("https://api.groq.com/openai/v1/models", GROQ, PREF); tareas.push(compat("https://api.groq.com/openai/v1/chat/completions", GROQ, ms.length ? ms : ["openai/gpt-oss-120b"], prompt)); }
   if (OR) { const ms = await vivos("https://openrouter.ai/api/v1/models", "", PREF, (id) => /:free$/.test(id)); tareas.push(compat("https://openrouter.ai/api/v1/chat/completions", OR, ms.length ? ms : ["openrouter/auto"], prompt, OR_H)); }
   if (NV) { const ms = await vivos("https://integrate.api.nvidia.com/v1/models", NV, PREF); tareas.push(compat("https://integrate.api.nvidia.com/v1/chat/completions", NV, ms.length ? ms : ["deepseek-ai/deepseek-v3.1"], prompt)); }
-  if (MI) tareas.push(compat("https://api.mistral.ai/v1/chat/completions", MI, ["mistral-large-latest", "mistral-medium-latest", "magistral-medium-latest"], prompt));
-  if (!tareas.length) throw new Error("sin clave de IA (GEMINI_KEY, GROQ_KEY, OPENROUTER_KEY, NVIDIA_KEY o MISTRAL_KEY)");
+  if (ZAI) tareas.push(compat("https://api.z.ai/api/paas/v4/chat/completions", ZAI, ["glm-4.7-flash", "glm-4.5-flash"], prompt));
+  if (!tareas.length) throw new Error("sin clave de IA (GEMINI_KEY, GROQ_KEY, OPENROUTER_KEY, NVIDIA_KEY o ZAI_KEY)");
   const R = (await Promise.allSettled(tareas)).filter((x) => x.status === "fulfilled" && x.value && x.value.json).map((x) => x.value);
   if (!R.length) { const e = (await Promise.allSettled(tareas)).find((x) => x.status === "rejected"); throw (e && e.reason) || new Error("ninguna IA respondió"); }
   const json = {}; for (const L of LISTAS) { const xs = R.flatMap((r) => (Array.isArray(r.json[L]) ? r.json[L].map((x) => (x && typeof x === "object" ? { ...x, _ia: r.modelo } : x)) : [])); if (xs.length) json[L] = xs.filter((x, i, A) => A.findIndex((z) => JSON.stringify({ ...z, _ia: 0, idea: 0, nombre: 0 }) === JSON.stringify({ ...x, _ia: 0, idea: 0, nombre: 0 })) === i); }

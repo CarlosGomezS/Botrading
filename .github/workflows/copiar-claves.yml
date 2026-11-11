@@ -36,4 +36,4 @@ jobs:
           GROQ_KEY: ${{ secrets.GROQ_KEY }}
           OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
           NVIDIA_KEY: ${{ secrets.NVIDIA_KEY }}
-          MISTRAL_KEY: ${{ secrets.MISTRAL_KEY }}
+          ZAI_KEY: ${{ secrets.ZAI_KEY }}
