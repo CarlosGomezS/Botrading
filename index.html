@@ -629,7 +629,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 426 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#426</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 427 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#427</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3758,7 +3758,10 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
   var di=document.getElementById("cs_dst"),dst=((di&&di.value)||"").trim().replace(/^https?:\/\/github\.com\//,"").replace(/\/$/,"");if(!/^[\w.-]+\/[\w.-]+$/.test(dst)){stSet("Escribe el repositorio de destino como usuario/repositorio.");return}
   if(dst.toLowerCase()===(ri.o+"/"+ri.r).toLowerCase()){stSet("El destino tiene que ser otro repositorio, no este.");return}
   try{localStorage.setItem("copiaDestino",dst)}catch(x){}
-  if(SEC.DESTINO_TOKEN===false){stSet("Primero pon el token de GitHub del destino (casilla de arriba) y guarda.");return}
+  var ti=document.querySelector('input[data-sk="DESTINO_TOKEN"]'),tv=((ti&&ti.value)||"").replace(/\s+/g,"");
+  if(tv){if(!/^(github_pat_|ghp_)/.test(tv)){stSet("Eso no parece un token de GitHub (empieza por github_pat_).");return}
+   stSet("Guardando el token del destino…");try{await ghSecret(ri,"DESTINO_TOKEN",tv);ti.value="";SEC.DESTINO_TOKEN=true}catch(x){stSet("✖ No se pudo guardar el token: "+(x&&x.message||x));return}}
+  else if(SEC.DESTINO_TOKEN!==true){try{await secList(true)}catch(x){}if(SEC.DESTINO_TOKEN!==true){stSet("Falta el token de GitHub del destino: pégalo en la casilla «Token de GitHub con acceso al repositorio de destino» y vuelve a pulsar este botón.");return}}
   b.disabled=true;stSet("Copiando las claves comunes a "+dst+"… (1-2 min)");
   try{var since=new Date(Date.now()-60000).toISOString(),r=await window.__CLOUD.dispatch(ri,"copiar-claves.yml",{destino:dst});if(!r.ok)throw new Error(rejectMsg(r,"copiar-claves.yml"));var c=await window.__CLOUD.waitRun(ri,"copiar-claves.yml",since,300);
    stSet(c==="success"?"✔ Claves comunes copiadas a "+dst+".":"✖ No se pudo copiar"+(c?" ("+c+")":"")+". Revisa que el token tenga acceso a "+dst+" con «Secrets: Read and write».")}catch(x){stSet("✖ "+(x&&x.message||x))}b.disabled=false},true);
