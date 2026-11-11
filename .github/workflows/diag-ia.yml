@@ -6,11 +6,16 @@ permissions:
 jobs:
   ia:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
-      - name: ¿Se pueden usar desde el navegador (CORS)?
+      - name: NVIDIA y Z.ai (solo códigos HTTP, nunca la clave)
+        env:
+          NV: ${{ secrets.NVIDIA_KEY }}
+          ZAI: ${{ secrets.ZAI_KEY }}
         run: |
-          for u in https://integrate.api.nvidia.com/v1/chat/completions https://integrate.api.nvidia.com/v1/models https://api.z.ai/api/paas/v4/chat/completions https://api.groq.com/openai/v1/chat/completions; do
-            h=$(curl -s -m 15 -D - -o /dev/null -X OPTIONS -H "Origin: https://carlosgomezs.github.io" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: authorization,content-type" "$u" | tr -d '\r' | grep -i -E "^HTTP|access-control-allow-(origin|headers)" | tr '\n' ' ')
-            echo "$u → $h"
+          echo "NVIDIA clave puesta: $([ -n "$NV" ] && echo sí || echo no) · Z.ai clave puesta: $([ -n "$ZAI" ] && echo sí || echo no)"
+          for m in meta/llama-3.3-70b-instruct deepseek-ai/deepseek-r1 deepseek-ai/deepseek-v3.1 qwen/qwen3-235b-a22b meta/llama-3.1-405b-instruct openai/gpt-oss-120b meta/llama-3.1-8b-instruct; do
+            c=$(curl -s -m 60 -o /tmp/r.json -w '%{http_code}' -H "Authorization: Bearer $NV" -H "Content-Type: application/json" https://integrate.api.nvidia.com/v1/chat/completions -d "{\"model\":\"$m\",\"messages\":[{\"role\":\"user\",\"content\":\"di hola\"}],\"max_tokens\":10}")
+            echo "NVIDIA $m → $c $(head -c 120 /tmp/r.json | tr -d '\n' | sed 's/nvapi-[A-Za-z0-9_-]*/…/g')"
           done
+          for m in glm-4.7-flash glm-4.5-flash; do c=$(curl -s -m 60 -o /tmp/r.json -w '%{http_code}' -H "Authorization: Bearer $ZAI" -H "Content-Type: application/json" https://api.z.ai/api/paas/v4/chat/completions -d "{\"model\":\"$m\",\"messages\":[{\"role\":\"user\",\"content\":\"di hola\"}],\"max_tokens\":10}"); echo "Z.ai $m → $c $(head -c 120 /tmp/r.json | tr -d '\n')"; done
