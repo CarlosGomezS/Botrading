@@ -120,7 +120,7 @@ async function compat(url, key, modelos, prompt, extra = {}) { let ultimo = "";
   for (const m of modelos) { if (QUEDA() < 90e3) break;
     try { const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key, ...extra }, signal: AbortSignal.timeout(Math.max(30000, Math.min(120000, QUEDA() - 60000))),
         body: JSON.stringify({ model: m, messages: [{ role: "system", content: "Responde SOLO con un objeto JSON válido, sin texto alrededor." }, { role: "user", content: prompt }], temperature: 0.9, response_format: { type: "json_object" } }) });
-      if (!r.ok) { ultimo = m + " HTTP " + r.status; log(`${m}: no responde (HTTP ${r.status}), pruebo otro`); continue; }
+      if (!r.ok) { const b = (await r.text().catch(() => "")).replace(/[A-Za-z0-9_-]{30,}/g, "…").replace(/\s+/g, " ").slice(0, 140); ultimo = m + " HTTP " + r.status; log(`${m}: no responde (HTTP ${r.status}${b ? ": " + b : ""}), pruebo otro`); continue; }
       const j = await r.json(), txt = ((((j.choices || [])[0] || {}).message || {}).content || "").replace(/^```(json)?|```$/g, "").trim(); return { modelo: m, json: JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1)) };
     } catch (e) { ultimo = m + " " + String(e.message).slice(0, 60); } }
   throw new Error(ultimo || "sin respuesta"); }
@@ -128,12 +128,17 @@ async function compat(url, key, modelos, prompt, extra = {}) { let ultimo = "";
 // y se juntan sus ideas (sin repetidas). Varias IA distintas proponen más y mejor que una sola; el examen del laboratorio decide igual que siempre.
 const NV = env("NVIDIA_KEY"), MI = env("MISTRAL_KEY");
 const LISTAS = ["recetas", "genes", "reglas"];
+// los nombres de los modelos gratuitos cambian a menudo: se pide la lista en vivo y se eligen los más potentes que haya
+async function vivos(url, key, pref, filtro = () => true, n = 4) { try { const r = await fetch(url, { headers: key ? { Authorization: "Bearer " + key } : {}, signal: AbortSignal.timeout(15000) }); const j = await r.json();
+    const ids = (j.data || []).map((x) => x.id).filter((id) => id && filtro(id) && !/whisper|tts|guard|embed|vision|audio|image|ocr|rerank|distil|prompt-guard|-vl-|safety/i.test(id));
+    const sc = (id) => { const i = pref.findIndex((p) => p.test(id)); return i < 0 ? 99 : i; }; return ids.sort((a, b) => sc(a) - sc(b)).filter((id) => sc(id) < 99).slice(0, n); } catch (e) { return []; } }
+const PREF = [/deepseek.*(r1|v3|chat)/i, /qwen3.*(235|480|coder)/i, /kimi-k2/i, /gpt-oss-120b/i, /llama-4.*maverick/i, /glm-4\.[5-9]/i, /nemotron.*(ultra|super)/i, /llama-3\.(1|3).*(405|70)/i, /qwen3/i, /gpt-oss-20b/i, /mistral.*(large|medium)/i, /gemma-3.*27/i];
 async function consejo(prompt, MS) {
   const OR_H = { "HTTP-Referer": "https://github.com/" + REPO, "X-Title": "Bot Trading" }, tareas = [];
   if (KEY && !globalThis.__GEMINI_KO) tareas.push(geminiSolo(prompt, MS).catch((e) => { if (/HTTP (401|402|403)/.test(String(e.message))) globalThis.__GEMINI_KO = 1; throw e; }));
-  if (GROQ) tareas.push(compat("https://api.groq.com/openai/v1/chat/completions", GROQ, ["openai/gpt-oss-120b", "moonshotai/kimi-k2-instruct", "llama-3.3-70b-versatile", "qwen/qwen3-32b"], prompt));
-  if (OR) tareas.push(compat("https://openrouter.ai/api/v1/chat/completions", OR, ["deepseek/deepseek-chat-v3.1:free", "qwen/qwen3-235b-a22b:free", "openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free"], prompt, OR_H));
-  if (NV) tareas.push(compat("https://integrate.api.nvidia.com/v1/chat/completions", NV, ["deepseek-ai/deepseek-v3.1", "qwen/qwen3-235b-a22b", "meta/llama-3.1-405b-instruct", "nvidia/llama-3.1-nemotron-ultra-253b-v1"], prompt));
+  if (GROQ) { const ms = await vivos("https://api.groq.com/openai/v1/models", GROQ, PREF); tareas.push(compat("https://api.groq.com/openai/v1/chat/completions", GROQ, ms.length ? ms : ["openai/gpt-oss-120b"], prompt)); }
+  if (OR) { const ms = await vivos("https://openrouter.ai/api/v1/models", "", PREF, (id) => /:free$/.test(id)); tareas.push(compat("https://openrouter.ai/api/v1/chat/completions", OR, ms.length ? ms : ["openrouter/auto"], prompt, OR_H)); }
+  if (NV) { const ms = await vivos("https://integrate.api.nvidia.com/v1/models", NV, PREF); tareas.push(compat("https://integrate.api.nvidia.com/v1/chat/completions", NV, ms.length ? ms : ["deepseek-ai/deepseek-v3.1"], prompt)); }
   if (MI) tareas.push(compat("https://api.mistral.ai/v1/chat/completions", MI, ["mistral-large-latest", "mistral-medium-latest", "magistral-medium-latest"], prompt));
   if (!tareas.length) throw new Error("sin clave de IA (GEMINI_KEY, GROQ_KEY, OPENROUTER_KEY, NVIDIA_KEY o MISTRAL_KEY)");
   const R = (await Promise.allSettled(tareas)).filter((x) => x.status === "fulfilled" && x.value && x.value.json).map((x) => x.value);
@@ -173,7 +178,7 @@ TU CUADERNO DE LECCIONES: ${JSON.stringify((prev && prev.lecciones) || [])}
 TU MEMORIA LARGA: ${JSON.stringify(((globalThis.__MEM || {}).tort || []).slice(0, 80).map((x) => x.l))}
 Responde SOLO un JSON: {"lecciones":[hasta 20 lecciones breves en castellano], "reglas":[{"P":{pieza: valor...}, "ex":"bitvavo"|"okx"|"ambos", "riesgo":"bajo"|"medio"|"alto", "idea":"por qué (1 frase)"} ... 24 reglas muy distintas entre sí, repartidas entre exchanges y riesgos ...]}`;
   const { modelo, json } = await gemini(P, MS);
-  const ok = (x) => { const P0 = x && x.P; if (!P0 || typeof P0 !== "object") return null; const o = {}; for (const [k, v] of Object.entries(P0)) { if (!GEN[k] || !GEN[k].some((z) => z === v)) return null; o[k] = v; } const rk = ["bajo", "medio", "alto"].includes(x.riesgo) ? x.riesgo : "medio", c = TT.conP({ ...o, riesgo: rk }); if (!(c.sale < c.ent) || c.maxPos < TT.perfil(rk).maxPosMin) return null; return { P: c, ex: ["bitvavo", "okx", "ambos"].includes(x.ex) ? x.ex : "ambos", riesgo: rk, idea: String(x.idea || "").replace(/[<>`]/g, "").slice(0, 200) }; };
+  const ok = (x) => { const P0 = x && x.P; if (!P0 || typeof P0 !== "object") return null; const o = {}; for (const [k, v0] of Object.entries(P0)) { if (!GEN[k]) continue; let v = v0; if (!GEN[k].some((z) => z === v)) { const nums = GEN[k].filter((z) => typeof z === "number"); if (typeof v === "number" && nums.length) v = nums.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a)); else if (typeof v === "string" && GEN[k].includes(v === "true" ? true : v === "false" ? false : v)) v = v === "true" ? true : v === "false" ? false : v; else continue; } o[k] = v; }   /* v444 · valores aproximados al permitido más cercano (antes se tiraba la regla entera) */ const rk = ["bajo", "medio", "alto"].includes(x.riesgo) ? x.riesgo : "medio", c = TT.conP({ ...o, riesgo: rk }); if (!(c.sale < c.ent) || c.maxPos < TT.perfil(rk).maxPosMin) return null; return { P: c, ex: ["bitvavo", "okx", "ambos"].includes(x.ex) ? x.ex : "ambos", riesgo: rk, idea: String(x.idea || "").replace(/[<>`]/g, "").slice(0, 200) }; };
   const nuevas = ((json && json.reglas) || []).map(ok).filter(Boolean), reglas = [...nuevas.map((x) => ({ ...x, t: new Date().toISOString(), modelo })), ...((prev && prev.reglas) || [])].filter((x, i, A) => A.findIndex((z) => JSON.stringify(z.P) === JSON.stringify(x.P)) === i).slice(0, 60);
   log(`Tortugas: la IA (${modelo}) propone ${((json && json.reglas) || []).length} reglas · válidas ${nuevas.length}`); for (const x of nuevas.slice(0, 8)) log(`  · ${x.ex}/${x.riesgo}: ${TT.describe(x.P)} — ${x.idea}`);
   const lec = Array.isArray(json && json.lecciones) ? json.lecciones.map((x) => String(x).replace(/[<>`]/g, "").slice(0, 220)).filter(Boolean).slice(0, 20) : null;
