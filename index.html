@@ -9,6 +9,7 @@
  SP.key=function(i){var m=mine(this)[i];return m==null?null:m.slice(P.length)};SP.clear=function(){var t=this;mine(t).forEach(function(x){r.call(t,x)})};
  Object.defineProperty(SP,"length",{configurable:true,get:function(){return mine(this).length}});
  var F=IDBFactory.prototype,o=F.open,d=F.deleteDatabase,dbs=F.databases;F.open=function(n,v){return v===undefined?o.call(this,P+n):o.call(this,P+n,v)};F.deleteDatabase=function(n){return d.call(this,P+n)};
+ window.__iaOtra=function(x){try{return/^(gemkey|groqkey|orkey)$/.test(x)?g.call(localStorage,x):null}catch(e){return null}};   /* v421 · solo las claves del asistente de la app principal de este móvil, para poder copiarlas a esta */
  if(dbs)F.databases=function(){return dbs.call(this).then(function(L){return(L||[]).filter(function(x){return x.name&&x.name.indexOf(P)===0}).map(function(x){return{name:x.name.slice(P.length),version:x.version}})})};
 }catch(e){}})();
 </script><script id="alta-movil">/* v396 · 📲 PASAR A OTRO MÓVIL: un enlace «#alta=…» trae el permiso de GitHub ya CIFRADO con la clave de la app
@@ -628,7 +629,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 419 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#419</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 421 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#421</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3682,7 +3683,7 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
   h+='<div class="m">🔓 Estás editando. Cambia lo que quieras y pulsa <b>«Guardar edición»</b> (abajo del todo): se guarda en la nube y el bot lo usa desde su siguiente ejecución. Lo que dejes en blanco en las claves no se toca.</div>';
   h+=h3("🪙 Claves de los exchanges de cripto (Bitvavo y OKX)")+'<div class="kv">'+SECRETS.slice(0,5).map(secField).join("")+'</div>';
   h+=h3("🤖 IA del laboratorio (con una basta; si una falla, usa la siguiente)")+'<div class="kv">'+secField(["GEMINI_KEY","Gemini (aistudio.google.com → Get API key)"])+secField(["GROQ_KEY","Groq (console.groq.com → API Keys) · gratis"])+secField(["OPENROUTER_KEY","OpenRouter (openrouter.ai → Keys) · modelos gratis"])+'</div>';
-  (function(){var d={};try{["gemkey","groqkey","orkey"].forEach(function(k){var v=localStorage.getItem(k);if(v)d[k]=v})}catch(e){}if(Object.keys(d).length)h+='<div style="margin-top:8px"><button type="button" id="cs_iacopy">🤖 Usar también en el laboratorio las claves del asistente ✨ de este móvil ('+Object.keys(d).map(function(k){return{gemkey:"Gemini",groqkey:"Groq",orkey:"OpenRouter"}[k]}).join(", ")+')</button></div>'})();
+  (function(){var d=window.iaClavesMovil();if(Object.keys(d).length)h+='<div style="margin-top:8px"><button type="button" id="cs_iacopy">🤖 Usar en el laboratorio las claves de IA de este móvil ('+Object.keys(d).map(function(k){return{gemkey:"Gemini",groqkey:"Groq",orkey:"OpenRouter"}[k]+(d[k].o?" de tu app":"")}).join(", ")+')</button></div>'})();
   h+=h3("📥 Claves de precios (opcionales: sin ellas ya funcionan Yahoo y Stooq)")+'<div class="kv">'+SECRETS.slice(5,10).map(secField).join("")+'<div>Tiempo máximo por actualización (min, 2 a 60)<input id="cs_mins" type="number" step="1" min="2" max="60" value="'+(CL.mins!=null?CL.mins:8)+'" style="width:100%"></div></div>';
   h+=h3("Avisos")+'<div class="m">📲 <b>Todos los avisos van a tu Telegram</b> (sus claves están en 💶 Real → Ajustes de la cartera real → Claves). Si Telegram fallara, el móvil (ntfy) hace de respaldo.</div><details class="rd"><summary><span>Respaldo si Telegram falla: móvil (ntfy) y correo</span></summary><div class="rb"><div class="kv">'+SECRETS.slice(10).map(secField).join("")+
    yn("cs_avm","Avisos al móvil (ntfy) de la actualización y la prueba histórica",AV.movil,1)+
@@ -3748,7 +3749,7 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
  /* v414 · copia las claves del asistente ✨ (guardadas en este móvil) a los secretos de GitHub para la IA del laboratorio */
  document.addEventListener("click",async function(e){var b=e.target&&e.target.closest&&e.target.closest("#cs_iacopy");if(!b)return;e.preventDefault();var ri=repoInfo();if(!ri||!TOK){stSet("Primero desbloquea los ajustes con tu clave.");return}
   var M={gemkey:"GEMINI_KEY",groqkey:"GROQ_KEY",orkey:"OPENROUTER_KEY"},ok=[],ko=[];b.disabled=true;
-  for(var k in M){var v=null;try{v=localStorage.getItem(k)}catch(x){}if(!v)continue;try{await ghSecret(ri,M[k],v);ok.push(M[k])}catch(x){ko.push(M[k]+" ("+(x&&x.message||x)+")")}}
+  var D=window.iaClavesMovil();for(var k in M){var v=D[k]&&D[k].v;if(!v)continue;try{await ghSecret(ri,M[k],v);ok.push(M[k])}catch(x){ko.push(M[k]+" ("+(x&&x.message||x)+")")}}
   try{await secList(true)}catch(x){}stSet((ok.length?"✔ Guardadas para el laboratorio: "+ok.join(", "):"")+(ko.length?" · ✖ No guardadas: "+ko.join("; "):""));b.disabled=false},true);
  /* v405 · estado REAL de las claves: se pregunta a GitHub qué secretos existen (solo los nombres, nunca el valor) */
  var SEC_ALL=["GROQ_KEY","OPENROUTER_KEY","T212_KEY","T212_SECRET","REAL_VIEW_PASS","TELEGRAM_TOKEN","TELEGRAM_CHAT","OKX_KEY","OKX_SECRET","OKX_PASSPHRASE","BITVAVO_KEY","BITVAVO_SECRET","GEMINI_KEY","ALPACA_KEY","TWELVEDATA_KEY","POLYGON_KEY","ALPHAVANTAGE_KEY","FMP_KEY","SMTP_USER","SMTP_PASS","SMTP_HOST","SMTP_PORT","EMAIL","NTFY_TOPIC","WEB3FORMS_KEY"],secLT=0;
@@ -3852,6 +3853,8 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
  setTimeout(function(){lock();paint()},2500);setTimeout(function(){lock();paint()},8000);
 })();
 </script>
+<script id="ia-claves-movil">/* v421 · claves de IA que hay en este móvil: las del asistente de esta app y, si esto es una copia (p. ej. la de tu padre), las de tu app principal (que mandan) */
+window.iaClavesMovil=function(){var d={};["gemkey","groqkey","orkey"].forEach(function(k){var o=null,m=null;try{o=window.__iaOtra?window.__iaOtra(k):null}catch(e){}try{m=localStorage.getItem(k)}catch(e){}if(o)d[k]={v:o,o:true};else if(m)d[k]={v:m,o:false}});return d};</script>
 <script id="bv-sin-clave">/* v419 · ¿falta la clave API de este exchange? (lo dice GitHub o el bot; si no se sabe, null) */
 window.bvSinClave=function(ex){try{const k=ex==="okx"?"OKX_KEY":"BITVAVO_KEY",c=window.__CLOUD,S=(c&&c.sec)||{},B=window.__BVSEC||{};if(S[k]===true||B[k]===true)return false;if(S[k]===false||B[k]===false)return true;return null}catch(e){return null}};</script>
 <script id="bot-tuyo-js">/* v417 · 🤖 Del bot frente a 👤 Tuyo: dos tarjetas que se ponen en columna en pantallas estrechas */
