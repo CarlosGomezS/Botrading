@@ -66,7 +66,8 @@ FORMATO OBLIGATORIO. Responde SOLO un JSON: {"lecciones":[hasta 20 lecciones bre
 Condición: {"a": EXPR, "op": uno de ${JSON.stringify(OPS)}, "b": EXPR o número, "x": multiplicador opcional de b entre 0.5 y 2}
 EXPR: {"ind": nombre, "n": entero 2-500 si lo pide, "k": 0.5-5 si lo pide}. Indicadores: ${JSON.stringify(INDICADORES)}. Parámetros: ema/sma/rsi/atr_pct/maximo/minimo/ret/vol_rel/zscore/financiacion/btc_ret/rel_btc llevan n; bb_sup/bb_inf llevan n y k; precio y hora no llevan nada.
 Ejemplo: {"nombre":"Ruptura con BTC a favor","idea":"…","largo":[{"a":{"ind":"precio"},"op":">","b":{"ind":"maximo","n":48}},{"a":{"ind":"btc_ret","n":24},"op":">","b":0}],"corto":[],"salida_h":8,"stop":0.03,"filtro":"sin filtro"}
-Que las 15 sean MUY distintas entre sí y distintas de lo ya probado.`;
+${(globalThis.__WEB || []).length ? `IDEAS RECIENTES DE INTERNET (estudios y blogs de trading; inspírate en las que encajen con ESTE módulo y tradúcelas a las piezas permitidas): ${JSON.stringify((globalThis.__WEB || []).slice(0, 40))}` : ""}
+Que las 15 sean MUY distintas entre sí y distintas de lo ya probado: 5 MEJORAS de las mejores que ya hay (cambia 1-2 condiciones con una razón clara), 6 ideas NUEVAS tuyas y 4 inspiradas en las ideas de internet. Busca recetas MUY buenas: que ganen en casi todos los tramos con caídas pequeñas.`;
   const { modelo, json } = await gemini(P, MS);
   const nuevas = ((json && json.recetas) || []).map((r) => validaReceta(r, FN)).filter(Boolean);
   const todas = [...nuevas.map((r) => ({ ...r, t: new Date().toISOString(), modelo })), ...mias].filter((r, i, A) => A.findIndex((z) => z.id === r.id) === i).slice(0, 150);
@@ -92,7 +93,10 @@ async function etf(MS, prev) {
     top = ks.map((k) => ({ k, g: (L.pop[k] || L.pend[k] || {}).g, an: an[k], t: TV[k] })).filter((x) => x.g).slice(0, 12).map((x) => ({ gen: x.g, rentab_anual: x.an != null ? +(x.an * 100).toFixed(1) : null, tramos: x.t ? { gana_al_sp500: x.t.g, tipico: x.t.mA, ult18m: x.t.rec } : null }));
     res = Object.values(L.iaRes || {}).map((x) => ({ gen: x.g, rentab_anual: x.an != null ? +(x.an * 100).toFixed(1) : null, aprobo: x.ok, por_que_no: x.por || undefined }));
   } catch (e) { log("ETF: no se pudo leer el estado del laboratorio (" + String(e.message).slice(0, 60) + ")"); }
-  const P = `Eres un gestor cuantitativo. Diseña estrategias NUEVAS de rotación mensual/trimestral de ETF para una cartera real en Trading 212 (Europa), usando SOLO las piezas de este laboratorio.
+  const P = `Eres un gestor cuantitativo de primer nivel. Diseña estrategias de rotación mensual/trimestral para una cartera real en Trading 212 (Europa), usando SOLO las piezas de este laboratorio, en TRES CATEGORÍAS que compiten cada una en su propio podio:
+· 📊 ETF: grupos u que solo tienen ETF (todos menos los de las dos categorías siguientes).
+· 🔀 MIXTOS (ETF + acciones): u = "mixb" o "mixt".
+· 🏢 ACCIONES: u = "accb", "acct" o "accd" (empresas que ya eran grandes en el año 2000).
 Examen: 300 tramos al azar de 3 a 7 años desde el año 2000 (la mitad acaban hoy); tiene que ganarle al S&P 500 en ≥ 60 % de los tramos, no ir mal en los últimos 18 meses, y se ordena por la rentabilidad típica en esos tramos (empate: menos caída).
 Piezas del «gen» (qué significa cada una): ${JSON.stringify(VV.N)}
 Valores permitidos (USA SOLO ESTOS): ${JSON.stringify(VV.V)}
@@ -103,7 +107,9 @@ ${res.length ? `RESULTADOS de tus ideas anteriores en el examen (aprende de ello
 ${prev && prev.genes && prev.genes.length ? `Tus propuestas anteriores (no las repitas): ${JSON.stringify(prev.genes.slice(0, 16).map((x) => x.g))}` : ""}
 TU CUADERNO DE LECCIONES (de rondas anteriores; respétalo): ${JSON.stringify((prev && prev.lecciones) || [])}
 TU MEMORIA LARGA (lecciones de todas tus rondas anteriores, de la más reciente a la más antigua; úsala para no repetir errores y para construir sobre lo que ya funcionó): ${JSON.stringify(((globalThis.__MEM || {}).etf || []).slice(0, 80).map((x) => x.l))}
-Responde SOLO un JSON: {"lecciones":[hasta 20 lecciones breves en castellano: tu cuaderno ACTUALIZADO según lo que muestran los mejores métodos y tus propuestas anteriores], "genes":[{"g": {pieza: valor, ...}, "idea": "por qué (1 frase, castellano)"} ... 10 genes ...]}. Cada g debe traer las piezas u, l, s, t, f, i, a, r, p (y las demás si quieres). Que sean muy distintos entre sí: grupos de ETF, estilos (z), regímenes (rg) y refugios distintos.`;
+${(globalThis.__WEB || []).length ? `IDEAS RECIENTES DE INTERNET (estudios y blogs de trading; inspírate en las que encajen con ESTE módulo y tradúcelas a las piezas permitidas): ${JSON.stringify((globalThis.__WEB || []).slice(0, 40))}` : ""}
+Responde SOLO un JSON: {"lecciones":[hasta 20 lecciones breves en castellano: tu cuaderno ACTUALIZADO según lo que muestran los mejores métodos y tus propuestas anteriores], "genes":[{"g": {pieza: valor, ...}, "idea": "por qué (1 frase, castellano)", "tipo": "mejora" | "nueva" | "internet"} ... 15 genes ...]}.
+Reparto OBLIGATORIO: 5 de ETF, 5 MIXTOS y 5 de ACCIONES. En cada categoría: 2 MEJORAS de los mejores que ya hay (cambia 1-2 piezas con una razón clara), 2 ideas NUEVAS tuyas y 1 inspirada en las ideas de internet. Cada g debe traer las piezas u, l, s, t, f, i, a, r, p (y las demás si quieres). Que sean muy distintos entre sí: grupos, estilos (z), regímenes (rg) y refugios distintos. Busca métodos MUY buenos: que ganen al S&P 500 en casi todos los tramos y con caídas pequeñas.`;
   const { modelo, json } = await gemini(P, MS);
   const ok = (g) => { if (!g || typeof g !== "object") return null; const o = {}; for (const [k, v] of Object.entries(g)) { if (!VV.V[k]) return null; if (!VV.V[k].some((z) => z === v)) return null; o[k] = v; } for (const k of ["u", "l", "t"]) if (o[k] == null) return null; return o; };
   const nuevos = ((json && json.genes) || []).map((x) => ({ g: ok(x && x.g), idea: String((x && x.idea) || "").replace(/[<>`]/g, "").slice(0, 200) })).filter((x) => x.g);
@@ -116,12 +122,14 @@ Responde SOLO un JSON: {"lecciones":[hasta 20 lecciones breves en castellano: tu
 
 // v414 · 🔁 si Gemini no deja (clave sin cuota, pide pago, caída…), la misma pregunta va a Groq u OpenRouter (gratis), si hay clave
 const GROQ = env("GROQ_KEY"), OR = env("OPENROUTER_KEY");
-async function compat(url, key, modelos, prompt, extra = {}) { let ultimo = "";
+async function compat(url, key, modelos, prompt, extra = {}) { let ultimo = "", reint = 0;
   for (const m of modelos) { if (QUEDA() < 90e3) break;
     try { const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key, ...extra }, signal: AbortSignal.timeout(Math.max(30000, Math.min(120000, QUEDA() - 60000))),
         body: JSON.stringify({ model: m, messages: [{ role: "system", content: "Responde SOLO con un objeto JSON válido, sin texto alrededor." }, { role: "user", content: prompt }], temperature: 0.9, response_format: { type: "json_object" } }) });
+      if (!r.ok && !reint && (r.status === 400 || r.status === 429)) { const b0 = await r.clone().text().catch(() => ""); if (/json|overload|try again|rate/i.test(b0)) { reint = 1; try { await new Promise((z) => setTimeout(z, r.status === 429 ? 6000 : 0)); const r2 = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key, ...extra }, signal: AbortSignal.timeout(Math.max(30000, Math.min(120000, QUEDA() - 60000))), body: JSON.stringify({ model: m, messages: [{ role: "system", content: "Responde SOLO con un objeto JSON válido, sin texto alrededor ni explicaciones." }, { role: "user", content: prompt }], temperature: 0.8 }) });
+          if (r2.ok) { const j2 = await r2.json(), t2 = ((((j2.choices || [])[0] || {}).message || {}).content || "").replace(/<think>[\s\S]*?<\/think>/g, "").replace(/^```(json)?|```$/g, "").trim(); reint = 0; return { modelo: m, json: JSON.parse(t2.slice(t2.indexOf("{"), t2.lastIndexOf("}") + 1)) }; } } catch (e2) {} reint = 0; } }   /* v447 · reintento sin «modo JSON» (algunos modelos fallan con él) o tras unos segundos si está saturado */
       if (!r.ok) { const b = (await r.text().catch(() => "")).replace(/[A-Za-z0-9_-]{30,}/g, "…").replace(/\s+/g, " ").slice(0, 140); ultimo = m + " HTTP " + r.status; log(`${m}: no responde (HTTP ${r.status}${b ? ": " + b : ""}), pruebo otro`); continue; }
-      const j = await r.json(), txt = ((((j.choices || [])[0] || {}).message || {}).content || "").replace(/^```(json)?|```$/g, "").trim(); return { modelo: m, json: JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1)) };
+      const j = await r.json(), txt = ((((j.choices || [])[0] || {}).message || {}).content || "").replace(/<think>[\s\S]*?<\/think>/g, "").replace(/^```(json)?|```$/g, "").trim(); return { modelo: m, json: JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1)) };
     } catch (e) { ultimo = m + " " + String(e.message).slice(0, 60); } }
   throw new Error(ultimo || "sin respuesta"); }
 // v444 · 🧠 CONSEJO DE IAs: la misma pregunta va A LA VEZ a todas las IA gratuitas que tengan clave (Gemini, Groq, OpenRouter, NVIDIA y Z.ai)
@@ -129,17 +137,17 @@ async function compat(url, key, modelos, prompt, extra = {}) { let ultimo = "";
 const NV = env("NVIDIA_KEY"), ZAI = env("ZAI_KEY");
 const LISTAS = ["recetas", "genes", "reglas"];
 // los nombres de los modelos gratuitos cambian a menudo: se pide la lista en vivo y se eligen los más potentes que haya
-async function vivos(url, key, pref, filtro = () => true, n = 4) { try { const r = await fetch(url, { headers: key ? { Authorization: "Bearer " + key } : {}, signal: AbortSignal.timeout(15000) }); const j = await r.json();
+async function vivos(url, key, pref, filtro = () => true, n = 8) { try { const r = await fetch(url, { headers: key ? { Authorization: "Bearer " + key } : {}, signal: AbortSignal.timeout(15000) }); const j = await r.json();
     const ids = (j.data || []).map((x) => x.id).filter((id) => id && filtro(id) && !/whisper|tts|guard|embed|vision|audio|image|ocr|rerank|distil|prompt-guard|-vl-|safety/i.test(id));
     const sc = (id) => { const i = pref.findIndex((p) => p.test(id)); return i < 0 ? 99 : i; }; return ids.sort((a, b) => sc(a) - sc(b)).filter((id) => sc(id) < 99).slice(0, n); } catch (e) { return []; } }
-const PREF = [/deepseek.*(r1|v3|chat)/i, /qwen3.*(235|480|coder)/i, /kimi-k2/i, /gpt-oss-120b/i, /llama-4.*maverick/i, /glm-4\.[5-9]/i, /nemotron.*(ultra|super)/i, /llama-3\.(1|3).*(405|70)/i, /qwen3/i, /gpt-oss-20b/i, /mistral.*(large|medium)/i, /gemma-3.*27/i];
+const PREF = [/deepseek.*(v3|chat|r1)/i, /qwen3\.\d.*(plus|max|235|480)/i, /qwen3.*(235|480|coder)/i, /kimi-k2/i, /gpt-oss-120b/i, /llama-4.*maverick/i, /glm-4\.[5-9]/i, /nemotron.*(ultra|super)/i, /llama-3\.(1|3).*(405|70)/i, /qwen3/i, /gpt-oss-20b/i, /mistral.*(large|medium)/i, /gemma-3.*27/i];
 async function consejo(prompt, MS) {
   const OR_H = { "HTTP-Referer": "https://github.com/" + REPO, "X-Title": "Bot Trading" }, tareas = [];
   if (KEY && !globalThis.__GEMINI_KO) tareas.push(geminiSolo(prompt, MS).catch((e) => { if (/HTTP (401|402|403)/.test(String(e.message))) globalThis.__GEMINI_KO = 1; throw e; }));
   if (GROQ) { const ms = await vivos("https://api.groq.com/openai/v1/models", GROQ, PREF); tareas.push(compat("https://api.groq.com/openai/v1/chat/completions", GROQ, ms.length ? ms : ["openai/gpt-oss-120b"], prompt)); }
   if (OR) { const ms = await vivos("https://openrouter.ai/api/v1/models", "", PREF, (id) => /:free$/.test(id)); tareas.push(compat("https://openrouter.ai/api/v1/chat/completions", OR, ms.length ? ms : ["openrouter/auto"], prompt, OR_H)); }
   if (NV) { const ms = await vivos("https://integrate.api.nvidia.com/v1/models", NV, PREF); tareas.push(compat("https://integrate.api.nvidia.com/v1/chat/completions", NV, ms.length ? ms : ["deepseek-ai/deepseek-v3.1"], prompt)); }
-  if (ZAI) tareas.push(compat("https://api.z.ai/api/paas/v4/chat/completions", ZAI, ["glm-4.7-flash", "glm-4.5-flash"], prompt));
+  if (ZAI) tareas.push(compat("https://api.z.ai/api/paas/v4/chat/completions", ZAI, ["glm-4.7-flash", "glm-4.5-flash", "glm-4.6v-flash"], prompt));
   if (!tareas.length) throw new Error("sin clave de IA (GEMINI_KEY, GROQ_KEY, OPENROUTER_KEY, NVIDIA_KEY o ZAI_KEY)");
   const R = (await Promise.allSettled(tareas)).filter((x) => x.status === "fulfilled" && x.value && x.value.json).map((x) => x.value);
   if (!R.length) { const e = (await Promise.allSettled(tareas)).find((x) => x.status === "rejected"); throw (e && e.reason) || new Error("ninguna IA respondió"); }
@@ -148,7 +156,8 @@ async function consejo(prompt, MS) {
   const modelo = R.length > 1 ? "consejo de " + R.length + " IA: " + R.map((r) => r.modelo).join(" + ") : R[0].modelo;
   log(`🧠 Consejo de IAs: respondieron ${R.length} de ${tareas.length} (${R.map((r) => r.modelo).join(", ")})`); return { modelo, json };
 }
-async function gemini(prompt, MS) { try { return await consejo(prompt, MS); } catch (e0) { if (/sin clave/.test(String(e0.message))) throw e0; } let err = null;
+async function gemini(prompt, MS) { return await consejo(prompt, MS); }
+async function geminiViejo(prompt, MS) { let err = null;
   if (KEY && !globalThis.__GEMINI_KO) { try { return await geminiSolo(prompt, MS); } catch (e) { err = e; if (/HTTP (401|402|403)/.test(String(e.message))) { globalThis.__GEMINI_KO = 1; log("Gemini no deja usar esta clave: paso a los otros proveedores gratis"); } } }
   if (GROQ) try { return await compat("https://api.groq.com/openai/v1/chat/completions", GROQ, ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3-32b", "moonshotai/kimi-k2-instruct"], prompt); } catch (e) { err = e; }
   if (OR) try { return await compat("https://openrouter.ai/api/v1/chat/completions", OR, ["deepseek/deepseek-chat-v3.1:free", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-120b:free"], prompt, { "HTTP-Referer": "https://github.com/" + REPO, "X-Title": "Bot Trading" }); } catch (e) { err = e; }
@@ -173,6 +182,8 @@ Riesgos: «bajo» (maxPos ≥ 4, caída máx. 30 %), «medio» (maxPos ≥ 2, ca
 Examen: 2 años; se elige con el 1.er año y tiene que ganar en el 2.º (que no vio), con las criptos del otro exchange y en los últimos 4 meses; luego 24 tramos al azar (la mitad acaban hoy) y no ir peor que BTC en 6 meses.
 Estado actual por exchange y riesgo: ${JSON.stringify(est)}
 ${web ? `LO QUE HAS ENCONTRADO EN INTERNET AHORA (úsalo con criterio): ${web}` : ""}
+${(globalThis.__WEB || []).length ? `IDEAS RECIENTES DE INTERNET (estudios y blogs de trading; inspírate en las que encajen con ESTE módulo y tradúcelas a las piezas permitidas): ${JSON.stringify((globalThis.__WEB || []).slice(0, 40))}` : ""}
+Entre las 24: 8 MEJORAS de las mejores reglas actuales de cada exchange y riesgo (cambia 1-2 piezas), 10 ideas NUEVAS y 6 inspiradas en internet. Busca reglas MUY buenas: mucha ganancia con caídas pequeñas y estables en todos los tramos.
 ${prev && prev.reglas && prev.reglas.length ? `Tus propuestas anteriores (no las repitas): ${JSON.stringify(prev.reglas.slice(0, 20).map((x) => x.P))}` : ""}
 TU CUADERNO DE LECCIONES: ${JSON.stringify((prev && prev.lecciones) || [])}
 TU MEMORIA LARGA: ${JSON.stringify(((globalThis.__MEM || {}).tort || []).slice(0, 80).map((x) => x.l))}
@@ -185,19 +196,26 @@ Responde SOLO un JSON: {"lecciones":[hasta 20 lecciones breves en castellano], "
   if (lec && lec.length) { log("Tortugas · cuaderno de lecciones:"); for (const x of lec) log("  📓 " + x); }
   return { reglas, nuevas: nuevas.length, modelo, web: !!web, lecciones: lec && lec.length ? lec : (prev && prev.lecciones) || [] }; }
 
+// v447 · 🌐 IDEAS DE INTERNET para todos los módulos: lo último publicado en estudios y blogs de trading cuantitativo (sin depender de Gemini)
+async function ideasWeb() { const F = [["arXiv (finanzas cuantitativas)", "https://export.arxiv.org/api/query?search_query=cat:q-fin.TR+OR+cat:q-fin.PM+OR+cat:q-fin.ST&sortBy=submittedDate&sortOrder=descending&max_results=40"], ["Alpha Architect", "https://alphaarchitect.com/feed/"], ["Quantpedia", "https://quantpedia.com/feed/"], ["CXO Advisory", "https://www.cxoadvisory.com/feed/"], ["Robot Wealth", "https://robotwealth.com/feed/"], ["QuantStart", "https://www.quantstart.com/articles/rss/"]], out = [];
+  await Promise.all(F.map(async ([f, u]) => { try { const r = await fetch(u, { signal: AbortSignal.timeout(15000), headers: { "User-Agent": "bot-trading-lab" } }); if (!r.ok) return; const x = await r.text();
+    for (const m of [...x.matchAll(/<(item|entry)[\s>][\s\S]*?<\/\1>/g)].slice(0, 25)) { const b = m[0], t = ((b.match(/<title[^>]*>([\s\S]*?)<\/title>/) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>|<[^>]+>/g, "").replace(/\s+/g, " ").trim(), d = ((b.match(/<(description|summary)[^>]*>([\s\S]*?)<\/\1>/) || [])[2] || "").replace(/<!\[CDATA\[|\]\]>|<[^>]+>|&[a-z#0-9]+;/g, " ").replace(/\s+/g, " ").trim();
+      if (t) out.push({ fuente: f, titulo: t.slice(0, 160), resumen: d.slice(0, 260) }); } } catch (e) {} }));
+  log(`🌐 ideas leídas de internet: ${out.length} (${[...new Set(out.map((x) => x.fuente))].join(", ") || "ninguna"})`); return out; }
 async function main() {
+  globalThis.__WEB = await ideasWeb().catch(() => []);
   const prev = (await raw(RAMA, "ia-lab.json")) || {}, out = { v: 1, t: new Date().toISOString(), estado: "ok", cripto: prev.cripto || null, etf: prev.etf || null, tort: prev.tort || null, hist: prev.hist || [] };
   /* v409 · 🧠 MEMORIA LARGA: todas las lecciones que ha escrito alguna vez (sin repetir, con fecha), aunque luego las quite del cuaderno corto */
   const MEM = { cripto: [], etf: [], tort: [], ...(prev.memoria || {}) }; MEM.tort = MEM.tort || []; globalThis.__MEM = MEM;
   const guarda = (k, L) => { const ya = new Set(MEM[k].map((x) => x.l)); for (const l of L || []) if (l && !ya.has(l)) { MEM[k].unshift({ t: out.t, l }); ya.add(l); } MEM[k] = MEM[k].slice(0, 500); };
   guarda("cripto", prev.cripto && prev.cripto.lecciones); guarda("etf", prev.etf && prev.etf.lecciones); guarda("tort", prev.tort && prev.tort.lecciones);
-  if (!KEY && !GROQ && !OR) { out.estado = "sin clave"; log("no hay clave GEMINI_KEY en los secretos de GitHub: los laboratorios siguen igual, sin ayudante"); }
+  if (!KEY && !GROQ && !OR && !NV && !ZAI) { out.estado = "sin clave"; log("no hay clave GEMINI_KEY en los secretos de GitHub: los laboratorios siguen igual, sin ayudante"); }
   else { const MS0 = KEY ? await modelos() : [], bueno = prev.modeloOk, MS = bueno ? [bueno, ...MS0.filter((m) => m !== bueno)] : MS0;   // primero el que respondió la última vez
     log("modelos disponibles:", MS.join(", ")); const h = { t: out.t };
     try { out.cripto = await cripto(MS, prev.cripto); h.cripto = out.cripto.nuevas; } catch (e) { h.errC = String(e.message).slice(0, 80); log("cripto: la IA no respondió (" + h.errC + "); el laboratorio sigue igual"); }
     try { out.tort = await tortugas(MS, prev.tort); h.tort = out.tort.nuevas; } catch (e) { h.errT = String(e.message).slice(0, 80); log("Tortugas: la IA no respondió (" + h.errT + "); el examen sigue igual"); }
     try { out.etf = await etf(MS, prev.etf); h.etf = out.etf.nuevos; } catch (e) { h.errE = String(e.message).slice(0, 80); log("ETF: la IA no respondió (" + h.errE + "); el laboratorio sigue igual"); }
-    out.modeloOk = (h.tort != null && out.tort && out.tort.modelo) || (h.cripto != null && out.cripto && out.cripto.modelo) || (h.etf != null && out.etf && out.etf.modelo) || prev.modeloOk || null;
+    out.modeloOk = [out.tort && out.tort.modelo, out.cripto && out.cripto.modelo, out.etf && out.etf.modelo].map((x) => (String(x || "").match(/gemini-[\w.-]+/) || [])[0]).find(Boolean) || prev.modeloOk || null;
     if (h.errC && h.errE) out.estado = "error"; out.hist = [h, ...out.hist].slice(0, 200); }
   try { guarda("cripto", out.cripto && out.cripto.lecciones); guarda("etf", out.etf && out.etf.lecciones); guarda("tort", out.tort && out.tort.lecciones); out.memoria = MEM; log(`memoria larga: ${MEM.cripto.length} lecciones de cripto · ${MEM.tort.length} de Tortugas · ${MEM.etf.length} de ETF`); } catch (e) {}
   // publicar en la rama ia-lab (pública: solo ideas, nada de dinero ni claves)

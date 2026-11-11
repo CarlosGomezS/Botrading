@@ -41,7 +41,7 @@ if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo
   if [ "$age" -ge 40 ] && ! busy real-pulso.yml; then gh api -X POST "$R/actions/workflows/real-pulso.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ El guardián estaba parado: relanzado."; fi; fi
 
 # 5) v420 · exámenes y ayudante IA: GitHub a veces se salta sus horarios; si llevan demasiado sin hacerse, se lanzan aquí
-for par in "examen-largo.yml:240" "ia-lab.yml:240" "caza-lab.yml:420"; do wf=${par%%:*}; lim=${par##*:}
+for par in "examen-largo.yml:240" "ia-lab.yml:150" "caza-lab.yml:420"; do wf=${par%%:*}; lim=${par##*:}
   t=$(gh api "$R/actions/workflows/$wf/runs?per_page=1" --jq '.workflow_runs[0].created_at' 2>/dev/null || echo "")
   if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "$wf · última hace $age min"
     if [ "$age" -ge "$lim" ] && ! busy "$wf"; then gh api -X POST "$R/actions/workflows/$wf/dispatches" -f ref=main >/dev/null 2>&1 && echo "⚠️ $wf llevaba $age min sin hacerse: lanzado."; fi; fi

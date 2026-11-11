@@ -644,7 +644,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 446 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#446</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 447 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#447</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1896,8 +1896,8 @@ function labPred(L,g){const H=L.hist||[];if(H.length<30)return null;const v=labV
 function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=k=>!(T.has(k)||L.pop[k]||L.pend[k]||BTX[k]||STR[k]||seen.has(k)),
   add=(g,why,pr)=>{g=labNorm(g);const k=labKey(g);if(!ok(k))return false;seen.add(k);BTX[k]=labM(g);out.push({k,g,why,pr:pr==null?null:+pr.toFixed(3)});return true};
  for(const g of LABSEED)add(g,"creado por Claude");
- /* v366 · 🤖 ideas del ayudante IA (Gemini): como mucho 7 por ronda; solo se aceptan piezas y valores del laboratorio; tienen que aprobar como todas */
- try{const IAg=(window.__IALAB&&window.__IALAB.etf&&window.__IALAB.etf.genes)||[];let nI=0;for(const x of IAg){if(nI>=7)break;const g=x&&x.g;if(!g||typeof g!=="object")continue;if(!Object.entries(g).every(([k,v])=>LABV[k]&&LABV[k].some(z=>z===v)))continue;if(add({...g},"🤖 idea de la IA"+(x.idea?": "+String(x.idea).slice(0,140):"")))nI++}}catch(e){}
+ /* v366 · 🤖 ideas del ayudante IA (v447: consejo de IAs, hasta 15 por ronda: ETF, mixtos y acciones); solo se aceptan piezas y valores del laboratorio; tienen que aprobar como todas */
+ try{const IAg=(window.__IALAB&&window.__IALAB.etf&&window.__IALAB.etf.genes)||[];let nI=0;for(const x of IAg){if(nI>=15)break;const g=x&&x.g;if(!g||typeof g!=="object")continue;if(!Object.entries(g).every(([k,v])=>LABV[k]&&LABV[k].some(z=>z===v)))continue;if(add({...g},"🤖 idea de la IA"+(x.idea?": "+String(x.idea).slice(0,140):"")))nI++}}catch(e){}
  /* v141 · INVENTAR SIEMPRE: el 40 % de cada ronda son métodos NUEVOS de verdad (no variaciones de los que ya hay): piezas al azar,
     cualquier grupo de ETF, cualquier estilo, y de entre muchos candidatos se prueban los MÁS DISTINTOS a todo lo ya probado. */
  {const nNew=Math.round(n*0.4),H=(L.hist||[]),uk=Object.keys(LABU),zs=LABV.z||["mom"],cand=[];
