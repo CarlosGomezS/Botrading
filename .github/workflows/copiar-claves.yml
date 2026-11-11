@@ -1,11 +1,10 @@
-name: Claves · copiar las comunes a la app de tu padre
+name: Claves · copiar las comunes a otra app tuya
 on:
   workflow_dispatch:
     inputs:
       destino:
         description: "Repositorio de destino (dueño/nombre)"
-        required: false
-        default: "CarlosGomezS/Botrading-papa"
+        required: true
 permissions:
   contents: read
 jobs:
@@ -22,7 +21,7 @@ jobs:
       - run: cd runner && npm i --no-save --no-audit --no-fund libsodium-wrappers@0.7.15 >/dev/null 2>&1 && node copiar-claves.mjs
         env:
           DESTINO: ${{ inputs.destino }}
-          PAPA_TOKEN: ${{ secrets.PAPA_TOKEN }}
+          DESTINO_TOKEN: ${{ secrets.DESTINO_TOKEN }}
           ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
           TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
           POLYGON_KEY: ${{ secrets.POLYGON_KEY }}
