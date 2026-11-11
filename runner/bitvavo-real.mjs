@@ -207,6 +207,10 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     if (ctl.parado) {
       if (Object.keys(RS.pos).length) { await vendeTodo("parado: " + (ctl.motivo || "lo has parado tú")); } RS.estado = "parado";
       if (RS.paradaAt) { const rt = retomar(RS, fuentes[copia], now); RS.retomar = rt; if (rt.ok && (!RS.avisoRetomar || now - Date.parse(RS.avisoRetomar) > 86400e3)) { RS.avisoRetomar = now.toISOString(); msgs.push(`💶 ✅ Se cumplen las condiciones para retomar el dinero real:\n• ${rt.c.map((x) => x.txt).join("\n• ")}\n\nSi quieres, escribe /seguir. Mi consejo: las primeras semanas, con la mitad del dinero (cámbialo en la app antes).`); } }
+      // v434 · aunque esté parado, la foto de la cuenta se sigue actualizando (si sacas o metes dinero, la app lo ve al momento)
+      if (X.saldos) try { const B = await X.saldos(), PX = X.precios ? await X.precios().catch(() => null) : null, act = []; let tot = +(B.EUR || 0);
+        for (const [sym, q] of Object.entries(B)) { if (sym === "EUR") continue; const m = sym + "-EUR", bid = (PX && PX[sym]) || (tick[m] ? tick[m].bid : 0), v = q * bid; tot += v; if (v >= 0.01) act.push({ sym, q, eur: r2(v), px: bid }); }
+        RS.cuenta = { t: now.toISOString(), eur: r2(+(B.EUR || 0)), total: r2(tot), activos: act.sort((a, b) => b.eur - a.eur) }; } catch (e) {}
       return { RS, msgs, ctl };
     }
     if (RS.paradaAt) { delete RS.paradaAt; delete RS.retomar; delete RS.avisoRetomar; }
