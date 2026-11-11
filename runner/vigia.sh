@@ -59,4 +59,11 @@ if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo
 # 8) v451 · GitHub apaga los horarios de un repositorio público tras 60 días sin actividad: si alguno está apagado por eso, se vuelve a encender
 for id in $(gh api "$R/actions/workflows" -q '.workflows[]|select(.state=="disabled_inactivity")|.id' 2>/dev/null); do gh api -X PUT "$R/actions/workflows/$id/enable" >/dev/null 2>&1 && echo "⚠️ Un flujo estaba apagado por inactividad: encendido de nuevo."; done
 
+# 9) v451 · 🚨 arranques fallidos (GitHub no llegó a empezar un flujo): aviso por Telegram (solo desde el bot de cada minuto, para no repetir)
+if [ "${AVISA_ARRANQUES:-0}" = "1" ] && [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ]; then
+  desde=$(date -u -d '-11 min' +%FT%TZ)
+  for x in $(gh api "$R/actions/runs?per_page=50&created=>$desde" -q '.workflow_runs[]|select(.conclusion=="startup_failure")|(.name|gsub(" ";"·"))' 2>/dev/null | sort -u); do
+    curl -s -m 20 -o /dev/null --data-urlencode "chat_id=$TELEGRAM_CHAT" --data-urlencode "text=🚨 Bot Trading: GitHub no ha podido arrancar «${x//·/ }». Suele ser un fallo momentáneo de GitHub: el vigilante lo relanza solo." "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" || true; done
+fi
+
 exit 0

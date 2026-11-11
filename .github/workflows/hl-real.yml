@@ -48,3 +48,13 @@ jobs:
         run: |
           case "${ACCION:-ronda}" in ronda|firma|stops) ;; *) echo "acción no válida"; exit 1;; esac
           node runner/hl-real.mjs "${ACCION:-ronda}"
+      - name: 🚨 Avisar por Telegram si algo ha fallado
+        if: failure()
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          QUE: ${{ github.workflow }}
+          ENLACE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ] || exit 0
+          curl -s -m 20 -o /dev/null --data-urlencode "chat_id=$TELEGRAM_CHAT" --data-urlencode "text=🚨 Bot Trading: ha fallado «$QUE» ($(TZ=Europe/Madrid date +'%d/%m %H:%M')). Se volverá a intentar solo; si te llega varias veces seguidas, avísame. Detalle: $ENLACE" "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" || true

@@ -37,3 +37,13 @@ jobs:
           # v295 · examen de un año: si el último examen bueno tiene > 5 h y no hay uno en marcha, se lanza
           x=$(edad examen-largo.json examen-largo); xv=$(vivo examen-largo.yml); echo "examen de un año: hace ${x}s · vivos: $xv"
           if [ "$x" -gt 18000 ] && [ "$xv" = "0" ]; then lanza examen-largo.yml; fi
+      - name: 🚨 Avisar por Telegram si algo ha fallado
+        if: failure()
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          QUE: ${{ github.workflow }}
+          ENLACE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ] || exit 0
+          curl -s -m 20 -o /dev/null --data-urlencode "chat_id=$TELEGRAM_CHAT" --data-urlencode "text=🚨 Bot Trading: ha fallado «$QUE» ($(TZ=Europe/Madrid date +'%d/%m %H:%M')). Se volverá a intentar solo; si te llega varias veces seguidas, avísame. Detalle: $ENLACE" "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" || true

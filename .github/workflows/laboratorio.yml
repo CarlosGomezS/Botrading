@@ -133,3 +133,13 @@ jobs:
             if [ "${tg:-0}" -eq 0 ]; then timeout 120 node runner/telegram.mjs || true; fi
             left=$(( end - $(date +%s) )); [ "$left" -gt 0 ] && sleep $(( left < 150 ? left : 150 ))
           done
+      - name: 🚨 Avisar por Telegram si algo ha fallado
+        if: failure()
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          QUE: ${{ github.workflow }}
+          ENLACE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ] || exit 0
+          curl -s -m 20 -o /dev/null --data-urlencode "chat_id=$TELEGRAM_CHAT" --data-urlencode "text=🚨 Bot Trading: ha fallado «$QUE» ($(TZ=Europe/Madrid date +'%d/%m %H:%M')). Se volverá a intentar solo; si te llega varias veces seguidas, avísame. Detalle: $ENLACE" "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" || true
