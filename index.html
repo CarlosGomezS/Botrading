@@ -629,7 +629,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 427 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#427</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 428 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#428</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4051,7 +4051,8 @@ function dayFlow(x,p){const f=+x.bf||0;if(f)return f;if(!(p.be>0))return 0;const
    Un salto hacia abajo solo se compensa con ingresos ya apuntados o saltos anteriores (si el ingreso se apunta antes o después de verse en el valor). Una caída de verdad nunca se esconde. */
 function flowFix(pv,v,rf,st,thr){if(!(pv>0))return rf;const g=v-pv-rf;if(g>thr*pv){st.J+=g;return rf+g}if(g<-thr*pv){const lim=Math.max(0,st.J)+Math.max(0,rf),a=Math.min(lim,-g);if(a>0){st.J-=a;return rf-a}}return rf}
 function flowsOf(D){const st={J:0};return D.map((x,i)=>{const p=D[i-1];return p?flowFix(p.be,x.be,dayFlow(x,p),st,0.2):0})}
-function twr(D){let idx=1;const FL=flowsOf(D);return D.map((x,i)=>{const p=D[i-1];if(p&&p.be>0){const r=(x.be-FL[i])/p.be;if(isFinite(r)&&r>0)idx*=r}return Object.assign({},x,{i:idx})})}
+/* v428 · el dinero que metes se cuenta desde el PRINCIPIO del día (el bot lo invierte ese mismo día): antes se contaba al final y, si ese día bajaba, toda la bajada caía sobre el dinero de antes y el % salía peor de lo real. Las retiradas, al final del día. */
+function twr(D){let idx=1;const FL=flowsOf(D);return D.map((x,i)=>{const p=D[i-1];if(p&&p.be>0){const f=FL[i]||0,r=f>0?x.be/(p.be+f):(x.be-f)/p.be;if(isFinite(r)&&r>0)idx*=r}return Object.assign({},x,{i:idx})})}
 const dayKey=t=>{try{return new Date(t).toLocaleDateString("sv-SE",{timeZone:"Europe/Madrid"})}catch(e){return String(t).slice(0,10)}};
 const hora=t=>{try{return new Date(t).toLocaleTimeString("es-ES",{timeZone:"Europe/Madrid",hour:"2-digit",minute:"2-digit",second:"2-digit"})}catch(e){return""}};
 const fdL=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}catch(e){return d}};
