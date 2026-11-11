@@ -1,0 +1,13 @@
+name: Diagnóstico · qué versión sirve la web
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - run: |
+          for u in "https://carlosgomezs.github.io/Botrading/" "https://carlosgomezs.github.io/Botrading/?v=$RANDOM" "https://carlosgomezs.github.io/Botrading-papa/"; do
+            echo "== $u"; curl -sS -D h.txt "$u" -o p.html; grep -iE "^(cache-control|age|last-modified|x-cache|x-served-by):" h.txt; grep -o '«Fénix» <small>#[0-9]*</small>' p.html || echo "sin número"; done
