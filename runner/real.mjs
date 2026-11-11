@@ -977,6 +977,7 @@ async function main() {
     // v449 · 💶 CUADRE DEL EFECTIVO: el efectivo del bot nunca puede ser mayor que el de la cuenta. Si lo es y en la cuenta hay participaciones
     // de SUS fondos sin apuntar (una compra suya que no llegó a anotarse: respuesta perdida, orden que se ejecutó más tarde…), son del bot.
     try { const accCash = +((account && account.cash && account.cash.availableToTrade) || 0), L = R.ledger; let resto = r2(L.cash - accCash);
+      console.log(`Cuadre del efectivo: ${resto > 0.5 ? ((R.pendBot || []).length || (pending || []).length ? `hay que cuadrar, pero espera: órdenes pendientes (del bot ${(R.pendBot || []).length}, en la cuenta ${(pending || []).length})` : "hay que cuadrar: se cuadra ahora") : "cuadra, nada que hacer"}`);
       if (resto > 0.5 && !(R.pendBot || []).length && !(pending || []).length) {
         for (const p of positions) { const t = p.instrument && p.instrument.ticker; if (!t || !((R.botTickers || []).includes(t) || L.lots[t])) continue;
           const tq = +p.quantity || 0, lot = L.lots[t] || { q: 0, cost: 0 }, extra = tq - lot.q, avg = tq > 0 ? +((p.walletImpact && p.walletImpact.totalCost) || 0) / tq : 0; if (!(extra > 1e-6) || !(avg > 0)) continue;
