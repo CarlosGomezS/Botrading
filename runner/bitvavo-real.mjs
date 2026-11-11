@@ -273,7 +273,9 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (!RS.stopRev || now - Date.parse(RS.stopRev) > 30 * 60e3) { RS.stopRev = now.toISOString(); for (const m of Object.keys(RS.pos)) { const p = RS.pos[m]; let vale = !!p.stopId;
         if (vale && X.estadoStop) try { const e = await X.estadoStop(m, p.stopId); if (e && (!e.activo || (e.q > 0 && e.q < p.q * 0.97))) { vale = false; L(RS, now, `🛡️ ${p.sym}: el stop de emergencia ya no estaba activo o no cubría todo; se vuelve a poner`); msgs.push(`💶 🛡️ ${EX}: el stop de emergencia de ${p.sym} había desaparecido o no cubría todo; lo he vuelto a poner.`); delete p.stopId; } } catch (e) {}
         if (!vale) await protege(m); } }
-      if (B.EUR != null && RS.cash > +B.EUR + 0.01) RS.cash = +B.EUR;
+      // v449 · 💸 si en la cuenta hay menos euros de los que el bot tenía apuntados, es dinero que has sacado o usado TÚ: no es una pérdida del bot,
+      // así que la base de los frenos (el saldo inicial y el del principio del día) baja lo mismo y los frenos no saltan por eso
+      if (B.EUR != null && RS.cash > +B.EUR + 0.01) { const d = r2(RS.cash - +B.EUR); RS.cash = +B.EUR; if (d >= 0.5) { RS.start = Math.max(0.01, r2(RS.start - d)); if (RS.dia) RS.dia.eq0 = Math.max(0.01, r2(RS.dia.eq0 - d)); L(RS, now, `💸 has sacado o usado ${r2(d)} € de la cuenta (no cuenta como pérdida del bot)`); } }
       RS.cuenta = { t: now.toISOString(), eur: r2(+(B.EUR || 0)), total: r2(tot), activos: act.sort((a, b) => b.eur - a.eur) };
       // v309 · 📈 gráfica de la cuenta: un punto cada 30 min (unas 3 semanas)
       RS.curva = RS.curva || []; if (!RS.curva.length || now - RS.curva[RS.curva.length - 1][0] >= 30 * 60e3) { RS.curva.push([now.getTime(), r2(tot)]); RS.curva = RS.curva.slice(-1000); }
@@ -289,8 +291,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     // es un ingreso o una retirada tuya (no una ganancia o pérdida del bot): se corrige la base de los frenos para que no salten por eso.
     { const nV = ((RS.st && RS.st.wins) || 0) + ((RS.st && RS.st.losses) || 0), sinPos = !Object.keys(RS.pos).length;
       if (!RS.v439) { RS.v439 = 1; if (RS.pausaDia && sinPos) { delete RS.pausaDia; RS.dia = { d: diaES(now), eq0: eq }; L(RS, now, "▶️ el descanso de hoy fue por dinero que sacaste tú, no por pérdidas: vuelve a operar"); msgs.push(`💶 ▶️ ${EX}: el freno de hoy saltó por dinero que sacaste tú, no por pérdidas. Vuelve a operar.`); } }
-      if (RS.flujo && RS.flujo.sinPos && sinPos && RS.flujo.nV === nV) { const dlt = eq - RS.flujo.eq; if (Math.abs(dlt) >= 0.5) { RS.start = Math.max(0.01, RS.start + dlt); if (RS.dia) RS.dia.eq0 = Math.max(0.01, RS.dia.eq0 + dlt); L(RS, now, `💸 ${dlt > 0 ? "has metido" : "has sacado"} ${r2(Math.abs(dlt))} € (no cuenta como ganancia ni pérdida del bot)`); } }
-      RS.flujo = { eq, nV, sinPos }; }
+      delete RS.flujo; }
     if (eq < RS.start * (1 - FRENO)) { await vendeTodo(`freno: el saldo ha caído un ${FRENO * 100} %`); ctl = { ...ctl, parado: true, motivo: `freno automático: el saldo cayó un ${FRENO * 100} %` }; RS.estado = "parado"; RS.paradaAt = now.toISOString(); msgs.push(`💶 🛑 REAL PARADO por el freno: el saldo ha caído por debajo de ${r2(RS.start * (1 - FRENO))} €. He vendido todo y no compraré más. Te avisaré cuando se cumplan las condiciones para retomar (el método se recupera en ficticio, vuelve a tener regla ganadora y pasan 2 días). Para volver antes: /seguir`); return { RS, msgs, ctl, ctlCambia: true }; }
     // 2b) freno diario: si hoy pierde un 10 % desde el principio del día, vende todo y descansa hasta mañana
     { const d = diaES(now); if (!RS.dia || RS.dia.d !== d) RS.dia = { d, eq0: eq };

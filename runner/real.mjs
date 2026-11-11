@@ -974,6 +974,17 @@ async function main() {
     ensureLedger(R, A, positions, m, notasL);
     if ((R.pendBot || []).length) { rep.push("## Órdenes que estaban pendientes", ""); await reconcile(T, R, rep); rep.push(""); try { positions = (await T.call("GET", "/equity/positions")) || positions; } catch {} }
     syncLots(R, positions, m, notasL);
+    // v449 · 💶 CUADRE DEL EFECTIVO: el efectivo del bot nunca puede ser mayor que el de la cuenta. Si lo es y en la cuenta hay participaciones
+    // de SUS fondos sin apuntar (una compra suya que no llegó a anotarse: respuesta perdida, orden que se ejecutó más tarde…), son del bot.
+    try { const accCash = +((account && account.cash && account.cash.availableToTrade) || 0), L = R.ledger; let resto = r2(L.cash - accCash);
+      if (resto > 0.5 && !(R.pendBot || []).length && !(pending || []).length) {
+        for (const p of positions) { const t = p.instrument && p.instrument.ticker; if (!t || !((R.botTickers || []).includes(t) || L.lots[t])) continue;
+          const tq = +p.quantity || 0, lot = L.lots[t] || { q: 0, cost: 0 }, extra = tq - lot.q, avg = tq > 0 ? +((p.walletImpact && p.walletImpact.totalCost) || 0) / tq : 0; if (!(extra > 1e-6) || !(avg > 0)) continue;
+          const qAd = +Math.min(extra, resto / avg).toFixed(8), coste = r2(qAd * avg); if (!(qAd > 0)) continue;
+          const lt = L.lots[t] || (L.lots[t] = { q: 0, cost: 0, d: m.date }); lt.q = +(lt.q + qAd).toFixed(8); lt.cost = r2(lt.cost + coste); L.cash = r2(L.cash - coste); resto = r2(resto - coste);
+          hist(R, { tipo: "ajuste", t, q: qAd, eur: -coste, nota: `cuadre: el efectivo del bot era mayor que el de la cuenta y había ${r2(extra)} participaciones de ${t} sin apuntar. Eran del bot (una compra suya que no llegó a anotarse): se le apuntan por ${eur(coste)}.` });
+          notasL.push(`${t}: ${eur(coste)} en participaciones eran del bot y salían como tuyas (una compra suya sin anotar). Corregido: ahora cuentan como del bot.`);
+          if (resto <= 0.5) break; } } } catch (e) {}
     R.positions = mapPos(positions, R); noteSeen(R, positions);
     // v21: compras y ventas que haces TÚ en la app de Trading 212: se apuntan en el historial (las del bot ya están)
     try {
