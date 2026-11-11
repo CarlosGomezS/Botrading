@@ -629,7 +629,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 425 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#425</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 426 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#426</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -5320,4 +5320,13 @@ ${estado(conReal)}
 (function(){const RX=/^(Conexión de datos|Auditoría de parámetros y datos|Parámetros del bot|Cuenta\b|Copia de seguridad y seguridad de claves|Diagnóstico técnico|Envío automático por correo)/;
  const limpia=()=>{try{const T=document.getElementById("t-ajustes");if(!T)return;T.querySelectorAll(".fold,.p").forEach(f=>{if(f.id&&/^(aj-|simpl-|cloudset|tgdev|guia)/.test(f.id))return;const h=f.querySelector(":scope > .fh, :scope > h2, :scope > div:first-child, :scope > summary");const t=((h&&h.textContent)||f.textContent||"").trim().replace(/^[–\-+\s]+/,"");if(RX.test(t))f.classList.add("aj-viejo")})}catch(e){}};
  [800,2000,4000,8000].forEach(t=>setTimeout(limpia,t));document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest("#nav"))setTimeout(limpia,300)},true)})();</script>
+<script id="auto-version">/* v426 · ACTUALIZACIÓN SOLA: GitHub Pages deja que el ordenador use la página guardada hasta 10 min (o más).
+   Al abrir, al volver a la pestaña y cada 3 min se mira (sin caché) si hay una versión más nueva; si la hay, se recarga sola en una dirección nueva. */
+(function(){if(!/^https?:$/.test(location.protocol)||window.__RUNNER)return;
+ const mia=()=>{const m=(document.querySelector(".vtag small")||{}).textContent||"";return+(m.match(/\d+/)||[0])[0]};
+ let mirando=false;async function mira(){const ae=document.activeElement;if(mirando||document.hidden||(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))||document.querySelector("#onb"))return;mirando=true;
+  try{const r=await fetch(location.pathname+"?nv="+Date.now(),{cache:"no-store"});if(!r.ok)return;const t=await r.text(),m=t.match(/«Fénix» <small>#(\d+)<\/small>|<small>#(\d+)<\/small>/),nueva=m?+(m[1]||m[2]):0,yo=mia();
+   if(nueva&&yo&&nueva>yo){let ya=0;try{ya=+sessionStorage.getItem("autoV")||0}catch(e){}if(ya>=nueva)return;try{sessionStorage.setItem("autoV",String(nueva))}catch(e){}
+    const u=new URL(location.href);u.searchParams.set("v",String(nueva));location.replace(u.toString())}}catch(e){}finally{mirando=false}}
+ setTimeout(mira,4000);setInterval(mira,180000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(mira,800)})})();</script>
 </body></html>
