@@ -5,6 +5,10 @@ on:
       destino:
         description: "Repositorio de destino (dueño/nombre)"
         required: true
+      chat:
+        description: "Claves del chat, ya cifradas con la clave de la app de destino (opcional)"
+        required: false
+        default: ""
 permissions:
   contents: read
 jobs:
@@ -21,6 +25,7 @@ jobs:
       - run: cd runner && npm i --no-save --no-audit --no-fund libsodium-wrappers@0.7.15 >/dev/null 2>&1 && node copiar-claves.mjs
         env:
           DESTINO: ${{ inputs.destino }}
+          CHAT: ${{ inputs.chat }}
           DESTINO_TOKEN: ${{ secrets.DESTINO_TOKEN }}
           ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
           TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
