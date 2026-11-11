@@ -88,7 +88,7 @@ function valoresETF() {
 async function etf(MS, prev) {
   const VV = valoresETF(); if (!VV.V.u || !VV.V.u.length) throw new Error("no se pudieron leer los valores del laboratorio");
   let top = [], res = [];
-  try { const st = await raw("data", "state.json"), S = JSON.parse(st.ls.pb19), L = S.lab || {}, an = S.labAn || {}, TV = (S.btm && S.btm.tr && S.btm.tr.v) || {};
+  try { const st = (await raw("data", "vista.json")) || (await raw("data", "state.json")); let S = null; try { const rw = st.idb["bot-trading-pro-state-v19"].stores.kv.rows.find((r) => r[0] === "S")[1]; S = typeof rw === "string" ? JSON.parse(rw) : rw; } catch (e) {} if (!S || !S.lab) S = JSON.parse(st.ls.pb19); const L = S.lab || {}, an = S.labAn || {}, TV = (S.btm && S.btm.tr && S.btm.tr.v) || {};
     const ks = (L.top3 || []).map((x) => x.k).concat(Object.keys(L.pop || {})).filter((k, i, A) => A.indexOf(k) === i);
     top = ks.map((k) => ({ k, g: (L.pop[k] || L.pend[k] || {}).g, an: an[k], t: TV[k] })).filter((x) => x.g).slice(0, 12).map((x) => ({ gen: x.g, rentab_anual: x.an != null ? +(x.an * 100).toFixed(1) : null, tramos: x.t ? { gana_al_sp500: x.t.g, tipico: x.t.mA, ult18m: x.t.rec } : null }));
     res = Object.values(L.iaRes || {}).map((x) => ({ gen: x.g, rentab_anual: x.an != null ? +(x.an * 100).toFixed(1) : null, aprobo: x.ok, por_que_no: x.por || undefined }));
@@ -141,14 +141,22 @@ async function vivos(url, key, pref, filtro = () => true, n = 8) { try { const r
     const ids = (j.data || []).map((x) => x.id).filter((id) => id && filtro(id) && !/whisper|tts|guard|embed|vision|audio|image|ocr|rerank|distil|prompt-guard|-vl-|safety/i.test(id));
     const sc = (id) => { const i = pref.findIndex((p) => p.test(id)); return i < 0 ? 99 : i; }; return ids.sort((a, b) => sc(a) - sc(b)).filter((id) => sc(id) < 99).slice(0, n); } catch (e) { return []; } }
 const PREF = [/deepseek.*(v3|chat|r1)/i, /qwen3\.\d.*(plus|max|235|480)/i, /qwen3.*(235|480|coder)/i, /kimi-k2/i, /gpt-oss-120b/i, /llama-4.*maverick/i, /glm-4\.[5-9]/i, /nemotron.*(ultra|super)/i, /llama-3\.(1|3).*(405|70)/i, /qwen3/i, /gpt-oss-20b/i, /mistral.*(large|medium)/i, /gemma-3.*27/i];
+async function probar(url, key, ids) { const ok = []; for (let i = 0; i < ids.length && ok.length < 4; i += 8) await Promise.all(ids.slice(i, i + 8).map(async (m) => { try { const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key }, signal: AbortSignal.timeout(40000), body: JSON.stringify({ model: m, messages: [{ role: "user", content: "di hola" }], max_tokens: 5 }) }); if (r.ok) ok.push(m); } catch (e) {} })); return ok; }
+async function nvModelos() { const P = globalThis.__PREV || {}; if (P.nvOk && P.nvOk.m && P.nvOk.m.length && Date.now() - Date.parse(P.nvOk.t) < 3 * 86400e3) return P.nvOk.m;
+  if (globalThis.__NVM) return globalThis.__NVM; const todos = await vivos("https://integrate.api.nvidia.com/v1/models", NV, [/./], () => true, 300), orden = await vivos("https://integrate.api.nvidia.com/v1/models", NV, PREF, () => true, 300), ids = [...orden, ...todos.filter((x) => !orden.includes(x))].filter((x) => !/embed|rerank|vision|vlm|-vl|clip|parse|safety|guard|reward|retriever|nemoretriever|cosmos|audio|asr|tts/i.test(x)).slice(0, 48);
+  const ok = await probar("https://integrate.api.nvidia.com/v1/chat/completions", NV, ids); log(`NVIDIA: modelos que funcionan con tu cuenta: ${ok.join(", ") || "ninguno"}`); globalThis.__NVM = ok; globalThis.__NVOK = { t: new Date().toISOString(), m: ok }; return ok; }
+// Groq gratis acepta pocas palabras por minuto: se le manda la versión corta de la pregunta (sin la memoria larga ni la lista de internet)
+const corta = (p) => { let x = p.split("\n").filter((l) => !/^(IDEAS RECIENTES DE INTERNET|TU MEMORIA LARGA|LO QUE HAS ENCONTRADO EN INTERNET)/.test(l)).map((l) => (l.length > 2500 ? l.slice(0, 2500) + "…" : l)).join("\n"); return x.length > 16000 ? x.slice(0, 16000) : x; };
+const conTope = (pr, ms) => Promise.race([pr, new Promise((_, no) => setTimeout(() => no(new Error("tardó demasiado")), ms))]);
 async function consejo(prompt, MS) {
   const OR_H = { "HTTP-Referer": "https://github.com/" + REPO, "X-Title": "Bot Trading" }, tareas = [];
   if (KEY && !globalThis.__GEMINI_KO) tareas.push(geminiSolo(prompt, MS).catch((e) => { if (/HTTP (401|402|403)/.test(String(e.message))) globalThis.__GEMINI_KO = 1; throw e; }));
-  if (GROQ) { const ms = await vivos("https://api.groq.com/openai/v1/models", GROQ, PREF); tareas.push(compat("https://api.groq.com/openai/v1/chat/completions", GROQ, ms.length ? ms : ["openai/gpt-oss-120b"], prompt)); }
+  if (GROQ) { const ms = await vivos("https://api.groq.com/openai/v1/models", GROQ, PREF); tareas.push(compat("https://api.groq.com/openai/v1/chat/completions", GROQ, ms.length ? ms : ["openai/gpt-oss-120b"], corta(prompt))); }
   if (OR) { const ms = await vivos("https://openrouter.ai/api/v1/models", "", PREF, (id) => /:free$/.test(id)); tareas.push(compat("https://openrouter.ai/api/v1/chat/completions", OR, ms.length ? ms : ["openrouter/auto"], prompt, OR_H)); }
-  if (NV) { const ms = await vivos("https://integrate.api.nvidia.com/v1/models", NV, PREF); tareas.push(compat("https://integrate.api.nvidia.com/v1/chat/completions", NV, ms.length ? ms : ["deepseek-ai/deepseek-v3.1"], prompt)); }
+  if (NV) { const ms = await nvModelos(); if (ms.length) tareas.push(compat("https://integrate.api.nvidia.com/v1/chat/completions", NV, ms, prompt)); }
   if (ZAI) tareas.push(compat("https://api.z.ai/api/paas/v4/chat/completions", ZAI, ["glm-4.7-flash", "glm-4.5-flash", "glm-4.6v-flash"], prompt));
   if (!tareas.length) throw new Error("sin clave de IA (GEMINI_KEY, GROQ_KEY, OPENROUTER_KEY, NVIDIA_KEY o ZAI_KEY)");
+  for (let i = 0; i < tareas.length; i++) tareas[i] = conTope(tareas[i], 270000);   // ninguna IA lenta frena a las demás
   const R = (await Promise.allSettled(tareas)).filter((x) => x.status === "fulfilled" && x.value && x.value.json).map((x) => x.value);
   if (!R.length) { const e = (await Promise.allSettled(tareas)).find((x) => x.status === "rejected"); throw (e && e.reason) || new Error("ninguna IA respondió"); }
   const json = {}; for (const L of LISTAS) { const xs = R.flatMap((r) => (Array.isArray(r.json[L]) ? r.json[L].map((x) => (x && typeof x === "object" ? { ...x, _ia: r.modelo } : x)) : [])); if (xs.length) json[L] = xs.filter((x, i, A) => A.findIndex((z) => JSON.stringify({ ...z, _ia: 0, idea: 0, nombre: 0 }) === JSON.stringify({ ...x, _ia: 0, idea: 0, nombre: 0 })) === i); }
@@ -204,7 +212,7 @@ async function ideasWeb() { const F = [["arXiv (finanzas cuantitativas)", "https
   log(`🌐 ideas leídas de internet: ${out.length} (${[...new Set(out.map((x) => x.fuente))].join(", ") || "ninguna"})`); return out; }
 async function main() {
   globalThis.__WEB = await ideasWeb().catch(() => []);
-  const prev = (await raw(RAMA, "ia-lab.json")) || {}, out = { v: 1, t: new Date().toISOString(), estado: "ok", cripto: prev.cripto || null, etf: prev.etf || null, tort: prev.tort || null, hist: prev.hist || [] };
+  const prev = (await raw(RAMA, "ia-lab.json")) || {}; globalThis.__PREV = prev; const out = { v: 1, t: new Date().toISOString(), estado: "ok", cripto: prev.cripto || null, etf: prev.etf || null, tort: prev.tort || null, hist: prev.hist || [] };
   /* v409 · 🧠 MEMORIA LARGA: todas las lecciones que ha escrito alguna vez (sin repetir, con fecha), aunque luego las quite del cuaderno corto */
   const MEM = { cripto: [], etf: [], tort: [], ...(prev.memoria || {}) }; MEM.tort = MEM.tort || []; globalThis.__MEM = MEM;
   const guarda = (k, L) => { const ya = new Set(MEM[k].map((x) => x.l)); for (const l of L || []) if (l && !ya.has(l)) { MEM[k].unshift({ t: out.t, l }); ya.add(l); } MEM[k] = MEM[k].slice(0, 500); };
@@ -215,6 +223,7 @@ async function main() {
     try { out.cripto = await cripto(MS, prev.cripto); h.cripto = out.cripto.nuevas; } catch (e) { h.errC = String(e.message).slice(0, 80); log("cripto: la IA no respondió (" + h.errC + "); el laboratorio sigue igual"); }
     try { out.tort = await tortugas(MS, prev.tort); h.tort = out.tort.nuevas; } catch (e) { h.errT = String(e.message).slice(0, 80); log("Tortugas: la IA no respondió (" + h.errT + "); el examen sigue igual"); }
     try { out.etf = await etf(MS, prev.etf); h.etf = out.etf.nuevos; } catch (e) { h.errE = String(e.message).slice(0, 80); log("ETF: la IA no respondió (" + h.errE + "); el laboratorio sigue igual"); }
+    out.nvOk = globalThis.__NVOK || prev.nvOk || null;
     out.modeloOk = [out.tort && out.tort.modelo, out.cripto && out.cripto.modelo, out.etf && out.etf.modelo].map((x) => (String(x || "").match(/gemini-[\w.-]+/) || [])[0]).find(Boolean) || prev.modeloOk || null;
     if (h.errC && h.errE) out.estado = "error"; out.hist = [h, ...out.hist].slice(0, 200); }
   try { guarda("cripto", out.cripto && out.cripto.lecciones); guarda("etf", out.etf && out.etf.lecciones); guarda("tort", out.tort && out.tort.lecciones); out.memoria = MEM; log(`memoria larga: ${MEM.cripto.length} lecciones de cripto · ${MEM.tort.length} de Tortugas · ${MEM.etf.length} de ETF`); } catch (e) {}
