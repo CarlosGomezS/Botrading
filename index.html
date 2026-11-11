@@ -609,7 +609,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 414 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#414</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 416 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#416</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -4089,7 +4089,13 @@ function heroHtml(){ficBaseUpd();const R=RL.R,a=A(),s=summary(),acc=(R&&R.accoun
 <div class="big">${hasAcc?E(tv):s?E(s.be):L?E(L.cap):"—"}</div>
 ${hasAcc?`<div class="hero-chg">${ch!=null?`Desde ayer <b class="${cls(ch)}">${SG(ch)}</b>`:""}${rend!=null?`${ch!=null?" · ":""}lo que tiene ahora va <b class="${cls(pnl)}">${SG(pnl)} (${PC(rend)})</b>`:""}</div>
 <div class="hero-row hero-row3"><span>Ingresado <b>${(()=>{const L2=((R&&R.days)||[]).filter(x=>x.ap!=null).pop();return L2?E(L2.ap):"—"})()}</b></span><span>Invertido <b>${E(inv)}</b></span><span>Efectivo <b>${E(cash+resv)}</b></span></div>
-${Math.abs(own)>=1?`<div class="hero-live">🤖 El bot maneja ${E(botMon)}; el resto (${E(own)}) es tuyo y no lo toca.</div>`:""}`:
+${(()=>{/* v416 · 🤖 BOT frente a 👤 TUYO: lo del bot sale de SU contabilidad (lo que ha puesto, lo que vale, sus compras y su efectivo); lo tuyo es el resto de la cuenta */
+ if(!s)return"";const ap=(()=>{const L2=((R&&R.days)||[]).filter(x=>x.ap!=null).pop();return L2?+L2.ap:null})(),bInv=Math.max(0,s.invBot||0),bCash=Math.max(0,s.cashBot||0),yInv=Math.max(0,inv-bInv),yCash=Math.max(0,cash+resv-bCash),yPuesto=ap!=null?Math.max(0,ap-s.cap):null,yGan=yPuesto!=null?own-yPuesto:null,hay=Math.abs(own)>=1||yInv>=1;
+ const fila=(t,b,y)=>`<tr><td style="padding:5px 0;color:var(--mut)">${t}</td><td style="padding:5px 6px;text-align:right">${b}</td><td style="padding:5px 0;text-align:right">${y}</td></tr>`;
+ return`<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><table style="width:100%;border-collapse:collapse;font-size:14px"><tr><th></th><th style="text-align:right;padding:0 6px 4px">🤖 Del bot</th><th style="text-align:right;padding-bottom:4px">${hay?"👤 Tuyo":""}</th></tr>
+ ${fila("Puesto",E(s.cap),hay&&yPuesto!=null?E(yPuesto):"")}${fila("Vale ahora","<b>"+E(s.be)+"</b>",hay?"<b>"+E(own)+"</b>":"")}${fila("Invertido",E(bInv),hay?E(yInv):"")}${fila("Efectivo",E(bCash),hay?E(yCash):"")}
+ ${fila("Ganancias",`<b class="${cls(s.res)}">${SG(s.res)}</b><br><span class="m">${PC(s.pct)}</span>`,hay&&yGan!=null?`<b class="${cls(yGan)}">${SG(yGan)}</b>`:"")}</table>
+ <div class="m" style="margin-top:6px">🤖 <b>Ganancias del bot</b> = lo que vale lo del bot menos lo que se le ha puesto (no cuenta tus ingresos ni tus compras). El % es su rentabilidad.${hay?" 👤 Lo tuyo es el resto de la cuenta: el bot no lo toca.":""}</div></div>`})()}`:
 `<div class="hero-chg">${s?`<b class="${cls(s.res)}">${SG(s.res)} (${PC(s.pct)})</b> desde el ${esc(fd(s.d0))}${s.dia!=null?` · hoy <b class="${cls(s.dia)}">${SG(s.dia)}</b>`:""}`:"Aún sin historial"}</div>
 <div class="hero-row"><span>Invertido <b>${s?E(s.invBot):"—"}</b></span><span>Efectivo <b>${s?E(s.cashBot):"—"}</b></span></div>`}
 ${/^✅ Todo en orden/.test(mood)?"":`<div class="hero-mood">${mood}</div>`}
