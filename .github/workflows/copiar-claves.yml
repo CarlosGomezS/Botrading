@@ -1,0 +1,33 @@
+name: Claves · copiar las comunes a la app de tu padre
+on:
+  workflow_dispatch:
+    inputs:
+      destino:
+        description: "Repositorio de destino (dueño/nombre)"
+        required: false
+        default: "CarlosGomezS/Botrading-papa"
+permissions:
+  contents: read
+jobs:
+  copiar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: runner
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: cd runner && npm i --no-save --no-audit --no-fund libsodium-wrappers@0.7.15 >/dev/null 2>&1 && node copiar-claves.mjs
+        env:
+          DESTINO: ${{ inputs.destino }}
+          PAPA_TOKEN: ${{ secrets.PAPA_TOKEN }}
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
+          POLYGON_KEY: ${{ secrets.POLYGON_KEY }}
+          ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE_KEY }}
+          FMP_KEY: ${{ secrets.FMP_KEY }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          GROQ_KEY: ${{ secrets.GROQ_KEY }}
+          OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
