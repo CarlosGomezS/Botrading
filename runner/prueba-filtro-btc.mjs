@@ -1,7 +1,7 @@
 // Prueba única: las reglas de Tortugas que están ahora en el podio, CON y SIN el filtro de bitcoin, con datos reales de 2 años de cada exchange.
 import * as B from "./bitvavo.mjs";
 const TT = await import("./tortugas.mjs"), OK = await import("./okx.mjs");
-const el = await B.leer("examen-largo.json", "examen-largo"), UV = await B.universo();
+const el = await (await fetch(`https://raw.githubusercontent.com/${process.env.GITHUB_REPOSITORY}/examen-largo/examen-largo.json?t=${Date.now()}`)).json(), UV = await B.universo();
 const P1 = (x) => (x == null ? "—" : (x >= 0 ? "+" : "") + Number(x).toFixed(1) + " %");
 for (const ex of ["bitvavo", "okx"]) {
   let lista = [];
