@@ -94,7 +94,7 @@ export async function ronda() {
   const fills = await info({ type: "userFills", user: yo }).catch(() => []);
   const abierta = (c) => { const f = (fills || []).filter((z) => z.coin === c && /^Open/.test(z.dir)).sort((a, b) => b.time - a.time)[0]; return f ? +f.time : null; };
   const M0 = await metodo(); const h = M0 && M0.x && M0.x.g ? M0.x.g.h : 16;
-  const hechos = [], estado = { t: new Date().toISOString(), eq, neto, metodo: M0 && M0.x ? M0.x.n : null, ops: [] };
+  const hechos = [], estado = { w: yo, t: new Date().toISOString(), eq, neto, metodo: M0 && M0.x ? M0.x.n : null, ops: [] };
   log(`Hyperliquid real: ${pos.length} posiciones abiertas · método ${M0 && M0.x ? "n.º 1 del podio" : "no disponible"}`);
 
   // 1) freno: la cuenta ha caído por debajo de la mitad de lo ingresado → cerrar todo y no abrir
