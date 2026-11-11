@@ -46,5 +46,5 @@ jobs:
           ACCION: ${{ github.event.inputs.accion }}
           FORZAR: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
         run: |
-          case "${ACCION:-ronda}" in ronda|firma) ;; *) echo "acción no válida"; exit 1;; esac
+          case "${ACCION:-ronda}" in ronda|firma|stops) ;; *) echo "acción no válida"; exit 1;; esac
           node runner/hl-real.mjs "${ACCION:-ronda}"
