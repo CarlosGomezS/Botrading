@@ -39,6 +39,11 @@ jobs:
         if: steps.dup.outputs.go == 'true'
         with:
           node-version: 22
+      - name: Librerías de firma de Hyperliquid
+        if: steps.dup.outputs.go == 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/hl && cd /tmp/hl && npm init -y >/dev/null && npm i --no-audit --no-fund ethers@6.13.4 @msgpack/msgpack@2.8.0 >/dev/null && ln -sfn /tmp/hl/node_modules "$GITHUB_WORKSPACE/runner/node_modules" && echo ok
       - name: Vueltas (una por minuto, ~28 min)
         if: steps.dup.outputs.go == 'true'
         env:
@@ -55,13 +60,21 @@ jobs:
           OKX_KEY: ${{ secrets.OKX_KEY }}
           OKX_SECRET: ${{ secrets.OKX_SECRET }}
           OKX_PASSPHRASE: ${{ secrets.OKX_PASSPHRASE }}
+          HL_AGENT_KEY: ${{ secrets.HL_AGENT_KEY }}
+          HL_WALLET: ${{ secrets.HL_WALLET }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           end=$(( $(date +%s) + 28*60 ))
+          hlH=""; hlP=""; vg=0
           # v440 · saldo en vivo de Bitvavo y OKX (cada 10 s, cifrado) mientras dura el tramo
           VIVO_SEG=$(( 28*60 - 20 )) node runner/saldo-vivo.mjs > /tmp/vivo.log 2>&1 &
           # una vuelta de Bitvavo por minuto (cada 10 min, además, su generación de aprendizaje)
           while [ "$(date +%s)" -lt "$end" ]; do
             s=$(date +%s)
+            # v441 · 💧 Hyperliquid: su ronda de cada hora, en cuanto empieza la hora (en paralelo; si ya está hecha, no repite)
+            H=$(date -u +%Y%m%d%H); if [ -n "$HL_AGENT_KEY" ] && [ "$H" != "$hlH" ] && { [ -z "$hlP" ] || ! kill -0 "$hlP" 2>/dev/null; }; then hlH=$H; ( timeout 300 node runner/hl-real.mjs ronda > /tmp/hl.log 2>&1; cat /tmp/hl.log ) & hlP=$!; fi
+            # v441 · 🛡️ cada 10 min, el vigilante comprueba que todo lo demás sigue vivo (cartera real, guardián, Hyperliquid…) y lo relanza si no
+            if [ $(( $(date +%s) - vg )) -ge 600 ]; then vg=$(date +%s); ( timeout 90 bash runner/vigia.sh > /tmp/vigia.log 2>&1; grep "⚠️" /tmp/vigia.log || true ) & fi
             timeout 100 node runner/bitvavo.mjs > /tmp/m-bv.log 2>&1 || true; cat /tmp/m-bv.log
             w=$(( 60 - ($(date +%s) - s) )); if [ "$w" -gt 0 ]; then sleep "$w"; fi
           done

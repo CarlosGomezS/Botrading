@@ -35,6 +35,12 @@ export const aTexto = (x) => { let s = Number(x).toFixed(8); if (s.includes(".")
 export const precioOk = (px, szd) => +(+Number(px).toPrecision(5)).toFixed(Math.max(0, 6 - szd));
 export const tamOk = (sz, szd) => Math.floor(sz * 10 ** szd + 1e-9) / 10 ** szd;
 function orden(a, compra, px, sz, reduce) { return { a, b: compra, p: aTexto(px), s: aTexto(sz), r: !!reduce, t: { limit: { tif: "Ioc" } } }; }
+// v441 · 🛡️ STOP DE EMERGENCIA guardado en Hyperliquid (funciona aunque el bot esté caído): orden de cierre a mercado si el precio va un 25 % en contra
+export const STOP_EMERG = 0.25;
+function ordenStop(a, lado, entrada, sz, szd) { const tp = entrada * (lado > 0 ? 1 - STOP_EMERG : 1 + STOP_EMERG), lim = tp * (lado > 0 ? 0.9 : 1.1);
+  return { a, b: lado < 0, p: aTexto(precioOk(lim, szd)), s: aTexto(sz), r: true, t: { trigger: { isMarket: true, triggerPx: aTexto(precioOk(tp, szd)), tpsl: "sl" } } }; }
+async function ponStop(a, lado, entrada, sz, szd, pk) { const res = await exchange({ type: "order", orders: [ordenStop(a, lado, entrada, sz, szd)], grouping: "na" }, pk);
+  const st = res.j && res.j.response && res.j.response.data && res.j.response.data.statuses && res.j.response.data.statuses[0]; return !!(st && (st.resting || st.filled || st === "waitingForTrigger" || st.waitingForTrigger)) || (res.j && res.j.status === "ok" && !(st && st.error)); }
 async function mandar(o, pk) { const res = await exchange({ type: "order", orders: [o], grouping: "na" }, pk);
   const st = res.j && res.j.status === "ok" && res.j.response && res.j.response.data && res.j.response.data.statuses && res.j.response.data.statuses[0];
   if (st && st.filled) return { ok: true, px: +st.filled.avgPx, sz: +st.filled.totalSz };
@@ -92,6 +98,9 @@ async function aviso(txt) { try { const AV = await import("./avisos.mjs"); await
 const D2 = (x) => (Math.round(x * 100) / 100).toFixed(2).replace(".", ",");
 
 export async function ronda() {
+  // v441 · una sola ronda por hora aunque la lancen dos sitios (el bot de cada minuto y el horario de respaldo); a mano (FORZAR=1) siempre
+  if (env("FORZAR") !== "1") { try { const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${ARCH}?ref=${RAMA}`, { headers: { Accept: "application/vnd.github.raw+json", ...(TOKEN ? { Authorization: "Bearer " + TOKEN } : {}) }, signal: AbortSignal.timeout(15000) });
+    if (r.ok) { const j = await r.json(), h0 = Math.floor(Date.now() / H) * H; if (j && j.t && Date.parse(j.t) >= h0) { log("Hyperliquid real: la ronda de esta hora ya está hecha."); return; } } } catch (e) {} }
   const pk = env("HL_AGENT_KEY"), yo = env("HL_WALLET").toLowerCase();
   if (!pk || !/^0x[0-9a-f]{40}$/.test(yo)) { log("Hyperliquid real: faltan las claves (HL_AGENT_KEY y HL_WALLET). No opero."); return; }
   if (!/^(0x)?[0-9a-fA-F]{64}$/.test(pk)) { log("Hyperliquid real: la clave de agente no tiene el formato correcto (64 caracteres hexadecimales). No opero."); return; }
@@ -139,10 +148,17 @@ export async function ronda() {
         let usadas = 0; for (const q of quiere) { if (usadas >= libres) break; if (pos.some((p) => p.coin === q.c) && !estado.ops.some((o) => o.c === q.c && o.x === "cierra")) continue;
           const I = idx.get(q.c), mid = +mids[q.c]; if (!(mid > 0)) continue; const notional = Math.min(uso / plazas, eq) * 0.98, sz = tamOk(notional / mid, I.szd); if (sz * mid < 10.2) continue;
           const r = await mandar(orden(I.a, q.dir > 0, precioOk(mid * (q.dir > 0 ? 1 + SLIP : 1 - SLIP), I.szd), sz, false), PK);
+          if (r.ok) { try { if (!(await ponStop(I.a, q.dir, r.px, r.sz, I.szd, PK))) hechos.push(`⚠️ ${q.c}: no he podido poner el stop de emergencia; lo reintento en la próxima ronda`); } catch (e) {} }
           if (r.ok) { usadas++; hechos.push(`${q.dir > 0 ? "📈 Abre LARGO" : "📉 Abre CORTO"} en ${q.c} · ${D2(r.sz * r.px)} $ a ${r.px} · cierra en ${g.h} h`); estado.ops.push({ t: Date.now(), c: q.c, x: "abre", lado: q.dir, px: r.px, v: r.sz * r.px }); }
           else hechos.push(`⚠️ No he podido abrir ${q.c}: ${r.err}`); }
       } }
   }
+  // v441 · 🛡️ revisión de stops: cada posición abierta debe tener su stop de emergencia; las órdenes que ya no tengan posición se cancelan
+  try { const stx = await info({ type: "clearinghouseState", user: yo }), ab = (stx.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0), oo = (await info({ type: "frontendOpenOrders", user: yo })) || [];
+    const canc = oo.filter((o) => !ab.some((p) => p.coin === o.coin) && idx.has(o.coin)).map((o) => ({ a: idx.get(o.coin).a, o: o.oid }));
+    if (canc.length) await exchange({ type: "cancel", cancels: canc }, PK);
+    for (const p of ab) { const I = idx.get(p.coin); if (!I) continue; if (oo.some((o) => o.coin === p.coin && (o.isTrigger || /stop/i.test(o.orderType || "")))) continue;
+      const lado = +p.szi > 0 ? 1 : -1; if (await ponStop(I.a, lado, +p.entryPx, Math.abs(+p.szi), I.szd, PK)) log("Stop de emergencia puesto en una posición que no lo tenía."); } } catch (e) { log("Revisión de stops: " + String(e.message).slice(0, 60)); }
   const st2 = await info({ type: "clearinghouseState", user: yo }).catch(() => null); if (st2) { estado.eq = +st2.marginSummary.accountValue || eq; estado.pos = (st2.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0).map((p) => ({ c: p.coin, lado: +p.szi > 0 ? 1 : -1, v: +p.positionValue, pnl: +p.unrealizedPnl, entrada: +p.entryPx, desde: abierta(p.coin) })); }
   try { const f2 = await info({ type: "userFills", user: yo }); const cie = {}; for (const z of f2 || []) { if (!/^Close/.test(z.dir)) continue; const k = z.coin + "|" + Math.floor(z.time / 60000); const o = cie[k] || (cie[k] = { t: +z.time, c: z.coin, lado: /Long/.test(z.dir) ? 1 : -1, pnl: 0, v: 0 }); o.pnl += (+z.closedPnl || 0) - (+z.fee || 0); o.v += (+z.sz || 0) * (+z.px || 0); }
     estado.cierres = Object.values(cie).sort((a, b) => b.t - a.t).slice(0, 80); estado.ganado = estado.cierres.reduce((a, x) => a + x.pnl, 0); } catch (e) {}

@@ -47,4 +47,13 @@ for par in "examen-largo.yml:240" "ia-lab.yml:240" "caza-lab.yml:420"; do wf=${p
     if [ "$age" -ge "$lim" ] && ! busy "$wf"; then gh api -X POST "$R/actions/workflows/$wf/dispatches" -f ref=main >/dev/null 2>&1 && echo "⚠️ $wf llevaba $age min sin hacerse: lanzado."; fi; fi
 done
 
+# 6) v441 · el bot de cripto de cada minuto (Bitvavo, OKX y la ronda de Hyperliquid): si lleva > 6 min sin publicar y no hay tramo vivo, se relanza
+t=$(gh api "$R/contents/bitvavo.json?ref=bitvavo" -H "Accept: application/vnd.github.raw" 2>/dev/null | python3 -c "import json,sys;j=json.load(sys.stdin);print((j.get('meta') or {}).get('t') or j.get('t') or '')" 2>/dev/null || echo "")
+if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "Cripto · última vuelta hace $age min"
+  if [ "$age" -ge 6 ] && ! busy meme.yml; then gh api -X POST "$R/actions/workflows/meme.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ El bot de cripto estaba parado: relanzado."; fi; fi
+# 7) v441 · 💧 Hyperliquid: si su última ronda tiene más de 70 min (y está configurado), se lanza una ahora
+t=$(gh api "$R/contents/hl-real.json?ref=hl-real" -H "Accept: application/vnd.github.raw" 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin).get('t') or '')" 2>/dev/null || echo "")
+if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "Hyperliquid · última ronda hace $age min"
+  if [ "$age" -ge 70 ] && ! busy hl-real.yml; then gh api -X POST "$R/actions/workflows/hl-real.yml/dispatches" -f ref=main -f "inputs[accion]=ronda" >/dev/null && echo "⚠️ Hyperliquid llevaba $age min sin ronda: lanzada."; fi; fi
+
 exit 0

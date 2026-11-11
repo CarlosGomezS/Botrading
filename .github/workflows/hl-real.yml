@@ -33,7 +33,8 @@ jobs:
         if: github.event_name == 'schedule'
         run: |
           m=$(date -u +%-M); s=$(date -u +%-S)
-          if [ "$m" -ge 40 ]; then w=$(( (60-m)*60 - s + 25 )); echo "Espero ${w}s al cierre de la hora"; sleep $w; fi
+          # v441 · la ronda normal la hace el bot de cada minuto al empezar la hora; este horario es el RESPALDO (a las y 4, si no se ha hecho)
+          if [ "$m" -ge 40 ]; then w=$(( (60-m)*60 - s + 240 )); echo "Espero ${w}s (respaldo a las y 4)"; sleep $w; fi
       - name: Ronda
         env:
           HL_AGENT_KEY: ${{ secrets.HL_AGENT_KEY }}
@@ -43,6 +44,7 @@ jobs:
           REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACCION: ${{ github.event.inputs.accion }}
+          FORZAR: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
         run: |
           case "${ACCION:-ronda}" in ronda|firma) ;; *) echo "acción no válida"; exit 1;; esac
           node runner/hl-real.mjs "${ACCION:-ronda}"
