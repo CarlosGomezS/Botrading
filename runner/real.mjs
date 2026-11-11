@@ -984,7 +984,11 @@ async function main() {
           const lt = L.lots[t] || (L.lots[t] = { q: 0, cost: 0, d: m.date }); lt.q = +(lt.q + qAd).toFixed(8); lt.cost = r2(lt.cost + coste); L.cash = r2(L.cash - coste); resto = r2(resto - coste);
           hist(R, { tipo: "ajuste", t, q: qAd, eur: -coste, nota: `cuadre: el efectivo del bot era mayor que el de la cuenta y había ${r2(extra)} participaciones de ${t} sin apuntar. Eran del bot (una compra suya que no llegó a anotarse): se le apuntan por ${eur(coste)}.` });
           notasL.push(`${t}: ${eur(coste)} en participaciones eran del bot y salían como tuyas (una compra suya sin anotar). Corregido: ahora cuentan como del bot.`);
-          if (resto <= 0.5) break; } } } catch (e) {}
+          if (resto <= 0.5) break; }
+        // si aun así sobra, ese efectivo lo has usado TÚ (compras tuyas o una retirada): sale del dinero del bot, como una retirada (no es pérdida)
+        if (resto > 0.5) { L.cash = r2(L.cash - resto); L.cap = r2(L.cap - resto); flowAdd(R, m.date, -resto);
+          hist(R, { tipo: "ajuste", t: "efectivo", q: 0, eur: -resto, nota: `cuadre: el efectivo del bot (${eur(L.cash + resto)}) era mayor que el de la cuenta (${eur(accCash)}). Esos ${eur(resto)} los has usado tú (compras tuyas o una retirada): salen del dinero del bot como una retirada, no como pérdida.` });
+          notasL.push(`El bot tenía apuntados ${eur(resto)} de efectivo que ya no están en la cuenta (los has usado tú). Corregido: su efectivo pasa a ${eur(L.cash)} y se cuenta como retirada, no como pérdida.`); } } } catch (e) {}
     R.positions = mapPos(positions, R); noteSeen(R, positions);
     // v21: compras y ventas que haces TÚ en la app de Trading 212: se apuntan en el historial (las del bot ya están)
     try {
