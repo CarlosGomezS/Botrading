@@ -1,0 +1,35 @@
+name: Hyperliquid · guardar ajustes
+# v435 · la app lo lanza al cambiar un ajuste de 💧 Hyperliquid (activo/pausa/parar, dinero que usa, posiciones, freno, método)
+on:
+  workflow_dispatch:
+    inputs:
+      cambio:
+        description: "JSON con el cambio"
+        required: true
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: hl-ctl
+  cancel-in-progress: false
+jobs:
+  guardar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: runner
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Guardar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CAMBIO: ${{ inputs.cambio }}
+        run: node runner/hl-real.mjs ajustes
+      - name: Si es «parar», cerrar ya (sin esperar a la hora en punto)
+        if: contains(inputs.cambio, '"parado"')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X POST "repos/${{ github.repository }}/actions/workflows/hl-real.yml/dispatches" -f ref=main -f "inputs[accion]=ronda"

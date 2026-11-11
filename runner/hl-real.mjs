@@ -57,9 +57,20 @@ async function datosVivos(U) {
 }
 
 // ---------- el método del podio ----------
-async function metodo() {
+// v435 · ⚙️ AJUSTES (rama hl-ctl, públicos: solo porcentajes y opciones, nunca importes)
+export const CTL0 = { estado: "on", uso: 100, plazas: 0, freno: 0.5, puesto: 1 };
+export function validaCtl(c, prev = CTL0) { const o = { ...CTL0, ...(prev || {}) }; c = c || {};
+  if (["on", "pausa", "parado"].includes(c.estado)) o.estado = c.estado; if ([25, 50, 75, 100].includes(+c.uso)) o.uso = +c.uso;
+  if ([0, 1, 2, 3, 4, 5].includes(+c.plazas)) o.plazas = +c.plazas; if ([0.25, 0.35, 0.5].includes(+c.freno)) o.freno = +c.freno; if ([1, 2, 3].includes(+c.puesto)) o.puesto = +c.puesto; return o; }
+async function leeCtl() { try { const r = await fetch(`https://raw.githubusercontent.com/${REPO}/hl-ctl/ctl.json?t=${Date.now()}`, { signal: AbortSignal.timeout(15000) }); if (r.ok) return validaCtl({}, await r.json()); } catch (e) {} return { ...CTL0 }; }
+export async function guardaAjustes() { let c = {}; try { c = JSON.parse(env("CAMBIO") || "{}"); } catch (e) { log("Ajuste no válido."); return; }
+  const o = { ...validaCtl(c, await leeCtl()), t: new Date().toISOString() }; if (!TOKEN) { log(JSON.stringify(o)); return; }
+  const sh = (x) => execSync(x, { stdio: "pipe", encoding: "utf8" }), pub = path.join(process.cwd(), ".pubhlctl"); rmSync(pub, { recursive: true, force: true }); mkdirSync(pub); writeFileSync(path.join(pub, "ctl.json"), JSON.stringify(o));
+  const g = (x) => sh(`git -C "${pub}" ${x}`); g("init -q -b hl-ctl"); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"'); g("add ctl.json"); g(`commit -q -m "ajustes hyperliquid"`);
+  for (let i = 0; i < 4; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git hl-ctl`); log(`Ajustes guardados: ${o.estado} · usa ${o.uso} % · posiciones ${o.plazas || "auto"} · freno −${o.freno * 100} % · método n.º ${o.puesto}`); return; } catch (e) { await sleep(3000); } } }
+async function metodo(puesto = 1) {
   const get = async (rama, arch) => { const r = await fetch(`https://raw.githubusercontent.com/${REPO}/${rama}/${arch}?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) }); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); };
-  const L = await get("caza-lab", "caza-lab.json"), x = (L.podio || [])[0]; if (!x) return null;
+  const L = await get("caza-lab", "caza-lab.json"), x = (L.podio || [])[puesto - 1] || (L.podio || [])[0]; if (!x) return null;
   let IA = []; try { const RX = await import("./ia-receta.mjs"), j = await get("ia-lab", "ia-lab.json"), FNk = Object.keys(FILTROS); IA = ((j && j.cripto && j.cripto.recetas) || []).map((r) => RX.validaReceta(r, FNk)).filter(Boolean); x.RX = RX; } catch (e) {}
   return { x, IA, U: L.criptos || [] };
 }
@@ -93,22 +104,24 @@ export async function ronda() {
   let neto = 0; for (const u of led || []) { const d = u.delta || {}; if (d.type === "deposit") neto += +d.usdc || 0; else if (d.type === "withdraw") neto -= +d.usdc || 0; }
   const fills = await info({ type: "userFills", user: yo }).catch(() => []);
   const abierta = (c) => { const f = (fills || []).filter((z) => z.coin === c && /^Open/.test(z.dir)).sort((a, b) => b.time - a.time)[0]; return f ? +f.time : null; };
-  const M0 = await metodo(); const h = M0 && M0.x && M0.x.g ? M0.x.g.h : 16;
-  const hechos = [], estado = { w: yo, t: new Date().toISOString(), eq, neto, metodo: M0 && M0.x ? M0.x.n : null, ops: [] };
-  log(`Hyperliquid real: ${pos.length} posiciones abiertas · método ${M0 && M0.x ? "n.º 1 del podio" : "no disponible"}`);
+  const CTL = await leeCtl(), M0 = await metodo(CTL.puesto); const h = M0 && M0.x && M0.x.g ? M0.x.g.h : 16;
+  const hechos = [], estado = { w: yo, ctl: CTL, t: new Date().toISOString(), eq, neto, metodo: M0 && M0.x ? M0.x.n : null, ops: [] };
+  log(`Hyperliquid real: ${pos.length} posiciones abiertas · ${CTL.estado === "on" ? "activo" : CTL.estado === "pausa" ? "en pausa (no abre nuevas)" : "parado (cierra todo)"} · método ${M0 && M0.x ? "n.º " + CTL.puesto + " del podio" : "no disponible"}`);
 
   // 1) freno: la cuenta ha caído por debajo de la mitad de lo ingresado → cerrar todo y no abrir
-  const freno = neto > 0 && eq < neto * 0.5;
+  const freno = neto > 0 && eq < neto * (1 - CTL.freno), parar = CTL.estado === "parado";
   // 2) cerrar las que ya han cumplido su tiempo (con 10 min de margen) o todas si salta el freno
   for (const p of pos) { const c = p.coin, t0 = abierta(c), edad = t0 ? Date.now() - t0 : Infinity, I = idx.get(c); if (!I) continue;
-    if (!freno && edad < h * H - 10 * 60e3) continue; const lado = +p.szi > 0, mid = +mids[c];
+    if (!freno && !parar && edad < h * H - 10 * 60e3) continue; const lado = +p.szi > 0, mid = +mids[c];
     const r = await mandar(orden(I.a, !lado, precioOk(mid * (lado ? 1 - SLIP : 1 + SLIP), I.szd), Math.abs(+p.szi), true), PK);
     if (r.ok) { const pnl = (+p.unrealizedPnl || 0); hechos.push(`${pnl >= 0 ? "🟢" : "🔴"} Cierra ${lado ? "largo" : "corto"} en ${c} tras ${Math.round(edad / H)} h · ${pnl >= 0 ? "+" : ""}${D2(pnl)} $ aprox.`); estado.ops.push({ t: Date.now(), c, x: "cierra", lado: lado ? 1 : -1, pnl }); }
     else hechos.push(`⚠️ No he podido cerrar ${c}: ${r.err}`); }
-  if (freno) { log("Hyperliquid real: freno activado (la cuenta ha caído por debajo de la mitad de lo ingresado). No abro nada."); if (hechos.length) await aviso("🛑 Hyperliquid: la cuenta ha caído por debajo de la mitad de lo que ingresaste. He cerrado todo y no abriré más hasta que lo revises.\n\n" + hechos.join("\n")); estado.freno = 1; await guarda(estado); return; }
+  if (parar) { log("Hyperliquid real: parado desde los ajustes. No abro nada."); if (hechos.length) await aviso("🛑 Hyperliquid: lo has parado desde la app. He cerrado todo.\n\n" + hechos.join("\n")); estado.parado = 1; await guarda(estado); return; }
+  if (freno) { log("Hyperliquid real: freno activado (la cuenta ha caído más de lo permitido respecto a lo ingresado). No abro nada."); if (hechos.length) await aviso("🛑 Hyperliquid: la cuenta ha caído más de un " + CTL.freno * 100 + " % respecto a lo que ingresaste. He cerrado todo y no abriré más hasta que lo revises.\n\n" + hechos.join("\n")); estado.freno = 1; await guarda(estado); return; }
 
   // 3) abrir en las plazas libres según la señal de la última vela cerrada
-  if (M0 && M0.x && M0.x.g) {
+  if (CTL.estado === "pausa") log("En pausa: no abro posiciones nuevas.");
+  if (CTL.estado === "on" && M0 && M0.x && M0.x.g) {
     const g = M0.x.g, D = await datosVivos(M0.U.filter((c) => idx.has(c)));
     if (!D.M.BTC) { log("Sin datos de BTC; no abro nada esta hora."); }
     else { const S0 = senales(D), A = pieza(S0, M0.IA, M0.x.RX, g.a, g.ia), B = g.b != null ? pieza(S0, M0.IA, M0.x.RX, g.b, g.iab) : null;
@@ -120,11 +133,11 @@ export async function ronda() {
         for (const c of D.U) { if (!D.M[c].ultima) continue; let a, b = null; try { a = A.fn(D.M[c], D.T, D.M.BTC); if (B) b = B.fn(D.M[c], D.T, D.M.BTC); } catch (e) { continue; }
           const dir = a[i]; if (!dir) continue; if (b) { let ok = false; for (let k = 0; k < 6 && !ok; k++) if (b[i - k] === dir) ok = true; if (!ok) continue; } if (!filtro(dir, i, X, c)) continue; quiere.push({ c, dir }); }
         // plazas: como en el laboratorio, hasta 5 a partes iguales; con poco saldo, menos plazas (cada orden necesita ≥ 11 $). Sin apalancamiento.
-        const plazas = Math.max(0, Math.min(5, Math.floor(eq / MIN_ORDEN))), libres = plazas - pos.filter((p) => !estado.ops.some((o) => o.c === p.coin && o.x === "cierra")).length;
+        const uso = eq * CTL.uso / 100, plazas = Math.max(0, Math.min(CTL.plazas || 5, Math.floor(uso / MIN_ORDEN))), libres = plazas - pos.filter((p) => !estado.ops.some((o) => o.c === p.coin && o.x === "cierra")).length;
         estado.plazas = plazas; estado.senales = quiere.length;
         log(`Señales esta hora: ${quiere.length} · plazas ${plazas} · libres ${Math.max(0, libres)}`);
         let usadas = 0; for (const q of quiere) { if (usadas >= libres) break; if (pos.some((p) => p.coin === q.c) && !estado.ops.some((o) => o.c === q.c && o.x === "cierra")) continue;
-          const I = idx.get(q.c), mid = +mids[q.c]; if (!(mid > 0)) continue; const notional = Math.min(eq / plazas, eq) * 0.98, sz = tamOk(notional / mid, I.szd); if (sz * mid < 10.2) continue;
+          const I = idx.get(q.c), mid = +mids[q.c]; if (!(mid > 0)) continue; const notional = Math.min(uso / plazas, eq) * 0.98, sz = tamOk(notional / mid, I.szd); if (sz * mid < 10.2) continue;
           const r = await mandar(orden(I.a, q.dir > 0, precioOk(mid * (q.dir > 0 ? 1 + SLIP : 1 - SLIP), I.szd), sz, false), PK);
           if (r.ok) { usadas++; hechos.push(`${q.dir > 0 ? "📈 Abre LARGO" : "📉 Abre CORTO"} en ${q.c} · ${D2(r.sz * r.px)} $ a ${r.px} · cierra en ${g.h} h`); estado.ops.push({ t: Date.now(), c: q.c, x: "abre", lado: q.dir, px: r.px, v: r.sz * r.px }); }
           else hechos.push(`⚠️ No he podido abrir ${q.c}: ${r.err}`); }
@@ -133,7 +146,7 @@ export async function ronda() {
   const st2 = await info({ type: "clearinghouseState", user: yo }).catch(() => null); if (st2) { estado.eq = +st2.marginSummary.accountValue || eq; estado.pos = (st2.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0).map((p) => ({ c: p.coin, lado: +p.szi > 0 ? 1 : -1, v: +p.positionValue, pnl: +p.unrealizedPnl, entrada: +p.entryPx, desde: abierta(p.coin) })); }
   try { const f2 = await info({ type: "userFills", user: yo }); const cie = {}; for (const z of f2 || []) { if (!/^Close/.test(z.dir)) continue; const k = z.coin + "|" + Math.floor(z.time / 60000); const o = cie[k] || (cie[k] = { t: +z.time, c: z.coin, lado: /Long/.test(z.dir) ? 1 : -1, pnl: 0, v: 0 }); o.pnl += (+z.closedPnl || 0) - (+z.fee || 0); o.v += (+z.sz || 0) * (+z.px || 0); }
     estado.cierres = Object.values(cie).sort((a, b) => b.t - a.t).slice(0, 80); estado.ganado = estado.cierres.reduce((a, x) => a + x.pnl, 0); } catch (e) {}
-  estado.h = h; estado.plazas = estado.plazas != null ? estado.plazas : Math.max(0, Math.min(5, Math.floor(eq / MIN_ORDEN)));
+  estado.h = h; estado.plazas = estado.plazas != null ? estado.plazas : Math.max(0, Math.min(CTL.plazas || 5, Math.floor(eq * CTL.uso / 100 / MIN_ORDEN)));
   log(`Hyperliquid real: ${hechos.length} movimientos esta hora.`);
   if (hechos.length) await aviso("💧 Hyperliquid (dinero real)\n" + hechos.join("\n") + `\n\nCuenta: ${D2(estado.eq)} $ · ingresado ${D2(neto)} $`);
   await guarda(estado);
@@ -148,4 +161,4 @@ export async function pruebaFirma() {
   const txt = JSON.stringify(res.j || res.t), leida = (txt.match(/0x[0-9a-f]{40}/i) || [""])[0].toLowerCase();
   log(`Prueba de firma: HTTP ${res.http} · ${env("HL_AGENT_KEY") ? "clave del agente" : "clave inventada"} · ${leida ? (leida === dir ? "✅ Hyperliquid lee la firma correctamente" : "❌ la firma no cuadra") : "respuesta: " + txt.replace(/0x[0-9a-f]{40}/gi, "0x…").slice(0, 160)}`);
 }
-if (process.argv[1] && process.argv[1].endsWith("hl-real.mjs")) (process.argv[2] === "firma" ? pruebaFirma() : ronda()).catch((e) => { console.log("Error: " + String(e.message).split("\n")[0].replace(/0x[0-9a-fA-F]{40,}/g, "0x…").slice(0, 160)); process.exit(1); });
+if (process.argv[1] && process.argv[1].endsWith("hl-real.mjs")) (process.argv[2] === "firma" ? pruebaFirma() : process.argv[2] === "ajustes" ? guardaAjustes() : ronda()).catch((e) => { console.log("Error: " + String(e.message).split("\n")[0].replace(/0x[0-9a-fA-F]{40,}/g, "0x…").slice(0, 160)); process.exit(1); });
