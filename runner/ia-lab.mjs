@@ -112,7 +112,7 @@ Responde SOLO un JSON: {"lecciones":[hasta 20 lecciones breves en castellano: tu
 Reparto OBLIGATORIO: 5 de ETF, 5 MIXTOS y 5 de ACCIONES. En cada categoría: 2 MEJORAS de los mejores que ya hay (cambia 1-2 piezas con una razón clara), 2 ideas NUEVAS tuyas y 1 inspirada en las ideas de internet. Cada g debe traer las piezas u, l, s, t, f, i, a, r, p (y las demás si quieres). Que sean muy distintos entre sí: grupos, estilos (z), regímenes (rg) y refugios distintos. Busca métodos MUY buenos: que ganen al S&P 500 en casi todos los tramos y con caídas pequeñas.`;
   const { modelo, json } = await gemini(P, MS);
   const ok = (g) => { if (!g || typeof g !== "object") return null; const o = {}; for (const [k, v] of Object.entries(g)) { if (!VV.V[k]) return null; if (!VV.V[k].some((z) => z === v)) return null; o[k] = v; } for (const k of ["u", "l", "t"]) if (o[k] == null) return null; return o; };
-  const nuevos = ((json && json.genes) || []).map((x) => ({ g: ok(x && x.g), idea: String((x && x.idea) || "").replace(/[<>`]/g, "").slice(0, 200) })).filter((x) => x.g);
+  const nuevos = ((json && json.genes) || []).map((x) => ({ g: ok(x && x.g), idea: String((x && x.idea) || "").replace(/[<>`]/g, "").slice(0, 200), tipo: ["mejora", "nueva", "internet"].includes(x && x.tipo) ? x.tipo : undefined, ia: x && x._ia })).filter((x) => x.g);
   const todos = [...nuevos.map((x) => ({ ...x, t: new Date().toISOString(), modelo })), ...((prev && prev.genes) || [])].filter((x, i, A) => A.findIndex((z) => JSON.stringify(z.g) === JSON.stringify(x.g)) === i).slice(0, 80);
   log(`ETF: la IA (${modelo}) propone ${((json && json.genes) || []).length} genes · válidos ${nuevos.length}`); for (const x of nuevos) log(`  · ${JSON.stringify(x.g)} — ${x.idea}`);
   const lec = Array.isArray(json && json.lecciones) ? json.lecciones.map((x) => String(x).replace(/[<>`]/g, "").slice(0, 220)).filter(Boolean).slice(0, 20) : null;
@@ -224,6 +224,7 @@ async function main() {
     try { out.tort = await tortugas(MS, prev.tort); h.tort = out.tort.nuevas; } catch (e) { h.errT = String(e.message).slice(0, 80); log("Tortugas: la IA no respondió (" + h.errT + "); el examen sigue igual"); }
     try { out.etf = await etf(MS, prev.etf); h.etf = out.etf.nuevos; } catch (e) { h.errE = String(e.message).slice(0, 80); log("ETF: la IA no respondió (" + h.errE + "); el laboratorio sigue igual"); }
     out.nvOk = globalThis.__NVOK || prev.nvOk || null;
+    out.webN = (globalThis.__WEB || []).length; out.web = (globalThis.__WEB || []).slice(0, 12).map((x) => ({ f: x.fuente, t: x.titulo }));
     out.modeloOk = [out.tort && out.tort.modelo, out.cripto && out.cripto.modelo, out.etf && out.etf.modelo].map((x) => (String(x || "").match(/gemini-[\w.-]+/) || [])[0]).find(Boolean) || prev.modeloOk || null;
     if (h.errC && h.errE) out.estado = "error"; out.hist = [h, ...out.hist].slice(0, 200); }
   try { guarda("cripto", out.cripto && out.cripto.lecciones); guarda("etf", out.etf && out.etf.lecciones); guarda("tort", out.tort && out.tort.lecciones); out.memoria = MEM; log(`memoria larga: ${MEM.cripto.length} lecciones de cripto · ${MEM.tort.length} de Tortugas · ${MEM.etf.length} de ETF`); } catch (e) {}
