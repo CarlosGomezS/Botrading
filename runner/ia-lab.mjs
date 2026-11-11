@@ -124,7 +124,26 @@ async function compat(url, key, modelos, prompt, extra = {}) { let ultimo = "";
       const j = await r.json(), txt = ((((j.choices || [])[0] || {}).message || {}).content || "").replace(/^```(json)?|```$/g, "").trim(); return { modelo: m, json: JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1)) };
     } catch (e) { ultimo = m + " " + String(e.message).slice(0, 60); } }
   throw new Error(ultimo || "sin respuesta"); }
-async function gemini(prompt, MS) { let err = null;
+// v444 · 🧠 CONSEJO DE IAs: la misma pregunta va A LA VEZ a todas las IA gratuitas que tengan clave (Gemini, Groq, OpenRouter, NVIDIA y Mistral)
+// y se juntan sus ideas (sin repetidas). Varias IA distintas proponen más y mejor que una sola; el examen del laboratorio decide igual que siempre.
+const NV = env("NVIDIA_KEY"), MI = env("MISTRAL_KEY");
+const LISTAS = ["recetas", "genes", "reglas"];
+async function consejo(prompt, MS) {
+  const OR_H = { "HTTP-Referer": "https://github.com/" + REPO, "X-Title": "Bot Trading" }, tareas = [];
+  if (KEY && !globalThis.__GEMINI_KO) tareas.push(geminiSolo(prompt, MS).catch((e) => { if (/HTTP (401|402|403)/.test(String(e.message))) globalThis.__GEMINI_KO = 1; throw e; }));
+  if (GROQ) tareas.push(compat("https://api.groq.com/openai/v1/chat/completions", GROQ, ["openai/gpt-oss-120b", "moonshotai/kimi-k2-instruct", "llama-3.3-70b-versatile", "qwen/qwen3-32b"], prompt));
+  if (OR) tareas.push(compat("https://openrouter.ai/api/v1/chat/completions", OR, ["deepseek/deepseek-chat-v3.1:free", "qwen/qwen3-235b-a22b:free", "openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free"], prompt, OR_H));
+  if (NV) tareas.push(compat("https://integrate.api.nvidia.com/v1/chat/completions", NV, ["deepseek-ai/deepseek-v3.1", "qwen/qwen3-235b-a22b", "meta/llama-3.1-405b-instruct", "nvidia/llama-3.1-nemotron-ultra-253b-v1"], prompt));
+  if (MI) tareas.push(compat("https://api.mistral.ai/v1/chat/completions", MI, ["mistral-large-latest", "mistral-medium-latest", "magistral-medium-latest"], prompt));
+  if (!tareas.length) throw new Error("sin clave de IA (GEMINI_KEY, GROQ_KEY, OPENROUTER_KEY, NVIDIA_KEY o MISTRAL_KEY)");
+  const R = (await Promise.allSettled(tareas)).filter((x) => x.status === "fulfilled" && x.value && x.value.json).map((x) => x.value);
+  if (!R.length) { const e = (await Promise.allSettled(tareas)).find((x) => x.status === "rejected"); throw (e && e.reason) || new Error("ninguna IA respondió"); }
+  const json = {}; for (const L of LISTAS) { const xs = R.flatMap((r) => (Array.isArray(r.json[L]) ? r.json[L].map((x) => (x && typeof x === "object" ? { ...x, _ia: r.modelo } : x)) : [])); if (xs.length) json[L] = xs.filter((x, i, A) => A.findIndex((z) => JSON.stringify({ ...z, _ia: 0, idea: 0, nombre: 0 }) === JSON.stringify({ ...x, _ia: 0, idea: 0, nombre: 0 })) === i); }
+  const lec = []; for (const r of R) for (const x of (Array.isArray(r.json.lecciones) ? r.json.lecciones : [])) { const t = String(x); if (!lec.some((y) => y.slice(0, 60) === t.slice(0, 60))) lec.push(t); } if (lec.length) json.lecciones = lec.slice(0, 20);
+  const modelo = R.length > 1 ? "consejo de " + R.length + " IA: " + R.map((r) => r.modelo).join(" + ") : R[0].modelo;
+  log(`🧠 Consejo de IAs: respondieron ${R.length} de ${tareas.length} (${R.map((r) => r.modelo).join(", ")})`); return { modelo, json };
+}
+async function gemini(prompt, MS) { try { return await consejo(prompt, MS); } catch (e0) { if (/sin clave/.test(String(e0.message))) throw e0; } let err = null;
   if (KEY && !globalThis.__GEMINI_KO) { try { return await geminiSolo(prompt, MS); } catch (e) { err = e; if (/HTTP (401|402|403)/.test(String(e.message))) { globalThis.__GEMINI_KO = 1; log("Gemini no deja usar esta clave: paso a los otros proveedores gratis"); } } }
   if (GROQ) try { return await compat("https://api.groq.com/openai/v1/chat/completions", GROQ, ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3-32b", "moonshotai/kimi-k2-instruct"], prompt); } catch (e) { err = e; }
   if (OR) try { return await compat("https://openrouter.ai/api/v1/chat/completions", OR, ["deepseek/deepseek-chat-v3.1:free", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-120b:free"], prompt, { "HTTP-Referer": "https://github.com/" + REPO, "X-Title": "Bot Trading" }); } catch (e) { err = e; }
