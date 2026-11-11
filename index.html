@@ -629,7 +629,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 438 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#438</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 439 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#439</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -2870,6 +2870,16 @@ async function memeLoad(force){if(MM.busy)return;if(!force&&MM.S&&Date.now()-MM.
   MM.at=Date.now()}finally{MM.busy=false}if(MM.chg!==false||!document.querySelector("#mm-body .mt")){MM.chg=false;memeDraw()}}
 
 /* v233 · 💶 BITVAVO CON DINERO REAL (50 €): copia al submodo que elijas; estado cifrado (se ve con tu clave de la web) */
+/* v440 · 💶 SALDO EN VIVO de Bitvavo y OKX: el bot lee las dos cuentas cada 10 s y lo publica cifrado si cambia; aquí se mira cada 10 s */
+async function bvVivoSaldo(){const t=document.getElementById("t-memes");if(!t||!t.classList.contains("on")||document.hidden||memeCh()[0]!=="bitvavo"||MM.vsB)return;const pw=(typeof pwGet==="function"&&pwGet())||"";if(!pw)return;MM.vsB=1;
+ try{const c=window.__CLOUD,r=c&&c.ri?c.ri():null,o=r?r.o:"CarlosGomezS",rr=r?r.r:"Botrading",tk=c&&c.tok?c.tok():null;let j=null;
+  try{const x=await fetch(`https://api.github.com/repos/${o}/${rr}/contents/saldo.json?ref=saldo-vivo&t=${Date.now()}`,{headers:Object.assign({Accept:"application/vnd.github.raw+json"},tk?{Authorization:"Bearer "+tk}:{}),cache:"no-store"});if(x.ok)j=await x.json()}catch(e){}
+  if(!j){try{const x=await fetch(`https://raw.githubusercontent.com/${o}/${rr}/saldo-vivo/saldo.json?t=${Date.now()}`,{cache:"no-store"});if(x.ok)j=await x.json()}catch(e){}}
+  if(j&&j.enc&&j.t!==MM.vsT){MM.vsV=JSON.parse(await decrypt(j,pw));MM.vsT=j.t}const V=MM.vsV;if(!V)return;let cambio=false;
+  for(const [ex,cu] of Object.entries(V.cuentas||{})){if(!cu||cu.err||cu.total==null)continue;const X=(MM.bvX||{})[ex];if(!X||!X.R)continue;const a=X.R.cuenta;if(a&&Date.parse(a.t)>=Date.parse(cu.t))continue;
+   if(!a||a.total!==cu.total||JSON.stringify((a.activos||[]).map(z=>[z.sym,z.q]))!==JSON.stringify((cu.activos||[]).map(z=>[z.sym,z.q])))cambio=true;X.R.cuenta=Object.assign({},a||{},cu)}
+  if(cambio){const ae=document.activeElement;if(!(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))){const y=window.scrollY;memeDraw();window.scrollTo(0,y)}}}catch(e){}finally{MM.vsB=0}}
+setInterval(bvVivoSaldo,10000);
 async function bvRealLoad(){if(MM.bvBusy)return;if(MM.bvAt&&Date.now()-MM.bvAt<30000)return;MM.bvBusy=true;
  /* v243 · las dos cuentas (cada una con su estado cifrado) */
  try{const c=await memeGet("bitvavo-ctl","ctl.json");MM.bvCtl=c&&!c.nada?c:null;MM.bvX=MM.bvX||{};const pw=(typeof pwGet==="function"&&pwGet())||"";

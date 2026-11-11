@@ -57,12 +57,15 @@ jobs:
           OKX_PASSPHRASE: ${{ secrets.OKX_PASSPHRASE }}
         run: |
           end=$(( $(date +%s) + 28*60 ))
+          # v440 · saldo en vivo de Bitvavo y OKX (cada 10 s, cifrado) mientras dura el tramo
+          VIVO_SEG=$(( 28*60 - 20 )) node runner/saldo-vivo.mjs > /tmp/vivo.log 2>&1 &
           # una vuelta de Bitvavo por minuto (cada 10 min, además, su generación de aprendizaje)
           while [ "$(date +%s)" -lt "$end" ]; do
             s=$(date +%s)
             timeout 100 node runner/bitvavo.mjs > /tmp/m-bv.log 2>&1 || true; cat /tmp/m-bv.log
             w=$(( 60 - ($(date +%s) - s) )); if [ "$w" -gt 0 ]; then sleep "$w"; fi
           done
+          cat /tmp/vivo.log 2>/dev/null || true
       - name: Diario para el terminal (cifrado)
         if: always()
         continue-on-error: true
