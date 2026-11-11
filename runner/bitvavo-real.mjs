@@ -285,6 +285,12 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       } catch (e) { L(RS, now, "⚠️ no pude leer los saldos de la cuenta: " + String(e.message).slice(0, 80)); } }
     // 2) freno: si el saldo cae un 25 %, vende todo y se para
     const eq = valor(RS, tick);
+    // v439 · 💸 DINERO QUE METES O SACAS TÚ: si entre una vuelta y otra no había nada abierto ni ha habido ventas, cualquier cambio del saldo
+    // es un ingreso o una retirada tuya (no una ganancia o pérdida del bot): se corrige la base de los frenos para que no salten por eso.
+    { const nV = ((RS.st && RS.st.wins) || 0) + ((RS.st && RS.st.losses) || 0), sinPos = !Object.keys(RS.pos).length;
+      if (!RS.v439) { RS.v439 = 1; if (RS.pausaDia && sinPos) { delete RS.pausaDia; RS.dia = { d: diaES(now), eq0: eq }; L(RS, now, "▶️ el descanso de hoy fue por dinero que sacaste tú, no por pérdidas: vuelve a operar"); msgs.push(`💶 ▶️ ${EX}: el freno de hoy saltó por dinero que sacaste tú, no por pérdidas. Vuelve a operar.`); } }
+      if (RS.flujo && RS.flujo.sinPos && sinPos && RS.flujo.nV === nV) { const dlt = eq - RS.flujo.eq; if (Math.abs(dlt) >= 0.5) { RS.start = Math.max(0.01, RS.start + dlt); if (RS.dia) RS.dia.eq0 = Math.max(0.01, RS.dia.eq0 + dlt); L(RS, now, `💸 ${dlt > 0 ? "has metido" : "has sacado"} ${r2(Math.abs(dlt))} € (no cuenta como ganancia ni pérdida del bot)`); } }
+      RS.flujo = { eq, nV, sinPos }; }
     if (eq < RS.start * (1 - FRENO)) { await vendeTodo(`freno: el saldo ha caído un ${FRENO * 100} %`); ctl = { ...ctl, parado: true, motivo: `freno automático: el saldo cayó un ${FRENO * 100} %` }; RS.estado = "parado"; RS.paradaAt = now.toISOString(); msgs.push(`💶 🛑 REAL PARADO por el freno: el saldo ha caído por debajo de ${r2(RS.start * (1 - FRENO))} €. He vendido todo y no compraré más. Te avisaré cuando se cumplan las condiciones para retomar (el método se recupera en ficticio, vuelve a tener regla ganadora y pasan 2 días). Para volver antes: /seguir`); return { RS, msgs, ctl, ctlCambia: true }; }
     // 2b) freno diario: si hoy pierde un 10 % desde el principio del día, vende todo y descansa hasta mañana
     { const d = diaES(now); if (!RS.dia || RS.dia.d !== d) RS.dia = { d, eq0: eq };
