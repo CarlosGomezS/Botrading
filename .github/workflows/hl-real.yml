@@ -1,0 +1,48 @@
+name: Hyperliquid · dinero real (método n.º 1 del podio)
+# v432 · cada hora, justo al cerrar la vela de 1 h: cierra las posiciones que han cumplido su tiempo y abre las nuevas señales.
+# Usa una clave de AGENTE de Hyperliquid (puede operar, no puede retirar). Los registros no muestran importes, criptos ni direcciones.
+on:
+  schedule:
+    - cron: "48 * * * *"
+  workflow_dispatch:
+    inputs:
+      accion:
+        description: "ronda (opera ahora) o firma (prueba de firma, sin dinero)"
+        default: "ronda"
+permissions:
+  contents: write
+concurrency:
+  group: hl-real
+  cancel-in-progress: false
+jobs:
+  ronda:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: runner
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Librerías de firma
+        run: |
+          mkdir -p /tmp/hl && cd /tmp/hl && npm init -y >/dev/null && npm i --no-audit --no-fund ethers@6.13.4 @msgpack/msgpack@2.8.0 >/dev/null
+          ln -s /tmp/hl/node_modules "$GITHUB_WORKSPACE/runner/node_modules"
+      - name: Esperar al cierre de la vela
+        if: github.event_name == 'schedule'
+        run: |
+          m=$(date -u +%-M); s=$(date -u +%-S)
+          if [ "$m" -ge 40 ]; then w=$(( (60-m)*60 - s + 25 )); echo "Espero ${w}s al cierre de la hora"; sleep $w; fi
+      - name: Ronda
+        env:
+          HL_AGENT_KEY: ${{ secrets.HL_AGENT_KEY }}
+          HL_WALLET: ${{ secrets.HL_WALLET }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACCION: ${{ github.event.inputs.accion }}
+        run: |
+          case "${ACCION:-ronda}" in ronda|firma) ;; *) echo "acción no válida"; exit 1;; esac
+          node runner/hl-real.mjs "${ACCION:-ronda}"
