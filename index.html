@@ -551,7 +551,15 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
 .bt2 .tg i{font-style:normal;opacity:.8;white-space:nowrap}
 .bt2 .tr{display:flex;justify-content:space-between;gap:6px;font-size:13.5px;padding:5px 0;border-top:1px solid color-mix(in srgb,currentColor 12%,transparent)}
 .bt2 .tr span{opacity:.75;white-space:nowrap}.bt2 .tr b{white-space:nowrap;font-weight:700}
-.bt2n{font-size:12.5px;opacity:.7;margin-top:8px;line-height:1.45}</style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div id="splash" aria-hidden="true"><style>
+.bt2n{font-size:12.5px;opacity:.7;margin-top:8px;line-height:1.45}
+.dz{margin-top:14px;border-top:1px solid color-mix(in srgb,currentColor 14%,transparent);padding-top:10px}
+.dz-t{font-weight:800;font-size:15px;margin-bottom:4px}
+.dz1{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid color-mix(in srgb,currentColor 10%,transparent)}
+.dz1:last-child{border-bottom:0}.dz-a{min-width:0;flex:1}.dz-n{font-weight:700;font-size:14.5px;line-height:1.3}
+.dz-m{display:flex;flex-wrap:wrap;gap:4px 6px;margin:4px 0}.dq{font-size:12px;font-weight:700;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,currentColor 9%,transparent)}
+.dk{font-size:12px;opacity:.7;padding:1px 2px}
+.dz-isin{min-height:0!important;width:auto!important;font:600 12.5px/1.2 ui-monospace,Menlo,monospace!important;padding:5px 9px!important;border-radius:8px!important;border:1px dashed color-mix(in srgb,currentColor 35%,transparent)!important;background:transparent!important;color:inherit!important;cursor:pointer;letter-spacing:.3px}
+.dz-isin span{font-family:system-ui}.dz-b{text-align:right;display:flex;flex-direction:column;gap:2px;white-space:nowrap;font-size:13.5px}.dz-b b{font-size:15.5px}</style></head><body><script>try{if(localStorage.getItem("pbsimple")!=="0")document.body.classList.add("simple")}catch(e){document.body.classList.add("simple")}</script><div id="splash" aria-hidden="true"><style>
 #splash{position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;overflow:hidden;
  background:radial-gradient(120% 80% at 50% 0%,#14324a 0%,#0b1220 45%,#05070d 100%);color:#e8eef6;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;transition:opacity .55s ease,visibility .55s}
 #splash.fuera{opacity:0;visibility:hidden}
@@ -620,7 +628,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 417 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#417</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 418 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#418</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3846,7 +3854,20 @@ window.botTuyoHtml=function(b,c,F){try{const E=F.E,SG=F.SG,PC=F.PC,cls=F.cls,yIn
  const fila=(t,v)=>`<div class="tr"><span>${t}</span><b>${v}</b></div>`,chip=(g,extra)=>`<div class="tg"><b class="${g>=0?"up":"dn"}">${SG(g)}</b>${extra?`<i>${extra}</i>`:""}</div>`;
  const bot=`<div class="tc"><div class="th">🤖 Del bot</div><div class="tv">${E(b.be)}</div>${chip(b.res,PC(b.pct))}${fila("Puesto",E(b.cap))}${fila("Invertido",E(b.inv))}${fila("Efectivo",E(b.cash))}</div>`;
  const tuyo=hay?`<div class="tc"><div class="th">👤 Tuyo</div><div class="tv">${E(c.own)}</div>${yGan!=null?chip(yGan,""):""}${yPuesto!=null?fila("Puesto",E(yPuesto)):""}${fila("Invertido",E(yInv))}${fila("Efectivo",E(yCash))}</div>`:"";
- return`<div class="bt2">${bot}${tuyo}</div><div class="bt2n">🤖 La ganancia del bot es lo que vale lo suyo menos lo que le has puesto: no cuenta tus ingresos ni tus compras.${hay?" 👤 Lo tuyo es el resto de la cuenta y el bot no lo toca.":""}</div>`}catch(e){return""}};</script>
+ return`<div class="bt2">${bot}${tuyo}</div><div class="bt2n">🤖 La ganancia del bot es lo que vale lo suyo menos lo que le has puesto: no cuenta tus ingresos ni tus compras.${hay?" 👤 Lo tuyo es el resto de la cuenta y el bot no lo toca.":""}</div>`}catch(e){return""}};
+/* v418 · 📍 DÓNDE ESTÁ EL DINERO: cada cosa que hay en la cuenta, de quién es (bot o tuyo) y su ISIN para copiarlo */
+window.dondeHtml=function(ps,F){try{const E=F.E,SG=F.SG,cls=F.cls,esc=F.esc;ps=(ps||[]).filter(p=>(+p.q||0)>0);if(!ps.length)return"";
+ const rows=ps.sort((a,b)=>(+b.val||0)-(+a.val||0)).map(p=>{const q=+p.q||0,bq=Math.min(q,+p.bq||0),fb=q>0?bq/q:0,val=+p.val||0,pnl=+p.pnl||0,cost=+p.cost||0,pc=cost>0?pnl/cost*100:null,
+   quien=fb>=0.999?'<span class="dq b">🤖 bot</span>':fb<=0.001?'<span class="dq y">👤 tuyo</span>':`<span class="dq b">🤖 ${Math.round(fb*100)} %</span><span class="dq y">👤 ${Math.round((1-fb)*100)} %</span>`,
+   tk=String(p.t||"").replace(/_[A-Z]{2}_EQ$|_EQ$/,"").replace(/l$/,"");
+   return`<div class="dz1"><div class="dz-a"><div class="dz-n">${esc(p.name||tk)}</div><div class="dz-m">${quien}${tk?`<span class="dk">${esc(tk)}</span>`:""}</div>
+    ${p.isin?`<button type="button" class="dz-isin" data-copia="${esc(p.isin)}" data-nobusy title="Copiar ISIN">${esc(p.isin)} <span>📋</span></button>`:""}</div>
+    <div class="dz-b"><b>${E(val)}</b><span class="${cls(pnl)}">${SG(pnl)}${pc!=null?` (${(pc>=0?"+":"−")+Math.abs(pc).toFixed(1).replace(".",",")} %)`:""}</span></div></div>`}).join("");
+ return`<div class="dz"><div class="dz-t">📍 Dónde está el dinero</div>${rows}</div>`}catch(e){return""}};
+document.addEventListener("click",async function(e){const b=e.target.closest&&e.target.closest("[data-copia]");if(!b)return;e.preventDefault();e.stopPropagation();const v=b.getAttribute("data-copia");let ok=false;
+ try{await navigator.clipboard.writeText(v);ok=true}catch(x){try{const t=document.createElement("textarea");t.value=v;t.style.position="fixed";t.style.opacity="0";document.body.appendChild(t);t.select();ok=document.execCommand("copy");t.remove()}catch(y){}}
+ const old=b.innerHTML;b.innerHTML=ok?"✔ Copiado":esc2(v);setTimeout(()=>{b.innerHTML=old},1400);function esc2(z){return String(z).replace(/[&<>"]/g,"")}},true);
+</script>
 <script id="real-ui">
 /* ===== v47 · 💶 CARTERA REAL (Trading 212) =====
    Pantalla propia para el dinero real. Lee lo que publica el flujo «Cartera real (Trading 212)» (rama real → real.json,
@@ -4106,7 +4127,7 @@ function heroHtml(){ficBaseUpd();const R=RL.R,a=A(),s=summary(),acc=(R&&R.accoun
 <div class="big">${hasAcc?E(tv):s?E(s.be):L?E(L.cap):"—"}</div>
 ${hasAcc?`<div class="hero-chg">${ch!=null?`Desde ayer <b class="${cls(ch)}">${SG(ch)}</b>`:""}${rend!=null?`${ch!=null?" · ":""}lo que tiene ahora va <b class="${cls(pnl)}">${SG(pnl)} (${PC(rend)})</b>`:""}</div>
 <div class="hero-row hero-row3"><span>Ingresado <b>${(()=>{const L2=((R&&R.days)||[]).filter(x=>x.ap!=null).pop();return L2?E(L2.ap):"—"})()}</b></span><span>Invertido <b>${E(inv)}</b></span><span>Efectivo <b>${E(cash+resv)}</b></span></div>
-${(()=>{if(!s)return"";const ap=(()=>{const L2=((R&&R.days)||[]).filter(x=>x.ap!=null).pop();return L2?+L2.ap:null})();return window.botTuyoHtml({cap:s.cap,be:s.be,res:s.res,pct:s.pct,inv:Math.max(0,s.invBot||0),cash:Math.max(0,s.cashBot||0)},{inv:inv,cash:cash+resv,own:own,ap:ap},{E:E,SG:SG,PC:PC,cls:cls})})()}`:
+${(()=>{if(!s)return"";const ap=(()=>{const L2=((R&&R.days)||[]).filter(x=>x.ap!=null).pop();return L2?+L2.ap:null})();return window.botTuyoHtml({cap:s.cap,be:s.be,res:s.res,pct:s.pct,inv:Math.max(0,s.invBot||0),cash:Math.max(0,s.cashBot||0)},{inv:inv,cash:cash+resv,own:own,ap:ap},{E:E,SG:SG,PC:PC,cls:cls})})()}${window.dondeHtml?window.dondeHtml(ps,{E:E,SG:SG,cls:cls,esc:esc}):""}`:
 `<div class="hero-chg">${s?`<b class="${cls(s.res)}">${SG(s.res)} (${PC(s.pct)})</b> desde el ${esc(fd(s.d0))}${s.dia!=null?` · hoy <b class="${cls(s.dia)}">${SG(s.dia)}</b>`:""}`:"Aún sin historial"}</div>
 <div class="hero-row"><span>Invertido <b>${s?E(s.invBot):"—"}</b></span><span>Efectivo <b>${s?E(s.cashBot):"—"}</b></span></div>`}
 ${/^✅ Todo en orden/.test(mood)?"":`<div class="hero-mood">${mood}</div>`}
