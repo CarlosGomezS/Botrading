@@ -15,7 +15,7 @@
 </script><script id="alta-movil">/* v396 · 📲 PASAR A OTRO MÓVIL: un enlace «#alta=…» trae el permiso de GitHub ya CIFRADO con la clave de la app
    (sin la clave no sirve de nada). Se guarda en este móvil y se borra de la dirección al momento. */
 (function(){try{var m=(location.hash||"").match(/^#alta=([A-Za-z0-9+/=_%-]+)$/);if(!m)return;var t=atob(decodeURIComponent(m[1]).replace(/-/g,"+").replace(/_/g,"/"));var o=JSON.parse(t);
- if(o&&o.s&&o.i&&o.c){localStorage.setItem("ghtok_enc",t);sessionStorage.removeItem("onbLuego");window.__ALTA=1}
+ if(o&&o.s&&o.i&&o.c){if(o.ia){try{localStorage.setItem("iakeys_enc",JSON.stringify(o.ia))}catch(e){}delete o.ia;t=JSON.stringify(o)}localStorage.setItem("ghtok_enc",t);sessionStorage.removeItem("onbLuego");window.__ALTA=1}
  history.replaceState(null,"",location.pathname+location.search)}catch(e){}})();</script><title>Bot Trading v55 · 5 métodos sin bonos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -629,7 +629,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 428 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#428</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 429 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#429</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3868,7 +3868,13 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
 })();
 </script>
 <script id="ia-claves-movil">/* v421 · claves de IA que hay en este móvil: las del asistente de esta app y, si esto es una copia de la app, las de tu app principal (que mandan) */
-window.iaClavesMovil=function(){var d={};["gemkey","groqkey","orkey"].forEach(function(k){var o=null,m=null;try{o=window.__iaOtra?window.__iaOtra(k):null}catch(e){}try{m=localStorage.getItem(k)}catch(e){}if(o)d[k]={v:o,o:true};else if(m)d[k]={v:m,o:false}});return d};</script>
+window.iaClavesMovil=function(){var d={};["gemkey","groqkey","orkey"].forEach(function(k){var o=null,m=null;try{o=window.__iaOtra?window.__iaOtra(k):null}catch(e){}try{m=localStorage.getItem(k)}catch(e){}if(o)d[k]={v:o,o:true};else if(m)d[k]={v:m,o:false}});return d};
+/* v429 · las claves de IA que llegan cifradas en el enlace «📲 Pasar la app a otro móvil» se descifran con tu clave al entrar y se guardan en esta app */
+(function(){const dec=async()=>{let raw=null;try{raw=localStorage.getItem("iakeys_enc")}catch(e){}if(!raw)return true;const pw=(window.pwGet&&pwGet())||"";if(!pw)return false;
+  try{const o=JSON.parse(raw),u=x=>Uint8Array.from(atob(x),c=>c.charCodeAt(0)),km=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]),k=await crypto.subtle.deriveKey({name:"PBKDF2",salt:u(o.s),iterations:200000,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["decrypt"]),
+   t=JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:u(o.i)},k,u(o.c))));for(const n of ["gemkey","groqkey","orkey"])if(t[n]&&!localStorage.getItem(n))localStorage.setItem(n,t[n]);localStorage.removeItem("iakeys_enc")}catch(e){}return true};
+ let n=0;const it=setInterval(async()=>{if(await dec()||++n>200)clearInterval(it)},3000)})();
+window.iaCifra=async function(obj,pw){const s=crypto.getRandomValues(new Uint8Array(16)),i=crypto.getRandomValues(new Uint8Array(12)),km=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]),k=await crypto.subtle.deriveKey({name:"PBKDF2",salt:s,iterations:200000,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["encrypt"]),c=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv:i},k,new TextEncoder().encode(JSON.stringify(obj)))),b=x=>btoa(String.fromCharCode.apply(null,x));return{s:b(s),i:b(i),c:b(c)}};</script>
 <script id="bv-sin-clave">/* v419 · ¿falta la clave API de este exchange? (lo dice GitHub o el bot; si no se sabe, null) */
 window.bvSinClave=function(ex){try{const k=ex==="okx"?"OKX_KEY":"BITVAVO_KEY",c=window.__CLOUD,S=(c&&c.sec)||{},B=window.__BVSEC||{};if(S[k]===true||B[k]===true)return false;if(S[k]===false||B[k]===false)return true;return null}catch(e){return null}};</script>
 <script id="bot-tuyo-js">/* v417 · 🤖 Del bot frente a 👤 Tuyo: dos tarjetas que se ponen en columna en pantallas estrechas */
@@ -5062,7 +5068,7 @@ try{if(typeof AbortSignal!=="undefined"&&!AbortSignal.timeout)AbortSignal.timeou
    const r=await llama(p,"Eres el sistema de memoria del asistente de la app Bot Trading. Actualiza las NOTAS DE MEMORIA con lo importante de la conversación nueva: qué le interesa al usuario, decisiones que ha tomado, preferencias, dudas resueltas, tareas lanzadas y sus resultados, y cosas aprendidas de la app. Sin datos sensibles (ni claves ni contraseñas). Máximo 25 viñetas cortas en castellano. Devuelve SOLO las notas.",null,[{role:"user",parts:[{text:"NOTAS ACTUALES:\n"+(MEMO||"(ninguna)")+"\n\nCONVERSACIÓN NUEVA:\n"+txt}]}],900);
    if(r.out){MEMO=r.out.trim().slice(0,4000);H=H.slice(H.length-12);guarda()}}catch(e){}}
  window.iaOlvida=function(){H=[];BUB=[];MEMO="";LS.del("iachat2");const c=$("#iaC");if(c)c.innerHTML="";bur("el","He borrado la conversación y lo que recordaba. Empezamos de cero.",null,1)};
- const prov=()=>{const p=LS.get("iaprov","gemini");return PROV[p]?p:"gemini"},key=p=>LS.get(PROV[p||prov()].k,"");
+ const prov=()=>{const p=LS.get("iaprov","gemini");return PROV[p]?p:"gemini"},key=p=>{const K=PROV[p||prov()].k;let v=LS.get(K,"");if(!v)try{v=(window.iaClavesMovil&&(window.iaClavesMovil()[K]||{}).v)||""}catch(e){}return v};   /* v429 · si esta app no tiene la clave, usa la de tu app principal de este móvil */
  /* acciones que puede proponer (se ejecutan solo si pulsas el botón; ninguna mueve dinero) */
  const ACC={
   ronda_lab:{wf:"laboratorio.yml",t:"🤖 Nueva ronda del laboratorio de ETF (crea y examina métodos nuevos)",min:"30-40 min"},
@@ -5116,7 +5122,7 @@ try{if(typeof AbortSignal!=="undefined"&&!AbortSignal.timeout)AbortSignal.timeou
  function modeloDe(p){return LS.get("iamod_"+p,"")}
  async function pintaMod(){const p=prov(),P=PROV[p],k=key(p),s=$("#iaModS"),b=$("#iaModB");if(!s)return;const m=modeloDe(p);
   s.textContent=`⚙️ ${P.n.split(" (")[0]}${m?" · "+m.replace(/^models\//,"").split("/").pop():(LS.get("iaok_"+p,"")?" · "+LS.get("iaok_"+p,"").split("/").pop():"")}${k?"":" · 🔑"} ▾`;
-  b.innerHTML=`<select id="iaPv">${Object.entries(PROV).map(([id,x])=>`<option value="${id}"${id===p?" selected":""}>${x.pais} ${esc(x.n)}${LS.get(x.k,"")?" ✔":""}</option>`).join("")}</select>
+  b.innerHTML=`<select id="iaPv">${Object.entries(PROV).map(([id,x])=>`<option value="${id}"${id===p?" selected":""}>${x.pais} ${esc(x.n)}${key(id)?" ✔":""}</option>`).join("")}</select>
    <div class="m" style="margin-top:6px;font-size:12px">Clave: ${esc(P.donde)}. Se guarda solo en este móvil.</div>
    ${k?`<div style="margin-top:6px;font-size:12.5px">🔑 Clave guardada · <a href="#" id="iaKd">quitar</a></div><select id="iaMd"><option value="">🤖 Automático (el mejor disponible)</option></select>`:`<div class="fila" style="display:flex;gap:8px;margin-top:6px"><input id="iaKi" type="password" autocomplete="off" placeholder="Pega aquí la clave"><button id="iaKs" type="button" data-nobusy>Guardar</button></div>`}`;
   $("#iaPv").onchange=e=>{LS.set("iaprov",e.target.value);pintaMod()};
@@ -5292,8 +5298,10 @@ ${estado(conReal)}
    if(a==="sig"){x.disabled=true;try{await sig()}finally{x.disabled=false}}else if(a==="ant"){guardaCampos();paso=Math.max(0,paso-1);pinta()}else if(a==="salta"){guardaCampos();paso++;pinta()}
    else if(a==="guarda")await guarda();else if(a==="nunca"){LS.s("onbOK","1");d.remove()}else if(a==="luego"){try{sessionStorage.setItem("onbLuego","1")}catch(e){}d.remove()}else if(a==="cierra"){d.remove();try{location.reload()}catch(e){}}
    else if(a==="copia"){const ri=RI();try{await navigator.clipboard.writeText(tokUrl(ri));x.textContent="✔ Copiado"}catch(e){prompt("Copia este enlace:",tokUrl(ri))}}})}
- const altaUrl=()=>{const t=LS.g("ghtok_enc");return t?location.origin+location.pathname+"#alta="+btoa(t).replace(/\+/g,"-").replace(/\//g,"_"):""};
- async function pasa(btn){const u=altaUrl();if(!u){alert("Primero pon el permiso de GitHub (asistente de claves).");return}
+ const altaUrl=async()=>{const t=LS.g("ghtok_enc");if(!t)return"";let o;try{o=JSON.parse(t)}catch(e){return""}
+  try{const D=window.iaClavesMovil?window.iaClavesMovil():{},k={};for(const n in D)if(D[n]&&D[n].v)k[n]=D[n].v;if(Object.keys(k).length&&window.iaCifra&&pw0())o.ia=await window.iaCifra(k,pw0())}catch(e){}
+  return location.origin+location.pathname+"#alta="+btoa(JSON.stringify(o)).replace(/\+/g,"-").replace(/\//g,"_")};
+ async function pasa(btn){const u=await altaUrl();if(!u){alert("Primero pon el permiso de GitHub (asistente de claves).");return}
   try{if(navigator.share){await navigator.share({title:"Bot Trading",text:"Abre este enlace en tu móvil y entra con tu clave:",url:u});return}}catch(e){if(e&&e.name==="AbortError")return}
   try{await navigator.clipboard.writeText(u);if(btn)btn.textContent="✔ Enlace copiado: envíalo por WhatsApp"}catch(e){prompt("Copia este enlace y envíalo:",u)}}
  document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-pasa]");if(b){e.preventDefault();pasa(b)}},true);
