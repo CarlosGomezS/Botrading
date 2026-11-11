@@ -644,7 +644,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 441 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#441</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 442 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#442</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -5320,7 +5320,7 @@ ${estado(conReal)}
  const campo=(id,lab,ph,ok,tipo)=>`<label for="${id}">${lab}${ok?' <span class="ok m">✔ ya puesta</span>':""}</label><input id="${id}" type="${tipo||"password"}" autocomplete="off" placeholder="${esc(ok?"ya está puesta · escribe solo para cambiarla":ph||"")}" value="${esc(D[id]||"")}">`;
  function pinta(){const ri=RI(),s=secs(),p=PASOS[paso],n=PASOS.length;let h=`<div class="pp">${PASOS.map((x,i)=>`<i class="${i<=paso?"on":""}"></i>`).join("")}</div>`,bt="";
   if(p==="hola"){h+=`<h2>👋 Vamos a ponerla en marcha</h2><p>En unos minutos dejamos la app lista para operar. Te iré pidiendo las claves una a una y yo las guardo, <b>cifradas</b>, en tu GitHub (no hace falta que entres allí).</p>
-   <div class="bx"><b>Necesitas:</b><ol><li><b>Trading 212</b>: clave API y secreto <span class="m">(obligatorio)</span></li><li>Telegram para los avisos <span class="m">(recomendado)</span></li><li>Bitvavo y/o OKX para las criptos <span class="m">(opcional, puedes hacerlo más tarde)</span></li></ol></div>
+   <div class="bx"><b>Necesitas:</b><ol><li><b>Trading 212</b>: clave API y secreto <span class="m">(obligatorio)</span></li><li>Telegram para los avisos <span class="m">(recomendado)</span></li><li>Bitvavo, OKX y/o Hyperliquid para las criptos <span class="m">(opcional, puedes hacerlo más tarde)</span></li></ol></div>
    <p class="m">¿Dudas? Toca la estrella ✨ de la app y pregúntale a la IA, o mira 📖 Ayuda → «Cómo ponerla en marcha».</p>`;bt=`<button data-nobusy data-x="luego">Ahora no</button><button data-nobusy class="pri" data-x="sig">Empezar</button>`}
   else if(p==="clave"){h+=`<h2>🔐 Tu clave de la app</h2><p>Con esta clave entras en la app y se cifran todos tus datos. Tiene que tener <b>12 caracteres o más</b> (mejor una frase que recuerdes, p. ej. <i>“mi perro come a las 8”</i>).</p>
    ${campo("ob_p1","Clave nueva","12 caracteres o más")}${campo("ob_p2","Repítela","otra vez la misma")}<p class="m">Apúntala en un sitio seguro: si se olvida, no hay forma de recuperar los datos cifrados.</p>`;bt=`<button data-nobusy data-x="ant">Atrás</button><button data-nobusy class="pri" data-x="sig">Seguir</button>`}
