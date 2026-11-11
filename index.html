@@ -2,6 +2,7 @@
 /* v440 · 🧯 ALMACÉN A PRUEBA DE LLENOS: el navegador da ~5 MB por web y todas las copias de la app comparten la misma (carlosgomezs.github.io).
    Si al guardar no cabe, se borran primero los DATOS DE OTRAS COPIAS (solo la copia de datos que cada una vuelve a descargar al abrirse; nunca
    claves ni contraseñas) y se reintenta; si aun así no cabe, se guarda en memoria mientras la app está abierta. Así la app nunca se queda vacía. */
+(function(){try{var F=IDBFactory.prototype,op=F.open;F.open=function(){var q=op.apply(this,arguments);try{q.addEventListener("success",function(){try{var c=q.result;c.addEventListener("versionchange",function(){try{c.close()}catch(e){}})}catch(e){}})}catch(e){}return q}}catch(e){}})();   /* v441 · si otra pestaña necesita cambiar la base de datos, esta la suelta (nunca se bloquean entre ellas) */
 (function(){try{var SP=Storage.prototype,g=SP.getItem,s=SP.setItem,r=SP.removeItem,k=SP.key,lg=Object.getOwnPropertyDescriptor(SP,"length").get,MEM={};
  var seg=(location.pathname.split("/")[1]||"").toLowerCase(),mio=/\.github\.io$/.test(location.hostname)&&seg&&seg!=="botrading"?"app:"+seg+":":"";
  var DATOS=/^(pb19|pbh3|pbi1|vgidx|pbReportsFallback|vgd:.*)$/,ajeno=function(x){var base=x,pre="";var m=x.match(/^(app:[^:]+:)(.*)$/);if(m){pre=m[1];base=m[2]}return pre!==mio&&DATOS.test(base)};
@@ -643,7 +644,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 440 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#440</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 441 · miércoles 11 de noviembre de 2026">✦ 26.11.11 «Fénix» <small>#441</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -819,20 +820,27 @@ La app vive en GitHub (gratis). Para que desde el móvil se puedan guardar ajust
  if(!snap||!snap.ls){window.__VIEWER_ERR="No se pudo cargar la copia de datos ("+src+"). Si acabas de desplegar, espera a la primera ejecución automática.";return}
  try{(function(){var L=[];for(var i=0;i<localStorage.length;i++)L.push(localStorage.key(i));return L})().forEach(function(k){if((k==="pb19"||k==="pbh3"||k==="pbi1"||k==="vgidx"||k==="pbReportsFallback"||k.indexOf("vgd:")===0)&&!(k in snap.ls))localStorage.removeItem(k)})}catch(e){}
  try{for(var k in snap.ls)localStorage.setItem(k,snap.ls[k])}catch(e){}
- window.__SNAPREADY=(async function(){
-  try{if(indexedDB.databases){var ds=await indexedDB.databases();for(var q=0;q<ds.length;q++){if(ds[q].name&&ds[q].name!=="bt-terminal"&&ds[q].name!=="bot-trading-pro-report-archive-v1"&&!(snap.idb&&ds[q].name in snap.idb))await new Promise(function(r){var d=indexedDB.deleteDatabase(ds[q].name);d.onsuccess=d.onerror=d.onblocked=function(){r()}})}}}catch(e){}
-  try{for(var name in (snap.idb||{})){var db=snap.idb[name];
-   await new Promise(function(r){var d=indexedDB.deleteDatabase(name);d.onsuccess=d.onerror=d.onblocked=function(){r()}});
-   var conn=await new Promise(function(ok,no){var o=indexedDB.open(name,db.version||1);
-    o.onupgradeneeded=function(){for(var s in db.stores){var sc=db.stores[s],p={};if(sc.keyPath!=null)p.keyPath=sc.keyPath;if(sc.autoIncrement)p.autoIncrement=true;
-     var st=o.result.createObjectStore(s,p);(sc.indexes||[]).forEach(function(ix){st.createIndex(ix.name,ix.keyPath,{unique:!!ix.unique,multiEntry:!!ix.multiEntry})})}};
-    o.onsuccess=function(){ok(o.result)};o.onerror=function(){no(o.error)}});
-   for(var s in db.stores){var sc=db.stores[s];if(!sc.rows||!sc.rows.length)continue;
-    await new Promise(function(ok,no){var tx=conn.transaction(s,"readwrite"),os=tx.objectStore(s);
-     sc.rows.forEach(function(r){if(sc.keyPath!=null)os.put(r[1]);else os.put(r[1],r[0])});
-     tx.oncomplete=ok;tx.onerror=tx.onabort=function(){no(tx.error)}})}
-   conn.close()}}catch(e){}
- })();
+ /* v441 · 🧯 sin cuelgues: antes se BORRABA la base de datos para escribir la copia nueva; si había otra pestaña de la app abierta, el borrado
+    quedaba bloqueado y esta pestaña se quedaba esperando para siempre (laboratorio vacío). Ahora se vacía y se rellena la base existente
+    (no hace falta que las otras pestañas la suelten) y todo tiene un tiempo máximo: la app nunca se queda colgada. */
+ var conTope=function(pr,ms){return Promise.race([pr,new Promise(function(r){setTimeout(function(){r("tope")},ms)})])};
+ window.__SNAPREADY=conTope((async function(){
+  try{if(indexedDB.databases){var ds=await conTope(indexedDB.databases(),3000);if(Array.isArray(ds))for(var q=0;q<ds.length;q++){if(ds[q].name&&ds[q].name!=="bt-terminal"&&ds[q].name!=="bot-trading-pro-report-archive-v1"&&!(snap.idb&&ds[q].name in snap.idb))await conTope(new Promise(function(r){var d=indexedDB.deleteDatabase(ds[q].name);d.onsuccess=d.onerror=d.onblocked=function(){r()}}),2000)}}}catch(e){}
+  try{for(var name in (snap.idb||{})){var db=snap.idb[name],conn=null;
+   var faltan=function(c){for(var s in db.stores)if(!c.objectStoreNames.contains(s))return true;return false};
+   // 1) abrir la base tal como esté (sin cambiar de versión: no choca con otras pestañas)
+   try{conn=await conTope(new Promise(function(ok,no){var o=indexedDB.open(name);o.onupgradeneeded=function(){for(var s in db.stores){var sc=db.stores[s],p={};if(sc.keyPath!=null)p.keyPath=sc.keyPath;if(sc.autoIncrement)p.autoIncrement=true;var st=o.result.createObjectStore(s,p);(sc.indexes||[]).forEach(function(ix){st.createIndex(ix.name,ix.keyPath,{unique:!!ix.unique,multiEntry:!!ix.multiEntry})})}};o.onsuccess=function(){ok(o.result)};o.onerror=function(){no(o.error)};o.onblocked=function(){no(new Error("bloqueada"))}}),5000)}catch(e){conn=null}
+   if(conn==="tope")conn=null;
+   // 2) si le falta algún almacén (cambio de formato), se rehace con versión nueva, con tiempo máximo
+   if(conn&&faltan(conn)){var v=conn.version+1;conn.close();conn=null;try{conn=await conTope(new Promise(function(ok,no){var o=indexedDB.open(name,v);o.onupgradeneeded=function(){for(var s in db.stores){if(o.result.objectStoreNames.contains(s))continue;var sc=db.stores[s],p={};if(sc.keyPath!=null)p.keyPath=sc.keyPath;if(sc.autoIncrement)p.autoIncrement=true;var st=o.result.createObjectStore(s,p);(sc.indexes||[]).forEach(function(ix){st.createIndex(ix.name,ix.keyPath,{unique:!!ix.unique,multiEntry:!!ix.multiEntry})})}};o.onsuccess=function(){ok(o.result)};o.onerror=function(){no(o.error)};o.onblocked=function(){no(new Error("bloqueada"))}}),5000)}catch(e){conn=null}if(conn==="tope")conn=null}
+   if(!conn)continue;
+   // 3) vaciar y rellenar cada almacén en una sola transacción
+   for(var s in db.stores){var sc=db.stores[s];if(!conn.objectStoreNames.contains(s))continue;
+    try{await conTope(new Promise(function(ok,no){var tx=conn.transaction(s,"readwrite"),os=tx.objectStore(s);os.clear();
+     (sc.rows||[]).forEach(function(r){if(sc.keyPath!=null)os.put(r[1]);else os.put(r[1],r[0])});
+     tx.oncomplete=ok;tx.onerror=tx.onabort=function(){no(tx.error)}}),15000)}catch(e){}}
+   try{conn.close()}catch(e){}}}catch(e){}
+ })(),25000);
 })();
 </script>
 <script>
