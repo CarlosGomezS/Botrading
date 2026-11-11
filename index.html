@@ -628,7 +628,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 418 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#418</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 419 · martes 10 de noviembre de 2026">✦ 26.11.10 «Fénix» <small>#419</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3120,7 +3120,9 @@ function bvPanel(f,exO,soloAj){const ex=exO||(bvModo()==="okx"?"okx":"bitvavo"),
  const eu=x=>E0((+x||0)*f),res=x=>E2r((+x||0)*f),pct=x=>(x>0.005?"+":x<-0.005?"−":"")+Math.abs(+x||0).toFixed(2).replace(".",",")+" %",cl=x=>x>=0?"up":"dn",fh=t=>new Date(t).toLocaleString("es-ES",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
  const card=(t,b)=>`<div class="mt-p" style="margin:8px 0;padding:12px"><div style="font-weight:700;font-size:15px;margin-bottom:8px">${t}</div>${b}</div>`;
  const onBtn=`<button data-bvon="${ex}" data-nobusy style="white-space:nowrap;${k.on?"background:#147a3e22;color:#2ecc71;border-color:#2ecc71":""}">${k.on?"☑️ Encendida":"☐ Apagada"}</button>`;
- if(!R||!R.cuenta)return card(`${ex==="okx"?"🟦 OKX":"🇪🇺 Bitvavo"} · dinero real`,`<div style="display:flex;justify-content:space-between;align-items:center"><span class="mt-dim">${k.on?"🔒 Desbloquea con tu clave para ver tu cuenta":"Esta cuenta está apagada"}</span>${onBtn}</div>`);
+ if(!R||!R.cuenta){const nk=window.bvSinClave&&window.bvSinClave(ex),ent=(()=>{try{return!!(window.pwGet&&pwGet())}catch(e){return false}})(),N=ex==="okx"?"OKX":"Bitvavo";
+   const txt=nk?`⚠️ <b>Faltan las claves API de ${N}</b>: sin ellas el bot <b>no opera</b>, aunque esté encendida.`:ent?`Todavía no hay datos de esta cuenta. Si no has puesto las claves API de ${N}, el bot no puede operar.`:k.on?"🔒 Desbloquea con tu clave para ver tu cuenta":"Esta cuenta está apagada";
+   return card(`${ex==="okx"?"🟦 OKX":"🇪🇺 Bitvavo"} · dinero real`,`<div class="mt-dim" style="margin-bottom:10px">${txt}</div><div style="display:flex;gap:8px;flex-wrap:wrap">${nk||ent?`<button type="button" data-onb="cripto" data-nobusy>🔑 Poner las claves de ${N}</button>`:""}${onBtn}</div>`)}
  const Cn=R.cuenta,Lb=R.libro||{cerradas:[],abiertas:{}},ventas=Lb.cerradas||[],ce=ventas.reduce((a,c)=>a+c.pnl,0),gan=ventas.filter(c=>c.pnl>0),per=ventas.filter(c=>c.pnl<=0);
  const act=(Cn.activos||[]).map(a=>{const lb=Lb.abiertas&&Lb.abiertas[a.sym],p=(R.pos||{})[a.sym+"-EUR"]||{},coste=lb?lb.cost*Math.min(1,a.q/lb.q):p.cost||null,e0=lb?lb.px:p.px||null;return{...a,coste,e0,src:p.src,stop:p.stop,stopEst:p.stopEst}});
  const ab=act.reduce((a,x)=>a+(x.coste!=null?x.eur-x.coste:0),0),G=ce+ab,inv=act.reduce((a,x)=>a+x.eur,0),b0=R.dia&&R.dia.eq0,hoy=b0?(Cn.total/b0-1)*100:null;
@@ -3168,7 +3170,8 @@ function hlpHtml(){const Z=(MM.S||{}).hlp;if(!Z||!Z.t0)return"";const pc=(Z.eq/1
  ${(Z.cerradas||[]).length?`<div class="tw" style="margin-top:6px"><table><tr><th>Cripto</th><th>Resultado</th></tr>${Z.cerradas.slice(0,12).map(x=>`<tr><td><b>${esc(x.c)}</b> <small class="m">${new Date(x.t1).toLocaleString("es-ES",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</small></td><td class="n ${x.pnl>=0?"up":"dn"}">${x.pc>=0?"+":""}${String(x.pc).replace(".",",")} %</td></tr>`).join("")}</table></div>`:""}
  </div></details>`}
 function bvExchanges(f){const cur=bvModo(),X=MM.bvX||{},b=(k,ex,n)=>{const R=(X[ex]||{}).R,C=R&&R.cuenta,tot=C?C.total:null,Lb=R&&R.libro,ce=Lb?(Lb.cerradas||[]).reduce((s2,c)=>s2+c.pnl,0):null;
-  return`<button class="mt-ch${k===cur?" on":""}" data-bvm="${k}" data-nobusy><b>${n}</b><span>${tot!=null?(tot*f).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €":"🔒"}</span>${ce==null?`<small>desbloquea para ver</small>`:""}</button>`};
+  const nk=window.bvSinClave&&window.bvSinClave(ex),ent=(()=>{try{return!!(window.pwGet&&pwGet())}catch(e){return false}})();
+  return`<button class="mt-ch${k===cur?" on":""}" data-bvm="${k}" data-nobusy><b>${n}</b><span>${tot!=null?(tot*f).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €":nk?"🔑":ent?"—":"🔒"}</span>${ce==null?`<small>${nk?"faltan las claves API":ent?"sin datos todavía":"desbloquea para ver"}</small>`:""}</button>`};
  return`<div class="mt-chs" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:8px">${b("ia","bitvavo","🇪🇺 Bitvavo")}${b("okx","okx","🟦 OKX")}</div>`}
 function bvModos(f){const M=[["ia","🇪🇺 Bitvavo"],["okx","🟦 OKX"]],cur=bvModo(),ops=(md,o)=>!o?"":md==="rej"?((o.st||{}).ventas||0)+" ventas":((o.st||{}).trades||0)+" operaciones";
  const tot=md=>{const xs=bvVis(md).map(([k])=>bvCuenta(md,k)).filter(o=>o&&o.lastEq!=null);if(!xs.length)return null;const bs=xs.map(o=>bvBase0(o));return{lastEq:xs.reduce((a,o)=>a+ +o.lastEq,0),start:xs.reduce((a,o)=>a+(o.start||100),0),base0:bs.every(v=>v!=null)?bs.reduce((a,v)=>a+v,0):null,st:{trades:xs.reduce((a,o)=>a+((o.st||{}).trades||0),0),ventas:xs.reduce((a,o)=>a+((o.st||{}).ventas||0),0)}}};
@@ -3849,6 +3852,8 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
  setTimeout(function(){lock();paint()},2500);setTimeout(function(){lock();paint()},8000);
 })();
 </script>
+<script id="bv-sin-clave">/* v419 · ¿falta la clave API de este exchange? (lo dice GitHub o el bot; si no se sabe, null) */
+window.bvSinClave=function(ex){try{const k=ex==="okx"?"OKX_KEY":"BITVAVO_KEY",c=window.__CLOUD,S=(c&&c.sec)||{},B=window.__BVSEC||{};if(S[k]===true||B[k]===true)return false;if(S[k]===false||B[k]===false)return true;return null}catch(e){return null}};</script>
 <script id="bot-tuyo-js">/* v417 · 🤖 Del bot frente a 👤 Tuyo: dos tarjetas que se ponen en columna en pantallas estrechas */
 window.botTuyoHtml=function(b,c,F){try{const E=F.E,SG=F.SG,PC=F.PC,cls=F.cls,yInv=Math.max(0,c.inv-b.inv),yCash=Math.max(0,c.cash-b.cash),yPuesto=c.ap!=null?Math.max(0,c.ap-b.cap):null,yGan=yPuesto!=null?c.own-yPuesto:null,hay=Math.abs(c.own)>=1||yInv>=1;
  const fila=(t,v)=>`<div class="tr"><span>${t}</span><b>${v}</b></div>`,chip=(g,extra)=>`<div class="tg"><b class="${g>=0?"up":"dn"}">${SG(g)}</b>${extra?`<i>${extra}</i>`:""}</div>`;
