@@ -56,4 +56,7 @@ t=$(gh api "$R/contents/hl-real.json?ref=hl-real" -H "Accept: application/vnd.gi
 if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "Hyperliquid · última ronda hace $age min"
   if [ "$age" -ge 70 ] && ! busy hl-real.yml; then gh api -X POST "$R/actions/workflows/hl-real.yml/dispatches" -f ref=main -f "inputs[accion]=ronda" >/dev/null && echo "⚠️ Hyperliquid llevaba $age min sin ronda: lanzada."; fi; fi
 
+# 8) v451 · GitHub apaga los horarios de un repositorio público tras 60 días sin actividad: si alguno está apagado por eso, se vuelve a encender
+for id in $(gh api "$R/actions/workflows" -q '.workflows[]|select(.state=="disabled_inactivity")|.id' 2>/dev/null); do gh api -X PUT "$R/actions/workflows/$id/enable" >/dev/null 2>&1 && echo "⚠️ Un flujo estaba apagado por inactividad: encendido de nuevo."; done
+
 exit 0
