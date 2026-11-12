@@ -157,7 +157,7 @@ export function desvioTort(eq, cv, now) {
   return { dias: Math.round((b - a) / 864e5), real: +((idx - 1) * 100).toFixed(2), sim: +((c1 / c0 - 1) * 100).toFixed(2) };
 }
 // v460/v461 · envuelve comprar/vender del exchange: una orden de resultado desconocido bloquea ESE activo (se guarda en el estado cifrado, 2 h)
-export const esDudosa = (e) => /sin estado final|no se completó|no llegó|timeout|aborted|fetch failed|ECONN|ETIMEDOUT|socket|network/i.test(String((e && e.message) || e));
+export const esDudosa = (e) => !!e && ((+e.status >= 500 || +e.status === 408) || /sin estado final|no se completó|no llegó|timeout|tiempo agotado|aborted|fetch failed|ECONN|ETIMEDOUT|socket|network/i.test(String(e.message || e)));   // v462 · un 5xx o un tiempo de espera también es «resultado desconocido»
 export function conDudosas(X0, DUD, now) {
   const envuelve = (fn) => async (m, ...a) => { if (DUD[m]) throw new Error("hay una orden anterior de este activo sin resultado confirmado; se espera al cuadre con el saldo"); try { return await fn(m, ...a); } catch (e) { if (esDudosa(e)) DUD[m] = new Date(now).toISOString(); throw e; } };
   return { ...X0, comprar: X0.comprar && envuelve(X0.comprar.bind(X0)), vender: X0.vender && envuelve(X0.vender.bind(X0)) };
@@ -166,8 +166,13 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   const X0 = deps.ex || bitvavoEx(deps.api, deps.mercado, deps.saldoEur), mercado = X0.mercado, EX = X0.nombre, msgs = [];
   // v460 · 🔒 ÓRDENES DUDOSAS: si una compra o venta termina sin resultado confirmado (se perdió la respuesta, sin estado final…), ese activo
   //   queda bloqueado 2 horas: no se manda otra orden suya hasta que el cuadre con el saldo real del exchange lo haya resuelto. Nunca se duplica.
-  const DUD = (RS && RS.dudosas) || {}; for (const [k, t] of Object.entries(DUD)) if (+now - Date.parse(t) > 2 * 3600e3) delete DUD[k];
+  // v462 · el bloqueo NO caduca por tiempo: solo se levanta cuando un cuadre con el saldo real del exchange termina bien al menos 10 min después
+  //   (lo que se compró de verdad queda apuntado y lo vendido, descontado). Si en 24 h no se ha podido cuadrar, sigue bloqueado y se avisa.
+  const DUD = (RS && RS.dudosas) || {}; let cuadreOk = false;
   const X = conDudosas(X0, DUD, now);
+  const resuelveDudosas = () => { for (const [k, t] of Object.entries(DUD)) { const edad = +now - Date.parse(String(t).split("|")[0]);
+      if (cuadreOk && edad >= 10 * 60e3) { delete DUD[k]; if (RS) L(RS, now, `✅ ${k.split("-")[0]}: la orden dudosa queda resuelta con el saldo real de la cuenta; se puede volver a operar`); }
+      else if (edad > 24 * 3600e3 && !String(t).includes("|avisado")) { DUD[k] = t + "|avisado"; msgs.push(`💶 ⚠️ ${EX}: una orden de ${k.split("-")[0]} sigue sin resultado confirmado desde hace más de 24 h. No opero esa cripto hasta poder cuadrarla con tu saldo; revísala en ${EX}.`); } } return DUD; };
   const copia = SUBS_OK.includes(ctl.copia) ? ctl.copia : "mix", objetivo = Math.max(10, Math.round(+ctl.capital || CAPITAL));
   // saldo libre en euros en la cuenta de Bitvavo (una consulta por vuelta, solo si hace falta)
   let libre0 = null; const libre = async () => (libre0 != null ? libre0 : (libre0 = X.saldoEur ? await X.saldoEur() : Infinity));
@@ -247,7 +252,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (X.saldos) try { const B = await X.saldos(), PX = X.precios ? await X.precios().catch(() => null) : null, act = []; let tot = +(B.EUR || 0);
         for (const [sym, q] of Object.entries(B)) { if (sym === "EUR") continue; const m = sym + "-EUR", bid = (PX && PX[sym]) || (tick[m] ? tick[m].bid : 0), v = q * bid; tot += v; if (v >= 0.01) act.push({ sym, q, eur: r2(v), px: bid }); }
         RS.cuenta = { t: now.toISOString(), eur: r2(+(B.EUR || 0)), total: r2(tot), activos: act.sort((a, b) => b.eur - a.eur) }; } catch (e) {}
-      if (RS) RS.dudosas = DUD; return { RS, msgs, ctl };
+      if (RS) RS.dudosas = resuelveDudosas(); return { RS, msgs, ctl };
     }
     if (RS.paradaAt) { delete RS.paradaAt; delete RS.retomar; delete RS.avisoRetomar; }
     // al reanudar tras una parada, el freno se mide desde lo que hay ahora (si no, volvería a saltar al momento)
@@ -320,6 +325,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (X.operaciones && (!RS.libro || RS.libro.firma !== firmaB || now - Date.parse(RS.libro.t) > 10 * 60000)) { try {
         const syms = [...new Set([...Object.keys(B), ...(RS.closed || []).map((c) => c.sym), ...((RS.libro && RS.libro.cerradas) || []).map((c) => c.sym)])];
         RS.libro = { t: now.toISOString(), firma: firmaB, ...libro(await X.operaciones(syms)) }; } catch (e) { L(RS, now, "⚠️ no pude leer el historial del exchange: " + String(e.message).slice(0, 80)); } }
+        cuadreOk = true;   // v462 · el cuadre con el saldo REAL del exchange ha terminado bien en esta vuelta
       } catch (e) { L(RS, now, "⚠️ no pude leer los saldos de la cuenta: " + String(e.message).slice(0, 80)); } }
     // 2) freno: si el saldo cae un 35 % (FRENO), vende todo y se para
     const eq = valor(RS, tick);
@@ -336,7 +342,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (ctl.frenoDia !== false && eq < RS.dia.eq0 * (1 - FRENO_DIA)) { await vendeTodo(`freno diario: hoy ha perdido un ${FRENO_DIA * 100} %`); RS.pausaDia = d; RS.estado = "pausa"; msgs.push(`💶 ⏸️ REAL: hoy ha perdido más de un ${FRENO_DIA * 100} % (de ${r2(RS.dia.eq0)} € a ${r2(eq)} €). He vendido todo y descansa hasta mañana; mañana vuelve solo.`); return { RS, msgs, ctl }; } }
     // v319 · 🧹 lo pides tú (una vez): vender TODO lo que quede de los métodos antiguos (todo lo que no sea de las Tortugas ni tuyo)
     if (ctl.liquidar && RS.liqAt !== ctl.liquidar) { RS.liqAt = ctl.liquidar; let n = 0;
-      for (const m of Object.keys(RS.pos)) { const p = RS.pos[m]; if (!p || p.src === "tortuga" || (ctl.conservar || []).includes(p.sym)) continue; try { await cerrar(m, "la vendes tú: era de un método antiguo"); n++; } catch (e) { RS.liqAt = null; L(RS, now, `⚠️ no pude vender ${p.sym} (${String((e && e.message) || e).replace(/[A-Za-z0-9+/=_-]{24,}/g, "…").slice(0, 80)}); se reintenta en la próxima vuelta`); } }   /* v461 · cada venta por separado; si alguna falla, la liquidación se repite en la vuelta siguiente */
+      for (const m of Object.keys(RS.pos)) { const p = RS.pos[m]; if (!p || p.src === "tortuga" || (ctl.conservar || []).includes(p.sym)) continue; try { await cerrar(m, "la vendes tú: era de un método antiguo"); if (RS.pos[m]) { RS.liqAt = null; L(RS, now, `⚠️ ${p.sym}: la venta no se ha completado; se reintenta en la próxima vuelta`); } else n++; } catch (e) { RS.liqAt = null; L(RS, now, `⚠️ no pude vender ${p.sym} (${String((e && e.message) || e).replace(/[A-Za-z0-9+/=_-]{24,}/g, "…").slice(0, 80)}); se reintenta en la próxima vuelta`); } }   /* v461 · cada venta por separado; si alguna falla, la liquidación se repite en la vuelta siguiente */
       L(RS, now, `🧹 vendidas ${n} criptos de los métodos antiguos; el dinero queda libre para las Tortugas`); msgs.push(`💶 🧹 ${EX}: vendidas ${n} criptos de los métodos antiguos. El dinero queda libre para las 🐢 Tortugas.`); }
     // 3) lo que tengo: ¿el submodo lo ha vendido entero, o una parte, o ha añadido (piramidar)?
     for (const [m, p] of Object.entries(RS.pos)) {
@@ -446,7 +452,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   }
   const e2 = valor(RS, tick); RS.eq.push([now.toISOString(), r2(e2), r2(RS.start)]);   // v266 · también lo aportado hasta entonces (para no contar ingresos como ganancia) if (RS.eq.length > 3000) RS.eq = RS.eq.filter((_, i) => i % 2 === 0 || i > RS.eq.length - 500);
   RS.lastEq = r2(e2); RS.last = now.toISOString();
-  if (RS) RS.dudosas = DUD; return { RS, msgs, ctl };
+  if (RS) RS.dudosas = resuelveDudosas(); return { RS, msgs, ctl };
 }
 // día en España (para el freno diario)
 export const diaES = (d) => new Date(d).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });

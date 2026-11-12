@@ -13,6 +13,9 @@ function exchange(px, opts = {}) {
     const R = (st, j) => ({ ok: st < 400, status: st, json: async () => j });
     if (!ok || o.headers["Bitvavo-Access-Key"] !== "CLAVE") return R(403, { errorCode: 105, error: "firma" });
     if (ex.fallo) return R(ex.fallo.status, ex.fallo.j);
+    if (ex.falloBalance && u.pathname === "/v2/balance") return R(500, { errorCode: 999, error: "saldo no disponible (prueba)" });
+    if (ex.falloQuita && u.pathname === "/v2/order" && o.method === "DELETE") return R(500, { errorCode: 999, error: "error interno (prueba)" });
+    if (ex.dudosaCompra && u.pathname === "/v2/order" && o.method === "POST" && JSON.parse(o.body).side === "buy" && JSON.parse(o.body).orderType === "market") { ex.intentos = (ex.intentos || 0) + 1; return R(504, { errorCode: 999, error: "tiempo agotado (prueba)" }); }
     if (u.pathname === "/v2/markets") return R(200, { market: u.searchParams.get("market"), minOrderInQuoteAsset: "5" });
     if (u.pathname === "/v2/balance") { const all = [{ symbol: "EUR", available: String(ex.eur), inOrder: "0" }, ...Object.entries(ex.bal).filter(([, q]) => q > 1e-12).map(([m, q]) => ({ symbol: m.replace("-EUR", ""), available: String(q), inOrder: "0" }))]; const sy = u.searchParams.get("symbol"); return R(200, sy ? all.filter((x) => x.symbol === sy) : all); }
     if (u.pathname === "/v2/assets") return R(200, { symbol: u.searchParams.get("symbol"), decimals: 4 });
@@ -451,4 +454,30 @@ test("Real v461: liquidar los métodos antiguos con una venta que falla: vende l
   assert.deepEqual(Object.keys(o.RS.pos), ["A-EUR"], "B vendida aunque A fallase");
   ex.falloVenta = null; o = await RL.vuelta(o.RS, { mix: fuente({ "A-EUR": sp, "B-EUR": sb }) }, { copia: "mix", liquidar: "x1" }, tk(ex.px), T(3), deps);
   assert.equal(Object.keys(o.RS.pos).length, 0, "en la vuelta siguiente vende lo que quedaba");
+});
+
+// ---------- v462 ----------
+test("Real v462: liquidar cuando la venta termina SIN error pero SIN vender (no pudo quitar el stop): no la cuenta como vendida y lo reintenta", async () => {
+  const ex = exchange({ "A-EUR": 1, "B-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado, rapido: 1 };
+  const sp = { sym: "A", px: 1, cost0: 30, cost: 30, q: 1, q0: 1, t0: T(1).toISOString() }, sb = { ...sp, sym: "B" };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix" }, tk(ex.px), T(0), deps);
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp, "B-EUR": sb }) }, { copia: "mix" }, tk(ex.px), T(1), deps)); assert.ok(RS.pos["A-EUR"].stopId && RS.pos["B-EUR"].stopId);
+  ex.falloQuita = true;
+  let o = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp, "B-EUR": sb }) }, { copia: "mix", liquidar: "x2" }, tk(ex.px), T(2), deps);
+  assert.equal(Object.keys(o.RS.pos).length, 2, "no se ha vendido nada"); assert.ok(!o.RS.liqAt, "la liquidación queda pendiente"); assert.ok(o.msgs.some((x) => /vendidas 0/.test(x)), "no dice que las ha vendido");
+  ex.falloQuita = false; o = await RL.vuelta(o.RS, { mix: fuente({ "A-EUR": sp, "B-EUR": sb }) }, { copia: "mix", liquidar: "x2" }, tk(ex.px), T(3), deps);
+  assert.equal(Object.keys(o.RS.pos).length, 0, "en la vuelta siguiente sí");
+});
+test("Real v462: una compra de resultado desconocido bloquea esa cripto; el bloqueo NO caduca por tiempo: solo se levanta tras un cuadre con el saldo real", { timeout: 120000 }, async () => {
+  const ex = exchange({ "AAA-EUR": 2 }), deps = { api: ex.api, mercado: ex.mercado, rapido: 1 };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix" }, tk(ex.px), T(0), deps);
+  const sp = { sym: "AAA", q: 10, q0: 10, px: 2.002, cost: 60, cost0: 60, t0: T(1).toISOString() };
+  ex.dudosaCompra = true; ({ RS } = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), T(1), deps));
+  assert.ok(RS.dudosas && RS.dudosas["AAA-EUR"], "queda bloqueada"); const n0 = ex.intentos;
+  ex.falloBalance = true; const lejos = new Date(T(1).getTime() + 5 * 3600e3);   // 5 h después, sin poder leer el saldo
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": { ...sp, t0: lejos.toISOString() } }) }, { copia: "mix" }, tk(ex.px), lejos, deps));
+  assert.ok(RS.dudosas["AAA-EUR"], "sigue bloqueada: el tiempo no basta"); assert.equal(ex.intentos, n0, "no se ha mandado otra orden");
+  ex.falloBalance = false; ex.dudosaCompra = false; const luego = new Date(lejos.getTime() + 60e3);
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({}) }, { copia: "mix" }, tk(ex.px), luego, deps));
+  assert.ok(!RS.dudosas["AAA-EUR"], "cuadrada con el saldo real: se levanta");
 });

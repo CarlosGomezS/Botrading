@@ -16,7 +16,7 @@ const H = 3600e3;
 function mundo(o = {}) {
   const W = { eq: o.eq ?? 100, neto: o.neto ?? 100, px: { BTC: 100, ETH: 10, SOL: 5, ...(o.px || {}) }, pos: {}, stops: [], oid: 1, fills: [], ordenes: [], refs: new Set(), guardado: null, avisos: [],
     ctl: o.ctl === undefined ? { estado: "on", uso: 100, plazas: 5, freno: 0.35, puesto: 1 } : o.ctl, ctlFallo: o.ctlFallo || null, refsFallo: !!o.refsFallo,
-    falloStop: o.falloStop || 0, ledgerFallo: !!o.ledgerFallo, falloCierre: new Set(o.falloCierre || []), parcial: o.parcial || 0, timeoutAbrir: !!o.timeoutAbrir, quiere: o.quiere || [] };
+    falloStop: o.falloStop || 0, ledgerFallo: !!o.ledgerFallo, rompeTrasCierre: !!o.rompeTrasCierre, falloCierre: new Set(o.falloCierre || []), parcial: o.parcial || 0, timeoutAbrir: !!o.timeoutAbrir, quiere: o.quiere || [] };
   for (const p of o.pos || []) { W.pos[p.c] = { szi: p.szi, entryPx: p.px ?? W.px[p.c] }; W.fills.push({ coin: p.c, dir: p.szi > 0 ? "Open Long" : "Open Short", time: Date.now() - (p.edadH ?? 1) * H, px: p.px ?? W.px[p.c], sz: Math.abs(p.szi) }); }
   for (const s of o.stops || []) W.stops.push({ coin: s.c, oid: W.oid++, side: s.side, sz: String(s.sz), origSz: String(s.sz), triggerPx: String(s.trig), isTrigger: true, orderType: "Stop Market" });
   const coins = Object.keys(W.px), j = (x, st = 200) => ({ ok: st < 400, status: st, json: async () => x, text: async () => JSON.stringify(x) });
@@ -31,7 +31,7 @@ function mundo(o = {}) {
       const pos = () => Object.entries(W.pos).filter(([, p]) => p.szi !== 0).map(([c, p]) => ({ position: { coin: c, szi: String(p.szi), entryPx: String(p.entryPx), unrealizedPnl: String((W.px[c] - p.entryPx) * p.szi), positionValue: String(Math.abs(p.szi) * W.px[c]) } }));
       switch (body.type) {
         case "meta": return j({ universe: coins.map((c) => ({ name: c, szDecimals: 3 })) });
-        case "clearinghouseState": return j({ marginSummary: { accountValue: String(W.eq) }, assetPositions: pos() });
+        case "clearinghouseState": if (W.chRoto) return j({}, 500); return j({ marginSummary: { accountValue: String(W.eq) }, assetPositions: pos() });
         case "allMids": return j(Object.fromEntries(coins.map((c) => [c, String(W.px[c])])));
         case "userNonFundingLedgerUpdates": if (W.ledgerFallo) return j({}, 500); return j([{ delta: { type: "deposit", usdc: String(W.neto) } }]);
         case "userFills": return j(W.fills);
@@ -49,7 +49,7 @@ function mundo(o = {}) {
         W.stops.push({ coin: c, oid: W.oid++, side: compra ? "B" : "A", sz: String(sz), origSz: String(sz), triggerPx: o2.t.trigger.triggerPx, isTrigger: true, orderType: "Stop Market" }); return j({ status: "ok", response: { type: "order", data: { statuses: ["waitingForTrigger"] } } }); }
       if (o2.r) { if (W.falloCierre.has(c)) return j({ status: "ok", response: { type: "order", data: { statuses: [{ error: "sin liquidez (prueba)" }] } } });
         const p = W.pos[c]; if (!p || !p.szi) return j({ status: "ok", response: { type: "order", data: { statuses: [{ error: "nada que reducir" }] } } });
-        const q = Math.min(sz, Math.abs(p.szi)); p.szi = p.szi > 0 ? p.szi - q : p.szi + q; if (Math.abs(p.szi) < 1e-9) delete W.pos[c]; W.fills.push({ coin: c, dir: "Close", time: Date.now(), px: W.px[c], sz: q, closedPnl: "0", fee: "0" });
+        if (W.rompeTrasCierre) W.chRoto = true; const q = Math.min(sz, Math.abs(p.szi)); p.szi = p.szi > 0 ? p.szi - q : p.szi + q; if (Math.abs(p.szi) < 1e-9) delete W.pos[c]; W.fills.push({ coin: c, dir: "Close", time: Date.now(), px: W.px[c], sz: q, closedPnl: "0", fee: "0" });
         return j({ status: "ok", response: { type: "order", data: { statuses: [{ filled: { totalSz: String(q), avgPx: String(W.px[c]) } }] } } }); }
       if (W.timeoutAbrir) { const p = W.pos[c] || (W.pos[c] = { szi: 0, entryPx: W.px[c] }); p.szi += compra ? sz : -sz; throw new Error("The operation was aborted due to timeout"); }   // la orden SÍ entra, pero la respuesta se pierde
       const q = W.parcial ? +(sz * W.parcial).toFixed(3) : sz, p = W.pos[c] || (W.pos[c] = { szi: 0, entryPx: W.px[c] }); p.szi += compra ? q : -q; p.entryPx = W.px[c];
@@ -174,4 +174,15 @@ test("tope de exposición con posiciones previas grandes: nunca se pasa del sald
   const W = mundo({ eq: 100, px: { BTC: 100, ETH: 10, SOL: 5 }, pos: [{ c: "BTC", szi: 0.7, px: 100 }], stops: [{ c: "BTC", side: "A", sz: 0.7, trig: 92 }], quiere: [{ c: "ETH", dir: 1 }, { c: "SOL", dir: -1 }] }); conecta(W);
   await silencio(() => HL.ronda());
   const expo = abiertas(W).reduce((a, x) => a + Math.abs(x.szi) * W.px[x.c], 0); assert.ok(expo <= 100 + 1e-9, "exposición " + expo);
+});
+
+// ---------- v462 ----------
+test("cierre aceptado pero NO se puede comprobar: no se da por cerrada, no se quita el stop (aunque sea imperfecto) y avisa", async () => {
+  const W = mundo({ falloStop: 5, rompeTrasCierre: true, pos: [{ c: "BTC", szi: -0.2 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108 }] }); conecta(W);
+  await silencio(() => HL.ronda());
+  assert.equal(W.stops.filter((z) => z.coin === "BTC").length, 1, "el stop sigue puesto"); assert.ok(W.avisos.some((t) => /no he podido comprobarlo|puede seguir abierta/.test(t)));
+});
+test("al abrir: stop imposible y cierre sin poder comprobarlo → no sigue abriendo esa hora y avisa", async () => {
+  const W = mundo({ falloStop: 5, rompeTrasCierre: true, quiere: [{ c: "BTC", dir: 1 }, { c: "ETH", dir: 1 }] }); conecta(W); await silencio(() => HL.ronda());
+  assert.equal(aperturas(W).length, 1, "solo la primera"); assert.ok(W.avisos.some((t) => /puede estar abierta SIN stop/.test(t)));
 });
