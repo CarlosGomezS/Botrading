@@ -32,17 +32,19 @@ export async function datos(log) {
 
 // Simulación de cartera: plazas iguales; cada operación [i0, coin, dir, i1] ocupa una plaza de i0 a i1 (horas). Se paga comisión+deslizamiento al
 // entrar y al salir, y cada hora la financiación (dir=+1 comprado paga si la tasa es positiva; dir=-1 corto la cobra).
-export function cartera(ops, M, i0, i1, plazas, sl = 0) {
+export function cartera(ops, M, i0, i1, plazas, sl = 0, cm = 1) {   /* v453 · cm: multiplicador de costes (2 = comisiones y deslizamiento al doble) */
   const ev = ops.filter((o) => o[0] >= i0 && o[0] < i1).sort((a, b) => a[0] - b[0]);
-  let eq = 1, pico = 1, dd = 0, n = 0, gan = 0, per = 0, libres = plazas; const abiertas = [];
-  const cierra = (o) => { const d = M[o[1]], p0 = d.C[o[0]]; let fin = Math.min(o[3], d.C.length - 1), r = null; if (!(p0 > 0)) return 0; if (sl > 0) for (let i = o[0] + 1; i <= fin; i++) { const malo = o[2] > 0 ? d.Lo[i] / p0 - 1 : 1 - d.Hi[i] / p0; if (malo <= -sl) { r = -sl - 0.001; fin = i; break; } } if (r == null) { const p1 = d.C[fin]; if (!(p1 > 0)) return 0; r = o[2] * (p1 / p0 - 1); } for (let i = o[0]; i < fin && i < d.F.length; i++) r -= o[2] * d.F[i]; return r - 2 * COST; };
+  let eq = 1, pico = 1, dd = 0, n = 0, gan = 0, per = 0, libres = plazas; const abiertas = [], rs = [];
+  const cierra = (o) => { const d = M[o[1]], p0 = d.C[o[0]]; let fin = Math.min(o[3], d.C.length - 1), r = null; if (!(p0 > 0)) return 0; if (sl > 0) for (let i = o[0] + 1; i <= fin; i++) { const malo = o[2] > 0 ? d.Lo[i] / p0 - 1 : 1 - d.Hi[i] / p0; if (malo <= -sl) { r = -sl - 0.001; fin = i; break; } } if (r == null) { const p1 = d.C[fin]; if (!(p1 > 0)) return 0; r = o[2] * (p1 / p0 - 1); } for (let i = o[0]; i < fin && i < d.F.length; i++) r -= o[2] * d.F[i]; return r - 2 * COST * cm; };
   for (const o of ev) {
-    for (let j = abiertas.length - 1; j >= 0; j--) if (abiertas[j][3] <= o[0]) { const r = cierra(abiertas[j]); eq += r / plazas * eq0(abiertas[j]); r > 0 ? (gan += r) : (per -= r); n++; abiertas.splice(j, 1); libres++; pico = Math.max(pico, eq); dd = Math.max(dd, 1 - eq / pico); }
+    for (let j = abiertas.length - 1; j >= 0; j--) if (abiertas[j][3] <= o[0]) { const r = cierra(abiertas[j]); rs.push(r); eq += r / plazas * eq0(abiertas[j]); r > 0 ? (gan += r) : (per -= r); n++; abiertas.splice(j, 1); libres++; pico = Math.max(pico, eq); dd = Math.max(dd, 1 - eq / pico); }
     if (libres > 0 && !abiertas.some((a) => a[1] === o[1])) { o.eqIn = eq; abiertas.push(o); libres--; }
   }
-  for (const a of abiertas) { const r = cierra(a); eq += r / plazas * eq0(a); r > 0 ? (gan += r) : (per -= r); n++; }
+  for (const a of abiertas) { const r = cierra(a); rs.push(r); eq += r / plazas * eq0(a); r > 0 ? (gan += r) : (per -= r); n++; }
   function eq0(o) { return o.eqIn || 1; }
-  const dias = (i1 - i0) / 24; return { ret: eq - 1, dd, n, opsDia: n / dias, pf: per > 0 ? gan / per : gan > 0 ? 9 : 0 };
+  const dias = (i1 - i0) / 24, mu = rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : 0, sd = rs.length > 1 ? Math.sqrt(rs.reduce((a, b) => a + (b - mu) ** 2, 0) / (rs.length - 1)) : 0;
+  /* v453 · Sharpe anual aproximado por operaciones (rentabilidad media / variabilidad, escalado a las operaciones de un año) */
+  return { ret: eq - 1, dd, n, opsDia: n / dias, pf: per > 0 ? gan / per : gan > 0 ? 9 : 0, sh: sd > 0 && dias > 0 ? +((mu / sd) * Math.sqrt((n * 365) / dias)).toFixed(2) : 0 };
 }
 
 const ret = (C, i, L) => C[i - L] > 0 ? C[i] / C[i - L] - 1 : null;
