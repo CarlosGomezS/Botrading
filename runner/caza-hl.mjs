@@ -26,21 +26,40 @@ export async function datos(log) {
   }
   const T = []; for (let t = ini; t < fin; t += H) T.push(t);
   for (const c of [...U]) if (D[c].k.size < T.length * 0.8 && c !== "BTC") { U.splice(U.indexOf(c), 1); log(`  ${c}: sin historia suficiente, fuera`); }
-  const out = {}; for (const c of U) { const C = new Float64Array(T.length), F = new Float64Array(T.length), V = new Float64Array(T.length), Hi = new Float64Array(T.length), Lo = new Float64Array(T.length); let last = NaN; T.forEach((t, i) => { const x = D[c].k.get(t); if (x && x[0] > 0) { last = x[0]; V[i] = x[1]; Hi[i] = x[2]; Lo[i] = x[3]; } else { Hi[i] = Lo[i] = last; } C[i] = last; F[i] = D[c].f.get(t) || 0; }); out[c] = { C, F, V, Hi, Lo }; }
+  const out = {}; for (const c of U) { const C = new Float64Array(T.length), F = new Float64Array(T.length), V = new Float64Array(T.length), Hi = new Float64Array(T.length), Lo = new Float64Array(T.length); let last = NaN, lastF = 0; T.forEach((t, i) => { const x = D[c].k.get(t); if (x && x[0] > 0) { last = x[0]; V[i] = x[1]; Hi[i] = x[2]; Lo[i] = x[3]; } else { Hi[i] = Lo[i] = last; } C[i] = last; const f = D[c].f.get(t); if (f != null && Number.isFinite(f)) lastF = f; F[i] = lastF; }); out[c] = { C, F, V, Hi, Lo }; }   // v465 · la financiación que falta NO es cero: se usa la última conocida
   return { T, M: out, U };
 }
 
 // Simulación de cartera: plazas iguales; cada operación [i0, coin, dir, i1] ocupa una plaza de i0 a i1 (horas). Se paga comisión+deslizamiento al
 // entrar y al salir, y cada hora la financiación (dir=+1 comprado paga si la tasa es positiva; dir=-1 corto la cobra).
+// v465 · al saltar un stop a mercado se vende PEOR que el precio del stop: 0,3 % de deslizamiento (antes 0,1 %)
+export const STOP_SLIP = 0.003;
+// v465 · 📉 CAÍDA MÁXIMA HORA A HORA: la cuenta se valora cada hora con las posiciones abiertas a precio de mercado (más financiación y comisión de
+//   entrada), no solo al cerrar operaciones. Así una posición que cae un 30 % y se recupera SÍ cuenta como caída. Mismas reglas que cartera().
+export function caidaHoraria(ops, M, i0, i1, plazas, sl = 0, cm = 1) {
+  const ev = ops.filter((o) => o[0] >= i0 && o[0] < i1).sort((a, b) => a[0] - b[0]); let k = 0, eq = 1, pico = 1, dd = 0; const ab = [];
+  const fin = Math.min(i1, ...[...new Set(ev.map((o) => o[1]))].map((c) => M[c].C.length - 1)), finOps = ev.reduce((a, o) => Math.max(a, o[3]), i1);
+  for (let h = i0; h <= Math.min(fin, finOps); h++) {
+    for (let j = ab.length - 1; j >= 0; j--) { const a = ab[j], d = M[a.c];
+      if (!a.cerr && h > a.i) { a.fund += a.dir * (d.F[h - 1] || 0); let r = null;
+        if (sl > 0) { const malo = a.dir > 0 ? d.Lo[h] / a.p0 - 1 : 1 - d.Hi[h] / a.p0; if (malo <= -sl) r = -sl - STOP_SLIP; }
+        if (r == null && h >= a.f) r = a.dir * (d.C[h] / a.p0 - 1);
+        if (r != null) { r -= a.fund + 2 * COST * cm; eq += (r * a.e) / plazas; a.cerr = 1; } }
+      if (h >= a.f) ab.splice(j, 1); }   // como en cartera(): una posición cerrada por stop ocupa su plaza hasta su hora de fin
+    while (k < ev.length && ev[k][0] <= h) { const o = ev[k++]; if (o[0] !== h) continue; const d = M[o[1]], p0 = d.C[o[0]]; if (!(p0 > 0)) continue; if (ab.length < plazas && !ab.some((a) => a.c === o[1])) ab.push({ c: o[1], dir: o[2], i: o[0], f: Math.min(o[3], d.C.length - 1), p0, e: eq, fund: 0 }); }
+    let v = eq; for (const a of ab) { if (a.cerr) continue; const d = M[a.c]; v += ((a.dir * (d.C[h] / a.p0 - 1) - a.fund - COST * cm) * a.e) / plazas; }
+    pico = Math.max(pico, v); dd = Math.max(dd, 1 - v / pico); }
+  return dd;
+}
 export function cartera(ops, M, i0, i1, plazas, sl = 0, cm = 1) {   /* v453 · cm: multiplicador de costes (2 = comisiones y deslizamiento al doble) */
   const ev = ops.filter((o) => o[0] >= i0 && o[0] < i1).sort((a, b) => a[0] - b[0]);
   let eq = 1, pico = 1, dd = 0, n = 0, gan = 0, per = 0, libres = plazas; const abiertas = [], rs = [];
-  const cierra = (o) => { const d = M[o[1]], p0 = d.C[o[0]]; let fin = Math.min(o[3], d.C.length - 1), r = null; if (!(p0 > 0)) return 0; if (sl > 0) for (let i = o[0] + 1; i <= fin; i++) { const malo = o[2] > 0 ? d.Lo[i] / p0 - 1 : 1 - d.Hi[i] / p0; if (malo <= -sl) { r = -sl - 0.001; fin = i; break; } } if (r == null) { const p1 = d.C[fin]; if (!(p1 > 0)) return 0; r = o[2] * (p1 / p0 - 1); } for (let i = o[0]; i < fin && i < d.F.length; i++) r -= o[2] * d.F[i]; return r - 2 * COST * cm; };
+  const cierra = (o) => { const d = M[o[1]], p0 = d.C[o[0]]; let fin = Math.min(o[3], d.C.length - 1), r = null; if (!(p0 > 0)) return 0; if (sl > 0) for (let i = o[0] + 1; i <= fin; i++) { const malo = o[2] > 0 ? d.Lo[i] / p0 - 1 : 1 - d.Hi[i] / p0; if (malo <= -sl) { r = -sl - STOP_SLIP; fin = i; break; } } if (r == null) { const p1 = d.C[fin]; if (!(p1 > 0)) return 0; r = o[2] * (p1 / p0 - 1); } for (let i = o[0]; i < fin && i < d.F.length; i++) r -= o[2] * d.F[i]; return r - 2 * COST * cm; };
   for (const o of ev) {
     for (let j = abiertas.length - 1; j >= 0; j--) if (abiertas[j][3] <= o[0]) { const r = cierra(abiertas[j]); rs.push(r); eq += r / plazas * eq0(abiertas[j]); r > 0 ? (gan += r) : (per -= r); n++; abiertas.splice(j, 1); libres++; pico = Math.max(pico, eq); dd = Math.max(dd, 1 - eq / pico); }
     if (libres > 0 && !abiertas.some((a) => a[1] === o[1])) { o.eqIn = eq; abiertas.push(o); libres--; }
   }
-  for (const a of abiertas) { const r = cierra(a); rs.push(r); eq += r / plazas * eq0(a); r > 0 ? (gan += r) : (per -= r); n++; }
+  for (const a of abiertas) { const r = cierra(a); rs.push(r); eq += r / plazas * eq0(a); r > 0 ? (gan += r) : (per -= r); n++; pico = Math.max(pico, eq); dd = Math.max(dd, 1 - eq / pico); }   // v465 · también al liquidar lo que queda
   function eq0(o) { return o.eqIn || 1; }
   const dias = (i1 - i0) / 24, mu = rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : 0, sd = rs.length > 1 ? Math.sqrt(rs.reduce((a, b) => a + (b - mu) ** 2, 0) / (rs.length - 1)) : 0;
   /* v453 · Sharpe anual aproximado por operaciones (rentabilidad media / variabilidad, escalado a las operaciones de un año) */

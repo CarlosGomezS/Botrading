@@ -646,7 +646,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 464 · jueves 12 de noviembre de 2026">✦ 26.11.12 «Fénix» <small>#464</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 465 · jueves 12 de noviembre de 2026">✦ 26.11.12 «Fénix» <small>#465</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1953,12 +1953,12 @@ function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=
 function labHoldB(b,k){const H=b.hold;if(!H||!H.v||!H.v[k]||!H.v.spy||!b.rows[k]||!b.rows.spy)return null;const tr=(r,x)=>[r[0],r[1],r[2]&&{...r[2],ret:x.r,atax:x.ra,dd:x.dd,n:x.n}];
  return{rows:{spy:tr(b.rows.spy,H.v.spy),[k]:tr(b.rows[k],H.v[k])},cuts:[b.cuts[0],b.cuts[1],b.cuts[2],H.d]}}
 /* v100 · el laboratorio busca y aprende SOLO con los datos hasta hace ~2 años; para aprobar, además, tiene que ganar al SPY en esos 2 años ocultos */
-function labExam(b,k){const bb=labHoldB(b,k);if(!bb)return labExam0(b,k);const e=labExam0(bb,k),full=labExam0(b,k),H=b.hold.v,hb=H[k].ht>H.spy.ht;
+function labExam(b,k){const bb=labHoldB(b,k);if(!bb){const e0=labExam0(b,k);if(e0.ok){e0.ok=false;e0.fl=["no se ha podido hacer el examen oculto de los 2 últimos años (faltan datos): sin examen no aprueba"];e0.why=e0.fl[0]}return e0}   /* v465 · falla CERRADO */const e=labExam0(bb,k),full=labExam0(b,k),H=b.hold.v,hb=H[k].ht>H.spy.ht;
  e.an=full.an;e.hold={m:H[k].ht,s:H.spy.ht,ok:hb};if(e.ok&&!hb){e.ok=false;e.fl=["pierde contra el SPY en el examen oculto (los últimos 2 años, que no pudo ver al buscar)"];e.why=e.fl[0]}
- const c2=labC2(b,k,full.an);if(c2){e.c2=c2;if(e.ok&&!c2.ok){e.ok=false;e.fl=[`pagando el doble de comisiones ya no gana al SPY (${P(c2.an*100)}/año)`];e.why=e.fl[0]}}return e}
+ const c2=labC2(b,k,full.an);if(c2){e.c2=c2;if(e.ok&&!c2.ok){e.ok=false;e.fl=[`pagando el doble de comisiones ya no gana al SPY (${P(c2.an*100)}/año)`];e.why=e.fl[0]}}else if(e.ok){e.ok=false;e.fl=["no se ha podido calcular el examen con el doble de comisiones: sin examen no aprueba"];e.why=e.fl[0]}return e}   /* v465 · costes dobles obligatorios */
 /* v455 · rentabilidad anual si las comisiones y el deslizamiento fueran el doble; aprueba si aun así gana al SPY */
 function labC2(b,k,an){try{const lg=b.c2&&b.c2[k];if(lg==null||an==null||!b.rows.spy)return null;const tx=!!(b.rows.spy[0]&&b.rows.spy[0].atax!=null),as=tx?annualTaxOf(b.rows.spy,b.cuts):annualOf(b.rows.spy,b.cuts),y=Math.max(1,(dayN(b.cuts[3]||b.to)-dayN(b.cuts[0]))/365.25),a2=(1+an)*Math.exp(lg/y)-1;return{an:a2,ok:as==null||a2>as}}catch(e){return null}}
-const labHoldOk=k=>{try{const M=BTX[k]||STR[k];if(!M||!M.lab||!S.btm||!S.btm.hold)return true;return labExam(S.btm,k).ok}catch(e){return true}};
+const labHoldOk=k=>{try{const M=BTX[k]||STR[k];if(!M||!M.lab)return true;if(!S.btm||!S.btm.hold)return false;return labExam(S.btm,k).ok}catch(e){return false}};   /* v465 · sin examen o con error: NO aprueba */
 function labExam0(b,k){const v=btmVerd(b,k),r=b.rows[k],sp=b.rows.spy;if(!v||!r||!sp||!r.every(Boolean))return{ok:false,why:"faltan datos",an:null,beat:false};
  const tx=r.every(x=>x.atax!=null)&&sp.every(x=>x&&x.atax!=null),an=tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts),as=tx?annualTaxOf(sp,b.cuts):annualOf(sp,b.cuts);
  const c=v.ck||{},cl=x=>Math.max(0,Math.min(1,x)),pt=x=>(x*100).toFixed(1).replace(".",","),fl=[];
@@ -2008,7 +2008,7 @@ function labValTxt(pc,v){if(pc==="u")return LABU[v]?LABU[v].n:v;if(pc==="l")retu
 function labInv(b,k,v){try{const c=(v||btmVerd(b,k)||{}).ck||{},H=b.hold&&b.hold.v;if(!(v||{}).c==="ok")return false;
  const hm=H&&H[k]&&H.spy?H[k].ht-H.spy.ht:null;return (v||{}).c==="ok"&&c.gap>=0.05&&c.beat===3&&c.n===3&&c.ddm>=-0.30&&hm!=null&&hm>=0.10&&labHoldOk(k)}catch(e){return false}}
 /* v105 · aviso solo cuando aparece uno MEJOR QUE EL 3.º del top (entra en el podio desde fuera) */
-function labTop3Check(){try{const L=labS(),T=top5List(winAll(),3).T.map(x=>({k:x.h?x.h.k:x.lv.k,sc:+x.sc.toFixed(5),an:x.an!=null?+x.an.toFixed(5):null}));const old=Array.isArray(L.top3)?L.top3:null;L.topEv=[];
+function labTop3Check(){try{if(!S.btm||!S.btm.hold||!S.btm.c2)return;   /* v465 · si esta prueba no trae el examen oculto o el de costes dobles, NO se toca el podio que sigue la cuenta real (se espera a una prueba completa) */const L=labS(),T=top5List(winAll(),3).T.map(x=>({k:x.h?x.h.k:x.lv.k,sc:+x.sc.toFixed(5),an:x.an!=null?+x.an.toFixed(5):null}));const old=Array.isArray(L.top3)?L.top3:null;L.topEv=[];
  if(old){const th=old.length>=3?old[2].sc:-1;T.forEach((x,i)=>{if(!old.some(o=>o.k===x.k)&&x.sc>th+1e-6)L.topEv.push({k:x.k,n:(MX(x.k)||{n:x.k}).n,an:x.an!=null?x.an:x.sc,pos:i+1,d:T0()})})}
  /* v361 · fecha y hora en que cada uno entró en el podio (se conserva mientras siga en él) */
  {const P0=L.podio||{},P={},ahora=new Date().toISOString();for(const x of T)P[x.k]=P0[x.k]||ahora;L.podio=P}

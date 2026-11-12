@@ -52,7 +52,7 @@ El examen es muy duro: tiene que ganar en la historia completa hasta hoy, en los
 Hasta ahora casi nada aprueba: las señales clásicas solas (RSI, Bollinger, Donchian, cruces, MACD, VWAP, volumen, sesiones, Supertrend, arbitraje contra BTC, financiación) pierden con estos costes. Hace falta creatividad: combinar contexto (régimen, BTC, financiación, volatilidad, hora) con el disparo, evitar operar en ruido, buscar asimetrías.
 
 Familias con más peso aprendido (más alto = se ha acercado más): ${JSON.stringify((cl && cl.pesosVista) || {})}
-Las que más se han acercado: ${JSON.stringify(((cl && cl.mejoresCasi) || []).slice(0, 5).map((x) => ({ n: x.n, historia: x.a && +(x.a.ret * 100).toFixed(1), ult6m: x.b && +(x.b.ret * 100).toFixed(1), tramos_ok: x.t && x.t.g })))}
+Las que más se han acercado (solo con datos ANTERIORES a los 90 días que se reservan para el examen): ${JSON.stringify(((cl && cl.mejoresCasi) || []).slice(0, 5).map((x) => ({ n: x.n, antes_del_examen: x.is ? +(x.is.ret * 100).toFixed(1) : null, pf: x.is ? +(+x.is.pf).toFixed(2) : null })))}
 Ideas recientes leídas (títulos): ${JSON.stringify(((cl && cl.ideas) || []).slice(0, 15).map((x) => x.tit))}
 ${mejores.length ? `TUS recetas anteriores que MEJOR fueron (mejóralas o combínalas): ${JSON.stringify(mejores.map((x) => ({ nombre: x.r.nombre, regla: describe(x.r), resultado: x.s })))}` : ""}
 ${peores.length ? `TUS recetas anteriores que PEOR fueron (no repitas esa idea): ${JSON.stringify(peores.map((x) => ({ nombre: x.r.nombre, regla: describe(x.r), resultado: x.s })))}` : ""}

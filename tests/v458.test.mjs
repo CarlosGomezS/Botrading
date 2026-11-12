@@ -84,3 +84,25 @@ test("Hyperliquid: la orden de stop cierra en el lado contrario, a la distancia 
   assert.equal(largo.r, true); assert.equal(+largo.s, 2.5);               // solo reduce, por toda la posición
   assert.equal(+largo.t.trigger.triggerPx, 92); assert.equal(+corto.t.trigger.triggerPx, 108);
 });
+
+// ---------- v465 · Trading 212: al recuperar una orden cuya respuesta se perdió, no confundirla con una tuya ----------
+import { esNuestra } from "../runner/real.mjs";
+test("Trading 212: solo se reconoce como del bot una orden del mismo lado, la misma cantidad y creada tras el envío", () => {
+  const t0 = Date.parse("2026-11-12T10:00:00Z");
+  assert.equal(esNuestra({ quantity: 2.5, createdAt: "2026-11-12T10:00:02Z" }, 2.5, t0), true);
+  assert.equal(esNuestra({ quantity: -2.5, createdAt: "2026-11-12T10:00:02Z" }, 2.5, t0), false, "lado contrario (una venta tuya)");
+  assert.equal(esNuestra({ quantity: 1, createdAt: "2026-11-12T10:00:02Z" }, 2.5, t0), false, "otra cantidad");
+  assert.equal(esNuestra({ quantity: 2.5, createdAt: "2026-11-12T09:30:00Z" }, 2.5, t0), false, "creada antes (tuya)");
+});
+
+// ---------- v465 · laboratorio de Hyperliquid: caída hora a hora y stops realistas ----------
+import { cartera, caidaHoraria, STOP_SLIP } from "../runner/caza-hl.mjs";
+const serieHL = (f, n = 300) => { const C = new Float64Array(n), Hi = new Float64Array(n), Lo = new Float64Array(n), F = new Float64Array(n); for (let i = 0; i < n; i++) { C[i] = f(i); Hi[i] = C[i] * 1.001; Lo[i] = C[i] * 0.999; } return { C, Hi, Lo, F, V: new Float64Array(n) }; };
+test("Hyperliquid (prueba): una operación que pierde con stop cuenta su caída (antes salía 0 %)", () => {
+  const M = { X: serieHL((i) => (i < 10 ? 100 : i < 30 ? 100 - 2.75 * (i - 10) : i < 40 ? 45 + 0.5 * (i - 30) : 50)) }, ops = [[5, "X", 1, 60]];
+  const r = cartera(ops, M, 0, 200, 1, 0.1); assert.ok(r.dd > 0.1, "caída " + r.dd); assert.ok(Math.abs(r.ret - (-0.1 - STOP_SLIP - 0.0019)) < 1e-6, "vende peor que el stop: " + r.ret);
+});
+test("Hyperliquid (prueba): una posición que cae un 30 % y se recupera SÍ cuenta como caída (valoración hora a hora)", () => {
+  const M = { X: serieHL((i) => (i < 10 ? 100 : i < 20 ? 100 - 3 * (i - 10) : i < 30 ? 70 + 3 * (i - 20) : 100)) }, ops = [[5, "X", 1, 60]];
+  assert.ok(cartera(ops, M, 0, 200, 1, 0).dd < 0.01, "al cerrar casi no pierde"); assert.ok(caidaHoraria(ops, M, 0, 200, 1, 0) > 0.29, "pero por el camino cayó un 30 %");
+});

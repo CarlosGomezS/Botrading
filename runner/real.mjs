@@ -578,12 +578,14 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
 }
 
 // ---------- ejecución de órdenes (a mercado) ----------
+// v465 · ¿esta orden de Trading 212 es la que acabamos de mandar? Mismo LADO, misma CANTIDAD y creada después del envío (si no, puede ser tuya)
+export function esNuestra(o, qq, tEnvio) { const q = +(o.quantity ?? o.filledQuantity ?? NaN), cr = Date.parse(o.createdAt || o.creationTime || ""); return Number.isFinite(q) && Math.sign(q) === Math.sign(qq) && Math.abs(Math.abs(q) - Math.abs(qq)) <= Math.abs(qq) * 0.001 + 1e-9 && (!Number.isFinite(cr) || cr >= tEnvio - 60e3); }
 async function placeMarket(T, t, qty, ext, rep, dec0) {
   let q = qty, dec = dec0 != null ? dec0 : 4;
   const fmt = (x, d) => Math.floor(x * 10 ** d) / 10 ** d;
   let nf = 0;
   for (let a = 0; a < 12; a++) {
-    const qq = q > 0 ? fmt(q, dec) : -fmt(-q, dec);
+    const qq = q > 0 ? fmt(q, dec) : -fmt(-q, dec); const tEnvio = Date.now();
     if (!qq) return { ok: false, err: `cantidad demasiado pequeña (${qty})` };
     try {
       const o = await T.call("POST", "/equity/orders/market", { ticker: t, quantity: qq, extendedHours: !!ext });
@@ -598,11 +600,13 @@ async function placeMarket(T, t, qty, ext, rep, dec0) {
         // respuesta perdida: puede que SÍ se haya enviado. No se repite a ciegas: se comprueba.
         await sleep(4000);
         try {
+          // v465 · solo se reconoce como NUESTRA una orden del mismo activo, mismo LADO, misma CANTIDAD y creada después de enviarla (no una tuya del mismo ETF)
+          const mismo = (o) => esNuestra(o, qq, tEnvio);
           const act = await T.call("GET", "/equity/orders");
-          const f = (act || []).find((o) => (o.ticker || (o.instrument && o.instrument.ticker)) === t);
+          const f = (act || []).find((o) => (o.ticker || (o.instrument && o.instrument.ticker)) === t && mismo(o));
           if (f) return { ok: true, o: f, qty: qq, dudosa: true };
           const h = await T.call("GET", `/equity/history/orders?ticker=${encodeURIComponent(t)}&limit=5`);
-          const g = ((h && h.items) || []).find((x) => x.order && Date.now() - Date.parse(x.order.createdAt) < 5 * 60e3);
+          const g = ((h && h.items) || []).find((x) => x.order && Date.now() - Date.parse(x.order.createdAt) < 5 * 60e3 && mismo(x.order));
           if (g) return { ok: true, o: g.order, qty: qq, dudosa: true };
         } catch {}
         return { ok: false, err: "no hubo respuesta de Trading 212 y no aparece la orden. NO se reintenta para no duplicarla: revísalo en la app.", dudosa: true };
