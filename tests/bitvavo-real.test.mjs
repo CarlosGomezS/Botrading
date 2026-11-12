@@ -28,6 +28,9 @@ function exchange(px, opts = {}) {
     }
     if (u.pathname === "/v2/trades") return R(200, (ex.trades || []).filter((x) => x.market === u.searchParams.get("market")));
     if (u.pathname === "/v2/order" && o.method === "DELETE") { const id = u.searchParams.get("orderId"); if (ex.stops) delete ex.stops[id]; return R(200, { orderId: id }); }
+    if (u.pathname === "/v2/ordersOpen") return R(200, ex.abiertas || []);
+    if (u.pathname === "/v2/order" && o.method === "GET" && u.searchParams.get("orderId")) { if (ex.falloEstado) return R(500, { errorCode: 999, error: "error interno (prueba)" }); const st = ex.stops && ex.stops[u.searchParams.get("orderId")]; return st ? R(200, { status: "awaitingTrigger", amount: st.amount, amountRemaining: st.amount }) : R(404, { errorCode: 240, error: "no existe" }); }
+    if (u.pathname === "/v2/order" && o.method === "GET" && ex.ordenViva) return R(200, { status: "new", filledAmount: "0" });
     if (u.pathname === "/v2/order" && o.method === "GET") { const x = ex.porId && ex.porId[u.searchParams.get("clientOrderId")]; return x ? R(200, x) : R(404, { errorCode: 240, error: "no existe" }); }
     return R(404, { errorCode: 999 });
   };
@@ -480,4 +483,29 @@ test("Real v462: una compra de resultado desconocido bloquea esa cripto; el bloq
   ex.falloBalance = false; ex.dudosaCompra = false; const luego = new Date(lejos.getTime() + 60e3);
   ({ RS } = await RL.vuelta(RS, { mix: fuente({}) }, { copia: "mix" }, tk(ex.px), luego, deps));
   assert.ok(!RS.dudosas["AAA-EUR"], "cuadrada con el saldo real: se levanta");
+});
+
+// ---------- v463 ----------
+test("Real v463: una orden dudosa que en el exchange sigue VIVA no se desbloquea aunque el saldo se lea bien", { timeout: 120000 }, async () => {
+  const ex = exchange({ "AAA-EUR": 2 }), deps = { api: ex.api, mercado: ex.mercado, rapido: 1 };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix" }, tk(ex.px), T(0), deps);
+  const sp = { sym: "AAA", q: 10, q0: 10, px: 2.002, cost: 60, cost0: 60, t0: T(1).toISOString() };
+  ex.dudosaCompra = true; ({ RS } = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), T(1), deps));
+  assert.ok(RS.dudosas["AAA-EUR"] && RS.dudosas["AAA-EUR"].id, "guarda el identificador de ESA orden");
+  ex.dudosaCompra = false; ex.ordenViva = true; const luego = new Date(T(1).getTime() + 3 * 3600e3);
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({}) }, { copia: "mix" }, tk(ex.px), luego, deps)); assert.ok(RS.dudosas["AAA-EUR"], "sigue bloqueada: la orden no ha terminado");
+  ex.ordenViva = false; ex.abiertas = [{ orderType: "market", market: "AAA-EUR" }]; ({ RS } = await RL.vuelta(RS, { mix: fuente({}) }, { copia: "mix" }, tk(ex.px), new Date(luego.getTime() + 60e3), deps));
+  assert.ok(RS.dudosas["AAA-EUR"], "sigue bloqueada: hay una orden a mercado abierta en ese par");
+  ex.abiertas = []; ({ RS } = await RL.vuelta(RS, { mix: fuente({}) }, { copia: "mix" }, tk(ex.px), new Date(luego.getTime() + 120e3), deps));
+  assert.ok(!RS.dudosas["AAA-EUR"], "comprobada en el exchange y cuadrada: se levanta");
+});
+test("Real v463: si no se puede comprobar que el stop sigue activo, NO se da por bueno (queda «sin comprobar» y se reintenta; aviso a la 3.ª)", async () => {
+  const ex = exchange({ "AAA-EUR": 2 }), deps = { api: ex.api, mercado: ex.mercado, rapido: 1 };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix" }, tk(ex.px), T(0), deps);
+  const sp = { sym: "AAA", q: 10, q0: 10, px: 2.002, cost: 60, cost0: 60, t0: T(1).toISOString() };
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), T(1), deps)); assert.equal(RS.pos["AAA-EUR"].stopEst, "ok");
+  ex.falloEstado = true; let msgs = [];
+  for (let i = 0; i < 3; i++) { const o = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), new Date(T(1).getTime() + (40 + i) * 60e3), deps); RS = o.RS; msgs = msgs.concat(o.msgs); assert.equal(RS.pos["AAA-EUR"].stopEst, "sin comprobar"); }
+  assert.ok(msgs.some((x) => /no consigo comprobar que el stop/.test(x)));
+  ex.falloEstado = false; const o = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), new Date(T(1).getTime() + 50 * 60e3), deps); assert.equal(o.RS.pos["AAA-EUR"].stopEst, "ok", "en cuanto se puede comprobar, vuelve a estar confirmado");
 });

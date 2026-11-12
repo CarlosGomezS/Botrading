@@ -103,7 +103,9 @@ export function ruta(I, m) { const b = String(m).replace(/-EUR$/, ""), x = I && 
 // adaptador para el módulo de dinero real (misma forma que el de Bitvavo)
 export function adaptador(api, I, tick = {}) {
   // v291 · 🔐 cada orden lleva su identificador (clOrdId): si la respuesta se pierde, se consulta ESA orden en vez de darla por fallida
-  const orden = async (instId, side, sz, quote) => { const clOrdId = "bt" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  // v463 · si la orden acaba sin resultado conocido, el error lleva su clOrdId e instId para poder comprobar ESA orden más tarde
+  const orden = async (instId, side, sz, quote) => { const clOrdId = "bt" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); try { return await orden0(instId, side, sz, quote, clOrdId); } catch (e) { if (e && typeof e === "object") { e.clOrdId = e.clOrdId || clOrdId; e.instId = e.instId || instId; } throw e; } };
+  const orden0 = async (instId, side, sz, quote, clOrdId) => {
     try { await api("POST", "/api/v5/trade/order", { instId, tdMode: "cash", side, ordType: "market", sz: String(sz), tgtCcy: quote ? "quote_ccy" : "base_ccy", clOrdId }); }
     catch (e) { if (e && e.status && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code))) throw e; }   // error del propio OKX (con respuesta) → se lanza; red/tiempo/sin respuesta → SIEMPRE se consulta por su clOrdId (v460: antes un tiempo de espera se tomaba por rechazo)
     let ult = null;
@@ -173,5 +175,7 @@ export function adaptador(api, I, tick = {}) {
         out.push({ t: +x.ts, sym: b, side: x.side, q: sz - (x.side === "buy" && x.feeCcy === b ? fee : 0), eur: sz * px, fee: feeE }); }
       after = d[d.length - 1].billId; if (d.length < 100) break; }
     return out; }
-  return { nombre: "OKX", fee: FEE, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, saldos, saldo, precios, operaciones, ponStop, quitaStop, usdcAEur, estadoStop, comprasBot, errClave };
+  const estadoOrden = async (m, ref) => { const instId = ref.inst || (ruta(I, m) && ruta(I, m).par.instId); try { const [d] = await api("GET", `/api/v5/trade/order?instId=${instId}&clOrdId=${ref.id}`); return { final: !!d && ["filled", "canceled", "mmp_canceled"].includes(d.state), lleno: +(d && d.accFillSz) || 0 }; } catch (e) { if (/51603|does not exist|no existe/i.test(String(e.message))) return { noExiste: true }; throw e; } };
+  const abiertas = async (m, ref) => { const instId = (ref && ref.inst) || (ruta(I, m) && ruta(I, m).par.instId); const d = await api("GET", `/api/v5/trade/orders-pending?instType=SPOT&instId=${instId}`); return (d || []).filter((o) => o.ordType === "market").length; };
+  return { nombre: "OKX", fee: FEE, estadoOrden, abiertas, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, saldos, saldo, precios, operaciones, ponStop, quitaStop, usdcAEur, estadoStop, comprasBot, errClave };
 }

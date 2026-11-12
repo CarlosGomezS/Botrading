@@ -98,6 +98,7 @@ async function enviar(api, m, cuerpo) { const clientOrderId = randomUUID();
     // v295 · se pregunta por ESA orden hasta 5 veces (~10 s) hasta conocer su estado final; lo ejecutado se apunta tal cual
     for (let i = 0; i < 5; i++) { await new Promise((r) => setTimeout(r, 1000 + i * 600)); let o = null; try { o = await api("GET", `/order?market=${m}&clientOrderId=${clientOrderId}`); } catch (e2) { continue; }
       if (o && ["filled", "canceled", "cancelled", "expired", "rejected"].includes(o.status)) { if (+o.filledAmount > 0) return o; throw e; } }   // v297 · solo con estado FINAL (si no, se cuadra después con el saldo)
+    if (e && typeof e === "object") { e.clientOrderId = clientOrderId; e.market = m; }   // v463 · para poder comprobar ESA orden más tarde
     throw e; } }
 async function comprar(api, m, eur) {
   const o = await enviar(api, m, { side: "buy", orderType: "market", amountQuote: eur.toFixed(2) });
@@ -128,7 +129,10 @@ export function bitvavoEx(api, mercado, saldoEur) {
   const comprasBot = async (sym, desde) => { const d = await api("GET", `/orders?market=${sym}-EUR&start=${Math.floor(desde)}&limit=100`); let q = 0;
     const L0 = Array.isArray(d) ? d : []; if (L0.length && !L0.some((o) => o.operatorId != null)) return null;   // si Bitvavo no informa del operatorId, se usa el historial
     for (const o of L0) if (o.side === "buy" && +o.operatorId === OPERADOR && +o.filledAmount > 0) q += +o.filledAmount - (o.feeCurrency === sym ? +o.feePaid || 0 : 0); return q; };
-  return { nombre: "Bitvavo", fee: FEE, tiene: () => true, ponStop, quitaStop, estadoStop, comprasBot, comprar: (m, eur) => comprar(api, m, eur), vender: async (m, q) => { const mk = await mercado(m); return vender(api, m, q, mk.dec); }, mercado, saldoEur, saldo, saldos, operaciones, errClave };
+  // v463 · estado de UNA orden por su identificador (final o no, cuánto se ejecutó) y órdenes a mercado aún abiertas en ese par
+  const estadoOrden = async (m, ref) => { try { const o = await api("GET", `/order?market=${m}&clientOrderId=${ref.id}`); return { final: !!o && ["filled", "canceled", "cancelled", "expired", "rejected"].includes(o.status), lleno: +(o && o.filledAmount) || 0 }; } catch (e) { if (+e.status === 404 || /\b240\b|no existe|not found/i.test(String(e.message))) return { noExiste: true }; throw e; } };
+  const abiertas = async (m) => { const a = await api("GET", `/ordersOpen?market=${m}`); return (Array.isArray(a) ? a : []).filter((o) => o.orderType === "market").length; };
+  return { nombre: "Bitvavo", fee: FEE, tiene: () => true, ponStop, quitaStop, estadoStop, estadoOrden, abiertas, comprasBot, comprar: (m, eur) => comprar(api, m, eur), vender: async (m, q) => { const mk = await mercado(m); return vender(api, m, q, mk.dec); }, mercado, saldoEur, saldo, saldos, operaciones, errClave };
 }
 // v282 · 📒 LIBRO REAL: con las operaciones del exchange, casa compras y ventas (la primera que entra es la primera que sale) y saca
 // las cerradas con su % de verdad (comisiones incluidas) y el coste de lo que sigue abierto. Es lo mismo que verías haciendo las cuentas en la app del exchange.
@@ -159,7 +163,7 @@ export function desvioTort(eq, cv, now) {
 // v460/v461 · envuelve comprar/vender del exchange: una orden de resultado desconocido bloquea ESE activo (se guarda en el estado cifrado, 2 h)
 export const esDudosa = (e) => !!e && ((+e.status >= 500 || +e.status === 408) || /sin estado final|no se completó|no llegó|timeout|tiempo agotado|aborted|fetch failed|ECONN|ETIMEDOUT|socket|network/i.test(String(e.message || e)));   // v462 · un 5xx o un tiempo de espera también es «resultado desconocido»
 export function conDudosas(X0, DUD, now) {
-  const envuelve = (fn) => async (m, ...a) => { if (DUD[m]) throw new Error("hay una orden anterior de este activo sin resultado confirmado; se espera al cuadre con el saldo"); try { return await fn(m, ...a); } catch (e) { if (esDudosa(e)) DUD[m] = new Date(now).toISOString(); throw e; } };
+  const envuelve = (fn) => async (m, ...a) => { if (DUD[m]) throw new Error("hay una orden anterior de este activo sin resultado confirmado; se espera a reconciliarla"); try { return await fn(m, ...a); } catch (e) { if (esDudosa(e)) DUD[m] = { t: new Date(now).toISOString(), id: (e && (e.clientOrderId || e.clOrdId)) || null, inst: (e && e.instId) || null }; throw e; } };
   return { ...X0, comprar: X0.comprar && envuelve(X0.comprar.bind(X0)), vender: X0.vender && envuelve(X0.vender.bind(X0)) };
 }
 export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
@@ -170,9 +174,17 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   //   (lo que se compró de verdad queda apuntado y lo vendido, descontado). Si en 24 h no se ha podido cuadrar, sigue bloqueado y se avisa.
   const DUD = (RS && RS.dudosas) || {}; let cuadreOk = false;
   const X = conDudosas(X0, DUD, now);
-  const resuelveDudosas = () => { for (const [k, t] of Object.entries(DUD)) { const edad = +now - Date.parse(String(t).split("|")[0]);
-      if (cuadreOk && edad >= 10 * 60e3) { delete DUD[k]; if (RS) L(RS, now, `✅ ${k.split("-")[0]}: la orden dudosa queda resuelta con el saldo real de la cuenta; se puede volver a operar`); }
-      else if (edad > 24 * 3600e3 && !String(t).includes("|avisado")) { DUD[k] = t + "|avisado"; msgs.push(`💶 ⚠️ ${EX}: una orden de ${k.split("-")[0]} sigue sin resultado confirmado desde hace más de 24 h. No opero esa cripto hasta poder cuadrarla con tu saldo; revísala en ${EX}.`); } } return DUD; };
+  // v463 · una orden dudosa solo se desbloquea si se demuestra qué pasó con ELLA: su estado en el exchange es FINAL (o el exchange dice que no existe
+  //   tras 30 min), no queda ninguna orden a mercado abierta en ese par y el cuadre con el saldo real de esta vuelta ha terminado bien (lo ejecutado
+  //   queda apuntado). Si algo no se puede comprobar, sigue bloqueada. A las 24 h sin resolver, aviso.
+  const resuelveDudosas = async () => { for (const [k, v] of Object.entries(DUD)) { const ent = typeof v === "string" ? { t: v.split("|")[0], id: null, avisado: v.includes("|avisado") } : v, edad = +now - Date.parse(ent.t);
+      let ok = false;
+      if (cuadreOk && edad >= 10 * 60e3) {
+        if (ent.id && X0.estadoOrden) { try { const st = await X0.estadoOrden(k, ent); const fin = st && (st.final || (st.noExiste && edad >= 30 * 60e3)); const pend = X0.abiertas ? await X0.abiertas(k, ent) : 0; ok = !!fin && pend === 0; } catch (e) { ok = false; } }
+        else ok = !ent.id && edad >= 24 * 3600e3;   // sin identificador (de versiones anteriores): solo tras 24 h y con el cuadre del saldo hecho
+      }
+      if (ok) { delete DUD[k]; if (RS) L(RS, now, `✅ ${k.split("-")[0]}: la orden dudosa queda resuelta (comprobada en ${EX} y cuadrada con el saldo real); se puede volver a operar`); continue; }
+      if (edad > 24 * 3600e3 && !ent.avisado) { DUD[k] = { ...ent, avisado: 1 }; msgs.push(`💶 ⚠️ ${EX}: una orden de ${k.split("-")[0]} sigue sin resultado confirmado desde hace más de 24 h. No opero esa cripto hasta poder comprobarla; revísala en ${EX}.`); } else DUD[k] = ent; } return DUD; };
   const copia = SUBS_OK.includes(ctl.copia) ? ctl.copia : "mix", objetivo = Math.max(10, Math.round(+ctl.capital || CAPITAL));
   // saldo libre en euros en la cuenta de Bitvavo (una consulta por vuelta, solo si hace falta)
   let libre0 = null; const libre = async () => (libre0 != null ? libre0 : (libre0 = X.saldoEur ? await X.saldoEur() : Infinity));
@@ -252,7 +264,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (X.saldos) try { const B = await X.saldos(), PX = X.precios ? await X.precios().catch(() => null) : null, act = []; let tot = +(B.EUR || 0);
         for (const [sym, q] of Object.entries(B)) { if (sym === "EUR") continue; const m = sym + "-EUR", bid = (PX && PX[sym]) || (tick[m] ? tick[m].bid : 0), v = q * bid; tot += v; if (v >= 0.01) act.push({ sym, q, eur: r2(v), px: bid }); }
         RS.cuenta = { t: now.toISOString(), eur: r2(+(B.EUR || 0)), total: r2(tot), activos: act.sort((a, b) => b.eur - a.eur) }; } catch (e) {}
-      if (RS) RS.dudosas = resuelveDudosas(); return { RS, msgs, ctl };
+      if (RS) RS.dudosas = await resuelveDudosas(); return { RS, msgs, ctl };
     }
     if (RS.paradaAt) { delete RS.paradaAt; delete RS.retomar; delete RS.avisoRetomar; }
     // al reanudar tras una parada, el freno se mide desde lo que hay ahora (si no, volvería a saltar al momento)
@@ -312,7 +324,9 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       // v295 · 🛡️ revisión cada 30 min: toda posición sin stop de emergencia confirmado lo vuelve a intentar
       // (v297: también se COMPRUEBA que los stops puestos siguen activos y cubren lo que hay; si no, se vuelven a poner)
       if (!RS.stopRev || now - Date.parse(RS.stopRev) > 30 * 60e3) { RS.stopRev = now.toISOString(); for (const m of Object.keys(RS.pos)) { const p = RS.pos[m]; let vale = !!p.stopId;
-        if (vale && X.estadoStop) try { const e = await X.estadoStop(m, p.stopId); if (e && (!e.activo || (e.q > 0 && e.q < p.q * 0.97))) { vale = false; L(RS, now, `🛡️ ${p.sym}: el stop de emergencia ya no estaba activo o no cubría todo; se vuelve a poner`); msgs.push(`💶 🛡️ ${EX}: el stop de emergencia de ${p.sym} había desaparecido o no cubría todo; lo he vuelto a poner.`); delete p.stopId; } } catch (e) {}
+        if (vale && X.estadoStop) try { const e = await X.estadoStop(m, p.stopId); if (e && (!e.activo || (e.q > 0 && e.q < p.q * 0.97))) { vale = false; L(RS, now, `🛡️ ${p.sym}: el stop de emergencia ya no estaba activo o no cubría todo; se vuelve a poner`); msgs.push(`💶 🛡️ ${EX}: el stop de emergencia de ${p.sym} había desaparecido o no cubría todo; lo he vuelto a poner.`); delete p.stopId; } else if (e) { p.stopEst = "ok"; delete p.stopSinComprobar; } }
+          catch (e) { p.stopEst = "sin comprobar"; p.stopSinComprobar = (p.stopSinComprobar || 0) + 1; RS.stopRev = null;   // v463 · si no se puede comprobar, NO se da por bueno: se vuelve a mirar en la vuelta siguiente y, a la 3.ª vez, aviso
+            if (p.stopSinComprobar === 3) msgs.push(`💶 ⚠️ ${EX}: no consigo comprobar que el stop de emergencia de ${p.sym} siga activo. Lo sigo intentando (el bot la vigila con su stop); si puedes, míralo en ${EX}.`); }
         if (!vale) await protege(m); } }
       // v449 · 💸 si en la cuenta hay menos euros de los que el bot tenía apuntados, es dinero que has sacado o usado TÚ: no es una pérdida del bot,
       // así que la base de los frenos (el saldo inicial y el del principio del día) baja lo mismo y los frenos no saltan por eso
@@ -452,7 +466,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   }
   const e2 = valor(RS, tick); RS.eq.push([now.toISOString(), r2(e2), r2(RS.start)]);   // v266 · también lo aportado hasta entonces (para no contar ingresos como ganancia) if (RS.eq.length > 3000) RS.eq = RS.eq.filter((_, i) => i % 2 === 0 || i > RS.eq.length - 500);
   RS.lastEq = r2(e2); RS.last = now.toISOString();
-  if (RS) RS.dudosas = resuelveDudosas(); return { RS, msgs, ctl };
+  if (RS) RS.dudosas = await resuelveDudosas(); return { RS, msgs, ctl };
 }
 // día en España (para el freno diario)
 export const diaES = (d) => new Date(d).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });

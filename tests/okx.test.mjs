@@ -23,6 +23,7 @@ function okx(px) {
       ex.bal = ex.bal || {}; if (b.side === "buy") { ex.bal[base] = (ex.bal[base] || 0) + fill - (feeCcy === base ? fee : 0); if (quote !== "EUR") ex.bal[quote] = (ex.bal[quote] || 0) - +b.sz; } else { ex.bal[base] = (ex.bal[base] || 0) - fill; if (quote !== "EUR") ex.bal[quote] = (ex.bal[quote] || 0) + fill * p - fee; }
       ex.ords[id] = { ordId: id, state: "filled", accFillSz: String(fill), avgPx: String(p), fee: String(-fee), feeCcy }; assert.ok(b.clOrdId, "v291: cada orden lleva su identificador"); ex.ords[b.clOrdId] = ex.ords[id]; return R({ code: "0", data: [{ ordId: id, sCode: "0" }] });
     }
+    if (u.pathname === "/api/v5/trade/orders-pending") return R({ code: "0", data: ex.pend || [] });
     if (u.pathname === "/api/v5/trade/order" && o.method === "GET") return R({ code: "0", data: [ex.ords[u.searchParams.get("ordId") || u.searchParams.get("clOrdId")]] });
     return R({ code: "50000", msg: "?", data: [] });
   };
@@ -112,4 +113,10 @@ test("OKX v460: si la respuesta de la orden se pierde por TIEMPO DE ESPERA (la o
   ex.api = OK.cliente("KEY", "SEC", "FRASE", ex.fx);
   const X = OK.adaptador(ex.api, ex.I, tk("AAA-EUR", 2)), c = await X.comprar("AAA-EUR", 20);
   assert.equal(ex.orders.length, 1, "una sola orden"); assert.ok(Math.abs(c.q - 9.98) < 1e-9, "apunta lo que de verdad se compró");
+});
+
+test("OKX v463: una orden se puede comprobar después por su clOrdId (estado final, cantidad) y se ven las órdenes a mercado abiertas", async () => {
+  const ex = okx({ "AAA-EUR": 2 }), X = OK.adaptador(ex.api, ex.I, tk("AAA-EUR", 2)); await X.comprar("AAA-EUR", 20);
+  const st = await X.estadoOrden("AAA-EUR", { id: ex.orders[0].clOrdId, inst: "AAA-EUR" }); assert.equal(st.final, true); assert.ok(st.lleno > 0);
+  assert.equal(await X.abiertas("AAA-EUR", { inst: "AAA-EUR" }), 0); ex.pend = [{ ordType: "market" }, { ordType: "conditional" }]; assert.equal(await X.abiertas("AAA-EUR", { inst: "AAA-EUR" }), 1);
 });
