@@ -16,7 +16,7 @@ const H = 3600e3;
 function mundo(o = {}) {
   const W = { eq: o.eq ?? 100, neto: o.neto ?? 100, px: { BTC: 100, ETH: 10, SOL: 5, ...(o.px || {}) }, pos: {}, stops: [], oid: 1, fills: [], ordenes: [], refs: new Set(), guardado: null, avisos: [],
     ctl: o.ctl === undefined ? { estado: "on", uso: 100, plazas: 5, freno: 0.35, puesto: 1 } : o.ctl, ctlFallo: o.ctlFallo || null, refsFallo: !!o.refsFallo,
-    falloStop: o.falloStop || 0, stopIncompleto: o.stopIncompleto || 0, fillsRoto: !!o.fillsRoto, estadoRoto: !!o.estadoRoto, guardarFalla: !!o.guardarFalla, ledgerFallo: !!o.ledgerFallo, rompeTrasCierre: !!o.rompeTrasCierre, cancelFalla: o.cancelFalla || 0, marcasFallo: !!o.marcasFallo, ordenesFallo: !!o.ordenesFallo, lab: o.lab || null, falloCierre: new Set(o.falloCierre || []), parcial: o.parcial || 0, timeoutAbrir: !!o.timeoutAbrir, quiere: o.quiere || [] };
+    falloStop: o.falloStop || 0, stopIncompleto: o.stopIncompleto || 0, fillsRoto: !!o.fillsRoto, estadoRoto: !!o.estadoRoto, guardarFalla: !!o.guardarFalla, ledgerFallo: !!o.ledgerFallo, rompeTrasCierre: !!o.rompeTrasCierre, cancelFalla: o.cancelFalla || 0, marcasFallo: !!o.marcasFallo, ordenesFallo: !!o.ordenesFallo, borrarFalla: !!o.borrarFalla, lab: o.lab || null, falloCierre: new Set(o.falloCierre || []), parcial: o.parcial || 0, timeoutAbrir: !!o.timeoutAbrir, quiere: o.quiere || [] };
   for (const p of o.pos || []) { W.pos[p.c] = { szi: p.szi, entryPx: p.px ?? W.px[p.c] }; W.fills.push({ coin: p.c, dir: p.szi > 0 ? "Open Long" : "Open Short", time: Date.now() - (p.edadH ?? 1) * H, px: p.px ?? W.px[p.c], sz: Math.abs(p.szi) }); }
   for (const s of o.stops || []) W.stops.push({ coin: s.c, oid: W.oid++, ...(s.side ? { side: s.side } : {}), sz: String(s.sz), origSz: String(s.sz), triggerPx: String(s.trig), isTrigger: !s.limite, orderType: s.limite ? "Limit" : s.tipo || "Stop Market", reduceOnly: s.noReduce ? false : true });
   // v466 · con posiciones de partida, el bot ya tenía su estado (salvo que la prueba diga lo contrario)
@@ -30,8 +30,9 @@ function mundo(o = {}) {
     if (u.includes("/ia-lab/ia-lab.json")) return j({});
     if (u.includes("/contents/hl-real.json")) return W.guardado ? j({ t: W.guardado.t }) : j({}, 404);
     if (u.endsWith("/git/refs") && init.method === "POST") { if (W.refsFallo) return j({}, 500); if (W.refs.has(body.ref)) return j({ message: "Reference already exists" }, 422); W.refs.add(body.ref); return j({ ref: body.ref }, 201); }
-    if (u.includes("/git/matching-refs/")) { if (W.marcasFallo && u.includes("hl-freno")) return j({}, 500); const pre = "refs/" + u.split("/git/matching-refs/")[1]; return j([...W.refs].filter((r) => r.startsWith(pre)).map((ref) => ({ ref }))); }
+    if (u.includes("/git/matching-refs/")) { if (W.marcasFallo && u.includes("hl-freno")) return j({}, 500); const q = u.split("/git/matching-refs/")[1], pre = "refs/" + q.split("?")[0], pg = +((q.match(/[?&]page=(\d+)/) || [])[1] || 1), pp = +((q.match(/per_page=(\d+)/) || [])[1] || 1e9); return j([...W.refs].filter((r) => r.startsWith(pre)).sort().slice((pg - 1) * pp, pg * pp).map((ref) => ({ ref }))); }
     if (u.includes("/git/ref/tags/")) return W.refs.has("refs/" + u.slice(u.indexOf("/git/ref/") + 9)) ? j({}) : j({}, 404);
+    if (init.method === "DELETE" && u.includes("/git/refs/") && W.borrarFalla) return j({}, 500);
     if (init.method === "DELETE" && u.includes("/git/refs/")) { W.refs.delete(u.slice(u.indexOf("refs/"))); return j({}, 204); }
     if (u.endsWith("/info")) {
       const pos = () => Object.entries(W.pos).filter(([, p]) => p.szi !== 0).map(([c, p]) => ({ position: { coin: c, szi: String(p.szi), entryPx: String(p.entryPx), unrealizedPnl: String((W.px[c] - p.entryPx) * p.szi), positionValue: String(Math.abs(p.szi) * W.px[c]) } }));
@@ -315,4 +316,19 @@ test("v468 · al rearmar el freno se borran sus marcas viejas; un 422 solo cuent
   assert.equal([...W.refs].filter((r) => r.includes("hl-freno-")).length, 1);
   W.eq = 100; W.ctl = { ...W.ctl, t: new Date(Date.now() + 2000).toISOString() }; await otraHora(W); assert.equal([...W.refs].filter((r) => r.includes("hl-freno-")).length, 0, "marcas limpiadas al rearmar");
   assert.equal(await HL.ponMarcaFreno(new Date().toISOString()), true); assert.equal(await HL.ponMarcaFreno(new Date().toISOString()), true, "ya existe (422) y se comprueba que está");
+});
+
+// ---------- v469 ----------
+test("v469 · una orden condicional de tipo DESCONOCIDO no se cancela nunca (ni con posición ni sin ella): se avisa una vez", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: -0.1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108 }, { c: "BTC", side: "B", sz: 0.1, trig: 105, tipo: "Trailing Stop" }, { c: "SOL", side: "B", sz: 1, trig: 4, tipo: "Algo Nuevo" }] }); conecta(W); await silencio(() => HL.ronda());
+  assert.ok(W.stops.some((z) => z.orderType === "Trailing Stop") && W.stops.some((z) => z.orderType === "Algo Nuevo"), "no se tocan");
+  assert.equal(W.avisos.filter((t) => /tipo que el bot no conoce/.test(t)).length, 1);
+  await otraHora(W); assert.equal(W.avisos.filter((t) => /tipo que el bot no conoce/.test(t)).length, 1, "no repite el aviso cada hora");
+});
+test("v469 · limpieza de marcas del freno: TODAS (más de 100, por páginas) y comprobada; si no se puede borrar, aviso una vez", async () => {
+  const W = mundo({}); conecta(W); const t0 = Date.UTC(2026, 0, 1); for (let i = 0; i < 150; i++) W.refs.add("refs/tags/hl-freno-" + new Date(t0 + i * 60e3).toISOString().replace(/\D/g, "").slice(0, 14));
+  assert.equal(await HL.limpiaMarcasFreno(Date.now()), true); assert.equal([...W.refs].filter((r) => r.includes("hl-freno-")).length, 0, "las 150 borradas");
+  W.refs.add("refs/tags/hl-freno-20260101000000"); W.borrarFalla = true; assert.equal(await HL.limpiaMarcasFreno(Date.now()), false, "no se pudo: lo dice");
+  const W2 = mundo({ borrarFalla: true, ctl: { estado: "on", uso: 100, plazas: 5, freno: 0.35, puesto: 1, t: new Date().toISOString() } }); W2.refs.add("refs/tags/hl-freno-20260101000000"); conecta(W2); await silencio(() => HL.ronda());
+  assert.equal(W2.avisos.filter((t) => /marcas viejas del freno/.test(t)).length, 1); await otraHora(W2); assert.equal(W2.avisos.filter((t) => /marcas viejas del freno/.test(t)).length, 1, "una sola vez");
 });

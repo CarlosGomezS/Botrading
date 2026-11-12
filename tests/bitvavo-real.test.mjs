@@ -177,7 +177,7 @@ test("Real v243: cada cuenta se enciende o apaga por separado (ninguna, una o la
   const ex = exchange({ "A-EUR": 1 }), f0 = globalThis.fetch; globalThis.fetch = ex.fx;
   try {
     store["bitvavo-ctl/ctl.json"] = { copia: "mix", parado: false, cuentas: { bitvavo: { on: false }, okx: { on: false } } };
-    S.sub.mix.pos = { "A-EUR": { sym: "A", px: 1, cost0: 20, cost: 20, q: 1, q0: 1, t0: new Date(Date.now() + 2000).toISOString() } };
+    S.sub.mix.pos = { "A-EUR": { sym: "A", px: 1, cost0: 20, cost: 20, q: 1, q0: 1, t0: new Date(Date.now() + 120000).toISOString() } };   // v469 · margen amplio: con 2 s fallaba en máquinas lentas
     await RL.paso(S, tk(ex.px), new Date(), io); assert.equal(ex.orders.length, 0, "ninguna encendida: no opera"); assert.equal(S.real.estado, "apagado");
     store["bitvavo-ctl/ctl.json"].cuentas.bitvavo.on = true; delete S.conex;
     await RL.paso(S, tk(ex.px), new Date(), io); assert.equal(ex.orders.length, 1, "encendida: copia la compra"); assert.equal(S.real.cuentas.bitvavo.estado, "activo");

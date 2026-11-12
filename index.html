@@ -646,7 +646,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 468 · jueves 12 de noviembre de 2026">✦ 26.11.12 «Fénix» <small>#468</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 469 · jueves 12 de noviembre de 2026">✦ 26.11.12 «Fénix» <small>#469</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1850,7 +1850,7 @@ function labM(g){g=labNorm(g);const per=g.bl||g.base?"m":g.p;return{n:labName(g)
  src:"Creado por el laboratorio del bot combinando reglas con estudios: fuerza relativa (Faber 2010; Jegadeesh y Titman 1993), tendencia de 10 meses (Faber 2007) y momentum ajustado por riesgo (Barroso y Santa-Clara 2015).",
  d:g.bl?"La mitad del dinero sigue un método y la otra mitad el otro: dos reglas que funcionan por separado suelen dar menos sustos juntas.":(g.z&&g.z!=="mom"?({lv:"Estilo «tranquilos»: de los que suben, se queda con los de menor volatilidad (anomalía de baja volatilidad, Blitz y van Vliet 2007). ",rev:"Estilo «compra en caídas»: dentro de una tendencia alcista, compra los que más han bajado el último mes (reversión a corto plazo, Connors). ",acel:"Estilo «aceleración»: elige los que más aceleran (subida de 3 meses frente a la de 12). ",rp:"Estilo «paridad de riesgo»: invierte en todos los que están en tendencia, con menos dinero en los más volátiles (Dalio, Faber). ",kel:"Estilo Keller: puntúa la fuerza con más peso en el último mes (12×1 mes + 4×3 meses + 2×6 meses + 12 meses) y solo compra lo que puntúa en positivo (Keller y Keuning 2017). ",tend:"Estilo «tendencia en cada activo» (Faber, GTAA): reparte a partes iguales entre todos los activos del grupo y aparta los que caen bajo su media; no elige ganadores. "})[g.z]:"")+(g.cn?"Con canarios (Keller, DAA): si los emergentes y los bonos empiezan a caer, saca la mitad o todo antes de que caiga la bolsa. ":"")+`Cada ${g.p==="q"?"trimestre":"mes"} elige ${g.t===1?"el más fuerte":"los "+g.t+" más fuertes"} de ${LABU[g.u].n} según su subida de ${labLbT(g)} meses${g.s?" (sin contar el último mes)":""}${g.a?", dividida por su volatilidad":""}${g.f?"; solo compra los que están sobre su media de 10 meses":""}${g.r?"; lo que no se invierte va a "+(g.r==="GLD"?"oro":"bonos de EE. UU. a 7-10 años"):"; lo que no se invierte queda en efectivo"}${g.i?"; pone menos dinero en los más volátiles":""}.`,
  target:labTgt(g)}}
-function labS(){S.lab=S.lab&&typeof S.lab==="object"?S.lab:{};const L=S.lab;L.pop=L.pop||{};L.keep=L.keep||{};L.pend=L.pend||{};L.near=Array.isArray(L.near)?L.near:[];L.tried=Array.isArray(L.tried)?L.tried:[];L.log=Array.isArray(L.log)?L.log:[];L.off=L.off||{};L.st=L.st||{};if(L.v!==2){L.v=2;L.st={};L.near=L.near.map(x=>({...x,sc:x.sc||0}))}return L}
+function labS(){S.lab=S.lab&&typeof S.lab==="object"?S.lab:{};const L=S.lab;L.pop=L.pop||{};L.keep=L.keep||{};L.pend=L.pend||{};L.near=Array.isArray(L.near)?L.near:[];L.tried=Array.isArray(L.tried)?L.tried:[];L.log=Array.isArray(L.log)?L.log:[];L.off=L.off||{};L.st=L.st||{};if(L.v!==2){L.v=2;L.st={};L.near=L.near.map(x=>({...x,sc:x.sc||0}))}if(L.nearIS!==469){L.nearIS=469;L.near=[]}   /* v469 · las madres antiguas se ordenaban con la rentabilidad completa (incluía los 2 años ocultos): se vacían una vez */return L}
 /* v143 · ARCHIVO: ningún método aprobado se borra nunca. Cuando sale de la liga (porque hay 20 mejores o porque deja de aprobar con los datos
    nuevos) se guarda aquí; cada ronda se vuelven a examinar 15 del archivo y, si vuelven a ser de los mejores, vuelven solos a la liga. */
 function labArch(L,k,d,why){try{const x=L.pop[k];if(!x||!x.g)return;L.arch=L.arch||{};L.arch[k]={g:x.g,an:x.an??null,born:x.born||d,out:d,why:String(why||"").slice(0,120)};
@@ -1913,9 +1913,9 @@ function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=
    if(Math.random()<0.3)g.cn=1;g.t=1+Math.floor(Math.random()*3);let gn;try{gn=labNorm(g)}catch(e){continue}if(add(gn,"🌱 familia nueva"))put++}}
  // 1) variantes cercanas de los aprobados provisionales (prueba de estabilidad)
  for(const [k,x] of Object.entries(L.pend))for(const g of labNbrs(x.g)){const kk=labKey(g);if(T.has(kk)||L.pop[kk])continue;add(g,"vecino:"+k)}
- const par=[...Object.values(L.pop).map(x=>x.g),...L.near.map(x=>x.g)].filter(g=>g&&!g.bl&&!g.base);
+ const par=L.near.map(x=>x.g).filter(g=>g&&!g.bl&&!g.base);   /* v469 · solo madres elegidas con datos de ANTES del examen (antes también la liga, que está elegida con él) */
  // 2) una mezcla 50/50 de dos buenos (o de uno bueno con la Tendencia QQQ)
- const good=Object.values(L.pop).map(x=>x.g).filter(g=>!g.bl);if(good.length&&Math.random()<0.6){const A=good[Math.floor(Math.random()*good.length)],Bs=good.filter(g=>g!==A),B=Bs.length&&Math.random()<0.6?Bs[Math.floor(Math.random()*Bs.length)]:{base:"trq"};if(MX(B.base||"x")||!B.base)add({bl:[A,B]},"mezcla")}
+ const good=L.near.slice(0,8).map(x=>x.g).filter(g=>g&&!g.bl&&!g.base);   /* v469 · igual para las mezclas */if(good.length&&Math.random()<0.6){const A=good[Math.floor(Math.random()*good.length)],Bs=good.filter(g=>g!==A),B=Bs.length&&Math.random()<0.6?Bs[Math.floor(Math.random()*Bs.length)]:{base:"trq"};if(MX(B.base||"x")||!B.base)add({bl:[A,B]},"mezcla")}
  // 3) muchos candidatos: variaciones de los mejores, saltos largos y exploración (unos 12 por hueco)
  const pool=[],pk=new Set(),put=(g,why)=>{g=labNorm(g);const k=labKey(g);if(!ok(k)||pk.has(k))return;pk.add(k);pool.push({g,why})};
  const left=n-out.length;let guard=0;
@@ -1927,7 +1927,7 @@ function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=
  const mdl=(L.hist||[]).length>=30;pool.forEach(x=>{x.p=mdl?labPred(L,x.g):null});
  /* v119 · VARIEDAD: el 30 % de cada ronda busca en familias distintas de la que domina la liga (otros grupos de ETF, comprar 2 o 3 en vez de 1…),
     partiendo de lo mejor que ya se sabe de cada familia. Así el laboratorio no se encierra en una sola idea. */
- try{const fams={};for(const x of Object.values(L.pop))if(x.g&&!x.g.bl&&!x.g.base){const f=labFam(x.g);fams[f]=(fams[f]||0)+1}
+ try{const fams={};for(const x of L.near)if(x.g&&!x.g.bl&&!x.g.base){const f=labFam(x.g);fams[f]=(fams[f]||0)+1}   /* v469 · familia dominante según las madres (sin mirar el examen) */
   const dom=Object.keys(fams).sort((a,b)=>fams[b]-fams[a])[0]||null,byF={};
   for(const [hv,sc] of (L.hist||[])){const g={};LABGK.forEach((k,i)=>{if(hv[i]!=null)g[k]=hv[i]});if(!LABU[g.u])continue;const f=labFam(g);if(f===dom)continue;(byF[f]=byF[f]||[]).push({g,sc})}
   for(const x of [...L.near.map(z=>({g:z.g,sc:z.sc||0}))])if(x.g&&!x.g.bl&&!x.g.base&&LABU[x.g.u]&&labFam(x.g)!==dom)(byF[labFam(x.g)]=byF[labFam(x.g)]||[]).push(x);
@@ -1944,7 +1944,7 @@ function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=
  const rest=pool.filter(x=>!out.some(o=>o.k===labKey(x.g)));for(let z=rest.length-1;z>0;z--){const w=Math.floor(Math.random()*(z+1));[rest[z],rest[w]]=[rest[w],rest[z]]}
  for(const x of rest){if(out.length>=n)break;add(x.g,"🎲 "+x.why,x.p&&x.p.pred)}
  // 5) si aun así faltan (casi imposible): mezclas 50/50 entre cualquier par de la liga y exploración pura, hasta completar la ronda
- const lg=Object.values(L.pop).map(x=>x.g).filter(g=>!g.bl);guard=0;while(out.length<n&&lg.length>1&&guard++<200){const A=lg[Math.floor(Math.random()*lg.length)],B=lg[Math.floor(Math.random()*lg.length)];if(A!==B)add({bl:[A,B]},"mezcla")}
+ const lg=L.near.map(x=>x.g).filter(g=>g&&!g.bl&&!g.base);guard=0;   /* v469 · de las madres, no de la liga */while(out.length<n&&lg.length>1&&guard++<200){const A=lg[Math.floor(Math.random()*lg.length)],B=lg[Math.floor(Math.random()*lg.length)];if(A!==B)add({bl:[A,B]},"mezcla")}
  guard=0;while(out.length<n&&guard++<5000){let g=labRand(L);for(let z=0;z<4;z++)g=labMut(L,g);add(g,"🎲 salto")}
  // v143: 15 del archivo (los que hace más tiempo que no se revisan) se vuelven a examinar en esta ronda
  try{const A=L.arch||{},q=Object.keys(A).filter(k=>!L.pop[k]&&!seen.has(k)).sort((a,b)=>String(A[a].chk||A[a].out||"").localeCompare(String(A[b].chk||A[b].out||""))).slice(0,15);L.archQ=q;for(const k of q)if(!BTX[k]&&!STR[k])BTX[k]=labM(A[k].g)}catch(e){L.archQ=[]}
@@ -1973,13 +1973,15 @@ function labExam0(b,k){const v=btmVerd(b,k),r=b.rows[k],sp=b.rows.spy;if(!v||!r|
 function labLearn(L,g,good){if(!g||g.bl||g.base)return;const q=typeof good==="number"?good:good?1:0;for(const pc of Object.keys(LABV)){const st=L.st[pc]=L.st[pc]||{},x=st[String(g[pc]??LABD[pc]??0)]=st[String(g[pc]??LABD[pc]??0)]||[0,0];x[0]++;x[1]=+(x[1]+q).toFixed(3)}}
 function labJudge(b,trials){const L=labS(),d=T0();let born=0;const keepRow=new Set();
  for(const {k,g,why,pr} of trials){L.tried.push(k);const e=labExam(b,k);labLearn(L,g,e.sc!=null?e.sc*e.sc:e.beat);
+  /* v469 · 🔒 MADRES DE LAS MUTACIONES: todas las probadas (aprueben o no) se ordenan SOLO con lo anterior a los 2 años ocultos (nota y rentabilidad de antes del examen) */
+  if(!(why||"").startsWith("vecino:")&&g&&!g.bl&&!g.base&&e.anIS!=null){L.near=L.near.filter(x=>labKey(x.g)!==k);L.near.push({g,an:e.anIS,sc:+(e.sc||0).toFixed(3),dd:e.dd,why:e.why,d});L.near.sort((x,y)=>(y.sc||0)-(x.sc||0)||(y.an??-9)-(x.an??-9));L.near=L.near.slice(0,15)}
   try{if(/^🤖/.test(why||"")){L.iaRes=L.iaRes||{};L.iaRes[k]={g,an:e.an!=null?+(+e.an).toFixed(4):null,ok:!!e.ok,por:e.ok?"":String(e.why||"").slice(0,120),ais:e.anIS!=null?+(+e.anIS).toFixed(4):null,okis:e.okIS!=null?!!e.okIS:null,d};const ks=Object.keys(L.iaRes);if(ks.length>80)for(const z of ks.slice(0,ks.length-80))delete L.iaRes[z]}}catch(_){}   /* v366 · resultado de cada idea de la IA (el ayudante lo lee para aprender) */
   if(g&&!g.bl&&!g.base&&e.sc!=null){L.hist=Array.isArray(L.hist)?L.hist:[];L.hist.push([labVec(g),+e.sc.toFixed(3)]);if(L.hist.length>6000)L.hist=L.hist.slice(-6000);
    if(pr!=null){const er=Math.abs(pr-e.sc);L.ai=L.ai||{n:0,mae:null,base:null};L.ai.n++;L.ai.mae=L.ai.mae==null?er:0.95*L.ai.mae+0.05*er}}
   if(why&&why.startsWith("vecino:")){const pk=why.slice(7),P=L.pend[pk];if(P){P.nb=P.nb||[];P.nb.push(e.beat?1:0)}}
   if(e.ok&&g&&(g.bl||g.base)){L.pop[k]={g,born:d,an:e.an};keepRow.add(k);born++;L.log.unshift({d,k,n:labName(g),ev:"nace",why:`mezcla de dos métodos ya estables que aprueba el examen y el examen oculto (${P(e.an*100)}/año): entra en la liga`})}
   else if(e.ok&&!(why||"").startsWith("vecino:")){L.pend[k]={g,born:d,an:e.an,nb:[]};born++;keepRow.add(k);L.log.unshift({d,k,n:labName(g),ev:"aprueba",why:`examen aprobado (${P(e.an*100)}/año): mañana prueba de estabilidad`})}
-  else{if(e.an!=null&&!g.bl&&!g.base){L.near.push({g,an:e.an,sc:+(e.sc||0).toFixed(3),dd:e.dd,why:e.why,d});L.near.sort((x,y)=>(y.sc||0)-(x.sc||0)||y.an-x.an);L.near=L.near.slice(0,15)}if(!L.pend[k]&&!L.pop[k]&&!L.keep[k]){delete BTX[k];delete b.rows[k];}}}
+  else{if(!L.pend[k]&&!L.pop[k]&&!L.keep[k]){delete BTX[k];delete b.rows[k];}}}
  // prueba de estabilidad: al menos 1 de sus 2 variantes cercanas gana al SPY
  for(const [k,x] of Object.entries(L.pend)){if(keepRow.has(k))continue;const nb=x.nb||[];
   if(nb.some(Boolean)){const e=labExam(b,k);if(e.ok){L.pop[k]={g:x.g,born:x.born,an:e.an};L.log.unshift({d,k,n:labName(x.g),ev:"nace",why:"pasa la prueba de estabilidad: entra en la liga"})}delete L.pend[k]}
