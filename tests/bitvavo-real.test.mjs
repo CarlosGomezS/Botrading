@@ -17,7 +17,7 @@ function exchange(px, opts = {}) {
     if (u.pathname === "/v2/balance") { const all = [{ symbol: "EUR", available: String(ex.eur), inOrder: "0" }, ...Object.entries(ex.bal).filter(([, q]) => q > 1e-12).map(([m, q]) => ({ symbol: m.replace("-EUR", ""), available: String(q), inOrder: "0" }))]; const sy = u.searchParams.get("symbol"); return R(200, sy ? all.filter((x) => x.symbol === sy) : all); }
     if (u.pathname === "/v2/assets") return R(200, { symbol: u.searchParams.get("symbol"), decimals: 4 });
     if (u.pathname === "/v2/order" && o.method === "POST") {
-      const b = JSON.parse(o.body); assert.equal(typeof b.operatorId, "number"); if (b.orderType === "stopLoss") { ex.stops = ex.stops || {}; const id = "S" + Object.keys(ex.stops).length; ex.stops[id] = b; return R(200, { orderId: id }); }
+      const b = JSON.parse(o.body); assert.equal(typeof b.operatorId, "number"); if (b.orderType === "stopLoss" && ex.falloStop) { ex.falloStop--; return R(400, { errorCode: 205, error: "stop rechazado (prueba)" }); } if (b.orderType === "market" && b.side === "sell" && ex.falloVenta && ex.falloVenta.has(b.market)) return R(400, { errorCode: 216, error: "venta rechazada (prueba)" }); if (b.orderType === "stopLoss") { ex.stops = ex.stops || {}; const id = "S" + Object.keys(ex.stops).length; ex.stops[id] = b; return R(200, { orderId: id }); }
       assert.equal(b.orderType, "market"); assert.ok(b.clientOrderId, "cada orden lleva su identificador"); if (ex.timeout) { ex.timeout--; ex.orders.push(b); ex.porId = ex.porId || {}; const p0 = ex.px[b.market], quote0 = +b.amountQuote / 1.0025, q0 = quote0 / p0; ex.bal[b.market] = (ex.bal[b.market] || 0) + q0; ex.porId[b.clientOrderId] = { filledAmount: String(q0), filledAmountQuote: String(quote0), feePaid: String(quote0 * 0.0025), feeCurrency: "EUR", status: "filled" }; return R(504, { errorCode: 999, error: "tiempo agotado" }); }
       ex.orders.push(b); const p = ex.px[b.market];
       if (b.side === "buy") { const quote = +b.amountQuote / 1.0025, q = quote / p; ex.bal[b.market] = (ex.bal[b.market] || 0) + q; return R(200, { filledAmount: String(q), filledAmountQuote: String(quote), feePaid: String(quote * 0.0025), feeCurrency: "EUR" }); }
@@ -67,7 +67,7 @@ test("Real: no persigue el precio, no copia compras viejas, respeta el mínimo y
   assert.ok(Math.abs(+ex.orders[1].amountQuote - 12.5) < 0.1, ex.orders[1].amountQuote);   // v286 · tope del 25 % por compra
 });
 
-test("Real: cambiar de método NO vende lo abierto (sigue con su método); /parar vende todo y no compra; el freno del −25 % para solo", async () => {
+test("Real: cambiar de método NO vende lo abierto (sigue con su método); /parar vende todo y no compra; el freno general para solo", async () => {
   const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
   const sp = { sym: "A", px: 1, cost0: 40, cost: 40, q: 1, q0: 1, t0: T(1).toISOString() };
   let { RS } = await RL.vuelta(null, { mix: fuente(), eq: fuente() }, { copia: "mix" }, tk(ex.px), T(0), deps);
@@ -396,4 +396,34 @@ test("Real v306: 🐋 copia a los profesionales: compra el 10 % cuando están co
   assert.ok(RS.pos["A-EUR"] && RS.pos["A-EUR"].src === "ballena" && Math.abs(RS.pos["A-EUR"].cost - 10) < 0.2);
   ex.px["A-EUR"] = 1.05; ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 100, ballenas: W({ entra: false, sale: true, s: 0.1 }) }, tk(ex.px), T(2), deps));
   assert.ok(!RS.pos["A-EUR"]);
+});
+
+// ---------- v460 · vender todo con fallos y renovar el stop sin dejar la posición desprotegida ----------
+test("Real v460: /parar con una venta que falla: vende las demás, avisa de lo que queda y lo reintenta en la vuelta siguiente", async () => {
+  const ex = exchange({ "A-EUR": 1, "B-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado, rapido: 1 };
+  const sp = { sym: "A", px: 1, cost0: 30, cost: 30, q: 1, q0: 1, t0: T(1).toISOString() }, sb = { ...sp, sym: "B" };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix" }, tk(ex.px), T(0), deps);
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp, "B-EUR": sb }) }, { copia: "mix" }, tk(ex.px), T(1), deps)); assert.ok(RS.pos["A-EUR"] && RS.pos["B-EUR"]);
+  ex.falloVenta = new Set(["A-EUR"]);
+  let o = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp, "B-EUR": sb }) }, { copia: "mix", parado: true }, tk(ex.px), T(2), deps);
+  assert.deepEqual(Object.keys(o.RS.pos), ["A-EUR"], "B vendida aunque A fallase"); assert.equal(o.RS.pendienteVenta, 1); assert.ok(o.msgs.some((x) => /quedan 1 sin vender/.test(x)));
+  ex.falloVenta = null; o = await RL.vuelta(o.RS, { mix: fuente({ "A-EUR": sp, "B-EUR": sb }) }, { copia: "mix", parado: true }, tk(ex.px), T(3), deps);
+  assert.equal(Object.keys(o.RS.pos).length, 0, "en la vuelta siguiente vende lo que quedaba"); assert.ok(!o.RS.pendienteVenta);
+});
+
+async function conStop(falloStop) {
+  const ex = exchange({ "AAA-EUR": 2 }), deps = { api: ex.api, mercado: ex.mercado, rapido: 1 };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix" }, tk(ex.px), T(0), deps);
+  const sp = { sym: "AAA", q: 10, q0: 10, px: 2.002, cost: 60, cost0: 60, t0: T(1).toISOString() };
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), T(1), deps)); assert.ok(RS.pos["AAA-EUR"].stopId, "stop puesto al comprar");
+  ex.falloStop = falloStop; ex.px["AAA-EUR"] = 2.1;   // el método vende la mitad → hay que RENOVAR el stop por la cantidad que queda
+  const o = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": { ...sp, q: 5, cob: 10.5 } }) }, { copia: "mix" }, tk(ex.px), T(3), deps);
+  return { ex, o };
+}
+test("Real v460: si el stop nuevo falla al renovarlo, vuelve a poner el anterior (la posición nunca se queda sin stop)", async () => {
+  const { ex, o } = await conStop(2); const p = o.RS.pos["AAA-EUR"];
+  assert.ok(p, "la posición sigue"); assert.equal(p.stopEst, "ok"); assert.ok(ex.stops[p.stopId], "hay un stop activo en el exchange");
+});
+test("Real v460: si fallan el stop nuevo Y el anterior, vende la posición (no la deja sin protección)", async () => {
+  const { o } = await conStop(3); assert.ok(!o.RS.pos["AAA-EUR"], "vendida");
 });

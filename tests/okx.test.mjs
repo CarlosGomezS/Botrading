@@ -105,3 +105,11 @@ test("OKX v298: orden que se queda a medias → se cancela lo que falta y se apu
   const I = { ABC: { EUR: { instId: "ABC-EUR", lot: 4, min: 0.1 } } }, X = OK.adaptador(api, I, { "ABC-EUR": { bid: 1, ask: 1 } });
   const r = await X.comprar("ABC-EUR", 5); assert.equal(r.q, 2, "solo lo ejecutado"); assert.ok(llamadas.includes("POST /api/v5/trade/cancel-order"), "cancela lo que falta");
 });
+
+test("OKX v460: si la respuesta de la orden se pierde por TIEMPO DE ESPERA (la orden sí entra), pregunta por su clOrdId y la apunta: nunca la da por rechazada ni manda otra", async () => {
+  const ex = okx({ "AAA-EUR": 2 }), fx0 = ex.fx; let cortes = 1;
+  ex.fx = async (url, o) => { const r = await fx0(url, o); if (o.method === "POST" && new URL(url).pathname === "/api/v5/trade/order" && cortes > 0) { cortes--; const e = new DOMException("The operation was aborted due to timeout", "TimeoutError"); throw e; } return r; };
+  ex.api = OK.cliente("KEY", "SEC", "FRASE", ex.fx);
+  const X = OK.adaptador(ex.api, ex.I, tk("AAA-EUR", 2)), c = await X.comprar("AAA-EUR", 20);
+  assert.equal(ex.orders.length, 1, "una sola orden"); assert.ok(Math.abs(c.q - 9.98) < 1e-9, "apunta lo que de verdad se compró");
+});

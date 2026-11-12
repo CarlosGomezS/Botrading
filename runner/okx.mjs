@@ -105,9 +105,9 @@ export function adaptador(api, I, tick = {}) {
   // v291 · 🔐 cada orden lleva su identificador (clOrdId): si la respuesta se pierde, se consulta ESA orden en vez de darla por fallida
   const orden = async (instId, side, sz, quote) => { const clOrdId = "bt" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     try { await api("POST", "/api/v5/trade/order", { instId, tdMode: "cash", side, ordType: "market", sz: String(sz), tgtCcy: quote ? "quote_ccy" : "base_ccy", clOrdId }); }
-    catch (e) { if (e && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code))) throw e; }   // error del propio OKX → se lanza; red/tiempo → se consulta
+    catch (e) { if (e && e.status && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code))) throw e; }   // error del propio OKX (con respuesta) → se lanza; red/tiempo/sin respuesta → SIEMPRE se consulta por su clOrdId (v460: antes un tiempo de espera se tomaba por rechazo)
     let ult = null;
-    for (let i = 0; i < 10; i++) { await sleep(i ? 500 : 150); let d = null; try { [d] = await api("GET", `/api/v5/trade/order?instId=${instId}&clOrdId=${clOrdId}`); } catch (e) { if (i >= 3 && /51603|no existe|does not exist/i.test(String(e.message))) throw new Error("OKX: la orden no llegó"); continue; } ult = d; if (d && (d.state === "filled" || (+d.accFillSz > 0 && d.state !== "live" && d.state !== "partially_filled"))) {
+    for (let i = 0; i < 10; i++) { await sleep(i ? 500 : 150); let d = null; try { [d] = await api("GET", `/api/v5/trade/order?instId=${instId}&clOrdId=${clOrdId}`); } catch (e) { if (i >= 6 && /51603|no existe|does not exist/i.test(String(e.message))) throw new Error("OKX: la orden no llegó"); continue; }   /* v460 · ~3,5 s preguntando antes de darla por no llegada */ ult = d; if (d && (d.state === "filled" || (+d.accFillSz > 0 && d.state !== "live" && d.state !== "partially_filled"))) {
       const fill = +d.accFillSz || 0, px = +d.avgPx || 0, fee = Math.abs(+d.fee || 0), base = instId.split("-")[0];
       return { fill, px, quote: fill * px, fee, feeCcy: d.feeCcy, base }; } }
     // v295 · se quedó a medias: se cancela lo que falta y se apunta EXACTAMENTE lo ejecutado
@@ -147,7 +147,7 @@ export function adaptador(api, I, tick = {}) {
   async function ponStop(m, q, px) { const R = ruta(I, m); if (!R || R.tipo !== "eur") return null; const sz = abajo(q, R.par.lot); if (!(sz > 0) || sz < R.par.min) return null;
     const algoClOrdId = "st" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);   // v295 · identificador propio: si se pierde la respuesta, se busca
     try { const [o] = await api("POST", "/api/v5/trade/order-algo", { instId: R.par.instId, tdMode: "cash", side: "sell", ordType: "conditional", sz: sz.toFixed(R.par.lot), slTriggerPx: String(+px.toPrecision(5)), slOrdPx: "-1", algoClOrdId }); if (o && o.algoId) return String(o.algoId); }
-    catch (e) { if (e && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code))) throw e; }
+    catch (e) { if (e && e.status && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code))) throw e; }
     await sleep(800); try { const [d] = await api("GET", `/api/v5/trade/order-algo?algoClOrdId=${algoClOrdId}`); if (d && d.algoId) return String(d.algoId); } catch (e) {} return null; }
   // v295 · USDC que quedó a medias (ruta EUR→USDC→cripto cortada) → a euros
   async function usdcAEur(q) { if (!I.USDC || !I.USDC.EUR) return null; const sz = abajo(q, I.USDC.EUR.lot); if (!(sz >= I.USDC.EUR.min) || sz < 5) return null; const ue = (tick["USDC-EUR"] && tick["USDC-EUR"].bid) || 0.9; const u = await orden(I.USDC.EUR.instId, "sell", sz.toFixed(I.USDC.EUR.lot), false); return { got: u.quote - (u.feeCcy === "EUR" ? u.fee : 0), est: sz * ue * 0.998 }; }

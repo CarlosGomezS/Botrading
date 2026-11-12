@@ -3,7 +3,7 @@
 //  · solo copia compras NUEVAS (de menos de 5 min) y no persigue el precio: si ya ha subido > 1,5 % desde la compra ficticia, no entra
 //  · cambiar de submodo en la app → vende lo abierto y empieza a copiar al nuevo
 //  · FRENOS: nunca usa más de 50 € (aunque haya más en la cuenta) · ninguna orden de más de 30 € · se para sola y vende todo si el
-//    saldo cae un 25 % (por debajo de 37,50 €) · /parar en Telegram o el botón de la app lo detiene al momento
+//    saldo cae un 35 % (v458; antes 25 %) · /parar en Telegram o el botón de la app lo detiene al momento
 //  · la clave de Bitvavo debe tener SOLO permiso de operar (nunca de retirar): aunque se filtrara, no podría sacar dinero
 // Privacidad: el estado va CIFRADO (REAL_VIEW_PASS) en la rama «bitvavo-real»; en público solo el estado (activo/parado), sin importes
 // ni criptos. La orden (submodo, parar/seguir) va en la rama «bitvavo-ctl». Nunca se escriben importes en los registros públicos.
@@ -157,7 +157,13 @@ export function desvioTort(eq, cv, now) {
   return { dias: Math.round((b - a) / 864e5), real: +((idx - 1) * 100).toFixed(2), sim: +((c1 / c0 - 1) * 100).toFixed(2) };
 }
 export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
-  const X = deps.ex || bitvavoEx(deps.api, deps.mercado, deps.saldoEur), mercado = X.mercado, EX = X.nombre, msgs = [];
+  const X0 = deps.ex || bitvavoEx(deps.api, deps.mercado, deps.saldoEur), mercado = X0.mercado, EX = X0.nombre, msgs = [];
+  // v460 · 🔒 ÓRDENES DUDOSAS: si una compra o venta termina sin resultado confirmado (se perdió la respuesta, sin estado final…), ese activo
+  //   queda bloqueado 2 horas: no se manda otra orden suya hasta que el cuadre con el saldo real del exchange lo haya resuelto. Nunca se duplica.
+  const DUD = (RS && RS.dudosas) || {}; for (const [k, t] of Object.entries(DUD)) if (+now - Date.parse(t) > 2 * 3600e3) delete DUD[k];
+  const esDudosa = (e) => /sin estado final|no se completó|no llegó|timeout|aborted|fetch failed|ECONN|ETIMEDOUT|socket|network/i.test(String((e && e.message) || e));
+  const envuelve = (fn) => async (m, ...a) => { if (DUD[m]) throw new Error("hay una orden anterior de este activo sin resultado confirmado; se espera al cuadre con el saldo"); try { return await fn(m, ...a); } catch (e) { if (esDudosa(e)) DUD[m] = now.toISOString(); throw e; } };
+  const X = { ...X0, comprar: X0.comprar && envuelve(X0.comprar.bind(X0)), vender: X0.vender && envuelve(X0.vender.bind(X0)) };
   const copia = SUBS_OK.includes(ctl.copia) ? ctl.copia : "mix", objetivo = Math.max(10, Math.round(+ctl.capital || CAPITAL));
   // saldo libre en euros en la cuenta de Bitvavo (una consulta por vuelta, solo si hace falta)
   let libre0 = null; const libre = async () => (libre0 != null ? libre0 : (libre0 = X.saldoEur ? await X.saldoEur() : Infinity));
@@ -180,12 +186,28 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   const tam = async (quiere, mk, frac = 1, muy = false) => { const V = valor(RS, tick), hueco = Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())), tope = Math.min(RS.cash, maxOrden(), hueco, V * TAM_MAX * frac, Math.max(0, (await libre()) - 0.5));
     const q = Math.min(Math.max(quiere, V * (muy ? TAM_MUY : TAM_COMPRA) * frac), tope); return alMinimo(q, mk); };
   RS.vistos = RS.vistos || {};
-  const vendeTodo = async (por) => { for (const m of Object.keys(RS.pos)) await cerrar(m, por); };
+  // v460 · 🧯 VENDER TODO: cada venta por separado (un fallo no impide intentar las demás). Lo que no se pueda vender sigue apuntado y se
+  //   reintenta en la vuelta siguiente (el bot se queda parado / en pausa mientras quede algo); se avisa de lo que no se ha podido vender.
+  const vendeTodo = async (por) => { const mal = []; for (const m of Object.keys(RS.pos)) { try { await cerrar(m, por); } catch (e) { mal.push(RS.pos[m] ? RS.pos[m].sym : m); L(RS, now, `⚠️ no pude vender ${RS.pos[m] ? RS.pos[m].sym : m} (${String((e && e.message) || e).replace(/[A-Za-z0-9+/=_-]{24,}/g, "…").slice(0, 80)}); se reintenta en la próxima vuelta`); } }
+    const quedan = Object.keys(RS.pos).filter((m) => !(ctl.conservar || []).includes(RS.pos[m] && RS.pos[m].sym)).length; RS.pendienteVenta = quedan || undefined;
+    if (quedan) msgs.push(`💶 🚨 ${EX}: he intentado vender todo (${por}), pero quedan ${quedan} sin vender${mal.length ? " (" + mal.join(", ") + ")" : ""}. Lo reintento en cada vuelta; mientras tanto siguen con su stop.`); return quedan; };
   // v291 · 🛡️ pone (o renueva) el stop de emergencia −10 % en el propio exchange; si falla, el bot sigue vigilando con su stop −6 %
   // v295 · cada posición tiene un estado claro: stopEst = «ok» (confirmado en el exchange) · «no disponible» (ese mercado no lo permite) · «error»
+  // v460 · al RENOVAR: el exchange reserva las criptos del stop, así que hay que quitar el viejo antes de poner el nuevo. Si el nuevo falla, se vuelve
+  //   a poner el viejo al momento; si tampoco se puede, la posición se VENDE (nunca se queda sin stop en el exchange cuando antes lo tenía).
   const protege = async (m) => { const p = RS.pos[m]; if (!p || (ctl.conservar || []).includes(p.sym)) return; if (!X.ponStop) { p.stopEst = "no disponible"; return; }
-    try { if (p.stopId) { await X.quitaStop(m, p.stopId); delete p.stopId; } const id = await X.ponStop(m, p.q, p.src === "tortuga" && p.stop > 0 ? Math.min(p.px * (1 - STOP_EMERG), p.stop * 0.97) : p.px * (1 - (p.src === "base" ? BASE_STOP + 0.03 : STOP_EMERG)));   /* v318 · el de emergencia, siempre por debajo del stop de su regla */ if (id) { p.stopId = id; p.stopEst = "ok"; delete p.stopErr; }
-      else { if (p.stopEst !== "no disponible") L(RS, now, `ℹ️ ${p.sym}: ${EX} no permite stop de emergencia en este mercado (la vigila el bot con su stop −6 %)`); p.stopEst = "no disponible"; } }
+    const pxN = p.src === "tortuga" && p.stop > 0 ? Math.min(p.px * (1 - STOP_EMERG), p.stop * 0.97) : p.px * (1 - (p.src === "base" ? BASE_STOP + 0.03 : STOP_EMERG));   /* v318 · el de emergencia, siempre por debajo del stop de su regla */
+    const intenta = async (px) => { try { return { id: await X.ponStop(m, p.q, px) }; } catch (e) { return { err: e }; } }, sleep = (ms) => new Promise((ok) => setTimeout(ok, deps.rapido ? 0 : ms));
+    try { const viejo = p.stopId, tenia = !!viejo || p.stopEst === "ok", pxV = p.stopPx || pxN;   // «tenía»: también si al vender una parte ya se quitó el stop anterior
+      if (viejo) { await X.quitaStop(m, viejo); delete p.stopId; }
+      let r = await intenta(pxN); if (!r.id && r.err) { await sleep(1500); r = await intenta(pxN); }
+      if (r.id) { p.stopId = r.id; p.stopPx = pxN; p.stopEst = "ok"; delete p.stopErr; return; }
+      if (tenia && r.err) { const rv = await intenta(pxV);   /* solo ante un ERROR: si el exchange dice que ese mercado/cantidad no admite stop, se vigila con el del bot */ if (rv.id) { p.stopId = rv.id; p.stopPx = pxV; p.stopEst = "ok"; L(RS, now, `⚠️ ${p.sym}: no pude mover el stop de emergencia; he vuelto a poner el anterior`); return; }
+        L(RS, now, `🚨 ${p.sym}: sin stop en ${EX} (no pude poner ni el nuevo ni el anterior): la vendo para no dejarla sin protección`);
+        try { await cerrar(m, "no se pudo mantener su stop de emergencia en el exchange"); } catch (e) { p.stopEst = "error"; msgs.push(`💶 🚨 ${EX}: ${p.sym} se ha quedado SIN stop en el exchange y no he podido venderla. Lo reintento en cada vuelta (el bot la vigila con su stop −6 %); si puedes, revísala a mano.`); }
+        return; }
+      if (r.err) throw r.err;
+      if (p.stopEst !== "no disponible") L(RS, now, `ℹ️ ${p.sym}: ${EX} no permite stop de emergencia en este mercado (la vigila el bot con su stop −6 %)`); p.stopEst = "no disponible"; }
     catch (e) { if (p.stopEst !== "error") L(RS, now, `⚠️ ${p.sym}: no pude poner el stop de emergencia en ${EX} (sigue el del bot; lo reintenta cada 30 min) · motivo: ${String((e && e.message) || e).replace(/[A-Za-z0-9+/=_-]{24,}/g, "…").slice(0, 90)}`); p.stopEst = "error"; } };
   async function cerrar(m, por, frac = 1) {
     const p = RS.pos[m], mk = await mercado(m), bid = tick[m] ? tick[m].bid : p.px;
@@ -221,7 +243,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (X.saldos) try { const B = await X.saldos(), PX = X.precios ? await X.precios().catch(() => null) : null, act = []; let tot = +(B.EUR || 0);
         for (const [sym, q] of Object.entries(B)) { if (sym === "EUR") continue; const m = sym + "-EUR", bid = (PX && PX[sym]) || (tick[m] ? tick[m].bid : 0), v = q * bid; tot += v; if (v >= 0.01) act.push({ sym, q, eur: r2(v), px: bid }); }
         RS.cuenta = { t: now.toISOString(), eur: r2(+(B.EUR || 0)), total: r2(tot), activos: act.sort((a, b) => b.eur - a.eur) }; } catch (e) {}
-      return { RS, msgs, ctl };
+      if (RS) RS.dudosas = DUD; return { RS, msgs, ctl };
     }
     if (RS.paradaAt) { delete RS.paradaAt; delete RS.retomar; delete RS.avisoRetomar; }
     // al reanudar tras una parada, el freno se mide desde lo que hay ahora (si no, volvería a saltar al momento)
@@ -295,7 +317,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         const syms = [...new Set([...Object.keys(B), ...(RS.closed || []).map((c) => c.sym), ...((RS.libro && RS.libro.cerradas) || []).map((c) => c.sym)])];
         RS.libro = { t: now.toISOString(), firma: firmaB, ...libro(await X.operaciones(syms)) }; } catch (e) { L(RS, now, "⚠️ no pude leer el historial del exchange: " + String(e.message).slice(0, 80)); } }
       } catch (e) { L(RS, now, "⚠️ no pude leer los saldos de la cuenta: " + String(e.message).slice(0, 80)); } }
-    // 2) freno: si el saldo cae un 25 %, vende todo y se para
+    // 2) freno: si el saldo cae un 35 % (FRENO), vende todo y se para
     const eq = valor(RS, tick);
     // v439 · 💸 DINERO QUE METES O SACAS TÚ: si entre una vuelta y otra no había nada abierto ni ha habido ventas, cualquier cambio del saldo
     // es un ingreso o una retirada tuya (no una ganancia o pérdida del bot): se corrige la base de los frenos para que no salten por eso.
@@ -420,7 +442,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   }
   const e2 = valor(RS, tick); RS.eq.push([now.toISOString(), r2(e2), r2(RS.start)]);   // v266 · también lo aportado hasta entonces (para no contar ingresos como ganancia) if (RS.eq.length > 3000) RS.eq = RS.eq.filter((_, i) => i % 2 === 0 || i > RS.eq.length - 500);
   RS.lastEq = r2(e2); RS.last = now.toISOString();
-  return { RS, msgs, ctl };
+  if (RS) RS.dudosas = DUD; return { RS, msgs, ctl };
 }
 // día en España (para el freno diario)
 export const diaES = (d) => new Date(d).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
