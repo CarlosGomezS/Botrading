@@ -1895,7 +1895,13 @@ function labSurr(L){const H=L.hist||[];if(L._sur&&L._sur.n===H.length&&(L._sur.m
  try{Object.defineProperty(L,"_sur",{value:sur,writable:true,configurable:true,enumerable:false})}catch(e){L._sur=sur}L.surr={n:sur.n,modo:sur.modo,cKnn:sur.cKnn,cGbm:sur.cGbm,cMix:sur.cMix};return sur}
 function labPred(L,g){const H=L.hist||[];if(H.length<30)return null;const v=labVec(g),k=labPredKnn(L,v,H),S2=labSurr(L);let pred=k.pred;
  if(S2.gbm&&S2.modo!=="knn"){const gp=S2.gbm(v);pred=S2.modo==="boosting"?gp:(k.pred+gp)/2}return{pred,unc:k.unc,acq:pred+0.15*k.unc}}
-function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=k=>!(T.has(k)||L.pop[k]||L.pend[k]||BTX[k]||STR[k]||seen.has(k)),
+/* v469 · 🔒 QUÉ PUEDE USAR EL EXAMEN OCULTO (los últimos ~2 años, OOS) Y QUÉ NO — lo comprueba tests/etf-lab-independencia.test.mjs
+   SOLO datos anteriores al examen (IS): qué candidatos se generan y cuáles se descartan por «ya probados» (L.tried), las madres de las mutaciones
+   y de las mezclas (L.near: nota IS y rentabilidad IS), la familia dominante, lo aprendido de cada pieza (L.st), el historial y el modelo que
+   predice la nota (L.hist, L.ai), y lo que ve la IA (sus resultados IS; nada de la liga ni del podio).
+   PUEDE usar el examen (evaluación final e informes): aprobar o no, la prueba de estabilidad (sus variantes vecinas se examinan APARTE y no
+   enseñan nada a la búsqueda), la liga y su orden, el archivo, el podio que va al dinero real y las rentabilidades que se muestran. */
+function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=k=>!(T.has(k)||seen.has(k)||(!/^[gb]_/.test(k)&&(BTX[k]||STR[k]))),   /* v469 · 🔒 la búsqueda solo descarta lo YA PROBADO (y los métodos fijos): no mira la liga ni los aprobados, que dependen del examen oculto */
   add=(g,why,pr)=>{g=labNorm(g);const k=labKey(g);if(!ok(k))return false;seen.add(k);BTX[k]=labM(g);out.push({k,g,why,pr:pr==null?null:+pr.toFixed(3)});return true};
  for(const g of LABSEED)add(g,"creado por Claude");
  /* v366 · 🤖 ideas del ayudante IA (v447: consejo de IAs, hasta 15 por ronda: ETF, mixtos y acciones); solo se aceptan piezas y valores del laboratorio; tienen que aprobar como todas */
@@ -1911,8 +1917,7 @@ function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=
  {const nF=Math.round(n*0.25);let put=0;for(let z=0;z<nF*30&&put<nF;z++){const g=labRand(L),r=Math.random();
    if(r<0.45)g.u=LABNEWU[Math.floor(Math.random()*LABNEWU.length)];else if(r<0.8){g.z=LABNEWZ[Math.floor(Math.random()*LABNEWZ.length)];if(Math.random()<0.5)g.u=LABNEWU[Math.floor(Math.random()*LABNEWU.length)]}else g.cn=1;
    if(Math.random()<0.3)g.cn=1;g.t=1+Math.floor(Math.random()*3);let gn;try{gn=labNorm(g)}catch(e){continue}if(add(gn,"🌱 familia nueva"))put++}}
- // 1) variantes cercanas de los aprobados provisionales (prueba de estabilidad)
- for(const [k,x] of Object.entries(L.pend))for(const g of labNbrs(x.g)){const kk=labKey(g);if(T.has(kk)||L.pop[kk])continue;add(g,"vecino:"+k)}
+ // 1) (v469) las variantes cercanas de los aprobados provisionales van APARTE, al final (ver abajo): no gastan plazas de la búsqueda
  const par=L.near.map(x=>x.g).filter(g=>g&&!g.bl&&!g.base);   /* v469 · solo madres elegidas con datos de ANTES del examen (antes también la liga, que está elegida con él) */
  // 2) una mezcla 50/50 de dos buenos (o de uno bueno con la Tendencia QQQ)
  const good=L.near.slice(0,8).map(x=>x.g).filter(g=>g&&!g.bl&&!g.base);   /* v469 · igual para las mezclas */if(good.length&&Math.random()<0.6){const A=good[Math.floor(Math.random()*good.length)],Bs=good.filter(g=>g!==A),B=Bs.length&&Math.random()<0.6?Bs[Math.floor(Math.random()*Bs.length)]:{base:"trq"};if(MX(B.base||"x")||!B.base)add({bl:[A,B]},"mezcla")}
@@ -1946,6 +1951,11 @@ function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=
  // 5) si aun así faltan (casi imposible): mezclas 50/50 entre cualquier par de la liga y exploración pura, hasta completar la ronda
  const lg=L.near.map(x=>x.g).filter(g=>g&&!g.bl&&!g.base);guard=0;   /* v469 · de las madres, no de la liga */while(out.length<n&&lg.length>1&&guard++<200){const A=lg[Math.floor(Math.random()*lg.length)],B=lg[Math.floor(Math.random()*lg.length)];if(A!==B)add({bl:[A,B]},"mezcla")}
  guard=0;while(out.length<n&&guard++<5000){let g=labRand(L);for(let z=0;z<4;z++)g=labMut(L,g);add(g,"🎲 salto")}
+ /* v469 · 🧪 PRUEBA DE ESTABILIDAD de los aprobados provisionales (depende del examen oculto): sus variantes vecinas se examinan APARTE, además de las n
+    de la búsqueda; no ocupan plazas de la búsqueda, no la frenan y de ellas no se aprende (ver labJudge). Si la búsqueda ya eligió esa misma variante, se reutiliza. */
+ const TV=new Set(L.triedV||[]),vec=[];for(const [k,x] of Object.entries(L.pend))for(const g of labNbrs(x.g)){let gn;try{gn=labNorm(g)}catch(e){continue}const kk=labKey(gn);if(T.has(kk)||TV.has(kk)||L.pop[kk])continue;
+  const ya=out.find(o=>o.k===kk)||vec.find(o=>o.k===kk);if(ya){(ya.vecDe=ya.vecDe||[]).push(k);continue}if(BTX[kk]||STR[kk])continue;BTX[kk]=labM(gn);vec.push({k:kk,g:gn,why:"vecino:"+k,vecDe:[k],pr:null})}
+ out.push(...vec);
  // v143: 15 del archivo (los que hace más tiempo que no se revisan) se vuelven a examinar en esta ronda
  try{const A=L.arch||{},q=Object.keys(A).filter(k=>!L.pop[k]&&!seen.has(k)).sort((a,b)=>String(A[a].chk||A[a].out||"").localeCompare(String(A[b].chk||A[b].out||""))).slice(0,15);L.archQ=q;for(const k of q)if(!BTX[k]&&!STR[k])BTX[k]=labM(A[k].g)}catch(e){L.archQ=[]}
  return out}
@@ -1953,7 +1963,7 @@ function labTrial(n){const L=labS(),T=new Set(L.tried),out=[],seen=new Set(),ok=
 function labHoldB(b,k){const H=b.hold;if(!H||!H.v||!H.v[k]||!H.v.spy||!b.rows[k]||!b.rows.spy)return null;const tr=(r,x)=>[r[0],r[1],r[2]&&{...r[2],ret:x.r,atax:x.ra,dd:x.dd,n:x.n}];
  return{rows:{spy:tr(b.rows.spy,H.v.spy),[k]:tr(b.rows[k],H.v[k])},cuts:[b.cuts[0],b.cuts[1],b.cuts[2],H.d]}}
 /* v100 · el laboratorio busca y aprende SOLO con los datos hasta hace ~2 años; para aprobar, además, tiene que ganar al SPY en esos 2 años ocultos */
-function labExam(b,k){const bb=labHoldB(b,k);if(!bb){const e0=labExam0(b,k);if(e0.ok){e0.ok=false;e0.fl=["no se ha podido hacer el examen oculto de los 2 últimos años (faltan datos): sin examen no aprueba"];e0.why=e0.fl[0]}return e0}   /* v465 · falla CERRADO */const e=labExam0(bb,k),full=labExam0(b,k),H=b.hold.v,hb=H[k].ht>H.spy.ht;
+function labExam(b,k){const bb=labHoldB(b,k);if(!bb){const e0=labExam0(b,k);e0.sinIS=true;   /* v469 · sin examen oculto no hay separación: de esto no se aprende */if(e0.ok){e0.ok=false;e0.fl=["no se ha podido hacer el examen oculto de los 2 últimos años (faltan datos): sin examen no aprueba"];e0.why=e0.fl[0]}return e0}   /* v465 · falla CERRADO */const e=labExam0(bb,k),full=labExam0(b,k),H=b.hold.v,hb=H[k].ht>H.spy.ht;
  e.anIS=e.an;e.okIS=!!e.ok;   /* v468 · lo que se sabe ANTES del examen oculto (lo único que puede ver la IA) */
  e.an=full.an;e.hold={m:H[k].ht,s:H.spy.ht,ok:hb};if(e.ok&&!hb){e.ok=false;e.fl=["pierde contra el SPY en el examen oculto (los últimos 2 años, que no pudo ver al buscar)"];e.why=e.fl[0]}
  const c2=labC2(b,k,full.an);if(c2){e.c2=c2;if(e.ok&&!c2.ok){e.ok=false;e.fl=[`pagando el doble de comisiones ya no gana al SPY (${P(c2.an*100)}/año)`];e.why=e.fl[0]}}else if(e.ok){e.ok=false;e.fl=["no se ha podido calcular el examen con el doble de comisiones: sin examen no aprueba"];e.why=e.fl[0]}return e}   /* v465 · costes dobles obligatorios */
@@ -1972,15 +1982,16 @@ function labExam0(b,k){const v=btmVerd(b,k),r=b.rows[k],sp=b.rows.spy;if(!v||!r|
  return v.c==="ok"?{ok:true,an,v,beat:true,sc:1,fl:[],dd:c.ddm}:{ok:false,an,beat:an!=null&&as!=null&&an>as,sc,fl,dd:c.ddm,why:fl.length?fl.join(", "):v.t.replace(/^[^ ]+ /,"")}}
 function labLearn(L,g,good){if(!g||g.bl||g.base)return;const q=typeof good==="number"?good:good?1:0;for(const pc of Object.keys(LABV)){const st=L.st[pc]=L.st[pc]||{},x=st[String(g[pc]??LABD[pc]??0)]=st[String(g[pc]??LABD[pc]??0)]||[0,0];x[0]++;x[1]=+(x[1]+q).toFixed(3)}}
 function labJudge(b,trials){const L=labS(),d=T0();let born=0;const keepRow=new Set();
- for(const {k,g,why,pr} of trials){L.tried.push(k);const e=labExam(b,k);labLearn(L,g,e.sc!=null?e.sc*e.sc:e.beat);
+ for(const {k,g,why,pr,vecDe} of trials){const esVec=(why||"").startsWith("vecino:");   /* v469 · las vecinas (prueba de estabilidad) no cuentan para la búsqueda */
+  if(esVec){L.triedV=Array.isArray(L.triedV)?L.triedV:[];L.triedV.push(k)}else L.tried.push(k);const e=labExam(b,k);if(!esVec&&!e.sinIS)labLearn(L,g,e.sc!=null?e.sc*e.sc:e.beat);
   /* v469 · 🔒 MADRES DE LAS MUTACIONES: todas las probadas (aprueben o no) se ordenan SOLO con lo anterior a los 2 años ocultos (nota y rentabilidad de antes del examen) */
   if(!(why||"").startsWith("vecino:")&&g&&!g.bl&&!g.base&&e.anIS!=null){L.near=L.near.filter(x=>labKey(x.g)!==k);L.near.push({g,an:e.anIS,sc:+(e.sc||0).toFixed(3),dd:e.dd,why:e.why,d});L.near.sort((x,y)=>(y.sc||0)-(x.sc||0)||(y.an??-9)-(x.an??-9));L.near=L.near.slice(0,15)}
   try{if(/^🤖/.test(why||"")){L.iaRes=L.iaRes||{};L.iaRes[k]={g,an:e.an!=null?+(+e.an).toFixed(4):null,ok:!!e.ok,por:e.ok?"":String(e.why||"").slice(0,120),ais:e.anIS!=null?+(+e.anIS).toFixed(4):null,okis:e.okIS!=null?!!e.okIS:null,d};const ks=Object.keys(L.iaRes);if(ks.length>80)for(const z of ks.slice(0,ks.length-80))delete L.iaRes[z]}}catch(_){}   /* v366 · resultado de cada idea de la IA (el ayudante lo lee para aprender) */
-  if(g&&!g.bl&&!g.base&&e.sc!=null){L.hist=Array.isArray(L.hist)?L.hist:[];L.hist.push([labVec(g),+e.sc.toFixed(3)]);if(L.hist.length>6000)L.hist=L.hist.slice(-6000);
+  if(!esVec&&!e.sinIS&&g&&!g.bl&&!g.base&&e.sc!=null){L.hist=Array.isArray(L.hist)?L.hist:[];L.hist.push([labVec(g),+e.sc.toFixed(3)]);if(L.hist.length>6000)L.hist=L.hist.slice(-6000);
    if(pr!=null){const er=Math.abs(pr-e.sc);L.ai=L.ai||{n:0,mae:null,base:null};L.ai.n++;L.ai.mae=L.ai.mae==null?er:0.95*L.ai.mae+0.05*er}}
-  if(why&&why.startsWith("vecino:")){const pk=why.slice(7),P=L.pend[pk];if(P){P.nb=P.nb||[];P.nb.push(e.beat?1:0)}}
+  for(const pk of (vecDe||(esVec?[why.slice(7)]:[]))){const P=L.pend[pk];if(P){P.nb=P.nb||[];P.nb.push(e.beat?1:0)}}
   if(e.ok&&g&&(g.bl||g.base)){L.pop[k]={g,born:d,an:e.an};keepRow.add(k);born++;L.log.unshift({d,k,n:labName(g),ev:"nace",why:`mezcla de dos métodos ya estables que aprueba el examen y el examen oculto (${P(e.an*100)}/año): entra en la liga`})}
-  else if(e.ok&&!(why||"").startsWith("vecino:")){L.pend[k]={g,born:d,an:e.an,nb:[]};born++;keepRow.add(k);L.log.unshift({d,k,n:labName(g),ev:"aprueba",why:`examen aprobado (${P(e.an*100)}/año): mañana prueba de estabilidad`})}
+  else if(e.ok&&!esVec){L.pend[k]={g,born:d,an:e.an,nb:[]};born++;keepRow.add(k);L.log.unshift({d,k,n:labName(g),ev:"aprueba",why:`examen aprobado (${P(e.an*100)}/año): mañana prueba de estabilidad`})}
   else{if(!L.pend[k]&&!L.pop[k]&&!L.keep[k]){delete BTX[k];delete b.rows[k];}}}
  // prueba de estabilidad: al menos 1 de sus 2 variantes cercanas gana al SPY
  for(const [k,x] of Object.entries(L.pend)){if(keepRow.has(k))continue;const nb=x.nb||[];
@@ -2000,7 +2011,7 @@ function labJudge(b,trials){const L=labS(),d=T0();let born=0;const keepRow=new S
  /* v116 · evolución día a día (para ver que la «bola» crece): el mejor de la liga, el 20.º, probados en total y acierto del modelo */
  {L.ntot=(L.ntot||L.tried.length)+trials.length;const pv=Object.values(L.pop).map(x=>x.an||0).sort((a,b)=>b-a);L.prog=Array.isArray(L.prog)?L.prog:[{d:"2026-10-23",best:null,tried:60},{d:"2026-10-24",best:0.1283,tried:396}];
   const e={d,best:pv[0]||null,p20:pv.length>=20?pv[19]:null,n:pv.length,tried:L.ntot,mae:L.ai&&L.ai.mae!=null?+L.ai.mae.toFixed(3):null},j=L.prog.findIndex(x=>x.d===d);if(j>=0)L.prog[j]=e;else L.prog.push(e);L.prog=L.prog.slice(-400)}
- L.tried=L.tried.slice(-30000);L.log=L.log.slice(0,80);L.last={d,n:trials.length,ok:born,nuevos:trials.filter(x=>/🆕/.test(x.why||"")).length};S.promo=Array.isArray(S.promo)?S.promo:[]}
+ L.tried=L.tried.slice(-30000);L.triedV=(L.triedV||[]).slice(-5000);L.log=L.log.slice(0,80);L.last={d,n:trials.length,ok:born,nuevos:trials.filter(x=>/🆕/.test(x.why||"")).length};S.promo=Array.isArray(S.promo)?S.promo:[]}
 /* lo que va aprendiendo: las piezas que más aciertan (con al menos 6 pruebas) */
 function labLearnt(){const L=labS(),out=[];for(const pc of Object.keys(LABV)){for(const [v,[n,ok]] of Object.entries(L.st[pc]||{}))if(n>=6)out.push({pc,v,n,ok,r:ok/n})}return out.sort((a,b)=>b.r-a.r)}
 function labValTxt(pc,v){if(pc==="u")return LABU[v]?LABU[v].n:v;if(pc==="l")return(LABLB[+v]||[]).map(x=>Math.round(x/21)).join("/")+" meses";if(pc==="t")return v==="1"?"1":"los "+v+" mejores";if(pc==="r")return v===""?"efectivo":v==="GLD"?"oro":v==="dyn"?"dinámico (oro, bonos o liquidez)":"bonos";if(pc==="p")return v==="q"?"trimestral":"mensual";if(pc==="m"||pc==="k")return v+" sesiones";if(pc==="f")return v==="2"?"Donchian (tortugas)":v==="1"?"media móvil":"sin filtro";if(pc==="vt")return Math.round(v*100)+" %";return v==="1"?"sí":"no"}
