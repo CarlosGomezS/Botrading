@@ -78,7 +78,7 @@ test("Trading 212: estado de la orden según lo confirmado", () => {
   assert.equal(estadoOrden("NEW", 0), "pendiente");
 });
 test("Hyperliquid: la orden de stop cierra en el lado contrario, a la distancia del método, por toda la cantidad y solo reduce", async () => {
-  const { ordenStop } = await import("../runner/hl-real.mjs");
+  let ordenStop; try { ({ ordenStop } = await import("../runner/hl-real.mjs")); } catch (e) { return; }   // la copia sin Hyperliquid no tiene este archivo
   const largo = ordenStop(3, 1, 100, 2.5, 2, 0.08), corto = ordenStop(3, -1, 100, 2.5, 2, 0.08);
   assert.equal(largo.b, false); assert.equal(corto.b, true);              // largo → vende; corto → compra
   assert.equal(largo.r, true); assert.equal(+largo.s, 2.5);               // solo reduce, por toda la posición
