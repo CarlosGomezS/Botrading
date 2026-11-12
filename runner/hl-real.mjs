@@ -37,9 +37,9 @@ export const tamOk = (sz, szd) => Math.floor(sz * 10 ** szd + 1e-9) / 10 ** szd;
 function orden(a, compra, px, sz, reduce) { return { a, b: compra, p: aTexto(px), s: aTexto(sz), r: !!reduce, t: { limit: { tif: "Ioc" } } }; }
 // v441 · 🛡️ STOP DE EMERGENCIA guardado en Hyperliquid (funciona aunque el bot esté caído): orden de cierre a mercado si el precio va un 25 % en contra
 export const STOP_EMERG = 0.25;
-function ordenStop(a, lado, entrada, sz, szd) { const tp = entrada * (lado > 0 ? 1 - STOP_EMERG : 1 + STOP_EMERG), lim = tp * (lado > 0 ? 0.9 : 1.1);
+function ordenStop(a, lado, entrada, sz, szd, dist = STOP_EMERG) { const tp = entrada * (lado > 0 ? 1 - dist : 1 + dist), lim = tp * (lado > 0 ? 0.9 : 1.1);
   return { a, b: lado < 0, p: aTexto(precioOk(lim, szd)), s: aTexto(sz), r: true, t: { trigger: { isMarket: true, triggerPx: aTexto(precioOk(tp, szd)), tpsl: "sl" } } }; }
-async function ponStop(a, lado, entrada, sz, szd, pk) { const res = await exchange({ type: "order", orders: [ordenStop(a, lado, entrada, sz, szd)], grouping: "na" }, pk);
+async function ponStop(a, lado, entrada, sz, szd, pk, dist = STOP_EMERG) { const res = await exchange({ type: "order", orders: [ordenStop(a, lado, entrada, sz, szd, dist)], grouping: "na" }, pk);
   const st = res.j && res.j.response && res.j.response.data && res.j.response.data.statuses && res.j.response.data.statuses[0]; return !!(st && (st.resting || st.filled || st === "waitingForTrigger" || st.waitingForTrigger)) || (res.j && res.j.status === "ok" && !(st && st.error)); }
 async function mandar(o, pk) { const res = await exchange({ type: "order", orders: [o], grouping: "na" }, pk);
   const st = res.j && res.j.status === "ok" && res.j.response && res.j.response.data && res.j.response.data.statuses && res.j.response.data.statuses[0];
@@ -76,7 +76,8 @@ export async function guardaAjustes() { let c = {}; try { c = JSON.parse(env("CA
   for (let i = 0; i < 4; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git hl-ctl`); log(`Ajustes guardados: ${o.estado} · usa ${o.uso} % · posiciones ${o.plazas || "auto"} · freno −${o.freno * 100} % · método n.º ${o.puesto}`); return; } catch (e) { await sleep(3000); } } }
 async function metodo(puesto = 1) {
   const get = async (rama, arch) => { const r = await fetch(`https://raw.githubusercontent.com/${REPO}/${rama}/${arch}?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) }); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); };
-  const L = await get("caza-lab", "caza-lab.json"), x = (L.podio || [])[puesto - 1] || (L.podio || [])[0]; if (!x) return null;
+  // v456 · 🧊 solo métodos que han pasado la CUARENTENA de 21 días en ficticio (o el que ya estaba en uso, exento); en el orden del podio
+  const L = await get("caza-lab", "caza-lab.json"), lista = ((L.aprobadas && L.aprobadas.length ? L.aprobadas : L.podio) || []).filter((z) => !z.cuar || z.cuar.ok || z.cuar.exento), x = lista[puesto - 1] || lista[0]; if (!x) return null;
   let IA = []; try { const RX = await import("./ia-receta.mjs"), j = await get("ia-lab", "ia-lab.json"), FNk = Object.keys(FILTROS); IA = ((j && j.cripto && j.cripto.recetas) || []).map((r) => RX.validaReceta(r, FNk)).filter(Boolean); x.RX = RX; } catch (e) {}
   return { x, IA, U: L.criptos || [] };
 }
@@ -86,6 +87,9 @@ function pieza(S0, IA, RX, idx, iaId) {
   const s = S0[idx]; return s ? { fn: s.fn, nom: `${s.fam} ${JSON.stringify(s.p)}` } : null;
 }
 
+// v456 · estado anterior (cifrado) para recordar el método de cada posición abierta
+async function leeAnterior() { try { const pw = env("REAL_VIEW_PASS"); if (!pw) return null; const r = await fetch(`https://raw.githubusercontent.com/${REPO}/${RAMA}/${ARCH}?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) }); if (!r.ok) return null;
+  const j = await r.json(), { decrypt } = await import("./real-cfg.mjs"), t = await decrypt(j, pw); return typeof t === "string" ? JSON.parse(t) : t; } catch (e) { return null; } }
 // ---------- estado cifrado (para verlo en la app) ----------
 async function guarda(estado) {
   const pw = env("REAL_VIEW_PASS"); if (!TOKEN || !pw) return; const { encrypt } = await import("./real-cfg.mjs");
@@ -114,19 +118,24 @@ export async function ronda() {
   const fills = await info({ type: "userFills", user: yo }).catch(() => []);
   const abierta = (c) => { const f = (fills || []).filter((z) => z.coin === c && /^Open/.test(z.dir)).sort((a, b) => b.time - a.time)[0]; return f ? +f.time : null; };
   const CTL = await leeCtl(), M0 = await metodo(CTL.puesto); const h = M0 && M0.x && M0.x.g ? M0.x.g.h : 16;
+  // v456 · cada posición recuerda SU método (duración y stop): si el método cambia, las abiertas siguen con sus reglas. Las que no lo tienen
+  //   apuntado (abiertas antes de esta versión) son del método en uso.
+  const prev = await leeAnterior(), pm = (prev && prev.pm) || {};
+  for (const p of pos) if (!pm[p.coin]) pm[p.coin] = { h, sl: M0 && M0.x && M0.x.g ? M0.x.g.sl || 0 : 0, k: M0 && M0.x ? M0.x.k : null };
+  for (const c of Object.keys(pm)) if (!pos.some((p) => p.coin === c)) delete pm[c];
   // v451 · 🔑 CADUCIDAD DE LA CLAVE DEL BOT: Hyperliquid dice hasta cuándo vale el agente; 30 días antes, aviso diario (a las 10 de la mañana)
   let agenteHasta = null; try { const ag = await info({ type: "extraAgents", user: yo }), mia = new ETH.Wallet(PK).address.toLowerCase(), a = (ag || []).find((x) => String(x.address).toLowerCase() === mia);
     if (a && a.validUntil) { agenteHasta = +a.validUntil; const dias = Math.floor((agenteHasta - Date.now()) / 864e5), hMad = +new Date().toLocaleString("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hour12: false });
       if (dias <= 30 && hMad === 10) await aviso(`🔑 Hyperliquid: la clave del bot ${dias <= 0 ? "CADUCA HOY" : `caduca en ${dias} día${dias === 1 ? "" : "s"}`} (${new Date(agenteHasta).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}).\nCrea otra: en Rabby abre app.hyperliquid.xyz/API → nombre «botrading» → Generate → Authorize API Wallet → firma. Copia la Private Key nueva y pégala en la app (⚙️ Ajustes → ☁️ Ajustes → 🪙 Claves → HL_AGENT_KEY). Al usar el mismo nombre, la vieja deja de valer sola.`); }
     else if (ag && !a) { log("⚠️ La clave del bot no aparece entre los agentes autorizados de tu cuenta."); if (new Date().getUTCMinutes() < 10) await aviso("🔑 Hyperliquid: la clave del bot ya no está autorizada en tu cuenta (caducada o borrada). El bot no puede operar: crea otra en app.hyperliquid.xyz/API y pégala en la app (HL_AGENT_KEY)."); } } catch (e) {}
-  const hechos = [], estado = { agenteHasta, w: yo, ctl: CTL, t: new Date().toISOString(), eq, neto, metodo: M0 && M0.x ? M0.x.n : null, ops: [] };
+  const hechos = [], estado = { agenteHasta, w: yo, ctl: CTL, t: new Date().toISOString(), eq, neto, metodo: M0 && M0.x ? M0.x.n : null, ops: [], pm };
   log(`Hyperliquid real: ${pos.length} posiciones abiertas · ${CTL.estado === "on" ? "activo" : CTL.estado === "pausa" ? "en pausa (no abre nuevas)" : "parado (cierra todo)"} · método ${M0 && M0.x ? "n.º " + CTL.puesto + " del podio" : "no disponible"}`);
 
   // 1) freno: la cuenta ha caído por debajo de la mitad de lo ingresado → cerrar todo y no abrir
   const freno = neto > 0 && eq < neto * (1 - CTL.freno), parar = CTL.estado === "parado";
   // 2) cerrar las que ya han cumplido su tiempo (con 10 min de margen) o todas si salta el freno
   for (const p of pos) { const c = p.coin, t0 = abierta(c), edad = t0 ? Date.now() - t0 : Infinity, I = idx.get(c); if (!I) continue;
-    if (!freno && !parar && edad < h * H - 10 * 60e3) continue; const lado = +p.szi > 0, mid = +mids[c];
+    const hP = (pm[c] && pm[c].h) || h; if (!freno && !parar && edad < hP * H - 10 * 60e3) continue; const lado = +p.szi > 0, mid = +mids[c];
     const r = await mandar(orden(I.a, !lado, precioOk(mid * (lado ? 1 - SLIP : 1 + SLIP), I.szd), Math.abs(+p.szi), true), PK);
     if (r.ok) { const pnl = (+p.unrealizedPnl || 0); hechos.push(`${pnl >= 0 ? "🟢" : "🔴"} Cierra ${lado ? "largo" : "corto"} en ${c} tras ${Math.round(edad / H)} h · ${pnl >= 0 ? "+" : ""}${D2(pnl)} $ aprox.`); estado.ops.push({ t: Date.now(), c, x: "cierra", lado: lado ? 1 : -1, pnl }); }
     else hechos.push(`⚠️ No he podido cerrar ${c}: ${r.err}`); }
@@ -153,7 +162,8 @@ export async function ronda() {
         let usadas = 0; for (const q of quiere) { if (usadas >= libres) break; if (pos.some((p) => p.coin === q.c) && !estado.ops.some((o) => o.c === q.c && o.x === "cierra")) continue;
           const I = idx.get(q.c), mid = +mids[q.c]; if (!(mid > 0)) continue; const notional = Math.min(uso / plazas, eq) * 0.98, sz = tamOk(notional / mid, I.szd); if (sz * mid < 10.2) continue;
           const r = await mandar(orden(I.a, q.dir > 0, precioOk(mid * (q.dir > 0 ? 1 + SLIP : 1 - SLIP), I.szd), sz, false), PK);
-          if (r.ok) { try { if (!(await ponStop(I.a, q.dir, r.px, r.sz, I.szd, PK))) hechos.push(`⚠️ ${q.c}: no he podido poner el stop de emergencia; lo reintento en la próxima ronda`); } catch (e) {} }
+          if (r.ok) pm[q.c] = { h: g.h, sl: g.sl || 0, k: M0.x.k };
+          if (r.ok) { try { if (!(await ponStop(I.a, q.dir, r.px, r.sz, I.szd, PK, g.sl > 0 ? g.sl : STOP_EMERG))) hechos.push(`⚠️ ${q.c}: no he podido poner el stop de emergencia; lo reintento en la próxima ronda`); } catch (e) {} }
           if (r.ok) { usadas++; hechos.push(`${q.dir > 0 ? "📈 Abre LARGO" : "📉 Abre CORTO"} en ${q.c} · ${D2(r.sz * r.px)} $ a ${r.px} · cierra en ${g.h} h`); estado.ops.push({ t: Date.now(), c: q.c, x: "abre", lado: q.dir, px: r.px, v: r.sz * r.px }); }
           else hechos.push(`⚠️ No he podido abrir ${q.c}: ${r.err}`); }
       } }
@@ -162,8 +172,11 @@ export async function ronda() {
   try { const stx = await info({ type: "clearinghouseState", user: yo }), ab = (stx.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0), oo = (await info({ type: "frontendOpenOrders", user: yo })) || [];
     const canc = oo.filter((o) => !ab.some((p) => p.coin === o.coin) && idx.has(o.coin)).map((o) => ({ a: idx.get(o.coin).a, o: o.oid }));
     if (canc.length) await exchange({ type: "cancel", cancels: canc }, PK);
-    for (const p of ab) { const I = idx.get(p.coin); if (!I) continue; if (oo.some((o) => o.coin === p.coin && (o.isTrigger || /stop/i.test(o.orderType || "")))) continue;
-      const lado = +p.szi > 0 ? 1 : -1; if (await ponStop(I.a, lado, +p.entryPx, Math.abs(+p.szi), I.szd, PK)) log("Stop de emergencia puesto en una posición que no lo tenía."); } } catch (e) { log("Revisión de stops: " + String(e.message).slice(0, 60)); }
+    // v456 · el stop de cada posición va donde dice SU método (p. ej. −8 %), igual que en la prueba; si el método no tiene stop, el de emergencia (−25 %)
+    for (const p of ab) { const I = idx.get(p.coin); if (!I) continue; const lado = +p.szi > 0 ? 1 : -1, ent = +p.entryPx, dist = pm[p.coin] && pm[p.coin].sl > 0 ? pm[p.coin].sl : STOP_EMERG, want = ent * (lado > 0 ? 1 - dist : 1 + dist);
+      const sts = oo.filter((o) => o.coin === p.coin && (o.isTrigger || /stop/i.test(o.orderType || ""))), bien = sts.some((o) => +o.triggerPx > 0 && Math.abs(+o.triggerPx / want - 1) < 0.006);
+      if (bien) continue;
+      if (await ponStop(I.a, lado, ent, Math.abs(+p.szi), I.szd, PK, dist)) { if (sts.length) await exchange({ type: "cancel", cancels: sts.map((o) => ({ a: I.a, o: o.oid })) }, PK); log(sts.length ? "Stop de una posición movido a lo que dice su método." : "Stop puesto en una posición que no lo tenía."); } } } catch (e) { log("Revisión de stops: " + String(e.message).slice(0, 60)); }
   const st2 = await info({ type: "clearinghouseState", user: yo }).catch(() => null); if (st2) { estado.eq = +st2.marginSummary.accountValue || eq; estado.pos = (st2.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0).map((p) => ({ c: p.coin, lado: +p.szi > 0 ? 1 : -1, v: +p.positionValue, pnl: +p.unrealizedPnl, entrada: +p.entryPx, desde: abierta(p.coin) })); }
   try { const f2 = await info({ type: "userFills", user: yo }); const cie = {}, ab0 = {}; for (const z of (f2 || []).slice().sort((a, b) => a.time - b.time)) { if (/^Open/.test(z.dir)) { if (!(z.coin in ab0) || ab0["_c" + z.coin]) ab0[z.coin] = +z.time; delete ab0["_c" + z.coin]; continue; } if (!/^Close/.test(z.dir)) continue; ab0["_c" + z.coin] = 1; const k = z.coin + "|" + Math.floor(z.time / 60000); const o = cie[k] || (cie[k] = { t: +z.time, t0: ab0[z.coin] || null, c: z.coin, lado: /Long/.test(z.dir) ? 1 : -1, pnl: 0, v: 0 }); o.pnl += (+z.closedPnl || 0) - (+z.fee || 0); o.v += (+z.sz || 0) * (+z.px || 0); }
     estado.cierres = Object.values(cie).sort((a, b) => b.t - a.t).slice(0, 80); estado.ganado = estado.cierres.reduce((a, x) => a + x.pnl, 0); } catch (e) {}

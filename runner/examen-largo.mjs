@@ -92,9 +92,11 @@ async function main() {
   try { const TT = await import("./tortugas.mjs"), OK = await import("./okx.mjs");
     const SER = {};   // v317 · primero los datos de los dos exchanges (cada regla nueva se comprueba también con las criptos del otro)
     for (const ex of ["bitvavo", "okx"]) { try { let lista = [];
-        if (ex === "bitvavo") lista = TT.universo(UV.tick).map(([m]) => ({ m }));   // v320 · 🌍 todas las líquidas
-        else { const PO = await OK.preciosOkx(await OK.instrumentos()); lista = TT.universo(PO.tickEx).map(([m, x]) => ({ m, par: x.par, k: x.k })); }
+        // v456 · 💧 solo criptos con ≥ 50.000 €/día (las mismas en las que el bot real puede ENTRAR) y con su propia diferencia compra-venta
+        let tk = UV.tick; if (ex === "bitvavo") lista = TT.universo(UV.tick, undefined, TT.UNI_ENTRA).map(([m]) => ({ m }));   // v320 · 🌍 todas las líquidas
+        else { const PO = await OK.preciosOkx(await OK.instrumentos()); tk = PO.tickEx; lista = TT.universo(PO.tickEx, undefined, TT.UNI_ENTRA).map(([m, x]) => ({ m, par: x.par, k: x.k })); }
         const series = {}; for (const { m, par, k } of lista) { try { const d = await TT.diarias(ex, m, 800, par, k || 1); if (d.length >= 200) series[m] = d; } catch (e) {} }
+        TT.fijaSpreads(series, tk); console.log(`Examen largo · 🐢 Tortugas ${ex}: ${Object.keys(series).length} criptos con ≥ 50.000 €/día y 2 años de datos`);
         SER[ex] = series; } catch (e) { console.log(`Examen largo · 🐢 Tortugas ${ex}: ${String(e.message).slice(0, 60)}`); } }
     for (const ex of ["bitvavo", "okx"]) { try { const series = SER[ex] || {}, otro = ex === "okx" ? "bitvavo" : "okx", otra = SER[otro] && Object.keys(SER[otro]).length >= 8 ? SER[otro] : null;
         if (Object.keys(series).length < 8) { tortugas[ex] = { v: VEX, ok: null, motivo: "pocas criptos con 2 años de datos" }; continue; }

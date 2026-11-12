@@ -446,7 +446,8 @@ export function sugerencia(S, cur, map, excl) {
 export const MARGEN_1 = 0.01;
 export function pesosDistintos(a, b) { const ks = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]); let d = 0; for (const z of ks) d += Math.abs((+(a || {})[z] || 0) - (+(b || {})[z] || 0)); return d / 2 > 0.05; }
 export function primero(S, cur, map, excl) {
-  const top = (S && S.lab && Array.isArray(S.lab.top3) && S.lab.top3) || [], books = (S && S.books) || {};
+  // v456 · 💶 solo el podio de ETF (top3etf); si la web aún no lo ha calculado, el general como antes
+  const top = (S && S.lab && Array.isArray(S.lab.top3etf) && S.lab.top3etf.length ? S.lab.top3etf : S && S.lab && Array.isArray(S.lab.top3) && S.lab.top3) || [], books = (S && S.books) || {};
   const buyable = (k) => { if (!map || !Object.keys(map).length) return true; const B = books[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})), bad = sy.filter((s) => map[s] && !map[s].t); return !bad.length ? true : bad.every((s) => /acciones desactivadas|Divisa: solo euros/.test(map[s].why || "")) ? "acc" : false; };
   for (const [i, x] of top.entries()) { const k = x && x.k; if (!k || !books[k] || !books[k].tgt || !books[k].tgt.w) continue; if (k === cur || (excl || []).includes(k)) return null; const bu = buyable(k); if (bu === false) continue;
     const TVr = (S.btm && S.btm.tr && S.btm.tr.v) || {}, anDe = (z) => (S.labAn || {})[z];   // v368 · misma medida que el ranking: lo ganado desde el 2000 hasta hoy

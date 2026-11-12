@@ -657,10 +657,10 @@ async function main() {
     if (!J && !toca) continue;
     try { const TT = await import("./tortugas.mjs");
       if (!J || J.clave !== clave || now - J.t0 > 2 * 3600e3) { let lista = [];
-        if (ex === "bitvavo") lista = TT.universo(tick).map(([m]) => ({ m })); else if (tickOkxReal) lista = TT.universo(tickOkxReal).map(([m, x]) => ({ m, par: x.par, k: x.k }));
+        if (ex === "bitvavo") lista = TT.universo(tick).map(([m, x]) => ({ m, vq: x.vq })); else if (tickOkxReal) lista = TT.universo(tickOkxReal).map(([m, x]) => ({ m, par: x.par, k: x.k, vq: x.vq }));
         if (!lista.length) continue; const Ps = Object.fromEntries(Object.entries(PS).map(([rk, P]) => [rk, TT.conP(P)]));
         J = S.tortJob[ex] = { t0: now.getTime(), clave, lista, i: 0, Ps, dias: Math.max(90, ...Object.values(Ps).map((P) => Math.max(P.ent + 30, (P.filtro ? P.mFil : 0) + 30))), per: Object.fromEntries(Object.keys(Ps).map((rk) => [rk, { P: Ps[rk], sen: {} }])) }; }
-      const fin = Date.now() + 15e3; while (J.i < J.lista.length && Date.now() < fin) { const { m, par, k } = J.lista[J.i++]; try { const d = await TT.diarias(ex, m, J.dias, par, k || 1); for (const rk of Object.keys(J.Ps)) { const x = TT.senal(d, J.Ps[rk]); if (x) J.per[rk].sen[m] = x; } } catch (e) {} }
+      const fin = Date.now() + 15e3; while (J.i < J.lista.length && Date.now() < fin) { const { m, par, k, vq } = J.lista[J.i++]; try { const d = await TT.diarias(ex, m, J.dias, par, k || 1); for (const rk of Object.keys(J.Ps)) { const x = TT.senal(d, J.Ps[rk]); if (x && x.entra && !(vq >= TT.UNI_ENTRA)) { x.entra = false; x.pocaLiq = 1; }   /* v456 · con menos de 50.000 €/día solo se vigila para SALIR */ if (x) J.per[rk].sen[m] = x; } } catch (e) {} }
       if (J.i >= J.lista.length) { delete S.tortJob[ex]; const per = J.per, M = per.medio || Object.values(per)[0];
         if (M && Object.keys(M.sen).length >= 5) { S.tort[ex] = { t: now.getTime(), dia: hoyT, clave, sen: M.sen, P: M.P, perfiles: per };
           console.log(`🐢 Tortugas ${ex}: ${Object.keys(M.sen).length} criptos vigiladas · ` + Object.entries(per).map(([rk, x]) => { const en = Object.entries(x.sen).filter(([, y]) => y.entra).map(([mm]) => mm.split("-")[0]); return `${TT.perfil(rk).nombre}: ${en.length ? en.slice(0, 12).join(", ") + (en.length > 12 ? ` y ${en.length - 12} más` : "") : "ninguna"}`; }).join(" · ")); } } }

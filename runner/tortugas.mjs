@@ -8,11 +8,11 @@ const BV = "https://api.bitvavo.com/v2";
 export const T_ENTRA = 20, T_SALE = 10, T_N = 20, T_RIESGO = 0.015, T_MAXPOS = 4, T_STOPMAX = 0.08, T_ESPERA_D = 7;
 export const FEES = { bitvavo: 0.0025, okx: 0.001 };
 // v320 · 🌍 TODAS las criptos que se pueden operar con un mínimo de liquidez (volumen de 24 h ≥ 50.000 € y diferencia compra/venta < 0,8 %), hasta 150
-export const UNI_VOL = 1000, UNI_SP = 0.015, UNI_MAX = 2000;   // v352 · 🌍 TODAS las criptos del exchange con algo de mercado (≥1.000 €/día y diferencia compra-venta ≤1,5 %, la misma que se exige al comprar)
-export const universo = (tick, extra = () => true) => Object.entries(tick).filter(([m, x]) => x && x.vq >= UNI_VOL && x.sp < UNI_SP && !/^(USDC|EURC|USDT|EUROC|DAI|PYUSD)-/.test(m) && m !== "USDC-EUR" && extra(m, x)).sort((a, b) => b[1].vq - a[1].vq).slice(0, UNI_MAX);
+export const UNI_VOL = 1000, UNI_SP = 0.015, UNI_MAX = 2000, UNI_ENTRA = 50000, SP_MIN = 0.0015;   // v456 · 💧 solo se ENTRA en criptos con ≥ 50.000 €/día (las de menos se siguen vigilando para poder salir de lo ya comprado); deslizamiento por cripto con suelo del 0,15 %   // v352 · 🌍 TODAS las criptos del exchange con algo de mercado (≥1.000 €/día y diferencia compra-venta ≤1,5 %, la misma que se exige al comprar)
+export const universo = (tick, extra = () => true, minVol = UNI_VOL) => Object.entries(tick).filter(([m, x]) => x && x.vq >= minVol && x.sp < UNI_SP && !/^(USDC|EURC|USDT|EUROC|DAI|PYUSD)-/.test(m) && m !== "USDC-EUR" && extra(m, x)).sort((a, b) => b[1].vq - a[1].vq).slice(0, UNI_MAX);
 // v313 · 🧠 las Tortugas APRENDEN: estos son sus «genes». El examen largo prueba muchas combinaciones con el 1.er año y solo cambia si la nueva
 // gana TAMBIÉN en el 2.º año (que no ha visto) a la que está en uso. Así mejora sola sin «ajustarse» al pasado.
-export const P0 = { ent: T_ENTRA, sale: T_SALE, kN: 2, stopMax: T_STOPMAX, filtro: false, maxPos: T_MAXPOS, mFil: 50, atrMax: 0, tp: 0, tpFrac: 1, vol: 0, rsiMax: 0, comp: 0, momD: 0, cazar: 0 };   // v413 · + filtros de entrada nuevos (volumen, RSI, compresión, tendencia larga, no perseguir)   // v323 · + recoger ganancias (tp: +5/10/20 %, toda o la mitad)   // v317 · + media del filtro de BTC y tope de volatilidad
+export const P0 = { ent: T_ENTRA, sale: T_SALE, kN: 2, stopMax: T_STOPMAX, filtro: false, maxPos: T_MAXPOS, mFil: 50, atrMax: 0, tp: 0, tpFrac: 1, vol: 0, rsiMax: 0, comp: 0, momD: 0, cazar: 0, espera: T_ESPERA_D };   // v456 · espera: días que aguanta una salida que no cubre comisiones (0 = sale ya; se aprende)   // v413 · + filtros de entrada nuevos (volumen, RSI, compresión, tendencia larga, no perseguir)   // v323 · + recoger ganancias (tp: +5/10/20 %, toda o la mitad)   // v317 · + media del filtro de BTC y tope de volatilidad
 export const conP = (P) => ({ ...P0, ...(P || {}) });
 // v318 · 🎚️ PERFILES DE RIESGO: cada uno evoluciona sus PROPIAS reglas. «alto» = máximo riesgo: pocas criptos a la vez y casi todo el dinero
 // en cada una; busca la que más gana aunque caiga mucho por el camino (hasta un 70 %).
@@ -70,25 +70,28 @@ export function senalRapida(d, i, P) { if (i < Math.max(P.ent, T_N) + 2) return 
 
 // 🧪 SIMULACIÓN DE CARTERA con las reglas EXACTAS del real: dinero compartido, como mucho 4 a la vez, tamaño por volatilidad (10-25 %),
 // comisión del exchange y medio spread en cada orden, salida por mínimo de 10 días solo si cubre comisiones (si no, espera ≤ 7 días), stop 2N (≤ −8 %).
+// v456 · diferencia compra-venta de HOY de cada cripto (la API no da la de hace 2 años): se asocia a cada juego de velas; con costes dobles se dobla
+const SPREADS = new WeakMap();
+export function fijaSpreads(series, tick) { const o = {}; for (const m of Object.keys(series)) { const x = tick && tick[m]; if (x && x.sp > 0) o[m] = x.sp; } SPREADS.set(series, o); return o; }
 export function simula(series, fee, spread = 0.002, P = null, desde = 0, hasta = Infinity) { P = conP(P);
   const dias = [...new Set(Object.values(series).flatMap((d) => d.map((x) => x[0])))].filter((t) => t >= desde && t < hasta).sort((a, b) => a - b), idx = {}, BTC = series["BTC-EUR"];
   for (const [m, d] of Object.entries(series)) { idx[m] = new Map(d.map((x, i) => [x[0], i])); }
-  let cash = 1, pos = {}, pico = 1, dd = 0, n = 0, gan = 0, gb = 0, pb = 0; const curva = [], cst = fee + spread / 2;
+  let cash = 1, pos = {}, pico = 1, dd = 0, n = 0, gan = 0, gb = 0, pb = 0; const curva = [], SPm = SPREADS.get(series) || null, kSp = spread / 0.002, spd = (m) => (SPm ? Math.max(SP_MIN, SPm[m] ?? 0.002) * kSp : spread), cs = (m) => fee + spd(m) / 2;   // v456 · deslizamiento de CADA cripto (su diferencia compra-venta de hoy, mínimo 0,15 %)
   const valor = (t) => cash + Object.entries(pos).reduce((s, [m, p]) => { const i = idx[m].get(t); return s + p.q * (i != null ? series[m][i][4] : p.ult); }, 0);
   for (const t of dias) {
     for (const [m, p] of Object.entries(pos)) { const i = idx[m].get(t); if (i == null) continue; const d = series[m], x = d[i]; p.ult = x[4];
       const lo = loDe(d, P.sale)[i];
-      if (P.tp > 0 && !p.tpHecho && x[2] >= p.px * (1 + P.tp) && !(x[3] <= p.stop)) { const pt = Math.max(x[1], p.px * (1 + P.tp)), fr = P.tpFrac >= 1 ? 1 : P.tpFrac, qv = p.q * fr, got = qv * pt * (1 - cst), co = p.coste * fr;
+      if (P.tp > 0 && !p.tpHecho && x[2] >= p.px * (1 + P.tp) && !(x[3] <= p.stop)) { const pt = Math.max(x[1], p.px * (1 + P.tp)), fr = P.tpFrac >= 1 ? 1 : P.tpFrac, qv = p.q * fr, got = qv * pt * (1 - cs(m)), co = p.coste * fr;
         cash += got; if (fr >= 1) { if (got > co) { gan++; gb += got - co; } else pb += co - got; delete pos[m]; continue; } gb += Math.max(0, got - co); p.q -= qv; p.coste -= co; p.tpHecho = 1; }   /* v323 · 💰 recoge ganancias */
-      let px = null; if (x[3] <= p.stop) px = Math.min(x[1], p.stop); else if (x[4] < lo) { const neto = (x[4] * (1 - cst)) / p.px - 1; if (neto > 0 || t - p.t0 > T_ESPERA_D * 86400e3) px = x[4]; }
-      if (px != null) { const got = p.q * px * (1 - cst); cash += got; const r = got / p.coste - 1; if (r > 0) { gan++; gb += got - p.coste; } else pb += p.coste - got; delete pos[m]; } }
+      let px = null; if (x[3] <= p.stop) px = Math.min(x[1], p.stop); else if (x[4] < lo) { const neto = (x[4] * (1 - cs(m))) / p.px - 1; if (neto > 0 || t - p.t0 > (P.espera ?? T_ESPERA_D) * 86400e3) px = x[4]; }
+      if (px != null) { const got = p.q * px * (1 - cs(m)); cash += got; const r = got / p.coste - 1; if (r > 0) { gan++; gb += got - p.coste; } else pb += p.coste - got; delete pos[m]; } }
     const V = valor(t);
     for (const [m, d] of Object.entries(series)) { if (pos[m] || Object.keys(pos).length >= P.maxPos) continue; const i = idx[m].get(t); if (i == null || i < P.ent + 2) continue; const s = senalRapida(d, i, P);
       if (s && s.entra && P.filtro && BTC) { const ib = idx["BTC-EUR"].get(t); const sb = ib != null ? senalRapida(BTC, ib, P) : null; if (!sb || !sb.sobreF) continue; }
       if (s && s.entra && P.atrMax > 0 && s.N / s.c > P.atrMax) continue;   /* v317 · demasiado nerviosa */
       if (!s || !s.entra || !(s.N > 0)) continue;
       const stopD = Math.min(P.kN * s.N, s.c * P.stopMax); let eur = tamano(V, stopD / s.c, P); eur = Math.min(eur, cash); if (eur < 0.05 * V) continue;
-      const px = s.c * (1 + spread / 2); cash -= eur; pos[m] = { q: (eur * (1 - fee)) / px, px, coste: eur, stop: s.c - stopD, t0: t, ult: s.c }; n++; }
+      const px = s.c * (1 + spd(m) / 2); cash -= eur; pos[m] = { q: (eur * (1 - fee)) / px, px, coste: eur, stop: s.c - stopD, t0: t, ult: s.c }; n++; }
     const V2 = valor(t); pico = Math.max(pico, V2); dd = Math.max(dd, 1 - V2 / pico); curva.push([t, V2]); }
   const fin = curva.length ? curva[curva.length - 1][1] : 1, q = [0, 1, 2, 3].map((j) => { const a = Math.floor((curva.length * j) / 4), b = Math.floor((curva.length * (j + 1)) / 4) - 1; return curva.length ? Math.round((curva[b][1] / (j ? curva[a - 1][1] : 1) - 1) * 10000) / 100 : 0; });
   return { ret: Math.round((fin - 1) * 10000) / 100, dd: Math.round(dd * 10000) / 100, n, aciertos: n ? Math.round((gan / n) * 100) : 0, pf: pb > 0 ? Math.round((gb / pb) * 100) / 100 : gb > 0 ? 99 : 0, semestres: q, curva };
@@ -134,7 +137,7 @@ const nota = (r, peso = 0.5) => r.ret - peso * r.dd;
 //  2) aprobar los 2 años completos;
 //  3) no perder con las criptos del OTRO exchange (lección de la caza: si solo gana con un grupo de criptos, es suerte);
 //  4) no ir peor que la que está en uso en los últimos 4 meses (mercado actual).
-const GEN = { ent: [10, 15, 20, 25, 30, 40, 55, 70, 100], sale: [5, 7, 10, 15, 20, 30, 40], kN: [1.5, 2, 2.5, 3, 4], stopMax: [0.05, 0.06, 0.08, 0.1, 0.12, 0.15], filtro: [false, true], maxPos: [1, 2, 3, 4, 5, 6], mFil: [20, 50, 100, 200], atrMax: [0, 0.04, 0.06, 0.1], tp: [0, 0, 0.05, 0.1, 0.2], tpFrac: [0.5, 1], vol: [0, 0, 1.5, 2, 3], rsiMax: [0, 0, 70, 80, 90], comp: [0, 0, 0.7, 0.85], momD: [0, 0, 60, 120], cazar: [0, 0, 0.15, 0.3] };
+const GEN = { ent: [10, 15, 20, 25, 30, 40, 55, 70, 100], sale: [5, 7, 10, 15, 20, 30, 40], kN: [1.5, 2, 2.5, 3, 4], stopMax: [0.05, 0.06, 0.08, 0.1, 0.12, 0.15], filtro: [false, true], maxPos: [1, 2, 3, 4, 5, 6], mFil: [20, 50, 100, 200], atrMax: [0, 0.04, 0.06, 0.1], tp: [0, 0, 0.05, 0.1, 0.2], tpFrac: [0.5, 1], vol: [0, 0, 1.5, 2, 3], rsiMax: [0, 0, 70, 80, 90], comp: [0, 0, 0.7, 0.85], momD: [0, 0, 60, 120], cazar: [0, 0, 0.15, 0.3], espera: [0, 7] };
 export const GENES = GEN;
 const valido = (P) => P.sale < P.ent && P.maxPos >= perfil(P.riesgo).maxPosMin;
 export function hijas(padres, n, rnd = Math.random, riesgo = "medio") { const pick = (a) => a[Math.floor(rnd() * a.length)], out = [], vistos = new Set(padres.map((p) => JSON.stringify(conP(p))));

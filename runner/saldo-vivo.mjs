@@ -1,6 +1,6 @@
-// v440 · 💶 SALDO EN VIVO de Bitvavo y OKX: cada 10 s lee lo que hay de verdad en cada cuenta (euros y cada cripto, con las claves de solo
+// v440 · 💶 SALDO EN VIVO de Bitvavo y OKX: cada 60 s (v456; antes 10 s) lee lo que hay de verdad en cada cuenta (euros y cada cripto, con las claves de solo
 // lectura/operar que ya usa el bot) y, si ha cambiado algo (un ingreso, una retirada, una compra o una venta), lo publica CIFRADO en la rama
-// «saldo-vivo». La app lo lee cada 10 s y lo valora con los precios en directo. Nunca escribe importes en los registros públicos.
+// «saldo-vivo». La app lo lee cada minuto y lo valora con los precios en directo. Nunca escribe importes en los registros públicos.
 import { execSync } from "node:child_process";
 import { writeFileSync, rmSync, mkdirSync } from "node:fs";
 import path from "node:path";
@@ -8,7 +8,7 @@ import { cliente as cBv } from "./bitvavo-real.mjs";
 import { cliente as cOkx } from "./okx.mjs";
 import { encrypt } from "./real-cfg.mjs";
 const env = (k) => (process.env[k] || "").trim(), REPO = env("GITHUB_REPOSITORY") || "CarlosGomezS/Botrading", TOKEN = env("GITHUB_TOKEN"), PW = env("REAL_VIEW_PASS");
-const DUR = (+env("VIVO_SEG") || 27 * 60) * 1000, CADA = 10000, LATIDO = 5 * 60e3, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), r2 = (x) => Math.round(x * 100) / 100;
+const DUR = (+env("VIVO_SEG") || 27 * 60) * 1000, CADA = 60000, LATIDO = 5 * 60e3, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), r2 = (x) => Math.round(x * 100) / 100;
 const CTA = [];
 if (env("BITVAVO_KEY") && env("BITVAVO_SECRET")) { const api = cBv(env("BITVAVO_KEY"), env("BITVAVO_SECRET"));
   CTA.push({ ex: "bitvavo", saldos: async () => { const b = await api("GET", "/balance"), o = {}; for (const x of Array.isArray(b) ? b : []) { const q = (+x.available || 0) + (+x.inOrder || 0); if (q > 0) o[x.symbol] = q; } return o; },
