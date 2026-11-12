@@ -18,7 +18,7 @@ function mundo(o = {}) {
     ctl: o.ctl === undefined ? { estado: "on", uso: 100, plazas: 5, freno: 0.35, puesto: 1 } : o.ctl, ctlFallo: o.ctlFallo || null, refsFallo: !!o.refsFallo,
     falloStop: o.falloStop || 0, stopIncompleto: o.stopIncompleto || 0, fillsRoto: !!o.fillsRoto, estadoRoto: !!o.estadoRoto, guardarFalla: !!o.guardarFalla, ledgerFallo: !!o.ledgerFallo, rompeTrasCierre: !!o.rompeTrasCierre, cancelFalla: o.cancelFalla || 0, marcasFallo: !!o.marcasFallo, ordenesFallo: !!o.ordenesFallo, lab: o.lab || null, falloCierre: new Set(o.falloCierre || []), parcial: o.parcial || 0, timeoutAbrir: !!o.timeoutAbrir, quiere: o.quiere || [] };
   for (const p of o.pos || []) { W.pos[p.c] = { szi: p.szi, entryPx: p.px ?? W.px[p.c] }; W.fills.push({ coin: p.c, dir: p.szi > 0 ? "Open Long" : "Open Short", time: Date.now() - (p.edadH ?? 1) * H, px: p.px ?? W.px[p.c], sz: Math.abs(p.szi) }); }
-  for (const s of o.stops || []) W.stops.push({ coin: s.c, oid: W.oid++, ...(s.side ? { side: s.side } : {}), sz: String(s.sz), origSz: String(s.sz), triggerPx: String(s.trig), isTrigger: true, orderType: s.tipo || "Stop Market", reduceOnly: s.noReduce ? false : true });
+  for (const s of o.stops || []) W.stops.push({ coin: s.c, oid: W.oid++, ...(s.side ? { side: s.side } : {}), sz: String(s.sz), origSz: String(s.sz), triggerPx: String(s.trig), isTrigger: !s.limite, orderType: s.limite ? "Limit" : s.tipo || "Stop Market", reduceOnly: s.noReduce ? false : true });
   // v466 · con posiciones de partida, el bot ya tenía su estado (salvo que la prueba diga lo contrario)
   if ((o.pos || []).length && !o.sinEstado) W.estadoIni = { pm: Object.fromEntries(o.pos.map((p) => [p.c, { h: 168, sl: 0.08, k: "m1" }])) };
   const coins = Object.keys(W.px), j = (x, st = 200) => ({ ok: st < 400, status: st, json: async () => x, text: async () => JSON.stringify(x) });
@@ -31,6 +31,7 @@ function mundo(o = {}) {
     if (u.includes("/contents/hl-real.json")) return W.guardado ? j({ t: W.guardado.t }) : j({}, 404);
     if (u.endsWith("/git/refs") && init.method === "POST") { if (W.refsFallo) return j({}, 500); if (W.refs.has(body.ref)) return j({ message: "Reference already exists" }, 422); W.refs.add(body.ref); return j({ ref: body.ref }, 201); }
     if (u.includes("/git/matching-refs/")) { if (W.marcasFallo && u.includes("hl-freno")) return j({}, 500); const pre = "refs/" + u.split("/git/matching-refs/")[1]; return j([...W.refs].filter((r) => r.startsWith(pre)).map((ref) => ({ ref }))); }
+    if (u.includes("/git/ref/tags/")) return W.refs.has("refs/" + u.slice(u.indexOf("/git/ref/") + 9)) ? j({}) : j({}, 404);
     if (init.method === "DELETE" && u.includes("/git/refs/")) { W.refs.delete(u.slice(u.indexOf("refs/"))); return j({}, 204); }
     if (u.endsWith("/info")) {
       const pos = () => Object.entries(W.pos).filter(([, p]) => p.szi !== 0).map(([c, p]) => ({ position: { coin: c, szi: String(p.szi), entryPx: String(p.entryPx), unrealizedPnl: String((W.px[c] - p.entryPx) * p.szi), positionValue: String(Math.abs(p.szi) * W.px[c]) } }));
@@ -297,4 +298,21 @@ test("v467 · CUARENTENA estricta: sin datos de cuarentena, vacía o no superada
 });
 test("v467 · guardar ajustes con un cambio no válido: termina con ERROR (no como guardado)", async () => {
   process.env.CAMBIO = "{no es json"; await assert.rejects(silencio(() => HL.guardaAjustes())); delete process.env.CAMBIO;
+});
+
+// ---------- v468 ----------
+test("v468 · el bot SOLO toca stops: una orden límite tuya o una toma de beneficios no se cancelan nunca (ni con stop bueno, ni al sustituir uno malo, ni sin posición)", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: -0.1 }, { c: "ETH", szi: 1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108 }, { c: "BTC", side: "B", sz: 0.1, trig: 90, limite: true }, { c: "BTC", side: "B", sz: 0.1, trig: 92, tipo: "Take Profit Market" },
+    { c: "ETH", side: "A", sz: 1, trig: 5, noReduce: true }, { c: "ETH", side: "A", sz: 1, trig: 12, limite: true }, { c: "SOL", side: "B", sz: 1, trig: 4, limite: true }] }); conecta(W); await silencio(() => HL.ronda());
+  const tipos = (c) => W.stops.filter((z) => z.coin === c).map((z) => z.orderType).sort();
+  assert.deepEqual(tipos("BTC"), ["Limit", "Stop Market", "Take Profit Market"], "BTC: stop bueno + límite + toma de beneficios intactos");
+  assert.deepEqual(tipos("ETH"), ["Limit", "Stop Market"], "ETH: el stop malo se sustituye; la límite sigue");
+  assert.ok(W.stops.find((z) => z.coin === "ETH" && z.orderType === "Stop Market").reduceOnly, "el nuevo es «solo cerrar»");
+  assert.deepEqual(tipos("SOL"), ["Limit"], "SOL (sin posición): la límite no se toca");
+});
+test("v468 · al rearmar el freno se borran sus marcas viejas; un 422 solo cuenta si la marca existe", async () => {
+  const W = mundo({ eq: 60, neto: 100, ctl: { estado: "on", uso: 100, plazas: 5, freno: 0.35, puesto: 1, t: new Date(Date.now() - 864e5).toISOString() } }); conecta(W); await silencio(() => HL.ronda());
+  assert.equal([...W.refs].filter((r) => r.includes("hl-freno-")).length, 1);
+  W.eq = 100; W.ctl = { ...W.ctl, t: new Date(Date.now() + 2000).toISOString() }; await otraHora(W); assert.equal([...W.refs].filter((r) => r.includes("hl-freno-")).length, 0, "marcas limpiadas al rearmar");
+  assert.equal(await HL.ponMarcaFreno(new Date().toISOString()), true); assert.equal(await HL.ponMarcaFreno(new Date().toISOString()), true, "ya existe (422) y se comprueba que está");
 });

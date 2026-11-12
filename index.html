@@ -646,7 +646,7 @@ details[data-o="cfg"] .kv>div .m{font-size:13px!important}
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 467 · jueves 12 de noviembre de 2026">✦ 26.11.12 «Fénix» <small>#467</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Compilación 468 · jueves 12 de noviembre de 2026">✦ 26.11.12 «Fénix» <small>#468</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -1954,6 +1954,7 @@ function labHoldB(b,k){const H=b.hold;if(!H||!H.v||!H.v[k]||!H.v.spy||!b.rows[k]
  return{rows:{spy:tr(b.rows.spy,H.v.spy),[k]:tr(b.rows[k],H.v[k])},cuts:[b.cuts[0],b.cuts[1],b.cuts[2],H.d]}}
 /* v100 · el laboratorio busca y aprende SOLO con los datos hasta hace ~2 años; para aprobar, además, tiene que ganar al SPY en esos 2 años ocultos */
 function labExam(b,k){const bb=labHoldB(b,k);if(!bb){const e0=labExam0(b,k);if(e0.ok){e0.ok=false;e0.fl=["no se ha podido hacer el examen oculto de los 2 últimos años (faltan datos): sin examen no aprueba"];e0.why=e0.fl[0]}return e0}   /* v465 · falla CERRADO */const e=labExam0(bb,k),full=labExam0(b,k),H=b.hold.v,hb=H[k].ht>H.spy.ht;
+ e.anIS=e.an;e.okIS=!!e.ok;   /* v468 · lo que se sabe ANTES del examen oculto (lo único que puede ver la IA) */
  e.an=full.an;e.hold={m:H[k].ht,s:H.spy.ht,ok:hb};if(e.ok&&!hb){e.ok=false;e.fl=["pierde contra el SPY en el examen oculto (los últimos 2 años, que no pudo ver al buscar)"];e.why=e.fl[0]}
  const c2=labC2(b,k,full.an);if(c2){e.c2=c2;if(e.ok&&!c2.ok){e.ok=false;e.fl=[`pagando el doble de comisiones ya no gana al SPY (${P(c2.an*100)}/año)`];e.why=e.fl[0]}}else if(e.ok){e.ok=false;e.fl=["no se ha podido calcular el examen con el doble de comisiones: sin examen no aprueba"];e.why=e.fl[0]}return e}   /* v465 · costes dobles obligatorios */
 /* v455 · rentabilidad anual si las comisiones y el deslizamiento fueran el doble; aprueba si aun así gana al SPY */
@@ -1972,7 +1973,7 @@ function labExam0(b,k){const v=btmVerd(b,k),r=b.rows[k],sp=b.rows.spy;if(!v||!r|
 function labLearn(L,g,good){if(!g||g.bl||g.base)return;const q=typeof good==="number"?good:good?1:0;for(const pc of Object.keys(LABV)){const st=L.st[pc]=L.st[pc]||{},x=st[String(g[pc]??LABD[pc]??0)]=st[String(g[pc]??LABD[pc]??0)]||[0,0];x[0]++;x[1]=+(x[1]+q).toFixed(3)}}
 function labJudge(b,trials){const L=labS(),d=T0();let born=0;const keepRow=new Set();
  for(const {k,g,why,pr} of trials){L.tried.push(k);const e=labExam(b,k);labLearn(L,g,e.sc!=null?e.sc*e.sc:e.beat);
-  try{if(/^🤖/.test(why||"")){L.iaRes=L.iaRes||{};L.iaRes[k]={g,an:e.an!=null?+(+e.an).toFixed(4):null,ok:!!e.ok,por:e.ok?"":String(e.why||"").slice(0,120),d};const ks=Object.keys(L.iaRes);if(ks.length>80)for(const z of ks.slice(0,ks.length-80))delete L.iaRes[z]}}catch(_){}   /* v366 · resultado de cada idea de la IA (el ayudante lo lee para aprender) */
+  try{if(/^🤖/.test(why||"")){L.iaRes=L.iaRes||{};L.iaRes[k]={g,an:e.an!=null?+(+e.an).toFixed(4):null,ok:!!e.ok,por:e.ok?"":String(e.why||"").slice(0,120),ais:e.anIS!=null?+(+e.anIS).toFixed(4):null,okis:e.okIS!=null?!!e.okIS:null,d};const ks=Object.keys(L.iaRes);if(ks.length>80)for(const z of ks.slice(0,ks.length-80))delete L.iaRes[z]}}catch(_){}   /* v366 · resultado de cada idea de la IA (el ayudante lo lee para aprender) */
   if(g&&!g.bl&&!g.base&&e.sc!=null){L.hist=Array.isArray(L.hist)?L.hist:[];L.hist.push([labVec(g),+e.sc.toFixed(3)]);if(L.hist.length>6000)L.hist=L.hist.slice(-6000);
    if(pr!=null){const er=Math.abs(pr-e.sc);L.ai=L.ai||{n:0,mae:null,base:null};L.ai.n++;L.ai.mae=L.ai.mae==null?er:0.95*L.ai.mae+0.05*er}}
   if(why&&why.startsWith("vecino:")){const pk=why.slice(7),P=L.pend[pk];if(P){P.nb=P.nb||[];P.nb.push(e.beat?1:0)}}

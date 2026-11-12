@@ -88,13 +88,16 @@ function valoresETF() {
   const V = Function("LABU", "LABLB", "return " + Vtxt)(Object.fromEntries(ukeys.map(([k]) => [k, 1])), LB), N = Function("return " + PN)();
   return { V, N, U: Object.fromEntries(ukeys), LB };
 }
+export const soloISetf = (x) => ({ gen: x.g, rentab_antes_del_examen: x.ais != null ? +(x.ais * 100).toFixed(1) : null, gana_al_sp500_antes_del_examen: x.okis == null ? null : !!x.okis });
 async function etf(MS, prev) {
   const VV = valoresETF(); if (!VV.V.u || !VV.V.u.length) throw new Error("no se pudieron leer los valores del laboratorio");
   let top = [], res = [];
   try { const st = (await raw("data", "vista.json")) || (await raw("data", "state.json")); let S = null; try { const rw = st.idb["bot-trading-pro-state-v19"].stores.kv.rows.find((r) => r[0] === "S")[1]; S = typeof rw === "string" ? JSON.parse(rw) : rw; } catch (e) {} if (!S || !S.lab) S = JSON.parse(st.ls.pb19); const L = S.lab || {}, an = S.labAn || {}, TV = (S.btm && S.btm.tr && S.btm.tr.v) || {};
     const ks = (L.top3 || []).map((x) => x.k).concat(Object.keys(L.pop || {})).filter((k, i, A) => A.indexOf(k) === i);
-    top = ks.map((k) => ({ k, g: (L.pop[k] || L.pend[k] || {}).g, an: an[k], t: TV[k] })).filter((x) => x.g).slice(0, 12).map((x) => ({ gen: x.g, rentab_anual: x.an != null ? +(x.an * 100).toFixed(1) : null, tramos: x.t ? { gana_al_sp500: x.t.g, tipico: x.t.mA, ult18m: x.t.rec } : null }));
-    res = Object.values(L.iaRes || {}).map((x) => ({ gen: x.g, rentab_anual: x.an != null ? +(x.an * 100).toFixed(1) : null, aprobo: x.ok, por_que_no: x.por || undefined }));
+    // v468 · 🔒 la IA de ETF tampoco ve nada del examen oculto: ni la liga ni el podio (están elegidos con él), ni si sus ideas aprobaron;
+    //   solo cómo le fue a cada idea suya ANTES de los 2 años ocultos (rentabilidad y si le ganó al S&P 500 en esa parte)
+    void ks; void an; void TV; top = [];
+    res = Object.values(L.iaRes || {}).filter((x) => x.ais !== undefined).map(soloISetf);
   } catch (e) { log("ETF: no se pudo leer el estado del laboratorio (" + String(e.message).slice(0, 60) + ")"); }
   const P = `Eres un gestor cuantitativo de primer nivel. Diseña estrategias de rotación mensual/trimestral para una cartera real en Trading 212 (Europa), usando SOLO las piezas de este laboratorio, en TRES CATEGORÍAS que compiten cada una en su propio podio:
 · 📊 ETF: grupos u que solo tienen ETF (todos menos los de las dos categorías siguientes).
@@ -105,8 +108,8 @@ Piezas del «gen» (qué significa cada una): ${JSON.stringify(VV.N)}
 Valores permitidos (USA SOLO ESTOS): ${JSON.stringify(VV.V)}
 Grupos de ETF (u): ${JSON.stringify(VV.U)}
 Plazos de fuerza (l = índice): ${JSON.stringify(VV.LB.map((x, i) => [i, x.join("/") + " días"]))}
-Los mejores del laboratorio ahora mismo: ${JSON.stringify(top)}
-${res.length ? `RESULTADOS de tus ideas anteriores en el examen (aprende de ellos): ${JSON.stringify(res.slice(-25))}` : ""}
+${top.length ? `Los mejores del laboratorio ahora mismo: ${JSON.stringify(top)}
+` : ""}${res.length ? `RESULTADOS de tus ideas anteriores (solo la parte ANTERIOR a los 2 años que se reservan para el examen; aprende de ellos): ${JSON.stringify(res.slice(-25))}` : ""}
 ${prev && prev.genes && prev.genes.length ? `Tus propuestas anteriores (no las repitas): ${JSON.stringify(prev.genes.slice(0, 16).map((x) => x.g))}` : ""}
 TU CUADERNO DE LECCIONES (de rondas anteriores; respétalo): ${JSON.stringify((prev && prev.lecciones) || [])}
 TU MEMORIA LARGA (lecciones de todas tus rondas anteriores, de la más reciente a la más antigua; úsala para no repetir errores y para construir sobre lo que ya funcionó): ${JSON.stringify(((globalThis.__MEM || {}).etf || []).slice(0, 80).map((x) => x.l))}
@@ -220,6 +223,8 @@ async function main() {
   const MEM = { cripto: [], etf: [], tort: [], ...(prev.memoria || {}) }; MEM.tort = MEM.tort || []; globalThis.__MEM = MEM;
   // v467 · las lecciones de cripto escritas antes de cerrar la fuga del examen se borran UNA vez (podían venir de saber qué recetas aprobaron)
   if (!prev.limpio467) { MEM.cripto = []; if (prev.cripto) prev.cripto = { ...prev.cripto, lecciones: [] }; out.cripto = prev.cripto || null; log("cripto: cuaderno de lecciones reiniciado (v467, sin datos del examen oculto)"); } out.limpio467 = 1;
+  // v468 · igual con las de ETF (podían venir de saber qué ideas aprobaron el examen oculto)
+  if (!prev.limpio468) { MEM.etf = []; if (prev.etf) prev.etf = { ...prev.etf, lecciones: [] }; out.etf = prev.etf || null; log("ETF: cuaderno de lecciones reiniciado (v468, sin datos del examen oculto)"); } out.limpio468 = 1;
   const guarda = (k, L) => { const ya = new Set(MEM[k].map((x) => x.l)); for (const l of L || []) if (l && !ya.has(l)) { MEM[k].unshift({ t: out.t, l }); ya.add(l); } MEM[k] = MEM[k].slice(0, 500); };
   guarda("cripto", prev.cripto && prev.cripto.lecciones); guarda("etf", prev.etf && prev.etf.lecciones); guarda("tort", prev.tort && prev.tort.lecciones);
   if (!KEY && !GROQ && !OR && !NV && !ZAI) { out.estado = "sin clave"; log("no hay clave GEMINI_KEY en los secretos de GitHub: los laboratorios siguen igual, sin ayudante"); }

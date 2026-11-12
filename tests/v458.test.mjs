@@ -173,3 +173,10 @@ test("v467 · a la IA solo le llegan datos anteriores al examen: nunca «aprobad
   const z = soloIS({ n: 3, nota: 1.2, casi: 1, aprobada: 1, mejor: { antes_del_examen: 12.5, pf: 1.3 }, o: { ret: 0.4 }, c2: { ret: 0.1 }, b: { ret: 0.2 } });
   assert.deepEqual(Object.keys(z).sort(), ["antes_del_examen", "casi", "n", "nota", "pf"]); assert.ok(!("aprobada" in z));
 });
+
+// ---------- v468 ----------
+import { soloISetf } from "../runner/ia-lab.mjs";
+test("v468 · IA de ETF: de sus ideas solo ve lo de ANTES de los 2 años ocultos (nada de «aprobó», rentabilidad completa ni motivo del examen)", () => {
+  const z = soloISetf({ g: { u: "x" }, an: 0.2, ok: true, por: "pierde contra el SPY en el examen oculto", ais: 0.15, okis: true, d: "2026-11-12" });
+  assert.deepEqual(Object.keys(z).sort(), ["gana_al_sp500_antes_del_examen", "gen", "rentab_antes_del_examen"]); assert.equal(z.rentab_antes_del_examen, 15);
+});

@@ -79,7 +79,7 @@ export async function leeCtl() { for (let i = 0; i < 3; i++) { try { const r = a
 export async function guardaAjustes() { let c = {}; try { c = JSON.parse(env("CAMBIO") || "{}"); } catch (e) { log("Ajuste no válido."); throw new Error("ajuste no válido"); }
   // v460 · nunca se escriben ajustes encima de los tuyos sin haberlos leído bien (si no existen todavía, se parte de «en pausa»)
   const lc = await leeCtl(); if (!lc.ok && lc.motivo !== "no hay ajustes guardados") { log("No he podido leer tus ajustes actuales: NO guardo nada para no pisarlos. Vuelve a intentarlo en un momento."); throw new Error("ajustes no leídos"); }
-  const o = { ...validaCtl(c, lc.ok ? lc.ctl : { ...CTL0, estado: "pausa" }), t: new Date().toISOString() }; if (!TOKEN) { log(JSON.stringify(o)); return; }
+  const o = { ...validaCtl(c, lc.ok ? lc.ctl : { ...CTL0, estado: "pausa" }), t: new Date().toISOString() }; if (!TOKEN) { log(JSON.stringify(o)); throw new Error("falta el token de GitHub: los ajustes NO se han guardado"); }   // v468 · nunca un «guardado» que no lo es
   const sh = (x) => execSync(x, { stdio: "pipe", encoding: "utf8" }), pub = path.join(process.cwd(), ".pubhlctl"); rmSync(pub, { recursive: true, force: true }); mkdirSync(pub); writeFileSync(path.join(pub, "ctl.json"), JSON.stringify(o));
   const g = (x) => sh(`git -C "${pub}" ${x}`); g("init -q -b hl-ctl"); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"'); g("add ctl.json"); g(`commit -q -m "ajustes hyperliquid"`);
   for (let i = 0; i < 4; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git hl-ctl`); log(`Ajustes guardados: ${o.estado} · usa ${o.uso} % · posiciones ${o.plazas || "auto"} · freno −${o.freno * 100} % · método n.º ${o.puesto}`); return; } catch (e) { await sleep(3000); } }
@@ -137,9 +137,14 @@ const tagHora = (iso) => new Date(iso).toISOString().replace(/\D/g, "").slice(0,
 export async function marcasFreno() { if (!TOKEN) return { ok: true, t: null };
   try { const r = await F(`https://api.github.com/repos/${REPO}/git/matching-refs/tags/hl-freno-`, { headers: HGH(), signal: AbortSignal.timeout(15000) }); if (!r.ok) return { ok: false };
     const ts = ((await r.json()) || []).map((x) => String(x.ref).replace("refs/tags/hl-freno-", "")).filter((k) => /^\d{14}$/.test(k)).map(horaTag); return { ok: true, t: ts.length ? Math.max(...ts) : null }; } catch (e) { return { ok: false }; } }
-export async function ponMarcaFreno(iso) { if (!TOKEN) return true;
+export async function ponMarcaFreno(iso) { if (!TOKEN) return false;   // v468 · sin GitHub no hay marca: se cuenta como NO puesta
   try { let sha = env("GITHUB_SHA"); if (!/^[0-9a-f]{40}$/.test(sha)) { const r0 = await F(`https://api.github.com/repos/${REPO}/git/ref/heads/main`, { headers: HGH(), signal: AbortSignal.timeout(15000) }); sha = r0.ok ? (await r0.json()).object.sha : ""; } if (!sha) return false;
-    const r = await F(`https://api.github.com/repos/${REPO}/git/refs`, { method: "POST", headers: HGH(), body: JSON.stringify({ ref: `refs/tags/hl-freno-${tagHora(iso)}`, sha }), signal: AbortSignal.timeout(15000) }); return r.status === 201 || r.status === 422; } catch (e) { return false; } }
+    const r = await F(`https://api.github.com/repos/${REPO}/git/refs`, { method: "POST", headers: HGH(), body: JSON.stringify({ ref: `refs/tags/hl-freno-${tagHora(iso)}`, sha }), signal: AbortSignal.timeout(15000) }); if (r.status === 201) return true;
+    // v468 · un 422 solo vale si la etiqueta EXISTE de verdad (se comprueba)
+    if (r.status === 422) { const r2 = await F(`https://api.github.com/repos/${REPO}/git/ref/tags/hl-freno-${tagHora(iso)}`, { headers: HGH(), signal: AbortSignal.timeout(15000) }); return r2.status === 200; } return false; } catch (e) { return false; } }
+// v468 · al rearmar el freno, se borran las marcas anteriores a tu guardado de ajustes (así la lista nunca crece)
+async function limpiaMarcasFreno(hasta) { if (!TOKEN) return; try { const r = await F(`https://api.github.com/repos/${REPO}/git/matching-refs/tags/hl-freno-`, { headers: HGH(), signal: AbortSignal.timeout(15000) }); if (!r.ok) return;
+  for (const x of ((await r.json()) || []).slice(0, 50)) { const k = String(x.ref).replace("refs/tags/hl-freno-", ""); if (/^\d{14}$/.test(k) && horaTag(k) < hasta) await F(`https://api.github.com/repos/${REPO}/git/${x.ref}`, { method: "DELETE", headers: HGH(), signal: AbortSignal.timeout(15000) }).catch(() => {}); } } catch (e) {} }
 // v460 · cierra UNA posición sin que un fallo pare a las demás; devuelve si Hyperliquid confirma el cierre
 async function cierraUna(p, I, mids, PK, holgura = SLIP) { try { const lado = +p.szi > 0, mid = +mids[p.coin] || +p.entryPx; return await mandar(orden(I.a, !lado, precioOk(mid * (lado ? 1 - holgura : 1 + holgura), I.szd), Math.abs(+p.szi), true), PK); } catch (e) { return { ok: false, err: String(e.message).slice(0, 80) }; } }
 // v460 · señales de la última vela cerrada para el método (separado para poder probar el resto sin datos de mercado)
@@ -210,7 +215,7 @@ export async function ronda() {
   const frenoMarca = FM.ok && FM.t && !reArm(new Date(FM.t).toISOString()) ? new Date(FM.t).toISOString() : null;   // v466 · la segunda vía
   const frenoAhora = neto > 0 && eq < neto * (1 - CTL.freno), frenoEst = prev && prev.frenoDesde && !reArm(prev.frenoDesde) ? prev.frenoDesde : null, frenoPrev = frenoEst || frenoMarca;
   const freno = frenoAhora || !!frenoPrev, parar = CTL.estado === "parado", todo = freno || parar;
-  let marcaOk = true; if (freno) { estado.frenoDesde = frenoPrev || new Date().toISOString(); if (!(FM.ok && FM.t && FM.t >= Date.parse(estado.frenoDesde) - 1000)) marcaOk = await ponMarcaFreno(estado.frenoDesde); } else if (prev && prev.frenoDesde) log("Freno rearmado: has vuelto a guardar los ajustes después de que saltase.");
+  let marcaOk = true; if (freno) { estado.frenoDesde = frenoPrev || new Date().toISOString(); if (!(FM.ok && FM.t && FM.t >= Date.parse(estado.frenoDesde) - 1000)) marcaOk = await ponMarcaFreno(estado.frenoDesde); } else { if (prev && prev.frenoDesde) log("Freno rearmado: has vuelto a guardar los ajustes después de que saltase."); if (FM.ok && FM.t && lc.ok && CTL.t) await limpiaMarcasFreno(Date.parse(CTL.t)); }
   // 2) cerrar las que ya han cumplido su tiempo (con 10 min de margen) o todas si salta el freno o está parado.
   //    v460 · cada cierre va por separado (un fallo no para a los demás) y, si había que cerrar todo, se comprueba en Hyperliquid y se reintenta
   for (const p of pos) { const c = p.coin, t0 = (pm[c] && pm[c].t0) || (fillsOk ? abierta(c) : null), edad = t0 ? Date.now() - t0 : null, I = idx.get(c); if (!I) continue;
@@ -268,18 +273,21 @@ export async function ronda() {
   }
   // v441 · 🛡️ revisión de stops: cada posición abierta debe tener su stop de emergencia; las órdenes que ya no tengan posición se cancelan
   try { const stx = await info({ type: "clearinghouseState", user: yo }), ab = (stx.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0), oo = (await info({ type: "frontendOpenOrders", user: yo })) || [];
-    const canc = oo.filter((o) => !ab.some((p) => p.coin === o.coin) && idx.has(o.coin)).map((o) => ({ a: idx.get(o.coin).a, o: o.oid })), quitar = [...canc];   // v466 · todo lo que se cancela se comprueba después
+    // v468 · el bot SOLO toca órdenes de tipo stop (las suyas son siempre «Stop Market»; las de abrir y cerrar son IOC y nunca quedan en el libro).
+    //   Una orden límite tuya (o una toma de beneficios) no se cancela nunca: solo se avisa si está en una cripto que el bot gestiona.
+    const esStop = (o) => /stop/i.test(o.orderType || "") || (o.isTrigger === true && !/take profit/i.test(o.orderType || ""));   // una toma de beneficios tuya tampoco se toca
+    const canc = oo.filter((o) => esStop(o) && !ab.some((p) => p.coin === o.coin) && idx.has(o.coin)).map((o) => ({ a: idx.get(o.coin).a, o: o.oid })), quitar = [...canc];   // v466 · todo lo que se cancela se comprueba después
     if (canc.length) await exchange({ type: "cancel", cancels: canc }, PK).catch(() => {});
     // v456 · el stop de cada posición va donde dice SU método (p. ej. −8 %), igual que en la prueba; si el método no tiene stop, el de emergencia (−25 %)
     for (const p of ab) { const I = idx.get(p.coin); if (!I) continue; const lado = +p.szi > 0 ? 1 : -1, ent = +p.entryPx, dist = pm[p.coin] && pm[p.coin].sl > 0 ? pm[p.coin].sl : STOP_EMERG, want = ent * (lado > 0 ? 1 - dist : 1 + dist);
       // v459 · el stop tiene que estar bien en TODO: precio, lado (vende si es largo, compra si es corto) y cantidad (cubre toda la posición)
-      const sts = oo.filter((o) => o.coin === p.coin && (o.isTrigger || /stop/i.test(o.orderType || ""))), tam = Math.abs(+p.szi), ladoOk = (o) => (lado > 0 ? o.side === "A" : o.side === "B"), tamOk2 = (o) => { const z = +(o.sz ?? o.origSz); return z > 0 && z >= tam * 0.999; }, soloCierra = (o) => o.reduceOnly === true;   // v466 · y tiene que ser «solo cerrar» (nunca puede abrir una posición al revés)   // v465 · sin lado o sin cantidad = NO verificado
+      const sts = oo.filter((o) => o.coin === p.coin && esStop(o)), tam = Math.abs(+p.szi), ladoOk = (o) => (lado > 0 ? o.side === "A" : o.side === "B"), tamOk2 = (o) => { const z = +(o.sz ?? o.origSz); return z > 0 && z >= tam * 0.999; }, soloCierra = (o) => o.reduceOnly === true;   // v466 · y tiene que ser «solo cerrar» (nunca puede abrir una posición al revés)   // v465 · sin lado o sin cantidad = NO verificado
       // v467 · se revisa la lista ENTERA de órdenes de esa cripto: se queda UN stop válido y todas las demás (malas o sobrantes) se cancelan y se comprueba.
       //   Válido = «Stop Market», «solo cerrar», lado y cantidad correctos y precio PROTECTOR: en el lado bueno de la entrada y donde dice su método
       //   (o, si la posición no tiene método conocido, a no más del −25 % de la entrada).
       const tipoOk = (o) => o.isTrigger === true && o.orderType === "Stop Market", tp = +p.entryPx || 0, protege = (o) => { const x = +o.triggerPx; return x > 0 && tp > 0 && (lado > 0 ? x < tp && x >= tp * (1 - STOP_EMERG) * 0.999 : x > tp && x <= tp * (1 + STOP_EMERG) * 1.001); };
       const valido = (o) => tipoOk(o) && soloCierra(o) && ladoOk(o) && tamOk2(o) && protege(o) && (pm[p.coin] ? Math.abs(+o.triggerPx / want - 1) < 0.006 : true);
-      const todas = oo.filter((o) => o.coin === p.coin), bueno = sts.find(valido);
+      const todas = oo.filter((o) => o.coin === p.coin && esStop(o)), bueno = sts.find(valido);   // v468 · solo stops
       if (bueno) { const sob = todas.filter((o) => o.oid !== bueno.oid).map((o) => ({ a: I.a, o: o.oid })); if (sob.length) { quitar.push(...sob); await exchange({ type: "cancel", cancels: sob }, PK).catch(() => {}); log(`Órdenes sobrantes o incorrectas canceladas en una posición: ${sob.length}.`); } continue; }
       let okS = false; try { okS = await ponStop(I.a, lado, ent, Math.abs(+p.szi), I.szd, PK, dist); } catch (e) { okS = false; }
       if (okS) { if (todas.length) { const cs = todas.map((o) => ({ a: I.a, o: o.oid })); quitar.push(...cs); await exchange({ type: "cancel", cancels: cs }, PK).catch(() => {}); } log(sts.length ? "Stop de una posición movido a lo que dice su método." : "Stop puesto en una posición que no lo tenía."); }
