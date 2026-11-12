@@ -127,6 +127,16 @@ export async function candado(clave) {
     return { ok: false, err: "HTTP " + r.status }; } catch (e) { return { ok: false, err: String(e.message).slice(0, 60) }; } }
 async function limpiaCandados() { if (!TOKEN) return; try { const H0 = { Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github+json" }, r = await F(`https://api.github.com/repos/${REPO}/git/matching-refs/tags/hl-lock-`, { headers: H0, signal: AbortSignal.timeout(15000) }); if (!r.ok) return;
   const lim = new Date(Date.now() - 2 * 864e5).toISOString().replace(/\D/g, "").slice(0, 10); for (const x of (await r.json()).slice(0, 60)) { const k = String(x.ref).replace("refs/tags/hl-lock-", ""); if (/^\d{10}/.test(k) && k.slice(0, 10) < lim) await F(`https://api.github.com/repos/${REPO}/git/${x.ref}`, { method: "DELETE", headers: H0, signal: AbortSignal.timeout(15000) }).catch(() => {}); } } catch (e) {} }
+// v466 · 🧯 FRENO POR DOS VÍAS: además del estado cifrado, una etiqueta de git «hl-freno-AAAAMMDDhhmmss». Así, aunque falle el guardado del estado,
+//   el freno sigue echado en la ronda siguiente. Se rearma igual: cuando vuelves a guardar los ajustes DESPUÉS de esa hora.
+const HGH = () => ({ Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github+json", "Content-Type": "application/json" });
+const tagHora = (iso) => new Date(iso).toISOString().replace(/\D/g, "").slice(0, 14), horaTag = (k) => Date.UTC(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8), +k.slice(8, 10), +k.slice(10, 12), +k.slice(12, 14));
+export async function marcasFreno() { if (!TOKEN) return { ok: true, t: null };
+  try { const r = await F(`https://api.github.com/repos/${REPO}/git/matching-refs/tags/hl-freno-`, { headers: HGH(), signal: AbortSignal.timeout(15000) }); if (!r.ok) return { ok: false };
+    const ts = ((await r.json()) || []).map((x) => String(x.ref).replace("refs/tags/hl-freno-", "")).filter((k) => /^\d{14}$/.test(k)).map(horaTag); return { ok: true, t: ts.length ? Math.max(...ts) : null }; } catch (e) { return { ok: false }; } }
+export async function ponMarcaFreno(iso) { if (!TOKEN) return true;
+  try { let sha = env("GITHUB_SHA"); if (!/^[0-9a-f]{40}$/.test(sha)) { const r0 = await F(`https://api.github.com/repos/${REPO}/git/ref/heads/main`, { headers: HGH(), signal: AbortSignal.timeout(15000) }); sha = r0.ok ? (await r0.json()).object.sha : ""; } if (!sha) return false;
+    const r = await F(`https://api.github.com/repos/${REPO}/git/refs`, { method: "POST", headers: HGH(), body: JSON.stringify({ ref: `refs/tags/hl-freno-${tagHora(iso)}`, sha }), signal: AbortSignal.timeout(15000) }); return r.status === 201 || r.status === 422; } catch (e) { return false; } }
 // v460 · cierra UNA posición sin que un fallo pare a las demás; devuelve si Hyperliquid confirma el cierre
 async function cierraUna(p, I, mids, PK, holgura = SLIP) { try { const lado = +p.szi > 0, mid = +mids[p.coin] || +p.entryPx; return await mandar(orden(I.a, !lado, precioOk(mid * (lado ? 1 - holgura : 1 + holgura), I.szd), Math.abs(+p.szi), true), PK); } catch (e) { return { ok: false, err: String(e.message).slice(0, 80) }; } }
 // v460 · señales de la última vela cerrada para el método (separado para poder probar el resto sin datos de mercado)
@@ -159,6 +169,7 @@ export async function ronda() {
   const pos = (st.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0);
   let ledOk = true; const led = await info({ type: "userNonFundingLedgerUpdates", user: yo, startTime: 0 }).catch(() => { ledOk = false; return []; });   // v461 · sin el historial de ingresos no se puede calcular el freno → esta hora no se abre nada
   let neto = 0; for (const u of led || []) { const d = u.delta || {}; if (d.type === "deposit") neto += +d.usdc || 0; else if (d.type === "withdraw") neto -= +d.usdc || 0; }
+  const netoMal = ledOk && !(neto > 0);   // v466 · lo ingresado neto no es positivo: el freno no tiene base fiable → no se abre nada
   let fillsOk = true; const fills = await info({ type: "userFills", user: yo }).catch(() => { fillsOk = false; return []; });   // v465 · si falla, NO se inventa la antigüedad de las posiciones
   const abierta = (c) => { const f = (fills || []).filter((z) => z.coin === c && /^Open/.test(z.dir)).sort((a, b) => b.time - a.time)[0]; return f ? +f.time : null; };
   const LA = await leeAnterior(), prev = LA.ok ? LA.S : null, estadoOk = LA.ok;
@@ -172,7 +183,12 @@ export async function ronda() {
   // v456 · cada posición recuerda SU método (duración y stop): si el método cambia, las abiertas siguen con sus reglas. Las que no lo tienen
   //   apuntado (abiertas antes de esta versión) son del método en uso.
   const pm = (prev && prev.pm) || {};
-  for (const p of pos) if (!pm[p.coin] && estadoOk) pm[p.coin] = { h, sl: M0 && M0.x && M0.x.g ? M0.x.g.sl || 0 : 0, k: M0 && M0.x ? M0.x.k : null };
+  // v466 · 🧩 ESTADO DESAPARECIDO CON POSICIONES ABIERTAS: no se adoptan (podrían ser tuyas, o de otro método); no se abre nada, no se cierran por tiempo
+  //   y no se toca su stop si ya tienen uno que las cubre. Hace falta que lo revises: al volver a guardar los ajustes, el bot las da por suyas.
+  const reArm = (iso) => lc.ok && CTL.t && Date.parse(CTL.t) > Date.parse(iso);
+  const recon = !estadoOk || !pos.length ? null : LA.nuevo ? new Date().toISOString() : prev && prev.reconciliar && !reArm(prev.reconciliar) ? prev.reconciliar : null;
+  if (recon) { log("Hyperliquid real: hay posiciones abiertas pero no hay estado guardado del bot. No las adopto, no abro nada y no las cierro por tiempo hasta que lo revises."); if (LA.nuevo) await aviso("⚠️ Hyperliquid: hay posiciones abiertas en la cuenta pero el bot no tiene su estado guardado (se ha borrado o es la primera vez). No las toco (siguen con su stop), no abro nada y no las cierro por tiempo. Revísalas en app.hyperliquid.xyz y, cuando estén como quieras, vuelve a guardar los ajustes de Hyperliquid en la app: entonces el bot las gestionará con su método."); }
+  if (!recon) for (const p of pos) if (!pm[p.coin] && estadoOk) pm[p.coin] = { h, sl: M0 && M0.x && M0.x.g ? M0.x.g.sl || 0 : 0, k: M0 && M0.x ? M0.x.k : null };
   // v465 · cada posición guarda la HORA DE APERTURA confirmada; si falta, se toma del historial (solo si se ha podido leer)
   for (const p of pos) if (pm[p.coin] && !pm[p.coin].t0 && fillsOk) { const t = abierta(p.coin); if (t) pm[p.coin].t0 = t; }
   for (const c of Object.keys(pm)) if (!pos.some((p) => p.coin === c)) delete pm[c];
@@ -181,14 +197,17 @@ export async function ronda() {
     if (a && a.validUntil) { agenteHasta = +a.validUntil; const dias = Math.floor((agenteHasta - Date.now()) / 864e5), hMad = +new Date().toLocaleString("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hour12: false });
       if (dias <= 30 && hMad === 10) await aviso(`🔑 Hyperliquid: la clave del bot ${dias <= 0 ? "CADUCA HOY" : `caduca en ${dias} día${dias === 1 ? "" : "s"}`} (${new Date(agenteHasta).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}).\nCrea otra: en Rabby abre app.hyperliquid.xyz/API → nombre «botrading» → Generate → Authorize API Wallet → firma. Copia la Private Key nueva y pégala en la app (⚙️ Ajustes → ☁️ Ajustes → 🪙 Claves → HL_AGENT_KEY). Al usar el mismo nombre, la vieja deja de valer sola.`); }
     else if (ag && !a) { log("⚠️ La clave del bot no aparece entre los agentes autorizados de tu cuenta."); if (new Date().getUTCMinutes() < 10) await aviso("🔑 Hyperliquid: la clave del bot ya no está autorizada en tu cuenta (caducada o borrada). El bot no puede operar: crea otra en app.hyperliquid.xyz/API y pégala en la app (HL_AGENT_KEY)."); } } catch (e) {}
-  const hechos = [], estado = { agenteHasta, w: yo, ctl: lc.ok ? CTL : prevCtl || CTL, ctlNoLeido: lc.ok ? undefined : 1, t: new Date().toISOString(), eq, neto, metodo: M0 && M0.x ? M0.x.n : null, ops: [], pm };
+  if (netoMal) { log("Lo ingresado neto en Hyperliquid no es positivo: el freno no tiene una base fiable y esta hora no abro nada."); if (!(prev && prev.netoMal)) await aviso("⚠️ Hyperliquid: según el historial, lo ingresado neto (ingresos − retiradas) no es positivo, así que el freno no puede calcularse. No abriré operaciones nuevas hasta que vuelva a serlo; lo abierto sigue con su stop."); }
+  const FM = await marcasFreno(); if (!FM.ok) log("No he podido leer la marca del freno: esta hora no abro nada.");
+  const hechos = [], estado = { agenteHasta, reconciliar: recon || undefined, netoMal: netoMal ? 1 : undefined, w: yo, ctl: lc.ok ? CTL : prevCtl || CTL, ctlNoLeido: lc.ok ? undefined : 1, t: new Date().toISOString(), eq, neto, metodo: M0 && M0.x ? M0.x.n : null, ops: [], pm };
   log(`Hyperliquid real: ${pos.length} posiciones abiertas · ${CTL.estado === "on" ? "activo" : CTL.estado === "pausa" ? "en pausa (no abre nuevas)" : "parado (cierra todo)"} · método ${M0 && M0.x ? "n.º " + CTL.puesto + " del podio" : "no disponible"}`);
 
   // 1) freno: la cuenta ha caído por debajo de lo ingresado menos el freno → cerrar todo y no abrir
   // v465 · 🧯 FRENO ENCLAVADO: una vez salta, se queda echado aunque la cuenta se recupere; solo se rearma cuando TÚ vuelves a guardar los ajustes de Hyperliquid en la app
-  const frenoAhora = neto > 0 && eq < neto * (1 - CTL.freno), frenoPrev = prev && prev.frenoDesde && !(lc.ok && CTL.t && Date.parse(CTL.t) > Date.parse(prev.frenoDesde));
+  const frenoMarca = FM.ok && FM.t && !reArm(new Date(FM.t).toISOString()) ? new Date(FM.t).toISOString() : null;   // v466 · la segunda vía
+  const frenoAhora = neto > 0 && eq < neto * (1 - CTL.freno), frenoEst = prev && prev.frenoDesde && !reArm(prev.frenoDesde) ? prev.frenoDesde : null, frenoPrev = frenoEst || frenoMarca;
   const freno = frenoAhora || !!frenoPrev, parar = CTL.estado === "parado", todo = freno || parar;
-  if (freno) estado.frenoDesde = (frenoPrev && prev.frenoDesde) || new Date().toISOString(); else if (prev && prev.frenoDesde) log("Freno rearmado: has vuelto a guardar los ajustes después de que saltase.");
+  let marcaOk = true; if (freno) { estado.frenoDesde = frenoPrev || new Date().toISOString(); if (!(FM.ok && FM.t && FM.t >= Date.parse(estado.frenoDesde) - 1000)) marcaOk = await ponMarcaFreno(estado.frenoDesde); } else if (prev && prev.frenoDesde) log("Freno rearmado: has vuelto a guardar los ajustes después de que saltase.");
   // 2) cerrar las que ya han cumplido su tiempo (con 10 min de margen) o todas si salta el freno o está parado.
   //    v460 · cada cierre va por separado (un fallo no para a los demás) y, si había que cerrar todo, se comprueba en Hyperliquid y se reintenta
   for (const p of pos) { const c = p.coin, t0 = (pm[c] && pm[c].t0) || (fillsOk ? abierta(c) : null), edad = t0 ? Date.now() - t0 : null, I = idx.get(c); if (!I) continue;
@@ -203,13 +222,16 @@ export async function ronda() {
       const m2 = await info({ type: "allMids" }).catch(() => mids); for (const p of ab) { const I = idx.get(p.coin); if (I) await cierraUna(p, I, m2, PK, 0.05); } }
     if (quedan) { estado.pendienteCierre = quedan; hechos.push(quedan > 0 ? `🚨 Quedan ${quedan} posiciones sin cerrar: lo reintento en cada ronda (siguen con su stop en Hyperliquid).` : "🚨 No he podido comprobar si se ha cerrado todo: lo reviso en la próxima ronda."); } }
   if (parar) { log("Hyperliquid real: parado desde los ajustes. No abro nada."); if (hechos.length) await aviso((quedan ? "🛑 Hyperliquid: lo has parado desde la app. He intentado cerrar todo, pero NO se ha cerrado del todo.\n\n" : "🛑 Hyperliquid: lo has parado desde la app. He cerrado todo (comprobado en Hyperliquid).\n\n") + hechos.join("\n")); estado.parado = 1; await guarda(estado); return; }
-  if (freno) { log("Hyperliquid real: freno activado (la cuenta ha caído más de lo permitido respecto a lo ingresado). No abro nada."); if (hechos.length) await aviso("🛑 Hyperliquid: la cuenta ha caído más de un " + CTL.freno * 100 + " % respecto a lo que ingresaste" + (frenoPrev && !frenoAhora ? " (el freno sigue echado hasta que lo rearmes)" : "") + ". " + (quedan ? "He intentado cerrar todo, pero NO se ha cerrado del todo; lo reintento cada hora." : "He cerrado todo (comprobado en Hyperliquid)") + " y no abriré más hasta que lo revises: para rearmarlo, vuelve a guardar los ajustes de Hyperliquid en la app.\n\n" + hechos.join("\n")); estado.freno = 1; await guarda(estado); return; }
+  if (freno) { log("Hyperliquid real: freno activado (la cuenta ha caído más de lo permitido respecto a lo ingresado). No abro nada."); if (hechos.length) await aviso("🛑 Hyperliquid: la cuenta ha caído más de un " + CTL.freno * 100 + " % respecto a lo que ingresaste" + (frenoPrev && !frenoAhora ? " (el freno sigue echado hasta que lo rearmes)" : "") + ". " + (quedan ? "He intentado cerrar todo, pero NO se ha cerrado del todo; lo reintento cada hora." : "He cerrado todo (comprobado en Hyperliquid)") + " y no abriré más hasta que lo revises: para rearmarlo, vuelve a guardar los ajustes de Hyperliquid en la app.\n\n" + hechos.join("\n")); estado.freno = 1;
+    // v466 · el freno se comprueba guardado: si el estado no se puede guardar, sigue echado por la marca; si fallan las dos vías, aviso urgente
+    const gOk = await guarda(estado); if (!gOk || !marcaOk) { log(`Freno: ${gOk ? "" : "estado NO guardado"}${!gOk && !marcaOk ? " y " : ""}${marcaOk ? "" : "marca NO puesta"}.`); await aviso(!gOk && !marcaOk ? "🚨 Hyperliquid: ha saltado el freno pero NO he podido dejarlo guardado (ni el estado ni la marca). Por seguridad pon Hyperliquid en PAUSA desde la app ahora." : "⚠️ Hyperliquid: ha saltado el freno y una de sus dos copias no se ha podido guardar; sigue echado por la otra. Lo reintento en la próxima ronda."); }
+    return; }
 
   // 3) abrir en las plazas libres según la señal de la última vela cerrada (solo con tus ajustes leídos bien y el candado conseguido)
   if (CTL.estado === "pausa") log("En pausa: no abro posiciones nuevas.");
   if (CTL.estado === "on" && !ledOk) log("No he podido leer el historial de ingresos (lo necesita el freno): esta hora no abro nada.");
   if (CTL.estado === "on" && (!estadoOk || !fillsOk)) log("Sin estado o historial fiable: esta hora no abro nada.");
-  if (CTL.estado === "on" && lc.ok && ledOk && estadoOk && fillsOk && !sinCandado && M0 && M0.x && M0.x.g) {
+  if (CTL.estado === "on" && lc.ok && ledOk && !netoMal && estadoOk && !recon && FM.ok && fillsOk && !sinCandado && M0 && M0.x && M0.x.g) {
     const g = M0.x.g, SV = await (deps.senales || senalesVivas)(M0, idx);
     if (SV.err) { log(SV.err); if (SV.avisar) await aviso(SV.avisar); }
     else { const quiere = SV.quiere;
@@ -243,23 +265,29 @@ export async function ronda() {
   }
   // v441 · 🛡️ revisión de stops: cada posición abierta debe tener su stop de emergencia; las órdenes que ya no tengan posición se cancelan
   try { const stx = await info({ type: "clearinghouseState", user: yo }), ab = (stx.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0), oo = (await info({ type: "frontendOpenOrders", user: yo })) || [];
-    const canc = oo.filter((o) => !ab.some((p) => p.coin === o.coin) && idx.has(o.coin)).map((o) => ({ a: idx.get(o.coin).a, o: o.oid }));
-    if (canc.length) await exchange({ type: "cancel", cancels: canc }, PK);
+    const canc = oo.filter((o) => !ab.some((p) => p.coin === o.coin) && idx.has(o.coin)).map((o) => ({ a: idx.get(o.coin).a, o: o.oid })), quitar = [...canc];   // v466 · todo lo que se cancela se comprueba después
+    if (canc.length) await exchange({ type: "cancel", cancels: canc }, PK).catch(() => {});
     // v456 · el stop de cada posición va donde dice SU método (p. ej. −8 %), igual que en la prueba; si el método no tiene stop, el de emergencia (−25 %)
     for (const p of ab) { const I = idx.get(p.coin); if (!I) continue; const lado = +p.szi > 0 ? 1 : -1, ent = +p.entryPx, dist = pm[p.coin] && pm[p.coin].sl > 0 ? pm[p.coin].sl : STOP_EMERG, want = ent * (lado > 0 ? 1 - dist : 1 + dist);
       // v459 · el stop tiene que estar bien en TODO: precio, lado (vende si es largo, compra si es corto) y cantidad (cubre toda la posición)
-      const sts = oo.filter((o) => o.coin === p.coin && (o.isTrigger || /stop/i.test(o.orderType || ""))), tam = Math.abs(+p.szi), ladoOk = (o) => (lado > 0 ? o.side === "A" : o.side === "B"), tamOk2 = (o) => { const z = +(o.sz ?? o.origSz); return z > 0 && z >= tam * 0.999; };   // v465 · sin lado o sin cantidad = NO verificado
-      const bien = sts.some((o) => +o.triggerPx > 0 && Math.abs(+o.triggerPx / want - 1) < 0.006 && ladoOk(o) && tamOk2(o));
+      const sts = oo.filter((o) => o.coin === p.coin && (o.isTrigger || /stop/i.test(o.orderType || ""))), tam = Math.abs(+p.szi), ladoOk = (o) => (lado > 0 ? o.side === "A" : o.side === "B"), tamOk2 = (o) => { const z = +(o.sz ?? o.origSz); return z > 0 && z >= tam * 0.999; }, soloCierra = (o) => o.reduceOnly === true;   // v466 · y tiene que ser «solo cerrar» (nunca puede abrir una posición al revés)   // v465 · sin lado o sin cantidad = NO verificado
+      const bien = sts.some((o) => +o.triggerPx > 0 && Math.abs(+o.triggerPx / want - 1) < 0.006 && ladoOk(o) && tamOk2(o) && soloCierra(o));
       if (bien) continue;
+      if (!pm[p.coin] && sts.some((o) => +o.triggerPx > 0 && ladoOk(o) && tamOk2(o) && soloCierra(o))) continue;   // v466 · posición sin método conocido: su stop válido se respeta tal cual
       let okS = false; try { okS = await ponStop(I.a, lado, ent, Math.abs(+p.szi), I.szd, PK, dist); } catch (e) { okS = false; }
-      if (okS) { if (sts.length) await exchange({ type: "cancel", cancels: sts.map((o) => ({ a: I.a, o: o.oid })) }, PK).catch(() => {}); log(sts.length ? "Stop de una posición movido a lo que dice su método." : "Stop puesto en una posición que no lo tenía."); }
+      if (okS) { if (sts.length) { const cs = sts.map((o) => ({ a: I.a, o: o.oid })); quitar.push(...cs); await exchange({ type: "cancel", cancels: cs }, PK).catch(() => {}); } log(sts.length ? "Stop de una posición movido a lo que dice su método." : "Stop puesto en una posición que no lo tenía."); }
       else {   // v461 · sin stop, o con uno que el bot acaba de ver que está MAL, y sin poder poner el bueno: se cierra la posición y se comprueba
         // v462 · el cierre solo cuenta como hecho si una consulta que FUNCIONA demuestra que la posición ya no está; si la consulta falla, el estado es
         //   «desconocido»: no se quita ningún stop (aunque sea imperfecto, protege algo), se avisa y se vuelve a comprobar en la ronda siguiente
         const rc = await cierraUna(p, I, mids, PK); let sigue = null; try { const s3 = await info({ type: "clearinghouseState", user: yo }); sigue = (s3.assetPositions || []).some((x) => x.position.coin === p.coin && +x.position.szi !== 0); } catch (e) { sigue = null; }
-        if (sigue === false && sts.length) await exchange({ type: "cancel", cancels: sts.map((o) => ({ a: I.a, o: o.oid })) }, PK).catch(() => {});
+        if (sigue === false && sts.length) { const cs = sts.map((o) => ({ a: I.a, o: o.oid })); quitar.push(...cs); await exchange({ type: "cancel", cancels: cs }, PK).catch(() => {}); }
         const que = sigue === false ? "la he cerrado (comprobado en Hyperliquid)" : sigue === null ? `he intentado cerrarla${rc.ok ? " (la orden se aceptó)" : ""}, pero NO he podido comprobar si sigue abierta; mantengo su stop y lo reviso en la próxima ronda` : "he intentado cerrarla (NO se ha podido: revísala en Hyperliquid)";
-        hechos.push(`🚨 ${p.coin}: ${sts.length ? "su stop no era correcto" : "estaba sin stop"} y no he podido poner el bueno, así que ${que}`); if (sigue !== false) await aviso(`🚨 Hyperliquid: ${p.coin} ${sigue ? "está abierta sin un stop correcto y no he podido cerrarla. Ciérrala a mano." : "puede seguir abierta sin un stop correcto (no he podido comprobarlo). Revísala en Hyperliquid."}`); } } } catch (e) { log("Revisión de stops: " + String(e.message).slice(0, 60)); }
+        hechos.push(`🚨 ${p.coin}: ${sts.length ? "su stop no era correcto" : "estaba sin stop"} y no he podido poner el bueno, así que ${que}`); if (sigue !== false) await aviso(`🚨 Hyperliquid: ${p.coin} ${sigue ? "está abierta sin un stop correcto y no he podido cerrarla. Ciérrala a mano." : "puede seguir abierta sin un stop correcto (no he podido comprobarlo). Revísala en Hyperliquid."}`); } }
+    // v466 · ✅ las cancelaciones se COMPRUEBAN: se vuelve a pedir la lista de órdenes; si alguna sigue viva se reintenta una vez y, si sigue, se avisa (stop duplicado)
+    if (quitar.length) { const vivas = async () => { const o2 = (await info({ type: "frontendOpenOrders", user: yo })) || []; return quitar.filter((x) => o2.some((o) => o.oid === x.o)); };
+      let v = null; try { v = await vivas(); if (v.length) { await exchange({ type: "cancel", cancels: v }, PK).catch(() => {}); await deps.espera(2000); v = await vivas(); } } catch (e) { v = null; }
+      if (v === null) { log("No he podido comprobar que las órdenes canceladas ya no están."); hechos.push("⚠️ No he podido comprobar que se cancelaron las órdenes viejas: lo reviso en la próxima ronda"); }
+      else if (v.length) { hechos.push(`🚨 ${v.length} orden${v.length === 1 ? "" : "es"} que debía${v.length === 1 ? "" : "n"} cancelarse sigue${v.length === 1 ? "" : "n"} viva${v.length === 1 ? "" : "s"} (posible stop duplicado)`); await aviso(`🚨 Hyperliquid: ${v.length} orden${v.length === 1 ? "" : "es"} vieja${v.length === 1 ? "" : "s"} no se ha${v.length === 1 ? "" : "n"} podido cancelar (posible stop duplicado). Revísalo en app.hyperliquid.xyz → Open Orders.`); } } } catch (e) { log("Revisión de stops: " + String(e.message).slice(0, 60)); }
   const st2 = await info({ type: "clearinghouseState", user: yo }).catch(() => null); if (st2) { estado.eq = +st2.marginSummary.accountValue || eq; estado.pos = (st2.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0).map((p) => ({ c: p.coin, lado: +p.szi > 0 ? 1 : -1, v: +p.positionValue, pnl: +p.unrealizedPnl, entrada: +p.entryPx, desde: abierta(p.coin) })); }
   try { const f2 = await info({ type: "userFills", user: yo }); const cie = {}, ab0 = {}; for (const z of (f2 || []).slice().sort((a, b) => a.time - b.time)) { if (/^Open/.test(z.dir)) { if (!(z.coin in ab0) || ab0["_c" + z.coin]) ab0[z.coin] = +z.time; delete ab0["_c" + z.coin]; continue; } if (!/^Close/.test(z.dir)) continue; ab0["_c" + z.coin] = 1; const k = z.coin + "|" + Math.floor(z.time / 60000); const o = cie[k] || (cie[k] = { t: +z.time, t0: ab0[z.coin] || null, c: z.coin, lado: /Long/.test(z.dir) ? 1 : -1, pnl: 0, v: 0 }); o.pnl += (+z.closedPnl || 0) - (+z.fee || 0); o.v += (+z.sz || 0) * (+z.px || 0); }
     estado.cierres = Object.values(cie).sort((a, b) => b.t - a.t).slice(0, 80); estado.ganado = estado.cierres.reduce((a, x) => a + x.pnl, 0); } catch (e) {}
@@ -267,7 +295,7 @@ export async function ronda() {
   await limpiaCandados();
   log(`Hyperliquid real: ${hechos.length} movimientos esta hora.`);
   if (hechos.length) await aviso("💧 Hyperliquid (dinero real)\n" + hechos.join("\n") + `\n\nCuenta: ${D2(estado.eq)} $ · ingresado ${D2(neto)} $`);
-  if (!(await guarda(estado))) { log("⚠️ No he podido guardar el estado de esta ronda."); await aviso("⚠️ Hyperliquid: no he podido guardar el estado de esta ronda. La próxima no abrirá nada hasta poder leerlo y guardarlo bien; tus posiciones siguen con su stop."); }
+  if (!(await guarda(estado))) { log("⚠️ No he podido guardar el estado de esta ronda."); await aviso("⚠️ Hyperliquid: no he podido guardar el estado de esta ronda. Lo reintento en la próxima; tus posiciones siguen con su stop."); }
 }
 
 // prueba de firma SIN dinero: manda una orden imposible (cantidad 0) firmada; Hyperliquid responde con la dirección que ha leído de la firma.
@@ -281,6 +309,7 @@ export async function pruebaFirma() {
 }
 export async function revisaStops() { const yo = env("HL_WALLET").toLowerCase(); const st = await info({ type: "clearinghouseState", user: yo }), ab = (st.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0), oo = (await info({ type: "frontendOpenOrders", user: yo })) || [];
   const con = ab.filter((p) => oo.some((o) => o.coin === p.coin && (o.isTrigger || /stop/i.test(o.orderType || "")))).length; log(`Revisión: ${ab.length} posiciones abiertas · ${con} con stop · ${oo.length} órdenes en total`);
+  const trig = oo.filter((o) => o.isTrigger || /stop/i.test(o.orderType || "")); log(`Stops «solo cerrar» (reduceOnly): ${trig.filter((o) => o.reduceOnly === true).length} de ${trig.length} · campo presente en ${trig.filter((o) => "reduceOnly" in o).length}`);   // v466
   // v458 · a qué distancia está cada stop (solo porcentajes, sin criptos ni importes)
   const dist = ab.map((p) => { const o = oo.find((z) => z.coin === p.coin && +z.triggerPx > 0); return o ? Math.round(Math.abs(+o.triggerPx / +p.entryPx - 1) * 1000) / 10 : null; }).filter((x) => x != null).sort((a, b) => a - b); log(`Distancia de los stops respecto a la entrada: ${dist.map((x) => "−" + x + " %").join(" · ") || "—"}`);
   try { await libs(); const pk = env("HL_AGENT_KEY"), mia = new ETH.Wallet(pk.startsWith("0x") ? pk : "0x" + pk).address.toLowerCase(), ag = await info({ type: "extraAgents", user: yo }), a = (ag || []).find((x) => String(x.address).toLowerCase() === mia); log(a ? `Clave del bot: válida ${Math.floor((+a.validUntil - Date.now()) / 864e5)} días más` : `Clave del bot: no aparece entre los agentes (${(ag || []).length} agentes)`); } catch (e) { log("Clave del bot: no se pudo consultar"); } }

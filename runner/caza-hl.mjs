@@ -26,7 +26,10 @@ export async function datos(log) {
   }
   const T = []; for (let t = ini; t < fin; t += H) T.push(t);
   for (const c of [...U]) if (D[c].k.size < T.length * 0.8 && c !== "BTC") { U.splice(U.indexOf(c), 1); log(`  ${c}: sin historia suficiente, fuera`); }
-  const out = {}; for (const c of U) { const C = new Float64Array(T.length), F = new Float64Array(T.length), V = new Float64Array(T.length), Hi = new Float64Array(T.length), Lo = new Float64Array(T.length); let last = NaN, lastF = 0; T.forEach((t, i) => { const x = D[c].k.get(t); if (x && x[0] > 0) { last = x[0]; V[i] = x[1]; Hi[i] = x[2]; Lo[i] = x[3]; } else { Hi[i] = Lo[i] = last; } C[i] = last; const f = D[c].f.get(t); if (f != null && Number.isFinite(f)) lastF = f; F[i] = lastF; }); out[c] = { C, F, V, Hi, Lo }; }   // v465 · la financiación que falta NO es cero: se usa la última conocida
+  // v466 · 🕳️ HUECOS: dentro del periodo que se examina (desde la hora EVAL0) no puede faltar más de HUECO_MAX (24) h seguidas de velas ni de financiación,
+  //   ni puede empezar sin financiación conocida. Si falta, la cripto queda FUERA (no se rellena con precios planos ni con financiación inventada).
+  for (const c of [...U]) { if (c === "BTC") continue; const q = huecos(T, D[c]); if (q.velas > HUECO_MAX || q.fund > HUECO_MAX || q.sinFund) { U.splice(U.indexOf(c), 1); log(`  ${c}: datos con huecos (${q.sinFund ? "sin financiación al principio" : `${Math.max(q.velas, q.fund)} h seguidas sin datos`}), fuera`); } }
+  const out = {}; for (const c of U) { const C = new Float64Array(T.length), F = new Float64Array(T.length), V = new Float64Array(T.length), Hi = new Float64Array(T.length), Lo = new Float64Array(T.length); let last = NaN, lastF = 0; T.forEach((t, i) => { const x = D[c].k.get(t); if (x && x[0] > 0) { last = x[0]; V[i] = x[1]; Hi[i] = x[2]; Lo[i] = x[3]; } else { Hi[i] = Lo[i] = last; } C[i] = last; const f = D[c].f.get(t); if (f != null && Number.isFinite(f)) lastF = f; F[i] = lastF; }); out[c] = { C, F, V, Hi, Lo }; }   // v465 · huecos cortos (≤ 24 h): la última financiación conocida; nunca un dato del futuro
   return { T, M: out, U };
 }
 
@@ -34,6 +37,21 @@ export async function datos(log) {
 // entrar y al salir, y cada hora la financiación (dir=+1 comprado paga si la tasa es positiva; dir=-1 corto la cobra).
 // v465 · al saltar un stop a mercado se vende PEOR que el precio del stop: 0,3 % de deslizamiento (antes 0,1 %)
 export const STOP_SLIP = 0.003;
+export const EVAL0 = 220, HUECO_MAX = 24;
+// v466 · cuenta, dentro del periodo examinado, el mayor hueco seguido de velas y de financiación, y si la financiación empieza tarde
+export function huecos(T, d) { let hv = 0, hf = 0, mv = 0, mf = 0, vistoF = false, sinFund = false; for (let i = 0; i < T.length; i++) { const t = T[i], x = d.k.get(t), f = d.f.get(t);
+    if (f != null && Number.isFinite(f)) { vistoF = true; hf = 0; } else hf++;
+    if (x && x[0] > 0) hv = 0; else hv++;
+    if (i >= EVAL0) { if (!vistoF) sinFund = true; mv = Math.max(mv, hv); mf = Math.max(mf, hf); } }
+  return { velas: mv, fund: mf, sinFund }; }
+// v466 · 🧨 SALIDA POR STOP REALISTA: si la hora ya EMPIEZA pasada del stop (hueco), se sale al precio de apertura, no al del stop; y el deslizamiento
+//   es al menos un 0,3 % y crece con lo que la vela atraviesa el stop (una cuarta parte del recorrido). Nunca mejor que el stop ni peor que el extremo de la vela.
+//   Devuelve la rentabilidad de la operación (sin costes ni financiación) o null si el stop no salta en esa hora.
+export function salidaStop(d, i, p0, dir, sl) { const stopPx = dir > 0 ? p0 * (1 - sl) : p0 * (1 + sl), ext = dir > 0 ? d.Lo[i] : d.Hi[i];
+  if (!(ext > 0) || (dir > 0 ? ext > stopPx : ext < stopPx)) return null;
+  const ab = d.C[i - 1] > 0 ? d.C[i - 1] : stopPx, base = dir > 0 ? Math.min(stopPx, ab) : Math.max(stopPx, ab), slip = Math.max(STOP_SLIP, 0.25 * Math.abs(ext - base) / base);
+  let px = dir > 0 ? base * (1 - slip) : base * (1 + slip); px = dir > 0 ? Math.max(px, ext) : Math.min(px, ext);
+  return Math.min(dir * (px / p0 - 1), -sl - STOP_SLIP); }   // nunca mejor que la regla anterior (stop − 0,3 %)
 // v465 · 📉 CAÍDA MÁXIMA HORA A HORA: la cuenta se valora cada hora con las posiciones abiertas a precio de mercado (más financiación y comisión de
 //   entrada), no solo al cerrar operaciones. Así una posición que cae un 30 % y se recupera SÍ cuenta como caída. Mismas reglas que cartera().
 export function caidaHoraria(ops, M, i0, i1, plazas, sl = 0, cm = 1) {
@@ -42,7 +60,7 @@ export function caidaHoraria(ops, M, i0, i1, plazas, sl = 0, cm = 1) {
   for (let h = i0; h <= Math.min(fin, finOps); h++) {
     for (let j = ab.length - 1; j >= 0; j--) { const a = ab[j], d = M[a.c];
       if (!a.cerr && h > a.i) { a.fund += a.dir * (d.F[h - 1] || 0); let r = null;
-        if (sl > 0) { const malo = a.dir > 0 ? d.Lo[h] / a.p0 - 1 : 1 - d.Hi[h] / a.p0; if (malo <= -sl) r = -sl - STOP_SLIP; }
+        if (sl > 0) r = salidaStop(d, h, a.p0, a.dir, sl);
         if (r == null && h >= a.f) r = a.dir * (d.C[h] / a.p0 - 1);
         if (r != null) { r -= a.fund + 2 * COST * cm; eq += (r * a.e) / plazas; a.cerr = 1; } }
       if (h >= a.f) ab.splice(j, 1); }   // como en cartera(): una posición cerrada por stop ocupa su plaza hasta su hora de fin
@@ -54,7 +72,7 @@ export function caidaHoraria(ops, M, i0, i1, plazas, sl = 0, cm = 1) {
 export function cartera(ops, M, i0, i1, plazas, sl = 0, cm = 1) {   /* v453 · cm: multiplicador de costes (2 = comisiones y deslizamiento al doble) */
   const ev = ops.filter((o) => o[0] >= i0 && o[0] < i1).sort((a, b) => a[0] - b[0]);
   let eq = 1, pico = 1, dd = 0, n = 0, gan = 0, per = 0, libres = plazas; const abiertas = [], rs = [];
-  const cierra = (o) => { const d = M[o[1]], p0 = d.C[o[0]]; let fin = Math.min(o[3], d.C.length - 1), r = null; if (!(p0 > 0)) return 0; if (sl > 0) for (let i = o[0] + 1; i <= fin; i++) { const malo = o[2] > 0 ? d.Lo[i] / p0 - 1 : 1 - d.Hi[i] / p0; if (malo <= -sl) { r = -sl - STOP_SLIP; fin = i; break; } } if (r == null) { const p1 = d.C[fin]; if (!(p1 > 0)) return 0; r = o[2] * (p1 / p0 - 1); } for (let i = o[0]; i < fin && i < d.F.length; i++) r -= o[2] * d.F[i]; return r - 2 * COST * cm; };
+  const cierra = (o) => { const d = M[o[1]], p0 = d.C[o[0]]; let fin = Math.min(o[3], d.C.length - 1), r = null; if (!(p0 > 0)) return 0; if (sl > 0) for (let i = o[0] + 1; i <= fin; i++) { const z = salidaStop(d, i, p0, o[2], sl); if (z != null) { r = z; fin = i; break; } } if (r == null) { const p1 = d.C[fin]; if (!(p1 > 0)) return 0; r = o[2] * (p1 / p0 - 1); } for (let i = o[0]; i < fin && i < d.F.length; i++) r -= o[2] * d.F[i]; return r - 2 * COST * cm; };
   for (const o of ev) {
     for (let j = abiertas.length - 1; j >= 0; j--) if (abiertas[j][3] <= o[0]) { const r = cierra(abiertas[j]); rs.push(r); eq += r / plazas * eq0(abiertas[j]); r > 0 ? (gan += r) : (per -= r); n++; abiertas.splice(j, 1); libres++; pico = Math.max(pico, eq); dd = Math.max(dd, 1 - eq / pico); }
     if (libres > 0 && !abiertas.some((a) => a[1] === o[1])) { o.eqIn = eq; abiertas.push(o); libres--; }
@@ -93,7 +111,7 @@ export async function caza(log = console.log) {
   log("Descargando velas de 1 h y financiación de Hyperliquid (últimos 540 días)…");
   const D = await datos(log), n = D.T.length, corte = Math.floor(n * 0.6), F = familias(), R = [];
   log(`Datos: ${D.U.length} criptos · ${Math.round(n / 24)} días · entreno hasta el ${new Date(D.T[corte]).toISOString().slice(0, 10)} · ${F.length} variantes`);
-  for (const f of F) { let ops; try { ops = f.gen(D); } catch (e) { continue; } const pl = f.plazas || 4; const a = cartera(ops, D.M, 220, corte, pl), b = cartera(ops, D.M, corte, n - 1, pl), t = cartera(ops, D.M, 220, n - 1, pl); R.push({ fam: f.fam, p: f.p, a, b, t, okA: a.opsDia >= 3 && a.ret > 0 && a.pf >= 1.15 && a.dd < 0.3, okB: b.ret > 0 && b.pf >= 1.1 && b.dd < 0.3 }); }
+  for (const f of F) { let ops; try { ops = f.gen(D); } catch (e) { continue; } const pl = f.plazas || 4; const a = cartera(ops, D.M, 220, corte, pl), b = cartera(ops, D.M, corte, n - 1, pl), t = cartera(ops, D.M, 220, n - 1, pl); a.dd = Math.max(a.dd, caidaHoraria(ops, D.M, 220, corte, pl)); b.dd = Math.max(b.dd, caidaHoraria(ops, D.M, corte, n - 1, pl));   /* v466 · misma caída (hora a hora) que el laboratorio avanzado */ R.push({ fam: f.fam, p: f.p, a, b, t, okA: a.opsDia >= 3 && a.ret > 0 && a.pf >= 1.15 && a.dd < 0.3, okB: b.ret > 0 && b.pf >= 1.1 && b.dd < 0.3 }); }
   // vecinos: misma familia, parámetros que difieren en uno solo → también deben ganar en la prueba
   const k = (x) => JSON.stringify(x.p), vec = (x) => R.filter((y) => y.fam === x.fam && y !== x && Object.keys(x.p).filter((q) => x.p[q] !== y.p[q]).length === 1);
   for (const x of R) { const v = vec(x); x.vecOk = v.length ? v.filter((y) => y.b.ret > 0).length / v.length : 0; }

@@ -16,17 +16,20 @@ const H = 3600e3;
 function mundo(o = {}) {
   const W = { eq: o.eq ?? 100, neto: o.neto ?? 100, px: { BTC: 100, ETH: 10, SOL: 5, ...(o.px || {}) }, pos: {}, stops: [], oid: 1, fills: [], ordenes: [], refs: new Set(), guardado: null, avisos: [],
     ctl: o.ctl === undefined ? { estado: "on", uso: 100, plazas: 5, freno: 0.35, puesto: 1 } : o.ctl, ctlFallo: o.ctlFallo || null, refsFallo: !!o.refsFallo,
-    falloStop: o.falloStop || 0, stopIncompleto: o.stopIncompleto || 0, fillsRoto: !!o.fillsRoto, estadoRoto: !!o.estadoRoto, guardarFalla: !!o.guardarFalla, ledgerFallo: !!o.ledgerFallo, rompeTrasCierre: !!o.rompeTrasCierre, falloCierre: new Set(o.falloCierre || []), parcial: o.parcial || 0, timeoutAbrir: !!o.timeoutAbrir, quiere: o.quiere || [] };
+    falloStop: o.falloStop || 0, stopIncompleto: o.stopIncompleto || 0, fillsRoto: !!o.fillsRoto, estadoRoto: !!o.estadoRoto, guardarFalla: !!o.guardarFalla, ledgerFallo: !!o.ledgerFallo, rompeTrasCierre: !!o.rompeTrasCierre, cancelFalla: o.cancelFalla || 0, marcasFallo: !!o.marcasFallo, falloCierre: new Set(o.falloCierre || []), parcial: o.parcial || 0, timeoutAbrir: !!o.timeoutAbrir, quiere: o.quiere || [] };
   for (const p of o.pos || []) { W.pos[p.c] = { szi: p.szi, entryPx: p.px ?? W.px[p.c] }; W.fills.push({ coin: p.c, dir: p.szi > 0 ? "Open Long" : "Open Short", time: Date.now() - (p.edadH ?? 1) * H, px: p.px ?? W.px[p.c], sz: Math.abs(p.szi) }); }
-  for (const s of o.stops || []) W.stops.push({ coin: s.c, oid: W.oid++, ...(s.side ? { side: s.side } : {}), sz: String(s.sz), origSz: String(s.sz), triggerPx: String(s.trig), isTrigger: true, orderType: "Stop Market" });
+  for (const s of o.stops || []) W.stops.push({ coin: s.c, oid: W.oid++, ...(s.side ? { side: s.side } : {}), sz: String(s.sz), origSz: String(s.sz), triggerPx: String(s.trig), isTrigger: true, orderType: "Stop Market", reduceOnly: s.noReduce ? false : true });
+  // v466 · con posiciones de partida, el bot ya tenía su estado (salvo que la prueba diga lo contrario)
+  if ((o.pos || []).length && !o.sinEstado) W.estadoIni = { pm: Object.fromEntries(o.pos.map((p) => [p.c, { h: 168, sl: 0.08, k: "m1" }])) };
   const coins = Object.keys(W.px), j = (x, st = 200) => ({ ok: st < 400, status: st, json: async () => x, text: async () => JSON.stringify(x) });
   W.fetch = async (url, init = {}) => {
     const u = String(url), body = init.body ? JSON.parse(init.body) : null;
     if (u.includes("raw.githubusercontent.com") && u.includes("/hl-ctl/")) { if (W.ctlFallo === "red") throw new Error("fetch failed"); if (W.ctlFallo) return j({}, W.ctlFallo); return W.ctl ? j(W.ctl) : j({}, 404); }
-    if (u.includes("raw.githubusercontent.com") && u.includes("/hl-real/")) { if (W.estadoRoto) return j({}, 500); return W.guardado ? j(W.guardado) : j({}, 404); }
+    if (u.includes("raw.githubusercontent.com") && u.includes("/hl-real/")) { if (W.estadoRoto) return j({}, 500); if (!W.guardado && W.estadoIni) W.guardado = { enc: 1, t: new Date(Date.now() - 2 * H).toISOString(), ...(await encrypt(JSON.stringify(W.estadoIni), process.env.REAL_VIEW_PASS)) }; return W.guardado ? j(W.guardado) : j({}, 404); }
     if (u.includes("/contents/hl-real.json")) return W.guardado ? j({ t: W.guardado.t }) : j({}, 404);
     if (u.endsWith("/git/refs") && init.method === "POST") { if (W.refsFallo) return j({}, 500); if (W.refs.has(body.ref)) return j({ message: "Reference already exists" }, 422); W.refs.add(body.ref); return j({ ref: body.ref }, 201); }
-    if (u.includes("/git/matching-refs/")) return j([]);
+    if (u.includes("/git/matching-refs/")) { if (W.marcasFallo && u.includes("hl-freno")) return j({}, 500); const pre = "refs/" + u.split("/git/matching-refs/")[1]; return j([...W.refs].filter((r) => r.startsWith(pre)).map((ref) => ({ ref }))); }
+    if (init.method === "DELETE" && u.includes("/git/refs/")) { W.refs.delete(u.slice(u.indexOf("refs/"))); return j({}, 204); }
     if (u.endsWith("/info")) {
       const pos = () => Object.entries(W.pos).filter(([, p]) => p.szi !== 0).map(([c, p]) => ({ position: { coin: c, szi: String(p.szi), entryPx: String(p.entryPx), unrealizedPnl: String((W.px[c] - p.entryPx) * p.szi), positionValue: String(Math.abs(p.szi) * W.px[c]) } }));
       switch (body.type) {
@@ -42,12 +45,13 @@ function mundo(o = {}) {
     }
     if (u.endsWith("/exchange")) {
       const a = body.action;
-      if (a.type === "cancel") { for (const x of a.cancels) W.stops = W.stops.filter((s) => s.oid !== x.o); return j({ status: "ok", response: { type: "cancel", data: { statuses: a.cancels.map(() => "success") } } }); }
+      if (a.type === "cancel") { if (W.cancelFalla > 0) { W.cancelFalla--; return j({ status: "ok", response: { type: "cancel", data: { statuses: a.cancels.map(() => "success") } } }); }   // dice «success» pero no cancela
+        for (const x of a.cancels) W.stops = W.stops.filter((s) => s.oid !== x.o); return j({ status: "ok", response: { type: "cancel", data: { statuses: a.cancels.map(() => "success") } } }); }
       const o2 = a.orders[0], c = coins[o2.a], sz = +o2.s, compra = o2.b;
       W.ordenes.push({ c, compra, sz, reduce: !!o2.r, stop: !!o2.t.trigger, trig: o2.t.trigger ? +o2.t.trigger.triggerPx : null, px: +o2.p });
       if (o2.t.trigger && W.stopIncompleto > 0) { W.stopIncompleto--; return j({ status: "ok", response: { type: "order" } }); }
       if (o2.t.trigger) { if (W.falloStop > 0) { W.falloStop--; return j({ status: "ok", response: { type: "order", data: { statuses: [{ error: "rechazada (prueba)" }] } } }); }
-        W.stops.push({ coin: c, oid: W.oid++, side: compra ? "B" : "A", sz: String(sz), origSz: String(sz), triggerPx: o2.t.trigger.triggerPx, isTrigger: true, orderType: "Stop Market" }); return j({ status: "ok", response: { type: "order", data: { statuses: ["waitingForTrigger"] } } }); }
+        W.stops.push({ coin: c, oid: W.oid++, side: compra ? "B" : "A", sz: String(sz), origSz: String(sz), triggerPx: o2.t.trigger.triggerPx, isTrigger: true, orderType: "Stop Market", reduceOnly: !!o2.r }); return j({ status: "ok", response: { type: "order", data: { statuses: ["waitingForTrigger"] } } }); }
       if (o2.r) { if (W.falloCierre.has(c)) return j({ status: "ok", response: { type: "order", data: { statuses: [{ error: "sin liquidez (prueba)" }] } } });
         const p = W.pos[c]; if (!p || !p.szi) return j({ status: "ok", response: { type: "order", data: { statuses: [{ error: "nada que reducir" }] } } });
         if (W.rompeTrasCierre) W.chRoto = true; const q = Math.min(sz, Math.abs(p.szi)); p.szi = p.szi > 0 ? p.szi - q : p.szi + q; if (Math.abs(p.szi) < 1e-9) delete W.pos[c]; W.fills.push({ coin: c, dir: "Close", time: Date.now(), px: W.px[c], sz: q, closedPnl: "0", fee: "0" });
@@ -219,4 +223,41 @@ test("FRENO ENCLAVADO: si la cuenta se recupera sigue echado; solo se rearma al 
   const otra = async () => { W.refs.clear(); W.guardado.t = new Date(Date.now() - 2 * H).toISOString(); await silencio(() => HL.ronda()); };
   W.eq = 100; await otra(); assert.equal(aperturas(W).length, 0, "recuperada, pero el freno sigue echado");
   W.ctl = { ...W.ctl, t: new Date().toISOString() }; await otra(); assert.equal(aperturas(W).length, 1, "rearmado al guardar los ajustes");
+});
+
+// ---------- v466 ----------
+const otraHora = async (W) => { for (const r of [...W.refs]) if (r.includes("hl-lock-")) W.refs.delete(r); if (W.guardado) W.guardado.t = new Date(Date.now() - 2 * H).toISOString(); await silencio(() => HL.ronda()); };
+test("v466 · FRENO aunque falle el guardado: queda marcado aparte y sigue echado en la ronda siguiente aunque la cuenta se recupere", async () => {
+  const W = mundo({ eq: 60, neto: 100, guardarFalla: true, quiere: [{ c: "ETH", dir: 1 }], pos: [{ c: "BTC", szi: 0.1 }], ctl: { estado: "on", uso: 100, plazas: 5, freno: 0.35, puesto: 1, t: new Date(Date.now() - 864e5).toISOString() } }); conecta(W);
+  await silencio(() => HL.ronda()); assert.ok([...W.refs].some((r) => r.includes("hl-freno-")), "marca del freno puesta"); assert.ok(W.avisos.some((t) => /una de sus dos copias/.test(t)), "avisa de que el estado no se guardó");
+  W.eq = 100; W.guardarFalla = false; await otraHora(W); assert.equal(aperturas(W).length, 0, "el estado guardado NO tiene el freno, pero la marca lo mantiene");
+  W.ctl = { ...W.ctl, t: new Date(Date.now() + 2000).toISOString() }; await otraHora(W); assert.equal(aperturas(W).length, 1, "rearmado al volver a guardar los ajustes");
+});
+test("v466 · FRENO sin poder guardarlo por ninguna vía: aviso urgente de poner en pausa", async () => {
+  const W = mundo({ eq: 60, neto: 100, guardarFalla: true, refsFallo: true, pos: [{ c: "BTC", szi: 0.1 }] }); conecta(W); await silencio(() => HL.ronda());
+  assert.ok(W.avisos.some((t) => /PAUSA/.test(t))); assert.equal(aperturas(W).length, 0);
+});
+test("v466 · si no se puede leer la marca del freno: no abre nada", async () => {
+  const W = mundo({ marcasFallo: true, quiere: [{ c: "BTC", dir: 1 }] }); conecta(W); await silencio(() => HL.ronda()); assert.equal(aperturas(W).length, 0);
+});
+test("v466 · ESTADO DESAPARECIDO con posiciones: no las adopta, no abre, no cierra por tiempo, no mueve su stop; al guardar ajustes, las gestiona", async () => {
+  const W = mundo({ sinEstado: true, quiere: [{ c: "ETH", dir: 1 }], pos: [{ c: "BTC", szi: -0.1, edadH: 500 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108 }], ctl: { estado: "on", uso: 100, plazas: 5, freno: 0.35, puesto: 1, t: new Date(Date.now() - 864e5).toISOString() } }); conecta(W);
+  await silencio(() => HL.ronda());
+  assert.equal(aperturas(W).length, 0); assert.equal(abiertas(W).length, 1, "no la cierra por tiempo"); assert.deepEqual(W.stops.map((s) => +s.triggerPx), [108], "su stop sigue igual");
+  assert.ok(W.avisos.some((t) => /no tiene su estado guardado/.test(t)));
+  await otraHora(W); assert.equal(aperturas(W).length, 0, "sigue bloqueado en la ronda siguiente"); assert.equal(abiertas(W).length, 1);
+  W.ctl = { ...W.ctl, t: new Date(Date.now() + 2000).toISOString() }; await otraHora(W); assert.ok(!abiertas(W).some((x) => x.c === "BTC"), "revisado: ya la gestiona (cerrada por tiempo)");
+});
+test("v466 · lo ingresado neto no es positivo: no abre y avisa", async () => {
+  const W = mundo({ neto: 0, quiere: [{ c: "BTC", dir: 1 }] }); conecta(W); await silencio(() => HL.ronda()); assert.equal(aperturas(W).length, 0); assert.ok(W.avisos.some((t) => /no es positivo/.test(t)));
+});
+test("v466 · un stop que NO es «solo cerrar» (reduceOnly) no vale: se pone uno bueno y el viejo se cancela", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: -0.1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108, noReduce: true }] }); conecta(W); await silencio(() => HL.ronda());
+  const s = W.stops.filter((z) => z.coin === "BTC"); assert.equal(s.length, 1); assert.equal(s[0].reduceOnly, true);
+});
+test("v466 · si la cancelación del stop viejo dice «ok» pero no se cancela: lo detecta, reintenta y avisa de stop duplicado", async () => {
+  const W = mundo({ cancelFalla: 3, pos: [{ c: "BTC", szi: -0.1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 130 }] }); conecta(W); await silencio(() => HL.ronda());
+  assert.ok(W.avisos.some((t) => /duplicado/.test(t)));
+  const W2 = mundo({ cancelFalla: 1, pos: [{ c: "BTC", szi: -0.1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 130 }] }); conecta(W2); await silencio(() => HL.ronda());
+  assert.equal(W2.stops.filter((z) => z.coin === "BTC").length, 1, "el reintento lo cancela"); assert.ok(!W2.avisos.some((t) => /duplicado/.test(t)));
 });

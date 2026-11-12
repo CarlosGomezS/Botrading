@@ -100,9 +100,55 @@ import { cartera, caidaHoraria, STOP_SLIP } from "../runner/caza-hl.mjs";
 const serieHL = (f, n = 300) => { const C = new Float64Array(n), Hi = new Float64Array(n), Lo = new Float64Array(n), F = new Float64Array(n); for (let i = 0; i < n; i++) { C[i] = f(i); Hi[i] = C[i] * 1.001; Lo[i] = C[i] * 0.999; } return { C, Hi, Lo, F, V: new Float64Array(n) }; };
 test("Hyperliquid (prueba): una operación que pierde con stop cuenta su caída (antes salía 0 %)", () => {
   const M = { X: serieHL((i) => (i < 10 ? 100 : i < 30 ? 100 - 2.75 * (i - 10) : i < 40 ? 45 + 0.5 * (i - 30) : 50)) }, ops = [[5, "X", 1, 60]];
-  const r = cartera(ops, M, 0, 200, 1, 0.1); assert.ok(r.dd > 0.1, "caída " + r.dd); assert.ok(Math.abs(r.ret - (-0.1 - STOP_SLIP - 0.0019)) < 1e-6, "vende peor que el stop: " + r.ret);
+  const r = cartera(ops, M, 0, 200, 1, 0.1); assert.ok(r.dd > 0.1, "caída " + r.dd); assert.ok(r.ret <= -0.1 - STOP_SLIP - 0.0019 + 1e-9 && r.ret > -0.12, "vende peor que el stop (v466: deslizamiento según la vela): " + r.ret);
 });
 test("Hyperliquid (prueba): una posición que cae un 30 % y se recupera SÍ cuenta como caída (valoración hora a hora)", () => {
   const M = { X: serieHL((i) => (i < 10 ? 100 : i < 20 ? 100 - 3 * (i - 10) : i < 30 ? 70 + 3 * (i - 20) : 100)) }, ops = [[5, "X", 1, 60]];
   assert.ok(cartera(ops, M, 0, 200, 1, 0).dd < 0.01, "al cerrar casi no pierde"); assert.ok(caidaHoraria(ops, M, 0, 200, 1, 0) > 0.29, "pero por el camino cayó un 30 %");
+});
+
+// ---------- v466 ----------
+test("v466 · Trading 212: sin fecha, creada 30 s o 59 s antes, o con un 0,09 % más de cantidad → NO es del bot", () => {
+  const t0 = Date.parse("2026-11-12T10:00:00Z"), at = (s) => new Date(t0 + s * 1000).toISOString();
+  assert.equal(esNuestra({ quantity: 2.5 }, 2.5, t0), false, "sin fecha");
+  assert.equal(esNuestra({ quantity: 2.5, createdAt: at(-30) }, 2.5, t0), false, "30 s antes");
+  assert.equal(esNuestra({ quantity: 2.5, createdAt: at(-59) }, 2.5, t0), false, "59 s antes");
+  assert.equal(esNuestra({ quantity: 2.5 * 1.0009, createdAt: at(1) }, 2.5, t0), false, "0,09 % más");
+  assert.equal(esNuestra({ quantity: 2.5, createdAt: at(-2) }, 2.5, t0), true, "2 s antes (desfase de reloj)");
+  assert.equal(esNuestra({ quantity: 2.5, createdAt: at(3) }, 2.5, t0), true, "la nuestra");
+  assert.equal(esNuestra(null, 2.5, t0), false);
+});
+import { salidaStop, huecos, EVAL0 } from "../runner/caza-hl.mjs";
+test("v466 · stop con HUECO: si la hora ya empieza pasada del stop, se sale al precio de apertura (peor), no al del stop", () => {
+  const d = { C: [100, 85, 84], Lo: [99, 80, 83], Hi: [101, 90, 86] }; const r = salidaStop(d, 2, 100, 1, 0.08);   // abre ~85 (cierre anterior), stop en 92
+  assert.ok(r < -0.15 && r >= -0.17, "sale cerca de 85 (no de 92) y nunca por debajo del mínimo 83: " + r);
+  const d2 = { C: [100, 95, 90], Lo: [99, 94, 80], Hi: [101, 96, 95] }; const r2 = salidaStop(d2, 2, 100, 1, 0.08);   // mecha hasta 80 atravesando el stop 92
+  assert.ok(r2 < -0.08 - STOP_SLIP && r2 >= -0.2, "deslizamiento mayor cuanto más atraviesa la mecha: " + r2);
+  assert.equal(salidaStop({ C: [100, 95, 94], Lo: [99, 94, 93], Hi: [101, 96, 95] }, 2, 100, 1, 0.08), null, "no toca el stop");
+  const rc = salidaStop({ C: [100, 115, 116], Lo: [99, 114, 115], Hi: [101, 116, 125] }, 2, 100, -1, 0.08); assert.ok(rc < -0.15, "corto con hueco al alza: " + rc);
+});
+test("v466 · dos posiciones que caen a la vez un 30 %: la caída hora a hora refleja las dos", () => {
+  const baja = (i) => (i < 10 ? 100 : i < 20 ? 100 - 3 * (i - 10) : i < 30 ? 70 + 3 * (i - 20) : 100);
+  const M = { X: serieHL(baja), Y: serieHL(baja) }, ops = [[5, "X", 1, 60], [5, "Y", 1, 60]];
+  assert.ok(caidaHoraria(ops, M, 0, 200, 2, 0) > 0.29, "las dos a la vez = 30 % de la cuenta");
+  assert.ok(caidaHoraria([[5, "X", 1, 60]], M, 0, 200, 2, 0) < 0.16, "una sola en media cuenta = 15 %");
+});
+test("v466 · huecos: financiación que empieza tarde o más de 24 h seguidas sin velas se detectan", () => {
+  const T = Array.from({ length: 400 }, (_, i) => i), k = new Map(T.map((t) => [t, [100, 1, 101, 99]])), f = new Map(T.map((t) => [t, 0.0001]));
+  assert.deepEqual(huecos(T, { k, f }), { velas: 0, fund: 0, sinFund: false });
+  const f2 = new Map(T.filter((t) => t > EVAL0 + 10).map((t) => [t, 0.0001])); assert.equal(huecos(T, { k, f: f2 }).sinFund, true);
+  const k2 = new Map(k); for (let t = 300; t < 330; t++) k2.delete(t); assert.equal(huecos(T, { k: k2, f }).velas, 30);
+});
+import * as LAB from "../runner/caza-lab.mjs";
+test("v466 · los tramos al azar NUNCA entran en los 90 días ocultos", () => {
+  for (let z = 0; z < 50; z++) { const corte = 5000 + Math.floor(Math.random() * 8000); for (const [a, b] of LAB.tramosAlAzar(corte)) { assert.ok(b <= corte, `tramo hasta ${b} pasa del corte ${corte}`); assert.ok(a >= 260 && a < b); } }
+});
+test("v466 · memoria del laboratorio: si no se puede leer o está dañada, se PARA (nunca sigue vacía)", async () => {
+  const r = (st, buf) => async () => ({ ok: st < 400, status: st, arrayBuffer: async () => buf, json: async () => buf });
+  LAB.deps.espera = async () => {};
+  LAB.deps.fetch = r(500); await assert.rejects(LAB.memoriaVistas(false), /No puedo leer/); await assert.rejects(LAB.memoria(), /No puedo leer/);
+  LAB.deps.fetch = async () => { throw new Error("fetch failed"); }; await assert.rejects(LAB.memoriaVistas(false)); await assert.rejects(LAB.memoria());
+  LAB.deps.fetch = r(404); await assert.rejects(LAB.memoriaVistas(false), /desaparecido/); assert.equal((await LAB.memoriaVistas(true)).length, (1 << 24) / 8, "primera vez: vacía es correcto"); assert.equal(await LAB.memoria(), null);
+  LAB.deps.fetch = r(200, new ArrayBuffer(10)); await assert.rejects(LAB.memoriaVistas(false), /dañada/);
+  LAB.deps.fetch = r(200, { algo: 1 }); await assert.rejects(LAB.memoria(), /dañada/);
 });

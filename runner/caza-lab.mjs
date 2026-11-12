@@ -21,9 +21,21 @@ const hs = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^
 // v465 · 🧠 MEMORIA PERMANENTE de lo ya probado: un mapa de bits de 2^24 posiciones (2 MB) en su propio archivo; nunca se olvida nada.
 //   (Con muchísimas combinaciones, alguna nueva puede darse por vista sin serlo, pero NUNCA se repite una ya probada.)
 const BITS = 1 << 24, VIS_ARCH = "caza-vistas.bin", bitDe = (k) => (parseInt(k, 36) >>> 0) & (BITS - 1);
-async function memoriaVistas() { const B = Buffer.alloc(BITS / 8); try { const r = await fetch(`https://raw.githubusercontent.com/${REPO}/${RAMA}/${VIS_ARCH}?t=${Date.now()}`, { signal: AbortSignal.timeout(30000) }); if (r.ok) { const a = Buffer.from(await r.arrayBuffer()); if (a.length === B.length) a.copy(B); } } catch (e) {} return B; }
+// v466 · 🧠 la memoria tiene tres estados: leída bien · no existe todavía (solo la primera vez) · no se puede leer o está dañada → el laboratorio se PARA
+//   (nunca sigue con una memoria vacía ni la sobrescribe con ella)
+export const deps = { fetch: (...a) => globalThis.fetch(...a), espera: (ms) => new Promise((r) => setTimeout(r, ms)) };
+export async function memoriaVistas(primeraVez) { const B = Buffer.alloc(BITS / 8); let err = "";
+  for (let i = 0; i < 3; i++) { try { const r = await deps.fetch(`https://raw.githubusercontent.com/${REPO}/${RAMA}/${VIS_ARCH}?t=${Date.now()}`, { signal: AbortSignal.timeout(30000) });
+      if (r.status === 404) { if (primeraVez) return B; throw new Error("la memoria de combinaciones probadas ha desaparecido (404)"); }
+      if (!r.ok) throw new Error("HTTP " + r.status); const a = Buffer.from(await r.arrayBuffer()); if (a.length !== B.length) throw new Error(`memoria dañada (${a.length} bytes)`); a.copy(B); return B; }
+    catch (e) { err = String(e.message).slice(0, 80); if (/desaparecido|dañada/.test(err)) break; await deps.espera(3000 * (i + 1)); } }
+  throw new Error("No puedo leer la memoria de combinaciones probadas: " + err + ". Paro el laboratorio sin tocar nada."); }
 const vista = (B, k) => (B[bitDe(k) >> 3] >> (bitDe(k) & 7)) & 1, marca = (B, k) => { B[bitDe(k) >> 3] |= 1 << (bitDe(k) & 7); };
-async function memoria() { try { const r = await fetch(`https://raw.githubusercontent.com/${REPO}/${RAMA}/${ARCH}?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) }); if (r.ok) return await r.json(); } catch (e) {} return null; }
+// v466 · igual con la memoria principal (podio, aprobadas…): si no se puede leer, NO se empieza de cero (se perdería el podio que usa el bot real)
+export async function memoria() { let err = ""; for (let i = 0; i < 3; i++) { try { const r = await deps.fetch(`https://raw.githubusercontent.com/${REPO}/${RAMA}/${ARCH}?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) });
+      if (r.status === 404) return null; if (!r.ok) throw new Error("HTTP " + r.status); const j = await r.json(); if (!j || typeof j !== "object" || !Array.isArray(j.aprobadas)) throw new Error("memoria dañada"); return j; }
+    catch (e) { err = String(e.message).slice(0, 80); await deps.espera(3000 * (i + 1)); } }
+  throw new Error("No puedo leer la memoria del laboratorio: " + err + ". Paro sin tocar nada."); }
 async function ideas(prev) {
   const vistas = new Set((prev || []).map((x) => x.link)), out = (prev || []).slice();
   for (const [fuente, url] of FUENTES) { try { const r = await fetch(url, { signal: AbortSignal.timeout(20000), headers: { "User-Agent": "bot-trading-lab" } }); if (!r.ok) continue; const x = await r.text();
@@ -31,16 +43,20 @@ async function ideas(prev) {
       if (!tit || !link || vistas.has(link)) continue; vistas.add(link); const fams = Object.entries(CLAVES).filter(([, re]) => re.test(txt)).map(([f]) => f); out.unshift({ fuente, tit: tit.slice(0, 200), link, fecha: Date.parse(fecha) ? new Date(fecha).toISOString() : new Date().toISOString(), fams, visto: new Date().toISOString() }); } } catch (e) {} }
   return out.slice(0, 200);
 }
+// v466 · 16 tramos al azar de 30 a 180 días entre la hora 260 y el corte (la mitad acaban justo en el corte); NUNCA entran en los 90 días ocultos
+export function tramosAlAzar(corte) { const T = []; for (let q = 0; q < 16; q++) { const len = Math.max(24, Math.min(Math.round((30 + Math.random() * 150) * 24), corte - 260 - 24)), fin = q < 8 ? corte : 260 + len + Math.floor(Math.random() * Math.max(1, corte - 260 - len)); T.push([Math.max(260, fin - len), Math.min(fin, corte)]); } return T; }
 export async function lab(log = console.log) {
   const M0 = (await memoria()) || {};
   // v456 · 🧊 CUARENTENA: un método que aprueba pasa 21 días en ficticio (precios reales, sin dinero) antes de poder usarse con dinero real.
   //   Exento: el que ya estaba operando con dinero real cuando se creó la cuarentena (el n.º 1 del podio en ese momento).
   const exentos = Array.isArray(M0.exentos) ? M0.exentos : ["q411nb"];   // q411nb = «Compresión Donchian + Z-Score + BTC Momentum», en uso con dinero real desde el 12/11/2026
-  const mem = { probadas: M0.probadas || {}, pesos: M0.pesos || {}, casi: (M0.casi || []).filter((x) => x && x.is),   /* v465 · se descartan las «casi» antiguas (se eligieron viendo los 90 días ocultos) */ aprobadas: M0.aprobadas || [], rondas: (M0.rondas || 0) + 1, hist: M0.hist || [] };
+  const mem = { probadas: M0.probadas || {}, pesos: M0.limpio466 ? M0.pesos || {} : {},   /* v466 · los pesos de familia se reinician una vez (venían de notas contaminadas) */ casi: (M0.casi || []).filter((x) => x && x.is && x.v >= 466),   /* v466 · se descartan las anteriores: su nota usaba tramos que tocaban los 90 días ocultos */   /* v465 · se descartan las «casi» antiguas (se eligieron viendo los 90 días ocultos) */ aprobadas: M0.aprobadas || [], rondas: (M0.rondas || 0) + 1, hist: M0.hist || [] };
   const ID = await ideas(M0.ideas); const recientes = ID.filter((x) => Date.now() - Date.parse(x.visto) < 30 * 864e5), menc = {}; for (const x of recientes) for (const f of x.fams) menc[f] = (menc[f] || 0) + 1;
   log(`🧠 Ronda ${mem.rondas} · memoria: ${Object.keys(mem.probadas).length} combinaciones ya probadas · ideas nuevas leídas: ${ID.length - (M0.ideas || []).length}`);
   const D = await datos(() => {}), { T, M, U } = D, n = T.length, corte = Math.floor(n * 0.6), mitad = Math.floor((corte + n) / 2);
-  const TRAMOS = []; for (let q = 0; q < 16; q++) { const len = Math.round((30 + Math.random() * 150) * 24), fin = q < 8 ? n - 1 : 260 + len + Math.floor(Math.random() * Math.max(1, n - 1 - 260 - len)); TRAMOS.push([Math.max(260, fin - len), fin]); }   // v365 · nuevos en cada ronda
+  // v466 · 🔒 los tramos al azar acaban como muy tarde en el CORTE (antes de los 90 días ocultos): así nada de la nota que guía la búsqueda los ve
+  const CORTE_OCULTO = Math.max(300, n - 1 - 90 * 24);
+  const TRAMOS = tramosAlAzar(CORTE_OCULTO);   // v365 · nuevos en cada ronda
   const X = { btcUp: null, up: {}, vol: {}, volMed: {} }; { const { ema, atr } = await import("./caza-hl2.mjs"); const e = ema(M.BTC.C, 200); X.btcUp = Uint8Array.from(M.BTC.C, (c, i) => (c > e[i] ? 1 : 0)); for (const c of U) { const e2 = ema(M[c].C, 100); X.up[c] = Uint8Array.from(M[c].C, (x, i) => (x > e2[i] ? 1 : 0)); X.vol[c] = atr(M[c], 24); const s = [...X.vol[c].slice(250, corte)].filter(Number.isFinite).sort((a, b) => a - b); X.volMed[c] = s[Math.floor(s.length / 2)]; } }
   const S = senales(D);
   // v366 · 🤖 recetas del ayudante IA (Gemini): se añaden como señales extra; tienen que aprobar el mismo examen que todas
@@ -74,9 +90,9 @@ export async function lab(log = console.log) {
     if (a.ret > 0 && a.opsDia >= minOpsB(g)) a.dd = Math.max(a.dd, caidaHoraria(ops, M, 260, n - 1, 5, g.sl));
     // v453 · 🔒 FUERA DE MUESTRA: los últimos 90 días quedan «escondidos» para la búsqueda (la nota que guía qué probar y mutar sale solo de lo anterior)
     //   y sirven de examen final. 💸 COSTES DOBLES: además tiene que ganar pagando el doble de comisiones y deslizamiento.
-    const HOLD = 90 * 24, cut = Math.max(300, n - 1 - HOLD), ais = cartera(ops, M, 260, cut, 5, g.sl), oos = cartera(ops, M, cut, n - 1, 5, g.sl), c2 = cartera(ops, M, 260, n - 1, 5, g.sl, 2);
+    const cut = CORTE_OCULTO, ais = cartera(ops, M, 260, cut, 5, g.sl), oos = cartera(ops, M, cut, n - 1, 5, g.sl), c2 = cartera(ops, M, 260, n - 1, 5, g.sl, 2);
     r.is = ais; r.o = { ret: oos.ret, pf: oos.pf, n: oos.n, dd: oos.dd }; r.c2 = { ret: c2.ret, pf: c2.pf };
-    if (a.ret > 0 && a.opsDia >= minOpsB(g)) { const xs = []; for (const [i0, i1] of TRAMOS) { const z = cartera(ops, M, i0, i1, 5, g.sl); xs.push({ m: Math.pow(Math.max(0.01, 1 + z.ret), 720 / (i1 - i0)) - 1, dd: z.dd, ok: z.ret > 0 }); }
+    if (ais.ret > 0 && ais.opsDia >= minOpsB(g)) { const xs = []; for (const [i0, i1] of TRAMOS) { const z = cartera(ops, M, i0, i1, 5, g.sl); xs.push({ m: Math.pow(Math.max(0.01, 1 + z.ret), 720 / (i1 - i0)) - 1, dd: z.dd, ok: z.ret > 0 }); }
       const ms = xs.map((x) => x.m).sort((p, q) => p - q), dds = xs.map((x) => x.dd).sort((p, q) => q - p); r.t = { n: xs.length, g: xs.filter((x) => x.ok).length / xs.length, med: ms[Math.floor(ms.length / 2)], dd: dds[Math.floor(dds.length / 4)] }; }
     r.okA = a.opsDia >= minOps(g) && a.ret > 0 && a.pf >= 1.15 && a.dd < 0.3; r.okB = !!r.t && r.t.g >= 0.6 && rec.ret > 0 && rec.opsDia >= minOpsB(g);
     r.okC = oos.ret > 0 && oos.pf >= 1 && c2.ret > 0;   /* v453 · aprueba también fuera de muestra y con costes dobles */
@@ -87,7 +103,7 @@ export async function lab(log = console.log) {
     out.push({ ...g, h: SAL[iH > 0 ? iH - 1 : iH + 1] ?? g.h }); out.push({ ...g, sl: STP[iS >= 0 && iS < STP.length - 1 ? iS + 1 : Math.max(0, iS - 1)] ?? g.sl }); return out; };
   const vecinosOk = (g) => { const res = vecinos(g).map((v) => { const r = evalua(v); return { h: v.h, sl: v.sl, ok: r.a.ret > 0 && r.o.ret > 0 && r.c2.ret > 0, ret: +(r.a.ret * 100).toFixed(1) }; }); return { ok: res.some((x) => x.ok), res }; };
   // candidatos: 30 % mutaciones de las «casi», 70 % nuevas (con los pesos aprendidos); nunca se repite una ya probada
-  const VB = await memoriaVistas(); for (const k of Object.keys(mem.probadas)) marca(VB, k);
+  const VB = await memoriaVistas(M0.totalVistas == null); for (const k of Object.keys(mem.probadas)) marca(VB, k);
   const cand = [], vistas = { has: (k) => !!vista(VB, k), add: (k) => marca(VB, k) };
   // v366 · 🤖 como mucho el 15 % de la ronda son recetas de la IA (su propuesta tal cual + variaciones de filtro, salida y stop); el resto, como siempre
   if (IA.length) { const cupo = Math.floor(PRUEBAS * 0.15); for (let z = 0; z < cupo * 20 && cand.length < cupo; z++) { const r = IA[z < IA.length ? z : Math.floor(Math.random() * IA.length)], a = iaIdx.get(r.id); if (a == null) continue;
@@ -96,7 +112,7 @@ export async function lab(log = console.log) {
   cand.sort((x, y) => x.a - y.a); const famStat = {}; let nOk = 0;
   for (const g of cand) { const r = evalua(g), k = hs(clave(g)), f = S[g.a].fam; mem.probadas[k] = +r.nota.toFixed(3); (famStat[f] = famStat[f] || []).push(r.nota);
     // v465 · 🔒 las «casi» (las madres de las mutaciones) se eligen SOLO con datos anteriores a los 90 días ocultos: así el examen final no se filtra a la búsqueda
-    if (r.is.ret > 0 && r.is.pf >= 1.05 && r.is.opsDia >= minOpsB(g)) { mem.casi.push({ g, n: nombre(g), nota: r.nota, is: { ret: r.is.ret, pf: r.is.pf, opsDia: r.is.opsDia, dd: r.is.dd }, a: r.a, b: r.b, t: r.t }); }
+    if (r.is.ret > 0 && r.is.pf >= 1.05 && r.is.opsDia >= minOpsB(g)) { mem.casi.push({ v: 466, g, n: nombre(g), nota: r.nota, is: { ret: r.is.ret, pf: r.is.pf, opsDia: r.is.opsDia, dd: r.is.dd }, a: r.a, b: r.b, t: r.t }); }
     if (r.okA && r.okB && r.okC && !mem.aprobadas.some((x) => x.k === k) && !vecinosOk(g).ok) continue;   /* v458 · sin vecinos que ganen: no aprueba */   /* v458 · sin vecinos que ganen: se queda en «casi» */
     if (r.okA && r.okB && r.okC) { nOk++; if (!mem.aprobadas.some((x) => x.k === k)) mem.aprobadas.push({ k, g, n: nombre(g), a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2, desde: new Date().toISOString() }); } }
   for (const [f, v] of Object.entries(famStat)) { const top = v.sort((a, b) => b - a).slice(0, 5), m = top.reduce((a, b) => a + b, 0) / top.length; mem.pesos[f] = +((mem.pesos[f] || 1) * 0.7 + 0.3 * Math.max(0.2, m)).toFixed(3); }
@@ -117,7 +133,7 @@ export async function lab(log = console.log) {
   for (const x of mem.aprobadas) if (x.g && x.g.ia && iaRes[x.g.ia]) iaRes[x.g.ia].aprobada = 1;
   const iaN = cand.filter((g) => g.ia).length, iaCasi = mem.casi.filter((x) => x.g && x.g.ia).length, iaOk = mem.aprobadas.filter((x) => x.g && x.g.ia).length;
   if (IA.length) log(`🤖 IA: ${IA.length} recetas · ${iaN} combinaciones probadas en esta ronda · ${iaCasi} entre las «casi» · ${iaOk} aprobadas`);
-  const out = { v: 1, totalVistas, exentos, t: new Date().toISOString(), ia: iaRes, iaVista: { recetas: IA.length, probadas: iaN, casi: iaCasi, aprobadas: iaOk }, dias: Math.round(n / 24), criptos: U, ...mem, ideas: ID, podio: mem.aprobadas.slice(0, 3), mejoresCasi: mem.casi.slice(0, 5).map((x) => ({ n: x.n, is: x.is, a: x.a, b: x.b, t: x.t })), pesosVista: Object.fromEntries(FAM.map((f) => [f, +peso(f).toFixed(2)])) };
+  const out = { v: 1, limpio466: 1, totalVistas, exentos, t: new Date().toISOString(), ia: iaRes, iaVista: { recetas: IA.length, probadas: iaN, casi: iaCasi, aprobadas: iaOk }, dias: Math.round(n / 24), criptos: U, ...mem, ideas: ID, podio: mem.aprobadas.slice(0, 3), mejoresCasi: mem.casi.slice(0, 5).map((x) => ({ n: x.n, is: x.is, a: x.a, b: x.b, t: x.t })), pesosVista: Object.fromEntries(FAM.map((f) => [f, +peso(f).toFixed(2)])) };
   log(`🧠 Probadas ahora ${cand.length} (en total ${totalVistas}) · aprueban ${nOk} · en el podio ${out.podio.length} · familias con más peso: ${Object.entries(out.pesosVista).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([f, w]) => f + " " + w).join(", ")}`);
   // v364 · 🔔 Telegram solo cuando un método ENTRA en el podio
   try { const ant = new Set((M0.podio || []).map((x) => x.k)), nuevos = out.podio.map((x, i) => ({ x, i })).filter(({ x }) => !ant.has(x.k));
@@ -132,5 +148,6 @@ async function guarda(out) {
   const pub = path.join(process.cwd(), ".pubcazalab"); rmSync(pub, { recursive: true, force: true }); mkdirSync(pub); writeFileSync(path.join(pub, ARCH), JSON.stringify(out)); if (out.__vistas) writeFileSync(path.join(pub, VIS_ARCH), out.__vistas);
   const g = (c) => sh(`git -C "${pub}" ${c}`); g(`init -q -b ${RAMA}`); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"'); g("add " + ARCH + (out.__vistas ? " " + VIS_ARCH : "")); g(`commit -q -m "laboratorio cripto ${out.t}"`);
   for (let i = 0; i < 4; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git ${RAMA}`); console.log("Laboratorio de cripto guardado."); return; } catch (e) { await new Promise((r) => setTimeout(r, 4000)); } }
+  throw new Error("No he podido publicar el laboratorio (4 intentos): la ejecución termina con error");   // v466 · que GitHub la marque como fallida
 }
 if (process.argv[1] && process.argv[1].endsWith("caza-lab.mjs")) lab().then(guarda).catch((e) => { console.log("Error: " + String(e.message).split("\n")[0].slice(0, 160)); process.exit(1); });

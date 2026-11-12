@@ -1,6 +1,6 @@
 # Bot Trading en la nube (gratis, sin ordenador encendido)
 
-> **Estado actual (v459, 12/11/2026).** Lo de abajo es el historial de cambios; las reglas vigentes son estas.
+> **Estado actual (v466, 12/11/2026).** Lo de abajo es el historial de cambios; las reglas vigentes son estas.
 >
 > - **Dinero real:** Trading 212 (sigue solo el n.º 1 del podio de **ETF**; Mixtos y Acciones solo en ficticio por el sesgo de supervivencia), Bitvavo y OKX (Tortugas, perfil n.º 1 de su exchange; hoy **medio** en los dos) e Hyperliquid (n.º 1 *listo para real* del laboratorio).
 > - **Nota de los podios:** rentabilidad anual − **0,8 ×** peor caída (ETF, Tortugas e Hyperliquid).
@@ -9,6 +9,8 @@
 > - **Hyperliquid:** métodos rápidos (1-24 h) y **lentos (2-7 días)**; examen: operaciones mínimas, factor de beneficio, 16 tramos, últimos 6 meses, **90 días ocultos**, **costes dobles**, **2 variantes vecinas** y **cuarentena de 21 días en ficticio** antes de dinero real. Cada posición lleva en el exchange su **stop del método** (comprobado en precio, lado y cantidad); si no se puede poner, la posición se cierra al momento. Al abrir solo se acepta un 0,5 % de deslizamiento.
 > - **Trading 212:** solo se apunta lo que el broker confirma (cantidad ejecutada); órdenes parciales se apuntan como parciales; no se manda otra orden de un activo con una anterior sin confirmar.
 > - **Real frente a prueba:** cada cuenta compara sus últimos 30 días con su método en la prueba y avisa por Telegram si va mucho peor.
+> - **Seguridad (v462–v466):** candado atómico por hora en Hyperliquid; ajustes, estado y memoria del laboratorio *fail-closed* (si no se pueden leer, no se abre nada / el laboratorio se para sin sobrescribir); freno enclavado y guardado por dos vías (estado cifrado + etiqueta `hl-freno-…`); stops verificados en precio, lado, cantidad y «solo cerrar», y cancelaciones comprobadas; posiciones sin estado del bot no se adoptan hasta que vuelvas a guardar los ajustes; Trading 212 solo reconoce como suya una orden perdida con fecha, mismo lado, misma cantidad y creada tras el envío.
+> - **Laboratorio de Hyperliquid (v465–v466):** caída medida hora a hora; stop con deslizamiento según la vela y salida al precio de apertura si hay hueco; criptos con huecos de más de 24 h (velas o financiación) fuera; ni la nota de búsqueda ni los tramos al azar tocan los 90 días ocultos. Limitaciones conocidas: precios históricos de OKX (Hyperliquid solo da ~7 meses), universo de criptos actual (sesgo de supervivencia) y equivalencia aproximada ETF EE. UU. ↔ UCITS.
 > - **Infraestructura:** saldos de Bitvavo/OKX cada 60 s; vigía cada 10 min; aviso por Telegram de cualquier fallo; estados con dinero real cifrados (AES-256-GCM, PBKDF2 600.000 iteraciones).
 
 Qué hace este paquete:

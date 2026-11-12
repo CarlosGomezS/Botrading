@@ -579,7 +579,10 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
 
 // ---------- ejecución de órdenes (a mercado) ----------
 // v465 · ¿esta orden de Trading 212 es la que acabamos de mandar? Mismo LADO, misma CANTIDAD y creada después del envío (si no, puede ser tuya)
-export function esNuestra(o, qq, tEnvio) { const q = +(o.quantity ?? o.filledQuantity ?? NaN), cr = Date.parse(o.createdAt || o.creationTime || ""); return Number.isFinite(q) && Math.sign(q) === Math.sign(qq) && Math.abs(Math.abs(q) - Math.abs(qq)) <= Math.abs(qq) * 0.001 + 1e-9 && (!Number.isFinite(cr) || cr >= tEnvio - 60e3); }
+// v466 · estricta: fecha OBLIGATORIA y como mucho 5 s antes del envío (solo por desfase de relojes), mismo lado y la MISMA cantidad (solo redondeo).
+//   Si no cuadra todo, NO es nuestra: la orden queda dudosa y no se repite la compra.
+export const MARGEN_RELOJ = 5000;
+export function esNuestra(o, qq, tEnvio) { if (!o) return false; const q = +(o.quantity ?? o.filledQuantity ?? NaN), cr = Date.parse(o.createdAt || o.creationTime || ""); return Number.isFinite(q) && Number.isFinite(cr) && Number.isFinite(+tEnvio) && Math.sign(q) === Math.sign(qq) && Math.abs(Math.abs(q) - Math.abs(qq)) <= Math.abs(qq) * 1e-6 + 1e-9 && cr >= tEnvio - MARGEN_RELOJ && cr <= Date.now() + MARGEN_RELOJ; }
 async function placeMarket(T, t, qty, ext, rep, dec0) {
   let q = qty, dec = dec0 != null ? dec0 : 4;
   const fmt = (x, d) => Math.floor(x * 10 ** d) / 10 ** d;
