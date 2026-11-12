@@ -52,7 +52,7 @@ export async function lab(log = console.log) {
   const muta = (g) => { const x = { ...g }, q = Math.floor(Math.random() * 5); if (q === 0) x.f = FN[Math.floor(Math.random() * FN.length)]; else if (q === 1) x.h = SAL[Math.floor(Math.random() * SAL.length)]; else if (q === 2) x.sl = STP[Math.floor(Math.random() * STP.length)]; else if (q === 3) x.b = Math.random() < 0.5 ? null : idxDe(elige()); else x.a = idxDe(S[x.a] ? S[x.a].fam : elige()); return sinEco(x); };
   const clave = (g) => `${S[g.a] && S[g.a].fam}${JSON.stringify(S[g.a] && S[g.a].p)}|${g.b != null && S[g.b] ? S[g.b].fam + JSON.stringify(S[g.b].p) : "-"}|${g.f}|${g.h}|${g.sl}`;
   const nomS = (x) => (x.ia ? `🤖 IA «${x.ia.nombre}»` : `${x.fam} ${JSON.stringify(x.p)}`);
-  const nombre = (g) => `${nomS(S[g.a])}${g.b != null ? " + confirma " + nomS(S[g.b]) : ""} · ${g.f} · sale a las ${g.h} h · stop ${g.sl ? "−" + g.sl * 100 + " %" : "no"}`;
+  const nombre = (g) => `${nomS(S[g.a])}${g.b != null ? " + confirma " + nomS(S[g.b]) : ""} · ${g.f} · cada operación dura ${g.h} h · stop ${g.sl ? "−" + g.sl * 100 + " %" : "no"}`;
   const evalua = (g) => { const A = sig(g.a), B = g.b != null ? sig(g.b) : null, f = FILTROS[g.f], ops = [];
     for (const c of U) { const a = A[c], b = B && B[c]; let lib = 0; for (let i = 260; i < n - 1; i++) { if (i < lib || !a[i]) continue; if (b) { let ok = false; for (let k = 0; k < 6 && !ok; k++) if (b[i - k] === a[i]) ok = true; if (!ok) continue; } if (!f(a[i], i, X, c)) continue; ops.push([i, c, a[i], i + g.h]); lib = i + g.h; } }
     // v365 · 🎲 TRAMOS AL AZAR (distintos en cada ronda) + regla estricta «hasta hoy»: la historia completa hasta hoy, los últimos 6 meses
