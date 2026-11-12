@@ -156,14 +156,18 @@ export function desvioTort(eq, cv, now) {
   if (!(c0 > 0) || !(c1 > 0)) return null;
   return { dias: Math.round((b - a) / 864e5), real: +((idx - 1) * 100).toFixed(2), sim: +((c1 / c0 - 1) * 100).toFixed(2) };
 }
+// v460/v461 · envuelve comprar/vender del exchange: una orden de resultado desconocido bloquea ESE activo (se guarda en el estado cifrado, 2 h)
+export const esDudosa = (e) => /sin estado final|no se completó|no llegó|timeout|aborted|fetch failed|ECONN|ETIMEDOUT|socket|network/i.test(String((e && e.message) || e));
+export function conDudosas(X0, DUD, now) {
+  const envuelve = (fn) => async (m, ...a) => { if (DUD[m]) throw new Error("hay una orden anterior de este activo sin resultado confirmado; se espera al cuadre con el saldo"); try { return await fn(m, ...a); } catch (e) { if (esDudosa(e)) DUD[m] = new Date(now).toISOString(); throw e; } };
+  return { ...X0, comprar: X0.comprar && envuelve(X0.comprar.bind(X0)), vender: X0.vender && envuelve(X0.vender.bind(X0)) };
+}
 export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   const X0 = deps.ex || bitvavoEx(deps.api, deps.mercado, deps.saldoEur), mercado = X0.mercado, EX = X0.nombre, msgs = [];
   // v460 · 🔒 ÓRDENES DUDOSAS: si una compra o venta termina sin resultado confirmado (se perdió la respuesta, sin estado final…), ese activo
   //   queda bloqueado 2 horas: no se manda otra orden suya hasta que el cuadre con el saldo real del exchange lo haya resuelto. Nunca se duplica.
   const DUD = (RS && RS.dudosas) || {}; for (const [k, t] of Object.entries(DUD)) if (+now - Date.parse(t) > 2 * 3600e3) delete DUD[k];
-  const esDudosa = (e) => /sin estado final|no se completó|no llegó|timeout|aborted|fetch failed|ECONN|ETIMEDOUT|socket|network/i.test(String((e && e.message) || e));
-  const envuelve = (fn) => async (m, ...a) => { if (DUD[m]) throw new Error("hay una orden anterior de este activo sin resultado confirmado; se espera al cuadre con el saldo"); try { return await fn(m, ...a); } catch (e) { if (esDudosa(e)) DUD[m] = now.toISOString(); throw e; } };
-  const X = { ...X0, comprar: X0.comprar && envuelve(X0.comprar.bind(X0)), vender: X0.vender && envuelve(X0.vender.bind(X0)) };
+  const X = conDudosas(X0, DUD, now);
   const copia = SUBS_OK.includes(ctl.copia) ? ctl.copia : "mix", objetivo = Math.max(10, Math.round(+ctl.capital || CAPITAL));
   // saldo libre en euros en la cuenta de Bitvavo (una consulta por vuelta, solo si hace falta)
   let libre0 = null; const libre = async () => (libre0 != null ? libre0 : (libre0 = X.saldoEur ? await X.saldoEur() : Infinity));
@@ -202,7 +206,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (viejo) { await X.quitaStop(m, viejo); delete p.stopId; }
       let r = await intenta(pxN); if (!r.id && r.err) { await sleep(1500); r = await intenta(pxN); }
       if (r.id) { p.stopId = r.id; p.stopPx = pxN; p.stopEst = "ok"; delete p.stopErr; return; }
-      if (tenia && r.err) { const rv = await intenta(pxV);   /* solo ante un ERROR: si el exchange dice que ese mercado/cantidad no admite stop, se vigila con el del bot */ if (rv.id) { p.stopId = rv.id; p.stopPx = pxV; p.stopEst = "ok"; L(RS, now, `⚠️ ${p.sym}: no pude mover el stop de emergencia; he vuelto a poner el anterior`); return; }
+      if (tenia) { const rv = await intenta(pxV);   /* v461 · si ANTES tenía stop, cualquier cosa que no sea un stop confirmado (error o respuesta sin identificador) es un fallo: se repone el anterior o se vende */ if (rv.id) { p.stopId = rv.id; p.stopPx = pxV; p.stopEst = "ok"; L(RS, now, `⚠️ ${p.sym}: no pude mover el stop de emergencia; he vuelto a poner el anterior`); return; }
         L(RS, now, `🚨 ${p.sym}: sin stop en ${EX} (no pude poner ni el nuevo ni el anterior): la vendo para no dejarla sin protección`);
         try { await cerrar(m, "no se pudo mantener su stop de emergencia en el exchange"); } catch (e) { p.stopEst = "error"; msgs.push(`💶 🚨 ${EX}: ${p.sym} se ha quedado SIN stop en el exchange y no he podido venderla. Lo reintento en cada vuelta (el bot la vigila con su stop −6 %); si puedes, revísala a mano.`); }
         return; }
@@ -332,7 +336,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (ctl.frenoDia !== false && eq < RS.dia.eq0 * (1 - FRENO_DIA)) { await vendeTodo(`freno diario: hoy ha perdido un ${FRENO_DIA * 100} %`); RS.pausaDia = d; RS.estado = "pausa"; msgs.push(`💶 ⏸️ REAL: hoy ha perdido más de un ${FRENO_DIA * 100} % (de ${r2(RS.dia.eq0)} € a ${r2(eq)} €). He vendido todo y descansa hasta mañana; mañana vuelve solo.`); return { RS, msgs, ctl }; } }
     // v319 · 🧹 lo pides tú (una vez): vender TODO lo que quede de los métodos antiguos (todo lo que no sea de las Tortugas ni tuyo)
     if (ctl.liquidar && RS.liqAt !== ctl.liquidar) { RS.liqAt = ctl.liquidar; let n = 0;
-      for (const m of Object.keys(RS.pos)) { const p = RS.pos[m]; if (!p || p.src === "tortuga" || (ctl.conservar || []).includes(p.sym)) continue; await cerrar(m, "la vendes tú: era de un método antiguo"); n++; }
+      for (const m of Object.keys(RS.pos)) { const p = RS.pos[m]; if (!p || p.src === "tortuga" || (ctl.conservar || []).includes(p.sym)) continue; try { await cerrar(m, "la vendes tú: era de un método antiguo"); n++; } catch (e) { RS.liqAt = null; L(RS, now, `⚠️ no pude vender ${p.sym} (${String((e && e.message) || e).replace(/[A-Za-z0-9+/=_-]{24,}/g, "…").slice(0, 80)}); se reintenta en la próxima vuelta`); } }   /* v461 · cada venta por separado; si alguna falla, la liquidación se repite en la vuelta siguiente */
       L(RS, now, `🧹 vendidas ${n} criptos de los métodos antiguos; el dinero queda libre para las Tortugas`); msgs.push(`💶 🧹 ${EX}: vendidas ${n} criptos de los métodos antiguos. El dinero queda libre para las 🐢 Tortugas.`); }
     // 3) lo que tengo: ¿el submodo lo ha vendido entero, o una parte, o ha añadido (piramidar)?
     for (const [m, p] of Object.entries(RS.pos)) {

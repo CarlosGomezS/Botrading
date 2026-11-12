@@ -19,7 +19,7 @@ const log = (...a) => console.log(...a);
 // v460 · 🧪 dependencias externas en un solo sitio: las pruebas automáticas las sustituyen por un Hyperliquid y un GitHub de mentira
 export const deps = { fetch: (...a) => globalThis.fetch(...a), firma: null, direccion: null, guardar: null, aviso: null, metodo: null, senales: null, espera: (ms) => sleep(ms) };
 const F = (...a) => deps.fetch(...a);
-async function info(body) { for (let i = 0; i < 5; i++) { try { const r = await F(INFO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) }); if (r.status === 429) { await sleep(3000 * (i + 1)); continue; } if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); } catch (e) { if (i === 4) throw e; await sleep(2000 * (i + 1)); } } }
+async function info(body) { for (let i = 0; i < 5; i++) { try { const r = await F(INFO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) }); if (r.status === 429) { await deps.espera(3000 * (i + 1)); continue; } if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); } catch (e) { if (i === 4) throw e; await deps.espera(2000 * (i + 1)); } } }
 
 // ---------- firma de órdenes (igual que el SDK oficial de Python: msgpack + keccak + EIP-712 «Agent») ----------
 let ETH = null, MP = null;
@@ -72,7 +72,9 @@ export function validaCtl(c, prev = CTL0) { const o = { ...CTL0, ...(prev || {})
   if (["on", "pausa", "parado"].includes(c.estado)) o.estado = c.estado; if ([25, 50, 75, 100].includes(+c.uso)) o.uso = +c.uso;
   if ([0, 1, 2, 3, 4, 5].includes(+c.plazas)) o.plazas = +c.plazas; if ([0.25, 0.35, 0.5].includes(+c.freno)) o.freno = +c.freno; if ([1, 2, 3].includes(+c.puesto)) o.puesto = +c.puesto; return o; }
 // v460 · 🔒 FALLA CERRADO: si no se pueden leer TUS ajustes, se devuelve ok:false (nunca los de fábrica). Quien llama decide: no abrir nada.
-export async function leeCtl() { for (let i = 0; i < 3; i++) { try { const r = await F(`https://raw.githubusercontent.com/${REPO}/hl-ctl/ctl.json?t=${Date.now()}`, { signal: AbortSignal.timeout(15000) }); if (r.ok) { const j = await r.json(); if (j && typeof j === "object" && ["on", "pausa", "parado"].includes(j.estado)) return { ok: true, ctl: validaCtl({}, j) }; return { ok: false, motivo: "ajustes con formato no válido" }; } if (r.status === 404) return { ok: false, motivo: "no hay ajustes guardados" }; } catch (e) {} await deps.espera(1500 * (i + 1)); } return { ok: false, motivo: "no se han podido leer los ajustes" }; }
+// v461 · solo valen unos ajustes COMPLETOS y dentro de rango (nada se rellena con los de fábrica)
+export const ctlCompleto = (j) => !!j && typeof j === "object" && ["on", "pausa", "parado"].includes(j.estado) && [25, 50, 75, 100].includes(+j.uso) && [0, 1, 2, 3, 4, 5].includes(+j.plazas) && [0.25, 0.35, 0.5].includes(+j.freno) && [1, 2, 3].includes(+j.puesto);
+export async function leeCtl() { for (let i = 0; i < 3; i++) { try { const r = await F(`https://raw.githubusercontent.com/${REPO}/hl-ctl/ctl.json?t=${Date.now()}`, { signal: AbortSignal.timeout(15000) }); if (r.ok) { const j = await r.json(); if (ctlCompleto(j)) return { ok: true, ctl: validaCtl({}, j) }; return { ok: false, motivo: "tus ajustes guardados están incompletos o no son válidos" }; } if (r.status === 404) return { ok: false, motivo: "no hay ajustes guardados" }; } catch (e) {} await deps.espera(1500 * (i + 1)); } return { ok: false, motivo: "no se han podido leer los ajustes" }; }
 export async function guardaAjustes() { let c = {}; try { c = JSON.parse(env("CAMBIO") || "{}"); } catch (e) { log("Ajuste no válido."); return; }
   // v460 · nunca se escriben ajustes encima de los tuyos sin haberlos leído bien (si no existen todavía, se parte de «en pausa»)
   const lc = await leeCtl(); if (!lc.ok && lc.motivo !== "no hay ajustes guardados") { log("No he podido leer tus ajustes actuales: NO guardo nada para no pisarlos. Vuelve a intentarlo en un momento."); throw new Error("ajustes no leídos"); }
@@ -140,7 +142,7 @@ export async function ronda() {
   if (!forzar) { try { const r = await F(`https://api.github.com/repos/${REPO}/contents/${ARCH}?ref=${RAMA}`, { headers: { Accept: "application/vnd.github.raw+json", ...(TOKEN ? { Authorization: "Bearer " + TOKEN } : {}) }, signal: AbortSignal.timeout(15000) });
     if (r.ok) { const j = await r.json(), h0 = Math.floor(Date.now() / H) * H; if (j && j.t && Date.parse(j.t) >= h0) { log("Hyperliquid real: la ronda de esta hora ya está hecha."); return; } } } catch (e) {} }
   // v460 · 🔐 candado: si otro proceso ya tiene la ronda de esta hora, este no hace nada; si no se puede comprobar, este no ABRE nada (solo cierra y protege)
-  const hora = new Date().toISOString().replace(/\D/g, "").slice(0, 10), cand = await candado(forzar ? `${hora}-a${new Date().getUTCMinutes()}` : hora);
+  const hora = new Date().toISOString().replace(/\D/g, "").slice(0, 10), cand = await candado(hora);   // v461 · también las lanzadas a mano o por el vigilante usan el candado de la hora: nunca dos rondas en la misma hora
   if (!cand.ok && cand.ocupado) { log("Hyperliquid real: otro proceso ya está haciendo la ronda de esta hora (candado ocupado). No hago nada."); return; }
   const sinCandado = !cand.ok; if (sinCandado) log(`Hyperliquid real: no he podido comprobar el candado (${cand.err}). Por seguridad esta hora NO abro nada; solo cierro y protejo.`);
   const pk = env("HL_AGENT_KEY"), yo = env("HL_WALLET").toLowerCase();
@@ -151,7 +153,7 @@ export async function ronda() {
   const meta = await info({ type: "meta" }), idx = new Map(meta.universe.map((u, i) => [u.name, { a: i, szd: u.szDecimals }]));
   const st = await info({ type: "clearinghouseState", user: yo }), eq = +st.marginSummary.accountValue || 0, mids = await info({ type: "allMids" });
   const pos = (st.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0);
-  const led = await info({ type: "userNonFundingLedgerUpdates", user: yo, startTime: 0 }).catch(() => []);
+  let ledOk = true; const led = await info({ type: "userNonFundingLedgerUpdates", user: yo, startTime: 0 }).catch(() => { ledOk = false; return []; });   // v461 · sin el historial de ingresos no se puede calcular el freno → esta hora no se abre nada
   let neto = 0; for (const u of led || []) { const d = u.delta || {}; if (d.type === "deposit") neto += +d.usdc || 0; else if (d.type === "withdraw") neto -= +d.usdc || 0; }
   const fills = await info({ type: "userFills", user: yo }).catch(() => []);
   const abierta = (c) => { const f = (fills || []).filter((z) => z.coin === c && /^Open/.test(z.dir)).sort((a, b) => b.time - a.time)[0]; return f ? +f.time : null; };
@@ -194,7 +196,8 @@ export async function ronda() {
 
   // 3) abrir en las plazas libres según la señal de la última vela cerrada (solo con tus ajustes leídos bien y el candado conseguido)
   if (CTL.estado === "pausa") log("En pausa: no abro posiciones nuevas.");
-  if (CTL.estado === "on" && lc.ok && !sinCandado && M0 && M0.x && M0.x.g) {
+  if (CTL.estado === "on" && !ledOk) log("No he podido leer el historial de ingresos (lo necesita el freno): esta hora no abro nada.");
+  if (CTL.estado === "on" && lc.ok && ledOk && !sinCandado && M0 && M0.x && M0.x.g) {
     const g = M0.x.g, SV = await (deps.senales || senalesVivas)(M0, idx);
     if (SV.err) { log(SV.err); if (SV.avisar) await aviso(SV.avisar); }
     else { const quiere = SV.quiere;
@@ -205,6 +208,9 @@ export async function ronda() {
         let usadas = 0; for (const q of quiere) { if (usadas >= libres) break; if (pos.some((p) => p.coin === q.c) && !estado.ops.some((o) => o.c === q.c && o.x === "cierra")) continue;
           try {
           const I = idx.get(q.c), mid = +mids[q.c]; if (!I || !(mid > 0)) continue; const notional = Math.min(uso / plazas, eq) * 0.98, sz = tamOk(notional / mid, I.szd); if (sz * mid < 10.2) continue;
+          // v461 · tope de exposición explícito: lo que ya hay abierto (a precio de ahora) + lo abierto esta hora + esta orden ≤ el dinero que se usa (nunca más que el saldo)
+          const expo = pos.filter((p) => !estado.ops.some((o) => o.c === p.coin && o.x === "cierra")).reduce((a, p) => a + Math.abs(+p.szi) * (+mids[p.coin] || +p.entryPx || 0), 0) + estado.ops.filter((o) => o.x === "abre").reduce((a, o) => a + (o.v || 0), 0);
+          if (expo + sz * mid > Math.min(uso, eq)) { log("Tope de exposición: con esta orden se pasaría del dinero que se usa; no la abro."); continue; }
           const r = await mandar(orden(I.a, q.dir > 0, precioOk(mid * (q.dir > 0 ? 1 + SLIP_ABRE : 1 - SLIP_ABRE), I.szd), sz, false), PK);
           if (r.ok) pm[q.c] = { h: g.h, sl: g.sl || 0, k: M0.x.k };
           // v459 · 🛡️ una posición NUNCA se queda sin su stop: si no se puede poner, se reintenta al momento y, si vuelve a fallar, se cierra ya
@@ -230,7 +236,10 @@ export async function ronda() {
       if (bien) continue;
       let okS = false; try { okS = await ponStop(I.a, lado, ent, Math.abs(+p.szi), I.szd, PK, dist); } catch (e) { okS = false; }
       if (okS) { if (sts.length) await exchange({ type: "cancel", cancels: sts.map((o) => ({ a: I.a, o: o.oid })) }, PK).catch(() => {}); log(sts.length ? "Stop de una posición movido a lo que dice su método." : "Stop puesto en una posición que no lo tenía."); }
-      else if (!sts.length) { const rc = await cierraUna(p, I, mids, PK); hechos.push(`🚨 ${p.coin}: estaba sin stop y no he podido ponérselo, así que ${rc.ok ? "la he cerrado" : "he intentado cerrarla (NO se ha podido: revísala en Hyperliquid)"}`); if (!rc.ok) await aviso(`🚨 Hyperliquid: ${p.coin} está abierta SIN stop y no he podido cerrarla. Ciérrala a mano.`); } } } catch (e) { log("Revisión de stops: " + String(e.message).slice(0, 60)); }
+      else {   // v461 · sin stop, o con uno que el bot acaba de ver que está MAL, y sin poder poner el bueno: se cierra la posición y se comprueba
+        const rc = await cierraUna(p, I, mids, PK); let sigue = !rc.ok; try { const s3 = await info({ type: "clearinghouseState", user: yo }); sigue = (s3.assetPositions || []).some((x) => x.position.coin === p.coin && +x.position.szi !== 0); } catch (e) {}
+        if (!sigue && sts.length) await exchange({ type: "cancel", cancels: sts.map((o) => ({ a: I.a, o: o.oid })) }, PK).catch(() => {});
+        hechos.push(`🚨 ${p.coin}: ${sts.length ? "su stop no era correcto" : "estaba sin stop"} y no he podido poner el bueno, así que ${!sigue ? "la he cerrado (comprobado)" : "he intentado cerrarla (NO se ha podido: revísala en Hyperliquid)"}`); if (sigue) await aviso(`🚨 Hyperliquid: ${p.coin} está abierta sin un stop correcto y no he podido cerrarla. Ciérrala a mano.`); } } } catch (e) { log("Revisión de stops: " + String(e.message).slice(0, 60)); }
   const st2 = await info({ type: "clearinghouseState", user: yo }).catch(() => null); if (st2) { estado.eq = +st2.marginSummary.accountValue || eq; estado.pos = (st2.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0).map((p) => ({ c: p.coin, lado: +p.szi > 0 ? 1 : -1, v: +p.positionValue, pnl: +p.unrealizedPnl, entrada: +p.entryPx, desde: abierta(p.coin) })); }
   try { const f2 = await info({ type: "userFills", user: yo }); const cie = {}, ab0 = {}; for (const z of (f2 || []).slice().sort((a, b) => a.time - b.time)) { if (/^Open/.test(z.dir)) { if (!(z.coin in ab0) || ab0["_c" + z.coin]) ab0[z.coin] = +z.time; delete ab0["_c" + z.coin]; continue; } if (!/^Close/.test(z.dir)) continue; ab0["_c" + z.coin] = 1; const k = z.coin + "|" + Math.floor(z.time / 60000); const o = cie[k] || (cie[k] = { t: +z.time, t0: ab0[z.coin] || null, c: z.coin, lado: /Long/.test(z.dir) ? 1 : -1, pnl: 0, v: 0 }); o.pnl += (+z.closedPnl || 0) - (+z.fee || 0); o.v += (+z.sz || 0) * (+z.px || 0); }
     estado.cierres = Object.values(cie).sort((a, b) => b.t - a.t).slice(0, 80); estado.ganado = estado.cierres.reduce((a, x) => a + x.pnl, 0); } catch (e) {}

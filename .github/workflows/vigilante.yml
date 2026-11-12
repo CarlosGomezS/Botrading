@@ -37,6 +37,9 @@ jobs:
           # v295 · examen de un año: si el último examen bueno tiene > 5 h y no hay uno en marcha, se lanza
           x=$(edad examen-largo.json examen-largo); xv=$(vivo examen-largo.yml); echo "examen de un año: hace ${x}s · vivos: $xv"
           if [ "$x" -gt 18000 ] && [ "$xv" = "0" ]; then lanza examen-largo.yml; fi
+          # v461 · 💧 Hyperliquid vigilado TAMBIÉN desde aquí (independiente de la cadena del bot): si su última ronda tiene > 75 min, se lanza una (el candado de la hora impide duplicarla)
+          hl=$(edad hl-real.json hl-real); hv=$(vivo hl-real.yml); echo "hyperliquid: última ronda hace ${hl}s · vivos: $hv"
+          if [ "$hl" -lt 99999 ] && [ "$hl" -gt 4500 ] && [ "$hv" = "0" ]; then lanza hl-real.yml; fi
       - name: 🚨 Avisar por Telegram si algo ha fallado
         if: failure()
         env:

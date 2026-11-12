@@ -16,7 +16,7 @@ const H = 3600e3;
 function mundo(o = {}) {
   const W = { eq: o.eq ?? 100, neto: o.neto ?? 100, px: { BTC: 100, ETH: 10, SOL: 5, ...(o.px || {}) }, pos: {}, stops: [], oid: 1, fills: [], ordenes: [], refs: new Set(), guardado: null, avisos: [],
     ctl: o.ctl === undefined ? { estado: "on", uso: 100, plazas: 5, freno: 0.35, puesto: 1 } : o.ctl, ctlFallo: o.ctlFallo || null, refsFallo: !!o.refsFallo,
-    falloStop: o.falloStop || 0, falloCierre: new Set(o.falloCierre || []), parcial: o.parcial || 0, timeoutAbrir: !!o.timeoutAbrir, quiere: o.quiere || [] };
+    falloStop: o.falloStop || 0, ledgerFallo: !!o.ledgerFallo, falloCierre: new Set(o.falloCierre || []), parcial: o.parcial || 0, timeoutAbrir: !!o.timeoutAbrir, quiere: o.quiere || [] };
   for (const p of o.pos || []) { W.pos[p.c] = { szi: p.szi, entryPx: p.px ?? W.px[p.c] }; W.fills.push({ coin: p.c, dir: p.szi > 0 ? "Open Long" : "Open Short", time: Date.now() - (p.edadH ?? 1) * H, px: p.px ?? W.px[p.c], sz: Math.abs(p.szi) }); }
   for (const s of o.stops || []) W.stops.push({ coin: s.c, oid: W.oid++, side: s.side, sz: String(s.sz), origSz: String(s.sz), triggerPx: String(s.trig), isTrigger: true, orderType: "Stop Market" });
   const coins = Object.keys(W.px), j = (x, st = 200) => ({ ok: st < 400, status: st, json: async () => x, text: async () => JSON.stringify(x) });
@@ -33,7 +33,7 @@ function mundo(o = {}) {
         case "meta": return j({ universe: coins.map((c) => ({ name: c, szDecimals: 3 })) });
         case "clearinghouseState": return j({ marginSummary: { accountValue: String(W.eq) }, assetPositions: pos() });
         case "allMids": return j(Object.fromEntries(coins.map((c) => [c, String(W.px[c])])));
-        case "userNonFundingLedgerUpdates": return j([{ delta: { type: "deposit", usdc: String(W.neto) } }]);
+        case "userNonFundingLedgerUpdates": if (W.ledgerFallo) return j({}, 500); return j([{ delta: { type: "deposit", usdc: String(W.neto) } }]);
         case "userFills": return j(W.fills);
         case "extraAgents": return j([{ address: "0x" + "c".repeat(40), validUntil: Date.now() + 100 * 864e5 }]);
         case "frontendOpenOrders": return j(W.stops);
@@ -155,4 +155,23 @@ test("tras un reinicio: cada posición conserva SU duración aunque el método c
   HL.deps.metodo = async () => ({ x: { g: { h: 24, sl: 0.05 }, n: "otro método", k: "m2" }, IA: [], U: Object.keys(W.px) }); W.quiere = []; W.guardado.t = new Date(Date.now() - 2 * H).toISOString(); W.refs.clear();
   await silencio(() => HL.ronda());
   assert.equal(abiertas(W).length, 1, "sigue abierta: su método dice 168 h");
+});
+
+// ---------- v461 ----------
+test("stop INCORRECTO y la sustitución también falla: cierra la posición, lo comprueba y quita el stop malo", async () => {
+  const W = mundo({ falloStop: 5, pos: [{ c: "BTC", szi: -0.2 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108 }] }); conecta(W); await silencio(() => HL.ronda());
+  assert.deepEqual(abiertas(W), [], "cerrada"); assert.equal(W.stops.filter((z) => z.coin === "BTC").length, 0, "sin stops huérfanos");
+});
+test("ajustes INCOMPLETOS (falta el freno) o fuera de rango: no se rellenan con los de fábrica, no abre nada", async () => {
+  for (const ctl of [{ estado: "on", uso: 100, plazas: 5, puesto: 1 }, { estado: "on", uso: 100, plazas: 5, freno: 0.9, puesto: 1 }, { estado: "on", uso: 999, plazas: 5, freno: 0.35, puesto: 1 }]) {
+    const W = mundo({ ctl, quiere: [{ c: "BTC", dir: 1 }] }); conecta(W); await silencio(() => HL.ronda()); assert.equal(aperturas(W).length, 0, JSON.stringify(ctl)); }
+  assert.equal(HL.ctlCompleto({ estado: "on", uso: 100, plazas: 0, freno: 0.5, puesto: 1 }), true);
+});
+test("si no se puede leer el historial de ingresos (lo necesita el freno): no abre nada", async () => {
+  const W = mundo({ ledgerFallo: true, quiere: [{ c: "BTC", dir: 1 }] }); conecta(W); await silencio(() => HL.ronda()); assert.equal(aperturas(W).length, 0);
+});
+test("tope de exposición con posiciones previas grandes: nunca se pasa del saldo", async () => {
+  const W = mundo({ eq: 100, px: { BTC: 100, ETH: 10, SOL: 5 }, pos: [{ c: "BTC", szi: 0.7, px: 100 }], stops: [{ c: "BTC", side: "A", sz: 0.7, trig: 92 }], quiere: [{ c: "ETH", dir: 1 }, { c: "SOL", dir: -1 }] }); conecta(W);
+  await silencio(() => HL.ronda());
+  const expo = abiertas(W).reduce((a, x) => a + Math.abs(x.szi) * W.px[x.c], 0); assert.ok(expo <= 100 + 1e-9, "exposición " + expo);
 });
