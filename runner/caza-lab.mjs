@@ -59,7 +59,7 @@ export async function lab(log = console.log) {
   const clave = (g) => `${S[g.a] && S[g.a].fam}${JSON.stringify(S[g.a] && S[g.a].p)}|${g.b != null && S[g.b] ? S[g.b].fam + JSON.stringify(S[g.b].p) : "-"}|${g.f}|${g.h}|${g.sl}`;
   const nomS = (x) => (x.ia ? `🤖 IA «${x.ia.nombre}»` : `${x.fam} ${JSON.stringify(x.p)}`);
   const nombre = (g) => `${nomS(S[g.a])}${g.b != null ? " + confirma " + nomS(S[g.b]) : ""} · ${g.f} · cada operación dura ${g.h} h · stop ${g.sl ? "−" + g.sl * 100 + " %" : "no"}`;
-  const calidad = (x) => { const an = Math.pow(Math.max(0.0001, 1 + x.a.ret), 365 / Math.max(30, (n - 261) / 24)) - 1; return an - 0.3 * Math.abs(x.a.dd || 0); };
+  const calidad = (x) => { const an = Math.pow(Math.max(0.0001, 1 + x.a.ret), 365 / Math.max(30, (n - 261) / 24)) - 1; return an - 0.8 * Math.abs(x.a.dd || 0); };   /* v457 · 0,8 */
   const evalua = (g) => { const A = sig(g.a), B = g.b != null ? sig(g.b) : null, f = FILTROS[g.f], ops = [];
     for (const c of U) { const a = A[c], b = B && B[c]; let lib = 0; for (let i = 260; i < n - 1; i++) { if (i < lib || !a[i]) continue; if (b) { let ok = false; for (let k = 0; k < 6 && !ok; k++) if (b[i - k] === a[i]) ok = true; if (!ok) continue; } if (!f(a[i], i, X, c)) continue; ops.push([i, c, a[i], i + g.h]); lib = i + g.h; } }
     // v365 · 🎲 TRAMOS AL AZAR (distintos en cada ronda) + regla estricta «hasta hoy»: la historia completa hasta hoy, los últimos 6 meses
@@ -90,7 +90,7 @@ export async function lab(log = console.log) {
   mem.aprobadas = mem.aprobadas.filter((x) => { const g2 = fixG(x.g); if (!g2 || !S[g2.a]) return false; x.g = g2; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2 });
     try { const t0 = Date.parse(x.desde), i0 = T.findIndex((t) => t >= t0), dias = (Date.now() - t0) / 864e5, z = i0 >= 0 && i0 < n - 1 ? cartera(r.ops, M, i0, n - 1, 5, x.g.sl) : { n: 0, ret: 0, pf: 0 }, min = lento(x.g) ? 4 : 8;
       x.cuar = { dias: +dias.toFixed(1), n: z.n, ret: +(+z.ret || 0).toFixed(4), pf: +(+z.pf || 0).toFixed(2), min, exento: exentos.includes(x.k) || undefined, ok: dias >= 21 && z.n >= min && z.ret > 0 }; } catch (e) { x.cuar = { dias: 0, n: 0, ret: 0, min: 8, ok: false }; }
-    return r.okA && r.okB && r.okC; }).sort((a, b) => Math.round(calidad(b) * 1000) - Math.round(calidad(a) * 1000) || a.a.dd - b.a.dd);   /* v455 · ⚖️ por CALIDAD: ganancia al año − 0,3 × caída */   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
+    return r.okA && r.okB && r.okC; }).sort((a, b) => Math.round(calidad(b) * 1000) - Math.round(calidad(a) * 1000) || a.a.dd - b.a.dd);   /* v455 · ⚖️ por CALIDAD: ganancia al año − 0,8 × caída */   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
   for (const x of mem.aprobadas) x.nota = +calidad(x).toFixed(4);
   const ks = Object.keys(mem.probadas); if (ks.length > 40000) for (const k of ks.slice(0, ks.length - 40000)) delete mem.probadas[k];
   mem.hist.unshift({ t: new Date().toISOString(), probadas: cand.length, aprobadas: nOk, total: Object.keys(mem.probadas).length }); mem.hist = mem.hist.slice(0, 120);
