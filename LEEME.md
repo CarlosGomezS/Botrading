@@ -1,5 +1,16 @@
 # Bot Trading en la nube (gratis, sin ordenador encendido)
 
+> **Estado actual (v459, 12/11/2026).** Lo de abajo es el historial de cambios; las reglas vigentes son estas.
+>
+> - **Dinero real:** Trading 212 (sigue solo el n.º 1 del podio de **ETF**; Mixtos y Acciones solo en ficticio por el sesgo de supervivencia), Bitvavo y OKX (Tortugas, perfil n.º 1 de su exchange; hoy **medio** en los dos) e Hyperliquid (n.º 1 *listo para real* del laboratorio).
+> - **Nota de los podios:** rentabilidad anual − **0,8 ×** peor caída (ETF, Tortugas e Hyperliquid).
+> - **ETF:** 26 años, 2 años ocultos al buscar, costes dobles, 300 tramos al azar, prueba de estabilidad con 2 variantes vecinas.
+> - **Tortugas:** solo entran en criptos con **≥ 50.000 €/día**; la prueba cobra la diferencia compra-venta de cada cripto (suelo 0,15 %); eligen con el año 1 y se examinan con el año 2 y con las criptos del otro exchange; costes dobles; la espera para cubrir comisiones y el freno diario (−10 %) se deciden con datos. Freno general **35 %**.
+> - **Hyperliquid:** métodos rápidos (1-24 h) y **lentos (2-7 días)**; examen: operaciones mínimas, factor de beneficio, 16 tramos, últimos 6 meses, **90 días ocultos**, **costes dobles**, **2 variantes vecinas** y **cuarentena de 21 días en ficticio** antes de dinero real. Cada posición lleva en el exchange su **stop del método** (comprobado en precio, lado y cantidad); si no se puede poner, la posición se cierra al momento. Al abrir solo se acepta un 0,5 % de deslizamiento.
+> - **Trading 212:** solo se apunta lo que el broker confirma (cantidad ejecutada); órdenes parciales se apuntan como parciales; no se manda otra orden de un activo con una anterior sin confirmar.
+> - **Real frente a prueba:** cada cuenta compara sus últimos 30 días con su método en la prueba y avisa por Telegram si va mucho peor.
+> - **Infraestructura:** saldos de Bitvavo/OKX cada 60 s; vigía cada 10 min; aviso por Telegram de cualquier fallo; estados con dinero real cifrados (AES-256-GCM, PBKDF2 600.000 iteraciones).
+
 Qué hace este paquete:
 
 - **Web pública** (GitHub Pages): la abres desde el móvil o el ordenador y ves el bot tal cual, con los datos más recientes. Es de solo lectura.

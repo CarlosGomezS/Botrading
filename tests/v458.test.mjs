@@ -65,3 +65,22 @@ test("Trading 212 sigue solo el podio de ETF (top3etf) aunque el n.º 1 general 
   const S2 = { lab: { top3: [{ k: "acc1", sc: 0.3 }] }, books: S.books };   // sin top3etf (web antigua): como antes
   assert.equal(primero(S2, null).k, "acc1");
 });
+
+// ---------- v459 · ejecución: solo se apunta lo que el broker confirma; stops de Hyperliquid correctos ----------
+import { estadoOrden } from "../runner/real.mjs";
+test("Trading 212: estado de la orden según lo confirmado", () => {
+  assert.equal(estadoOrden("FILLED", 3), "ejecutada");
+  assert.equal(estadoOrden("FILLED", 0), "pendiente");        // sin cantidad: no se da por hecha, se reconcilia después
+  assert.equal(estadoOrden("FILLED?", 3), "pendiente");       // aún no está en el historial
+  assert.equal(estadoOrden("CANCELLED", 1.2), "parcial");     // cancelada tras ejecutar una parte: se apunta lo ejecutado
+  assert.equal(estadoOrden("CANCELLED", 0), "rechazada");
+  assert.equal(estadoOrden("REJECTED", undefined), "rechazada");
+  assert.equal(estadoOrden("NEW", 0), "pendiente");
+});
+test("Hyperliquid: la orden de stop cierra en el lado contrario, a la distancia del método, por toda la cantidad y solo reduce", async () => {
+  const { ordenStop } = await import("../runner/hl-real.mjs");
+  const largo = ordenStop(3, 1, 100, 2.5, 2, 0.08), corto = ordenStop(3, -1, 100, 2.5, 2, 0.08);
+  assert.equal(largo.b, false); assert.equal(corto.b, true);              // largo → vende; corto → compra
+  assert.equal(largo.r, true); assert.equal(+largo.s, 2.5);               // solo reduce, por toda la posición
+  assert.equal(+largo.t.trigger.triggerPx, 92); assert.equal(+corto.t.trigger.triggerPx, 108);
+});

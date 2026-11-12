@@ -399,8 +399,10 @@ async function reconcile(T, R, rep) {
     let it = null;
     try { const h = await T.call("GET", `/equity/history/orders?ticker=${encodeURIComponent(o.t)}&limit=20`); it = ((h && h.items) || []).find((x) => x.order && String(x.order.id) === String(o.id)); } catch { keep.push(o); continue; }
     const rec = (R.orders || []).find((x) => String(x.id) === String(o.id));
-    if (it && /FILLED/.test(String(it.order.status))) {
-      const q = +it.order.filledQuantity || o.qty, net = it.fill && it.fill.walletImpact ? Math.abs(+it.fill.walletImpact.netValue) : o.eur, px = it.fill && it.fill.price;
+    const fqP = Math.abs(+(it && it.order.filledQuantity) || 0);   // v459 · solo lo que Trading 212 confirma como ejecutado
+    if (it && /FILLED/.test(String(it.order.status)) && !(fqP > 0)) { if (Date.now() - Date.parse(o.ts) < 3 * 864e5) keep.push(o); else rep.push(`- ⚠️ La orden ${o.side} ${o.t} figura como ejecutada pero sin cantidad: revísala en Trading 212.`); continue; }
+    if (it && (/FILLED/.test(String(it.order.status)) || fqP > 0)) {
+      const q = fqP, net = it.fill && it.fill.walletImpact ? Math.abs(+it.fill.walletImpact.netValue) : o.eur, px = it.fill && it.fill.price;
       const r = applyFill(R, o.side, o.t, q, net, { px, id: o.id, d: String(it.fill && it.fill.filledAt || "").slice(0, 10), why: "orden pendiente que se ejecutó después" });
       if (rec) Object.assign(rec, { estado: "ejecutada", qty: Math.abs(q), px: px || rec.px, eur: r2(net), coste: r.coste, pnl: r.pnl, ejecutadaEn: it.fill && it.fill.filledAt, err: "se ejecutó después de enviarla (bolsa cerrada o festivo)" });
       rep.push(`- ✔ La orden pendiente ${o.side} ${o.t} se ejecutó${px ? " a " + px : ""} · ${eur(net)}${r.pnl != null ? ` · resultado ${seur(r.pnl)}` : ""}.`);
@@ -610,12 +612,14 @@ async function placeMarket(T, t, qty, ext, rep, dec0) {
   }
   return { ok: false, err: "Trading 212 no aceptó la cantidad tras varios intentos" };
 }
+// v459 · estado de una orden según lo que CONFIRMA Trading 212 (cantidad ejecutada incluida)
+export function estadoOrden(st, fq) { st = String(st || ""); fq = Math.abs(+fq || 0); return /^FILLED$/.test(st) && fq > 0 ? "ejecutada" : /CANCEL|REJECT/.test(st) ? (fq > 0 ? "parcial" : "rechazada") : "pendiente"; }
 async function waitFill(T, o, maxS = 75) {
   const id = o && o.id; if (!id) return { status: o && o.status, filledQuantity: o && o.filledQuantity };
   const t0 = Date.now();
   while (Date.now() - t0 < maxS * 1000) {
     await sleep(2500);
-    try { const x = await T.call("GET", "/equity/orders/" + id); if (x && /CANCEL|REJECT/.test(x.status)) return { status: x.status }; continue; }
+    try { const x = await T.call("GET", "/equity/orders/" + id); if (x && /CANCEL|REJECT/.test(x.status)) return { status: x.status, filledQuantity: x.filledQuantity }; continue; }
     catch (e) { if (e.st !== 404) continue; }
     // ya no está pendiente: buscar el resultado en el historial
     try {
@@ -668,6 +672,8 @@ async function execute(T, A, R, plan, ctx, rep) {
     const inst = Object.values(ctx.map).find((x) => x.t === o.t) || {};
     const us = /_US_EQ$/.test(o.t);
     const skip = (estado, err) => { res.push({ ...o, estado, err }); rep.push(`- ${o.side} ${o.t}: ${estado} · ${err}`); };
+    // v459 · 🔒 si hay una orden anterior de ese mismo activo cuyo resultado aún no se conoce, no se manda otra (evita duplicados)
+    if (R.pendBot.some((x) => x.t === o.t && !o._comp)) { skip("esperando", "hay una orden anterior de este activo con resultado aún sin confirmar; se esperará a reconciliarla"); continue; }
     if (us && (!m.wk || m.min < 15 * 60 + 35 || m.min > 21 * 60 + 55)) { skip("aplazada", "acción de EE. UU.: se envía con la bolsa de Nueva York abierta (15:35-21:55 hora de España)"); continue; }
     if (!us && !euOpen(m)) { skip("aplazada", xetraHoliday(m.date) ? "hoy es festivo en la bolsa de Fráncfort: se hará en el próximo día de bolsa" : "la bolsa europea está cerrada (las órdenes se envían de 9:05 a 17:20, hora de España): se hará en la próxima revisión con la bolsa abierta"); continue; }
     if (o.side === "COMPRA" && !sellsDone) {
@@ -712,10 +718,17 @@ async function execute(T, A, R, plan, ctx, rep) {
     if (p.ok && p.dec != null) R.prec[o.t] = p.dec;
     if (!p.ok) { res.push({ ...o, estado: "error", err: p.err }); rep.push("  ✖ " + p.err); continue; }
     const f = await waitFill(T, p.o), st = String(f.status || "");
-    let estado = /^FILLED$/.test(st) ? "ejecutada" : /FILLED\?/.test(st) ? "ejecutada" : /CANCEL|REJECT/.test(st) ? "rechazada" : "pendiente";
+    // v459 · 🧾 solo se apunta lo que Trading 212 CONFIRMA: «FILLED» sin cantidad o «FILLED?» (aún no está en el historial) se dejan pendientes y se
+    //   reconcilian en la próxima ejecución; una orden cancelada que llegó a ejecutarse en parte se apunta como PARCIAL con lo que de verdad se compró/vendió
+    const fq = Math.abs(+f.filledQuantity || 0);
+    let estado = estadoOrden(st, fq);
     const r = { ...o, id: p.o.id, qtyEnv: Math.abs(p.qty), estado, fillQty: f.filledQuantity, fillPx: f.price, eurReal: f.net != null ? Math.abs(+f.net) : null, nota: f.nota || (p.dudosa ? "confirmada tras perder la respuesta" : ""), hora: new Date().toISOString() };
-    if (estado === "ejecutada") {
-      const q = +f.filledQuantity || Math.abs(p.qty), amt = r.eurReal != null ? r.eurReal : o.side === "COMPRA" ? o.eur : o.eur;
+    if (estado === "parcial") {
+      const amt = r.eurReal != null ? r.eurReal : r2(o.eur * fq / Math.max(1e-9, Math.abs(p.qty)));
+      const a = applyFill(R, o.side, o.t, fq, amt, { px: f.price || o.pxEst, id: p.o.id, d: m.date, why: o.why + " (ejecutada solo en parte)" });
+      r.coste = a.coste; r.pnl = a.pnl; r.nota = `Trading 212 la canceló tras ejecutar ${fq} de ${Math.abs(p.qty)}: se apunta solo lo ejecutado`; if (o.side === "COMPRA") spent += amt;
+    } else if (estado === "ejecutada") {
+      const q = fq, amt = r.eurReal != null ? r.eurReal : o.side === "COMPRA" ? o.eur : o.eur;
       const a = applyFill(R, o.side, o.t, q, amt, { px: f.price || o.pxEst, id: p.o.id, d: m.date, why: o.why });
       r.coste = a.coste; r.pnl = a.pnl; if (r.eurReal == null) r.nota = (r.nota ? r.nota + " · " : "") + "importe estimado (Trading 212 aún no da el definitivo)";
       if (o.side === "COMPRA") spent += amt;
@@ -731,7 +744,7 @@ async function execute(T, A, R, plan, ctx, rep) {
       r.nota = "Trading 212 aún no la ha ejecutado (¿bolsa cerrada?): se comprobará y apuntará en la próxima ejecución";
     } else if (estado === "rechazada") r.err = "Trading 212 la ha " + (/REJECT/.test(st) ? "rechazado" : "cancelado") + " (" + st + ")";
     res.push(r);
-    rep.push(`  ${estado === "ejecutada" ? "✔" : estado === "rechazada" ? "✖" : "⏳"} ${estado}${f.price ? ` a ${f.price}` : ""}${r.eurReal != null ? ` · ${eur(r.eurReal)}` : ""}${r.pnl != null ? ` · resultado ${seur(r.pnl)}` : ""}${r.nota ? ` · ${r.nota}` : ""}${r.err ? ` · ${r.err}` : ""}`);
+    rep.push(`  ${estado === "ejecutada" ? "✔" : estado === "parcial" ? "◐" : estado === "rechazada" ? "✖" : "⏳"} ${estado}${f.price ? ` a ${f.price}` : ""}${r.eurReal != null ? ` · ${eur(r.eurReal)}` : ""}${r.pnl != null ? ` · resultado ${seur(r.pnl)}` : ""}${r.nota ? ` · ${r.nota}` : ""}${r.err ? ` · ${r.err}` : ""}`);
     if (o.side === "COMPRA" && !R.botTickers.includes(o.t)) R.botTickers.push(o.t);
   }
   return res;

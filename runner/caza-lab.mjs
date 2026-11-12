@@ -47,7 +47,7 @@ export async function lab(log = console.log) {
   const marcaIA = (g) => { if (S[g.a] && S[g.a].ia) g.ia = S[g.a].ia.id; else delete g.ia; if (g.b != null && S[g.b] && S[g.b].ia) g.iab = S[g.b].ia.id; else delete g.iab; return g; };
   const FAM = [...new Set(S.map((s) => s.fam))], cache = new Map(), sig = (j) => { if (!cache.has(j)) { const o = {}; for (const c of U) { try { o[c] = S[j].fn(M[c], T, M.BTC); } catch (e) { o[c] = new Int8Array(n); } } cache.set(j, o); if (cache.size > 40) cache.delete(cache.keys().next().value); } return cache.get(j); };
   // peso de cada familia: lo cerca que se ha quedado de aprobar (mejor factor de beneficio en la prueba) + empujón por ideas recientes
-  const peso = (f) => Math.max(0.2, (mem.pesos[f] || 1)) * (1 + 0.15 * Math.min(4, menc[f] || 0));
+  const peso = (f) => Math.max(0.2, (mem.pesos[f] || 1));   // v459 · solo cuenta lo que funciona con NUESTROS datos (lo publicado en internet ya no sube el peso; las IAs sí lo leen para proponer recetas)
   const elige = () => { const tot = FAM.reduce((a, f) => a + peso(f), 0); let r = Math.random() * tot; for (const f of FAM) { r -= peso(f); if (r <= 0) return f; } return FAM[0]; };
   const idxDe = (f) => { const js = S.map((s, j) => (s.fam === f ? j : -1)).filter((j) => j >= 0); return js[Math.floor(Math.random() * js.length)]; };
   const FN = Object.keys(FILTROS), SAL = [1, 2, 4, 8, 16, 24, 48, 72, 120, 168], STP = [0, 0.02, 0.03, 0.05, 0.08];
