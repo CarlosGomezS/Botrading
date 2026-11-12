@@ -349,7 +349,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     // v443 · ⚡ AVISO DEL FILTRO DE BITCOIN: cuando BTC cierra el día por encima (o por debajo) de la media en la que se basan las Tortugas, una vez por cruce
     if (ctl.tort && ctl.tort.sen && ctl.tort.sen["BTC-EUR"]) { const TPb = tortP(ctl.tort.P), b = ctl.tort.sen["BTC-EUR"], on = !TPb.filtro || !!(b.sobreF ?? b.sobre50);
       if (RS.btcOn != null && RS.btcOn !== on) msgs.push(on ? `⚡ ${EX}: Bitcoin ha cerrado por ENCIMA de su media de ${TPb.mFil} días.\nLas 🐢 Tortugas ya pueden comprar: comprarán cada cripto en cuanto rompa su máximo (te aviso de cada compra).` : `🌧️ ${EX}: Bitcoin ha cerrado por DEBAJO de su media de ${TPb.mFil} días.\nLas 🐢 Tortugas no comprarán nada nuevo hasta que vuelva a superarla; lo que ya tengan sigue con sus stops.`);
-      if (RS.btcOn !== on) L(RS, now, on ? `⚡ Bitcoin por encima de su media de ${TPb.mFil} días: las Tortugas pueden comprar` : `🌧️ Bitcoin por debajo de su media de ${TPb.mFil} días: las Tortugas esperan`);
+      if (RS.btcOn !== on && TPb.filtro) L(RS, now, on ? `⚡ Bitcoin por encima de su media de ${TPb.mFil} días: las Tortugas pueden comprar` : `🌧️ Bitcoin por debajo de su media de ${TPb.mFil} días: las Tortugas esperan`);
       RS.btcOn = on; }
     if (ctl.tort && ctl.tort.sen) { const V = valor(RS, tick), TP = tortP(ctl.tort.P), btc = ctl.tort.sen["BTC-EUR"]; let nT = Object.values(RS.pos).filter((p) => p.src === "tortuga").length;
       for (const [m, x] of Object.entries(ctl.tort.sen).filter(([, x]) => x.entra).sort((a, b) => b[1].c / b[1].hi20 - a[1].c / a[1].hi20)) {
