@@ -6,7 +6,7 @@
 //  · IDEAS NUEVAS: lee cada vez fuentes públicas de estudios de trading (arXiv, Alpha Architect, Quantpedia) y, por palabras clave, sube el
 //    peso de las familias de las que más se publica.
 // Examen (v365): ≥ 4 operaciones al día (v455: o ~2 por semana si es un método LENTO, de 2 a 7 días por operación); gana en la historia completa hasta hoy, en los últimos 6 meses y en ≥60 % de 16 tramos al azar (la mitad acaban hoy), con
-// comisión + deslizamiento + financiación reales de Hyperliquid, caída < 30 % y factor de beneficio ≥ 1,15 / 1,10.
+// comisión + deslizamiento + financiación reales de Hyperliquid, caída < 30 % y factor de beneficio ≥ 1,15 / 1,10. v458: y al menos una de 2 variantes vecinas también gana.
 import { datos, cartera } from "./caza-hl.mjs";
 import { senales, FILTROS } from "./caza-hl2.mjs";
 import { execSync } from "node:child_process";
@@ -74,6 +74,11 @@ export async function lab(log = console.log) {
     r.okA = a.opsDia >= minOps(g) && a.ret > 0 && a.pf >= 1.15 && a.dd < 0.3; r.okB = !!r.t && r.t.g >= 0.6 && rec.ret > 0 && rec.opsDia >= minOpsB(g);
     r.okC = oos.ret > 0 && oos.pf >= 1 && c2.ret > 0;   /* v453 · aprueba también fuera de muestra y con costes dobles */
     r.nota = ais.pf * (r.t ? 0.5 + r.t.g : 0.5) * (ais.opsDia >= minOps(g) ? 1 : 0.5); r.lento = lento(g); r.ops = ops; return r; };
+  // v458 · 🧭 PRUEBA DE VECINOS (como en los ETF): una variante con la duración vecina y otra con el stop vecino; al menos una tiene que ganar
+  //   también en toda la historia, en los 90 días ocultos y con costes dobles. Así no aprueban «islas» que solo funcionan con ese número exacto.
+  const vecinos = (g) => { const iH = SAL.indexOf(g.h), iS = STP.indexOf(g.sl), out = [];
+    out.push({ ...g, h: SAL[iH > 0 ? iH - 1 : iH + 1] ?? g.h }); out.push({ ...g, sl: STP[iS >= 0 && iS < STP.length - 1 ? iS + 1 : Math.max(0, iS - 1)] ?? g.sl }); return out; };
+  const vecinosOk = (g) => { const res = vecinos(g).map((v) => { const r = evalua(v); return { h: v.h, sl: v.sl, ok: r.a.ret > 0 && r.o.ret > 0 && r.c2.ret > 0, ret: +(r.a.ret * 100).toFixed(1) }; }); return { ok: res.some((x) => x.ok), res }; };
   // candidatos: 30 % mutaciones de las «casi», 70 % nuevas (con los pesos aprendidos); nunca se repite una ya probada
   const cand = [], vistas = new Set(Object.keys(mem.probadas));
   // v366 · 🤖 como mucho el 15 % de la ronda son recetas de la IA (su propuesta tal cual + variaciones de filtro, salida y stop); el resto, como siempre
@@ -83,6 +88,7 @@ export async function lab(log = console.log) {
   cand.sort((x, y) => x.a - y.a); const famStat = {}; let nOk = 0;
   for (const g of cand) { const r = evalua(g), k = hs(clave(g)), f = S[g.a].fam; mem.probadas[k] = +r.nota.toFixed(3); (famStat[f] = famStat[f] || []).push(r.nota);
     if (r.a.ret > 0 && r.t && r.t.g >= 0.5 && r.a.opsDia >= minOpsB(g)) { mem.casi.push({ g, n: nombre(g), nota: r.nota, a: r.a, b: r.b, t: r.t }); }
+    if (r.okA && r.okB && r.okC && !mem.aprobadas.some((x) => x.k === k) && !vecinosOk(g).ok) { mem.casi.push({ g, n: nombre(g), nota: r.nota, a: r.a, b: r.b, t: r.t }); continue; }   /* v458 · sin vecinos que ganen: se queda en «casi» */
     if (r.okA && r.okB && r.okC) { nOk++; if (!mem.aprobadas.some((x) => x.k === k)) mem.aprobadas.push({ k, g, n: nombre(g), a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2, desde: new Date().toISOString() }); } }
   for (const [f, v] of Object.entries(famStat)) { const top = v.sort((a, b) => b - a).slice(0, 5), m = top.reduce((a, b) => a + b, 0) / top.length; mem.pesos[f] = +((mem.pesos[f] || 1) * 0.7 + 0.3 * Math.max(0.2, m)).toFixed(3); }
   mem.casi = mem.casi.sort((a, b) => b.nota - a.nota).filter((x, i, A) => A.findIndex((y) => y.n === x.n) === i).slice(0, 60);
@@ -90,7 +96,8 @@ export async function lab(log = console.log) {
   mem.aprobadas = mem.aprobadas.filter((x) => { const g2 = fixG(x.g); if (!g2 || !S[g2.a]) return false; x.g = g2; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2 });
     try { const t0 = Date.parse(x.desde), i0 = T.findIndex((t) => t >= t0), dias = (Date.now() - t0) / 864e5, z = i0 >= 0 && i0 < n - 1 ? cartera(r.ops, M, i0, n - 1, 5, x.g.sl) : { n: 0, ret: 0, pf: 0 }, min = lento(x.g) ? 4 : 8;
       x.cuar = { dias: +dias.toFixed(1), n: z.n, ret: +(+z.ret || 0).toFixed(4), pf: +(+z.pf || 0).toFixed(2), min, exento: exentos.includes(x.k) || undefined, ok: dias >= 21 && z.n >= min && z.ret > 0 }; } catch (e) { x.cuar = { dias: 0, n: 0, ret: 0, min: 8, ok: false }; }
-    return r.okA && r.okB && r.okC; }).sort((a, b) => Math.round(calidad(b) * 1000) - Math.round(calidad(a) * 1000) || a.a.dd - b.a.dd);   /* v455 · ⚖️ por CALIDAD: ganancia al año − 0,8 × caída */   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
+    if (r.okA && r.okB && r.okC) { try { x.vec = vecinosOk(x.g); } catch (e) { x.vec = { ok: true, res: [] }; } if (!x.vec.ok) log(`  🧭 Sale del podio por la prueba de vecinos: ${x.n.slice(0, 80)}`); }
+    return r.okA && r.okB && r.okC && (!x.vec || x.vec.ok); }).sort((a, b) => Math.round(calidad(b) * 1000) - Math.round(calidad(a) * 1000) || a.a.dd - b.a.dd);   /* v455 · ⚖️ por CALIDAD: ganancia al año − 0,8 × caída */   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
   for (const x of mem.aprobadas) x.nota = +calidad(x).toFixed(4);
   const ks = Object.keys(mem.probadas); if (ks.length > 40000) for (const k of ks.slice(0, ks.length - 40000)) delete mem.probadas[k];
   mem.hist.unshift({ t: new Date().toISOString(), probadas: cand.length, aprobadas: nOk, total: Object.keys(mem.probadas).length }); mem.hist = mem.hist.slice(0, 120);

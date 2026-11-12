@@ -76,7 +76,7 @@ export function fijaSpreads(series, tick) { const o = {}; for (const m of Object
 export function simula(series, fee, spread = 0.002, P = null, desde = 0, hasta = Infinity) { P = conP(P);
   const dias = [...new Set(Object.values(series).flatMap((d) => d.map((x) => x[0])))].filter((t) => t >= desde && t < hasta).sort((a, b) => a - b), idx = {}, BTC = series["BTC-EUR"];
   for (const [m, d] of Object.entries(series)) { idx[m] = new Map(d.map((x, i) => [x[0], i])); }
-  let cash = 1, pos = {}, pico = 1, dd = 0, n = 0, gan = 0, gb = 0, pb = 0; const curva = [], SPm = SPREADS.get(series) || null, kSp = spread / 0.002, spd = (m) => (SPm ? Math.max(SP_MIN, SPm[m] ?? 0.002) * kSp : spread), cs = (m) => fee + spd(m) / 2;   // v456 · deslizamiento de CADA cripto (su diferencia compra-venta de hoy, mínimo 0,15 %)
+  let cash = 1, pos = {}, pico = 1, dd = 0, n = 0, gan = 0, gb = 0, pb = 0, Vant = 0, frenos = 0; const curva = [], SPm = SPREADS.get(series) || null, kSp = spread / 0.002, spd = (m) => (SPm ? Math.max(SP_MIN, SPm[m] ?? 0.002) * kSp : spread), cs = (m) => fee + spd(m) / 2;   // v456 · deslizamiento de CADA cripto (su diferencia compra-venta de hoy, mínimo 0,15 %)
   const valor = (t) => cash + Object.entries(pos).reduce((s, [m, p]) => { const i = idx[m].get(t); return s + p.q * (i != null ? series[m][i][4] : p.ult); }, 0);
   for (const t of dias) {
     for (const [m, p] of Object.entries(pos)) { const i = idx[m].get(t); if (i == null) continue; const d = series[m], x = d[i]; p.ult = x[4];
@@ -85,16 +85,19 @@ export function simula(series, fee, spread = 0.002, P = null, desde = 0, hasta =
         cash += got; if (fr >= 1) { if (got > co) { gan++; gb += got - co; } else pb += co - got; delete pos[m]; continue; } gb += Math.max(0, got - co); p.q -= qv; p.coste -= co; p.tpHecho = 1; }   /* v323 · 💰 recoge ganancias */
       let px = null; if (x[3] <= p.stop) px = Math.min(x[1], p.stop); else if (x[4] < lo) { const neto = (x[4] * (1 - cs(m))) / p.px - 1; if (neto > 0 || t - p.t0 > (P.espera ?? T_ESPERA_D) * 86400e3) px = x[4]; }
       if (px != null) { const got = p.q * px * (1 - cs(m)); cash += got; const r = got / p.coste - 1; if (r > 0) { gan++; gb += got - p.coste; } else pb += p.coste - got; delete pos[m]; } }
-    const V = valor(t);
+    let V = valor(t);
+    // v458 · 🧯 FRENO DIARIO (opcional, P.frenoDia): si el día cierra perdiendo más de un 10 % respecto al cierre anterior, vende todo y no compra hasta mañana (como el bot real)
+    if (P.frenoDia && Vant > 0 && V < Vant * (1 - 0.10) && Object.keys(pos).length) { for (const [m, p] of Object.entries(pos)) { const got = p.q * p.ult * (1 - cs(m)); cash += got; if (got > p.coste) { gan++; gb += got - p.coste; } else pb += p.coste - got; delete pos[m]; } V = valor(t); frenos++; }
+    else
     for (const [m, d] of Object.entries(series)) { if (pos[m] || Object.keys(pos).length >= P.maxPos) continue; const i = idx[m].get(t); if (i == null || i < P.ent + 2) continue; const s = senalRapida(d, i, P);
       if (s && s.entra && P.filtro && BTC) { const ib = idx["BTC-EUR"].get(t); const sb = ib != null ? senalRapida(BTC, ib, P) : null; if (!sb || !sb.sobreF) continue; }
       if (s && s.entra && P.atrMax > 0 && s.N / s.c > P.atrMax) continue;   /* v317 · demasiado nerviosa */
       if (!s || !s.entra || !(s.N > 0)) continue;
       const stopD = Math.min(P.kN * s.N, s.c * P.stopMax); let eur = tamano(V, stopD / s.c, P); eur = Math.min(eur, cash); if (eur < 0.05 * V) continue;
       const px = s.c * (1 + spd(m) / 2); cash -= eur; pos[m] = { q: (eur * (1 - fee)) / px, px, coste: eur, stop: s.c - stopD, t0: t, ult: s.c }; n++; }
-    const V2 = valor(t); pico = Math.max(pico, V2); dd = Math.max(dd, 1 - V2 / pico); curva.push([t, V2]); }
+    const V2 = valor(t); pico = Math.max(pico, V2); dd = Math.max(dd, 1 - V2 / pico); curva.push([t, V2]); Vant = V2; }
   const fin = curva.length ? curva[curva.length - 1][1] : 1, q = [0, 1, 2, 3].map((j) => { const a = Math.floor((curva.length * j) / 4), b = Math.floor((curva.length * (j + 1)) / 4) - 1; return curva.length ? Math.round((curva[b][1] / (j ? curva[a - 1][1] : 1) - 1) * 10000) / 100 : 0; });
-  return { ret: Math.round((fin - 1) * 10000) / 100, dd: Math.round(dd * 10000) / 100, n, aciertos: n ? Math.round((gan / n) * 100) : 0, pf: pb > 0 ? Math.round((gb / pb) * 100) / 100 : gb > 0 ? 99 : 0, semestres: q, curva };
+  return { ret: Math.round((fin - 1) * 10000) / 100, dd: Math.round(dd * 10000) / 100, n, aciertos: n ? Math.round((gan / n) * 100) : 0, pf: pb > 0 ? Math.round((gb / pb) * 100) / 100 : gb > 0 ? 99 : 0, semestres: q, curva, frenos };
 }
 // v322 · 🤝 COMITÉ DE MÉTODOS: varias reglas aprobadas votan cada día. Cada cripto que alguna quiere se compra UNA vez, con más dinero
 // cuantas más reglas coinciden (1 voto → base; cada voto más → +extra; tope 60 %). Stop: el más ajustado de las que votaron.
