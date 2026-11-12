@@ -5,7 +5,7 @@
 //  · COMBINACIONES DE 2 SEÑALES: una señal decide y otra la confirma (las dos en el mismo sentido en las últimas horas).
 //  · IDEAS NUEVAS: lee cada vez fuentes públicas de estudios de trading (arXiv, Alpha Architect, Quantpedia) y, por palabras clave, sube el
 //    peso de las familias de las que más se publica.
-// Examen (v365): ≥ 4 operaciones al día; gana en la historia completa hasta hoy, en los últimos 6 meses y en ≥60 % de 16 tramos al azar (la mitad acaban hoy), con
+// Examen (v365): ≥ 4 operaciones al día (v455: o ~2 por semana si es un método LENTO, de 2 a 7 días por operación); gana en la historia completa hasta hoy, en los últimos 6 meses y en ≥60 % de 16 tramos al azar (la mitad acaban hoy), con
 // comisión + deslizamiento + financiación reales de Hyperliquid, caída < 30 % y factor de beneficio ≥ 1,15 / 1,10.
 import { datos, cartera } from "./caza-hl.mjs";
 import { senales, FILTROS } from "./caza-hl2.mjs";
@@ -46,13 +46,16 @@ export async function lab(log = console.log) {
   const peso = (f) => Math.max(0.2, (mem.pesos[f] || 1)) * (1 + 0.15 * Math.min(4, menc[f] || 0));
   const elige = () => { const tot = FAM.reduce((a, f) => a + peso(f), 0); let r = Math.random() * tot; for (const f of FAM) { r -= peso(f); if (r <= 0) return f; } return FAM[0]; };
   const idxDe = (f) => { const js = S.map((s, j) => (s.fam === f ? j : -1)).filter((j) => j >= 0); return js[Math.floor(Math.random() * js.length)]; };
-  const FN = Object.keys(FILTROS), SAL = [1, 2, 4, 8, 16, 24], STP = [0, 0.02, 0.03, 0.05];
+  const FN = Object.keys(FILTROS), SAL = [1, 2, 4, 8, 16, 24, 48, 72, 120, 168], STP = [0, 0.02, 0.03, 0.05, 0.08];
+  // v455 · 🐢 MÉTODOS LENTOS: si cada operación dura 2 días o más, basta con ~2 operaciones por semana (el resto del examen es el mismo, igual de exigente)
+  const lento = (g) => g.h >= 48, minOps = (g) => (lento(g) ? 0.25 : 4), minOpsB = (g) => (lento(g) ? 0.15 : 3);
   const nuevo = () => ({ a: idxDe(elige()), b: Math.random() < 0.35 ? idxDe(elige()) : null, f: FN[Math.floor(Math.random() * FN.length)], h: SAL[Math.floor(Math.random() * SAL.length)], sl: STP[Math.floor(Math.random() * STP.length)] });
   const sinEco = (g) => { if (g.b === g.a) g.b = null; return g; };
   const muta = (g) => { const x = { ...g }, q = Math.floor(Math.random() * 5); if (q === 0) x.f = FN[Math.floor(Math.random() * FN.length)]; else if (q === 1) x.h = SAL[Math.floor(Math.random() * SAL.length)]; else if (q === 2) x.sl = STP[Math.floor(Math.random() * STP.length)]; else if (q === 3) x.b = Math.random() < 0.5 ? null : idxDe(elige()); else x.a = idxDe(S[x.a] ? S[x.a].fam : elige()); return sinEco(x); };
   const clave = (g) => `${S[g.a] && S[g.a].fam}${JSON.stringify(S[g.a] && S[g.a].p)}|${g.b != null && S[g.b] ? S[g.b].fam + JSON.stringify(S[g.b].p) : "-"}|${g.f}|${g.h}|${g.sl}`;
   const nomS = (x) => (x.ia ? `🤖 IA «${x.ia.nombre}»` : `${x.fam} ${JSON.stringify(x.p)}`);
   const nombre = (g) => `${nomS(S[g.a])}${g.b != null ? " + confirma " + nomS(S[g.b]) : ""} · ${g.f} · cada operación dura ${g.h} h · stop ${g.sl ? "−" + g.sl * 100 + " %" : "no"}`;
+  const calidad = (x) => { const an = Math.pow(Math.max(0.0001, 1 + x.a.ret), 365 / Math.max(30, (n - 261) / 24)) - 1; return an - 0.3 * Math.abs(x.a.dd || 0); };
   const evalua = (g) => { const A = sig(g.a), B = g.b != null ? sig(g.b) : null, f = FILTROS[g.f], ops = [];
     for (const c of U) { const a = A[c], b = B && B[c]; let lib = 0; for (let i = 260; i < n - 1; i++) { if (i < lib || !a[i]) continue; if (b) { let ok = false; for (let k = 0; k < 6 && !ok; k++) if (b[i - k] === a[i]) ok = true; if (!ok) continue; } if (!f(a[i], i, X, c)) continue; ops.push([i, c, a[i], i + g.h]); lib = i + g.h; } }
     // v365 · 🎲 TRAMOS AL AZAR (distintos en cada ronda) + regla estricta «hasta hoy»: la historia completa hasta hoy, los últimos 6 meses
@@ -62,11 +65,11 @@ export async function lab(log = console.log) {
     //   y sirven de examen final. 💸 COSTES DOBLES: además tiene que ganar pagando el doble de comisiones y deslizamiento.
     const HOLD = 90 * 24, cut = Math.max(300, n - 1 - HOLD), ais = cartera(ops, M, 260, cut, 5, g.sl), oos = cartera(ops, M, cut, n - 1, 5, g.sl), c2 = cartera(ops, M, 260, n - 1, 5, g.sl, 2);
     r.is = ais; r.o = { ret: oos.ret, pf: oos.pf, n: oos.n, dd: oos.dd }; r.c2 = { ret: c2.ret, pf: c2.pf };
-    if (a.ret > 0 && a.opsDia >= 3) { const xs = []; for (const [i0, i1] of TRAMOS) { const z = cartera(ops, M, i0, i1, 5, g.sl); xs.push({ m: Math.pow(Math.max(0.01, 1 + z.ret), 720 / (i1 - i0)) - 1, dd: z.dd, ok: z.ret > 0 }); }
+    if (a.ret > 0 && a.opsDia >= minOpsB(g)) { const xs = []; for (const [i0, i1] of TRAMOS) { const z = cartera(ops, M, i0, i1, 5, g.sl); xs.push({ m: Math.pow(Math.max(0.01, 1 + z.ret), 720 / (i1 - i0)) - 1, dd: z.dd, ok: z.ret > 0 }); }
       const ms = xs.map((x) => x.m).sort((p, q) => p - q), dds = xs.map((x) => x.dd).sort((p, q) => q - p); r.t = { n: xs.length, g: xs.filter((x) => x.ok).length / xs.length, med: ms[Math.floor(ms.length / 2)], dd: dds[Math.floor(dds.length / 4)] }; }
-    r.okA = a.opsDia >= 4 && a.ret > 0 && a.pf >= 1.15 && a.dd < 0.3; r.okB = !!r.t && r.t.g >= 0.6 && rec.ret > 0 && rec.opsDia >= 3;
+    r.okA = a.opsDia >= minOps(g) && a.ret > 0 && a.pf >= 1.15 && a.dd < 0.3; r.okB = !!r.t && r.t.g >= 0.6 && rec.ret > 0 && rec.opsDia >= minOpsB(g);
     r.okC = oos.ret > 0 && oos.pf >= 1 && c2.ret > 0;   /* v453 · aprueba también fuera de muestra y con costes dobles */
-    r.nota = ais.pf * (r.t ? 0.5 + r.t.g : 0.5) * (ais.opsDia >= 4 ? 1 : 0.5); return r; };
+    r.nota = ais.pf * (r.t ? 0.5 + r.t.g : 0.5) * (ais.opsDia >= minOps(g) ? 1 : 0.5); r.lento = lento(g); return r; };
   // candidatos: 30 % mutaciones de las «casi», 70 % nuevas (con los pesos aprendidos); nunca se repite una ya probada
   const cand = [], vistas = new Set(Object.keys(mem.probadas));
   // v366 · 🤖 como mucho el 15 % de la ronda son recetas de la IA (su propuesta tal cual + variaciones de filtro, salida y stop); el resto, como siempre
@@ -75,12 +78,13 @@ export async function lab(log = console.log) {
   for (let z = 0; z < PRUEBAS * 20 && cand.length < PRUEBAS; z++) { const b0 = mem.casi.length && Math.random() < 0.3 ? mem.casi[Math.floor(Math.random() * mem.casi.length)].g : null, base = fixG(b0); const g = marcaIA(base && S[base.a] ? muta(base) : sinEco(nuevo())); if (g.a == null || !S[g.a]) continue; const k = hs(clave(g)); if (vistas.has(k)) continue; vistas.add(k); cand.push(g); }
   cand.sort((x, y) => x.a - y.a); const famStat = {}; let nOk = 0;
   for (const g of cand) { const r = evalua(g), k = hs(clave(g)), f = S[g.a].fam; mem.probadas[k] = +r.nota.toFixed(3); (famStat[f] = famStat[f] || []).push(r.nota);
-    if (r.a.ret > 0 && r.t && r.t.g >= 0.5 && r.a.opsDia >= 3) { mem.casi.push({ g, n: nombre(g), nota: r.nota, a: r.a, b: r.b, t: r.t }); }
+    if (r.a.ret > 0 && r.t && r.t.g >= 0.5 && r.a.opsDia >= minOpsB(g)) { mem.casi.push({ g, n: nombre(g), nota: r.nota, a: r.a, b: r.b, t: r.t }); }
     if (r.okA && r.okB && r.okC) { nOk++; if (!mem.aprobadas.some((x) => x.k === k)) mem.aprobadas.push({ k, g, n: nombre(g), a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2, desde: new Date().toISOString() }); } }
   for (const [f, v] of Object.entries(famStat)) { const top = v.sort((a, b) => b - a).slice(0, 5), m = top.reduce((a, b) => a + b, 0) / top.length; mem.pesos[f] = +((mem.pesos[f] || 1) * 0.7 + 0.3 * Math.max(0.2, m)).toFixed(3); }
   mem.casi = mem.casi.sort((a, b) => b.nota - a.nota).filter((x, i, A) => A.findIndex((y) => y.n === x.n) === i).slice(0, 60);
   // las aprobadas se vuelven a examinar cada ronda con los datos nuevos: si dejan de aprobar, salen del podio
-  mem.aprobadas = mem.aprobadas.filter((x) => { const g2 = fixG(x.g); if (!g2 || !S[g2.a]) return false; x.g = g2; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2 }); return r.okA && r.okB && r.okC; }).sort((a, b) => Math.round(b.a.ret * 1000) - Math.round(a.a.ret * 1000) || a.a.dd - b.a.dd);   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
+  mem.aprobadas = mem.aprobadas.filter((x) => { const g2 = fixG(x.g); if (!g2 || !S[g2.a]) return false; x.g = g2; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2 }); return r.okA && r.okB && r.okC; }).sort((a, b) => Math.round(calidad(b) * 1000) - Math.round(calidad(a) * 1000) || a.a.dd - b.a.dd);   /* v455 · ⚖️ por CALIDAD: ganancia al año − 0,3 × caída */   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
+  for (const x of mem.aprobadas) x.nota = +calidad(x).toFixed(4);
   const ks = Object.keys(mem.probadas); if (ks.length > 40000) for (const k of ks.slice(0, ks.length - 40000)) delete mem.probadas[k];
   mem.hist.unshift({ t: new Date().toISOString(), probadas: cand.length, aprobadas: nOk, total: Object.keys(mem.probadas).length }); mem.hist = mem.hist.slice(0, 120);
   // v366 · 🤖 resultados de cada receta de la IA (el ayudante los lee para aprender qué ideas funcionan)

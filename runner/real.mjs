@@ -453,7 +453,11 @@ export function primero(S, cur, map, excl) {
     const an = anDe(k) ?? x.an ?? null;
     // v363: si el nuevo n.º 1 compra cosas distintas, solo cambia si le saca al actual al menos 1 punto al año (evita vender y comprar por empates)
     const wc = books[cur] && books[cur].tgt && books[cur].tgt.w, anC = anDe(cur);
-    if (wc && pesosDistintos(books[k].tgt.w, wc) && typeof an === "number" && typeof anC === "number" && an - anC < MARGEN_1) return null;
+    // v455 · el podio se ordena por CALIDAD (nota = ganancia − 0,3 × caída): el margen de 1 punto se mide con esa misma nota si el actual sigue en el podio
+    //        si el actual ya no está en el podio (ha suspendido o ha bajado), se cambia sin margen
+    const xc = top.find((z) => z && z.k === cur), conNota = typeof x.sc === "number";
+    const bloquea = conNota ? !!(xc && typeof xc.sc === "number" && x.sc - xc.sc < MARGEN_1) : (typeof an === "number" && typeof anC === "number" && an - anC < MARGEN_1);
+    if (wc && pesosDistintos(books[k].tgt.w, wc) && bloquea) return null;
     const c = (S.labConf || []).find((z) => z.k === k) || {}; return { k, n: c.n || nombreDe(S, k).replace(/ \(#.*\)$/, ""), an, pos: i + 1, needAcc: bu === "acc", primero: 1 }; }
   return null;
 }
@@ -826,6 +830,15 @@ export function simCompare(R, S, key) {
   const e0 = at(d0) ?? e[0].eq, e1 = e[e.length - 1].eq;
   return e0 > 0 ? { d0, ret: (e1 / e0 - 1) * 100, hasta: e[e.length - 1].d } : null;
 }
+// v455 · desvío real frente a prueba en una ventana de hasta 30 días que empieza, como pronto, el día en que cambió de método
+export function desvio(R, S, key, hoy) {
+  const B = S && S.books && S.books[key]; if (!B || !B.days || !B.days.length) return null;
+  const d30 = new Date(Date.parse(hoy) - 30 * 864e5).toISOString().slice(0, 10), d0 = [d30, R.metDesde || "", (R.ledger && R.ledger.desde) || ""].sort().pop();
+  const T = twr((R.days || []).filter((x) => x.d >= d0)); if (T.length < 2) return null;
+  const at = (d) => { let v = null; for (const x of B.days) { if (x.d <= d) v = x.eq; else break; } return v; }, e0 = at(T[0].d), e1 = at(T[T.length - 1].d);
+  if (!(e0 > 0) || !(e1 > 0)) return null;
+  return { d0: T[0].d, dias: Math.round((Date.parse(T[T.length - 1].d) - Date.parse(T[0].d)) / 864e5), real: +((T[T.length - 1].i / T[0].i - 1) * 100).toFixed(2), sim: +((e1 / e0 - 1) * 100).toFixed(2) };
+}
 export function resumen(R, S, A) {
   const T = twr(R.days), D = (R.days || []).filter((x) => x.be != null), last = D[D.length - 1], acc = (R.days || []).filter((x) => x.v > 0).pop();
   if (!last) return null;
@@ -949,7 +962,7 @@ async function main() {
       if (!P || P.estado !== "pendiente" || env("PLAN_ID") !== P.id) { titulo = "No había esa propuesta de cambio"; rep.push("No hay ninguna propuesta de cambio de método pendiente con ese identificador (quizá ya la contestaste)."); return; }
       P.fin = now.toISOString();
       if (tipo === "metodo-no") { P.estado = "rechazada"; titulo = "Cambio de método rechazado"; rep.push(`Sigues con «${NOMBRES[A.metodo] || A.metodo}». No te volveré a proponer «${P.n}» en 60 días.`); aviso = { title: "❌ Cambio de método rechazado", msg: rep.join("\n"), prio: 2 }; return; }
-      P.estado = "aprobada"; R.metOv = { k: P.k, n: P.n, ts: now.toISOString(), de: P.de || A.metodo, acc: P.needAcc ? 1 : undefined }; aplicaCambio(A, P.de || A.metodo, P.k); if (P.needAcc) { A.acciones = 1; A.divisa = "cualquiera"; } R.lastNormal = null;
+      P.estado = "aprobada"; R.metOv = { k: P.k, n: P.n, ts: now.toISOString(), de: P.de || A.metodo, acc: P.needAcc ? 1 : undefined }; aplicaCambio(A, P.de || A.metodo, P.k); R.metDesde = m.date; if (P.needAcc) { A.acciones = 1; A.divisa = "cualquiera"; } R.lastNormal = null;
       titulo = "Cambio de método aprobado"; rep.push(`A partir de la próxima revisión con la bolsa abierta, la cartera real sigue «${P.n}»: venderá lo que no esté en su cartera objetivo y comprará lo nuevo${A.modo === "confirmar" ? " (te pedirá aprobar las órdenes, como siempre)" : ""}.`, "Si guardas los ajustes desde la web, manda el método que tengas elegido allí.");
       aviso = { title: "✅ Cambio de método aprobado", msg: rep.join("\n"), prio: 3 }; return;
     }
@@ -1074,6 +1087,11 @@ async function main() {
       R.paused = { ts: now.toISOString(), why: `la rentabilidad del bot ha caído un ${pct(caida)} desde ${refTxt} (el límite es −${A.maxPerdida}%)` };
       aviso = { title: "⛔ Cartera real en PAUSA automática", msg: `El bot deja de operar: ${R.paused.why}. Revísalo y pulsa «Reanudar» en la web si quieres seguir.`, prio: 5 };
     }
+    // v455 · 📏 REAL FRENTE A PRUEBA: en los últimos 30 días (desde que sigue a su método actual), ¿tu dinero real va igual que ese mismo método en la ficticia?
+    //   Si va más de 5 puntos por detrás, algo se ha estropeado (precios, ejecución, divisa…): aviso por Telegram, como mucho uno a la semana.
+    try { const ks = metodosDe(A, S); if (ks.length === 1) { const dv = desvio(R, S, ks[0], m.date); R.desvio = dv;
+      if (dv && dv.dias >= 20 && dv.real - dv.sim < -5 && !aviso && (!R.avDesvio || now - Date.parse(R.avDesvio) >= 7 * 864e5)) { R.avDesvio = now.toISOString();
+        aviso = { title: "📏 Cartera real: va peor que su prueba", msg: `En los últimos ${dv.dias} días tu dinero real lleva ${pct(dv.real)} y el mismo método en la ficticia ${pct(dv.sim)}. Debería ir casi igual: revisa la pantalla «Real» (gráfica real frente a simulación). Si se repite, avísame.`, prio: 3 }; } } } catch (e) {}
 
     if (tipo === "foto") {
       titulo = "Foto diaria del valor"; rep.push(`Guardado para la gráfica: el bot vale ${eur(BE.eq)} y tu cuenta ${eur(total)}.`);
@@ -1181,7 +1199,7 @@ async function main() {
           // con los mismos frenos (como mucho uno cada 90 días, o 30 si el nuevo gana ≥ 4 puntos al año). Los que necesitan acciones de EE. UU. siguen pidiendo permiso.
           if (auto && !sg.needAcc) {
             const P2 = R.metSug, txtA = `Tu cartera real sigue siempre al n.º 1 del laboratorio, y ha cambiado: ahora es 🏆 «${sg.n}» (#${sg.k})${sg.an != null ? `, que gana un ${(sg.an * 100).toFixed(1).replace(".", ",")} % al año en la prueba desde 2000 (tras impuestos)` : ""}${sg.pos > 1 ? ` (es el ${sg.pos}.º de la lista porque los de delante aún no tienen su cartera calculada; mañana ya la tendrán)` : ""}. Antes seguía «${nombreDe(b.S, sg.de || A.metodo)}».`; P2.estado = "aprobada"; P2.fin = now.toISOString(); P2.auto = 1;
-            R.metOv = { k: sg.k, n: sg.n, ts: now.toISOString(), de: sg.de || A.metodo, auto: 1 }; aplicaCambio(A, sg.de || A.metodo, sg.k); R.lastNormal = null;
+            R.metOv = { k: sg.k, n: sg.n, ts: now.toISOString(), de: sg.de || A.metodo, auto: 1 }; aplicaCambio(A, sg.de || A.metodo, sg.k); R.metDesde = m.date; R.lastNormal = null;
             rep.push("", "## Cambio automático al n.º 1 del laboratorio", "", txtA, "", "✅ Aplicado solo. En la próxima revisión con la bolsa abierta venderá lo de ahora y comprará lo nuevo.");
             /* v364 · sin Telegram por cambio de método (solo avisos de podio y de compras/ventas reales) */ void 0;
           } else {

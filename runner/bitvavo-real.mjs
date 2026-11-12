@@ -146,6 +146,15 @@ export function libro(ops) {
 
 // ---- una vuelta (cada minuto, justo después de que los submodos ficticios hayan comprado o vendido)
 // fuentes = { eq: S, turbo: S.sub.turbo, mix: S.sub.mix } · ctl = { copia, parado } · deps = { api, tg, mercados(m) → {min, dec} }
+// v455 · rentabilidad real (sin contar ingresos ni retiradas: cada cambio de «start» es dinero que entra o sale) frente a la curva de la prueba, en los últimos 30 días
+export function desvioTort(eq, cv, now) {
+  if (!Array.isArray(eq) || eq.length < 2 || !Array.isArray(cv) || cv.length < 2) return null;
+  const t0 = +now - 30 * 864e5, E = eq.filter((x) => Date.parse(x[0]) >= t0); if (E.length < 2) return null;
+  let idx = 1; for (let i = 1; i < E.length; i++) { const [, v0, s0] = E[i - 1], [, v1, s1] = E[i], fl = (+s1 || 0) - (+s0 || 0); if (v0 > 0) { const r = (v1 - fl) / v0; if (isFinite(r) && r > 0) idx *= r; } }
+  const a = Date.parse(E[0][0]), b = Date.parse(E[E.length - 1][0]), at = (t) => { let v = null; for (const x of cv) { if (x[0] <= t) v = x[1]; else break; } return v; }, c0 = at(a), c1 = at(b);
+  if (!(c0 > 0) || !(c1 > 0)) return null;
+  return { dias: Math.round((b - a) / 864e5), real: +((idx - 1) * 100).toFixed(2), sim: +((c1 / c0 - 1) * 100).toFixed(2) };
+}
 export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   const X = deps.ex || bitvavoEx(deps.api, deps.mercado, deps.saldoEur), mercado = X.mercado, EX = X.nombre, msgs = [];
   const copia = SUBS_OK.includes(ctl.copia) ? ctl.copia : "mix", objetivo = Math.max(10, Math.round(+ctl.capital || CAPITAL));
@@ -543,6 +552,10 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
     if (out.sinEmpezar) { R0.estado = "sin saldo"; for (const m of msgs) await io.tg(m); console.log("Real (" + ex + "): sin saldo suficiente"); continue; }
     // v345 · 🧠 aviso (una sola vez) cuando ya hay bastantes operaciones reales de Tortugas para aprender también de ellas
     { const nT = (out.RS.closed || []).filter((c) => c && c.t1 >= AVISO_APRENDE_DESDE).length; if (nT >= AVISO_APRENDE_N && !out.RS.avisoAprende) { out.RS.avisoAprende = now.toISOString(); msgs.unshift(`💶 ${N} · 🧠 Ya hay ${nT} operaciones reales cerradas con Tortugas. Es buen momento para que el bot aprenda también de sus compras reales (comisiones y precios de verdad frente a la simulación): pídeselo a Claude.`); } }
+    // v455 · 📏 REAL FRENTE A PRUEBA (últimos 30 días): tu dinero real contra las mismas Tortugas en la prueba, en las mismas fechas. Si va más de 8 puntos por detrás, aviso (como mucho uno a la semana)
+    try { const cv = soloT() && TE && TE.cv; const dv = desvioTort(out.RS.eq, cv, now); out.RS.desvio = dv;
+      if (dv && dv.dias >= 20 && dv.real - dv.sim < -8 && (!out.RS.avDesvio || now - Date.parse(out.RS.avDesvio) >= 7 * 864e5)) { out.RS.avDesvio = now.toISOString();
+        msgs.push(`💶 ${N} · 📏 Va PEOR que su prueba: en los últimos ${dv.dias} días tu dinero real lleva ${dv.real > 0 ? "+" : ""}${dv.real.toFixed(1)} % y las mismas Tortugas en la prueba ${dv.sim > 0 ? "+" : ""}${dv.sim.toFixed(1)} %. Deberían ir parecido: algo puede fallar (precios, órdenes o comisiones). Si se repite, avísame.`); } } catch (e) {}
     out.RS.ex = ex; out.RS.savedAt = Date.now(); const enc = await encrypt(JSON.stringify(out.RS), pw);
     io.publicar("real.json", { enc: 1, v: 1, ...enc, meta: { estado: out.RS.estado || "activo", copia: out.RS.copia, ex, t: now.toISOString() } }, RAMAS[ex]);
     R0.estado = cfg.on ? out.RS.estado : "apagada"; R0.copia = out.RS.copia;
