@@ -369,12 +369,17 @@ test("ESCENARIOS: un año de uso con dinero real (simulado) de principio a fin",
       assert.ok(!r4.R.metOv, "si guardas los ajustes en la web, manda lo que tengas elegido allí");
       W.setSx(null);
     });
-    await t.test("16b · v362 · por defecto SIGUE SIEMPRE AL N.º 1 del laboratorio (si el 1.º aún no tiene cartera, el siguiente que la tenga) y avisa", async () => {
+    await t.test("16b · v362/v471 · sigue al mejor de los ETF con 30 días seguidos aprobados (si el 1.º aún no tiene cartera, el siguiente que la tenga); con menos días, no cambia", async () => {
       const trqT = { d: "2027-06-01", w: { XLK: 1 }, why: {}, bull: true };
       W.setCfg({ metodo: "sect", metAuto: 1, savedAt: "2027-06-19T09:00:00Z" });
-      W.setSx({ lab: { top3: [{ k: "nuevo", sc: 0.12 }, { k: "trq", sc: 0.11 }, { k: "sect", sc: 0.09 }] }, labAn: { sect: 0.09, trq: 0.11 }, labConf: [{ k: "trq", n: "Tendencia QQQ de 10 meses (Faber)", an: 0.11, dd: -0.34, opy: 1, d0: "2026-11-01", g: 0.06, gs: 0.03, nd: 220, ok: true }],
+      const liga = (d) => [{ k: "nuevo", sc: 0.12, dias: 40 }, { k: "trq", sc: 0.11, dias: d }, { k: "sect", sc: 0.09, dias: 40 }];
+      const sx = (d) => ({ lab: { top3: [{ k: "nuevo", sc: 0.12 }, { k: "trq", sc: 0.11 }, { k: "sect", sc: 0.09 }], etfLiga: liga(d) }, labAn: { sect: 0.09, trq: 0.11 }, labConf: [{ k: "trq", n: "Tendencia QQQ de 10 meses (Faber)", an: 0.11, dd: -0.34, opy: 1, d0: "2026-11-01", g: 0.06, gs: 0.03, nd: 220, ok: true }],
         books: { sect: { cash: 0, pos: {}, trades: [], days: [{ d: "2026-10-01", eq: 500 }, { d: "2027-06-19", eq: 510 }], tgt: { d: "2027-06-01", w: { XLK: 1 / 3, XLE: 1 / 3, XLF: 1 / 3 }, bull: true } },
           trq: { cash: 0, pos: {}, trades: [], days: [{ d: "2026-11-01", eq: 500 }, { d: "2027-06-19", eq: 560 }], tgt: trqT } } });
+      W.setSx(sx(12));   // v471 · trq solo lleva 12 días aprobado: todavía NO puede ir a la cartera real
+      const r0 = await W.step("foto", "2027-06-19T16:50:00Z");
+      assert.equal(r0.code, 0, r0.so); assert.ok(!(r0.R.metOv && r0.R.metOv.k === "trq"), "con 12 días no cambia");
+      W.setSx(sx(30));
       const n0 = W.mk.calls.filter((c) => c.m === "POST").length;
       const r1 = await W.step("foto", "2027-06-20T16:50:00Z");
       assert.equal(r1.code, 0, r1.so); assert.ok(r1.R.metOv && r1.R.metOv.k === "trq" && r1.R.metOv.auto, "cambia solo al ganador: " + JSON.stringify(r1.R.metSug));

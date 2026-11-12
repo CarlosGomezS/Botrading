@@ -58,12 +58,12 @@ test("real frente a prueba (Trading 212): ventana de 30 días desde el cambio de
   assert.ok(x.sim > x.real);
 });
 
-test("Trading 212 sigue solo el podio de ETF (top3etf) aunque el n.º 1 general sea de acciones", () => {
-  const S = { lab: { top3: [{ k: "acc1", sc: 0.3 }], top3etf: [{ k: "etf1", sc: 0.1 }] }, books: { acc1: { tgt: { w: { AAPL: 1 } } }, etf1: { tgt: { w: { SPY: 1 } } } } };
+test("Trading 212 sigue solo ETF probados (v471: 30 días seguidos aprobados) aunque el n.º 1 general sea de acciones", () => {
+  const S = { lab: { top3: [{ k: "acc1", sc: 0.3 }], top3etf: [{ k: "etf1", sc: 0.1 }], etfLiga: [{ k: "etf1", sc: 0.1, dias: 40 }] }, books: { acc1: { tgt: { w: { AAPL: 1 } } }, etf1: { tgt: { w: { SPY: 1 } } } } };
   const r = primero(S, null);
   assert.equal(r && r.k, "etf1");
-  const S2 = { lab: { top3: [{ k: "acc1", sc: 0.3 }] }, books: S.books };   // sin top3etf (web antigua): como antes
-  assert.equal(primero(S2, null).k, "acc1");
+  const S2 = { lab: { top3: [{ k: "acc1", sc: 0.3 }] }, books: S.books };   // v471 · sin la lista de días (web antigua): NO se cambia nada (antes seguía el general)
+  assert.equal(primero(S2, null), null);
 });
 
 // ---------- v459 · ejecución: solo se apunta lo que el broker confirma; stops de Hyperliquid correctos ----------
@@ -179,4 +179,29 @@ import { soloISetf } from "../runner/ia-lab.mjs";
 test("v468 · IA de ETF: de sus ideas solo ve lo de ANTES de los 2 años ocultos (nada de «aprobó», rentabilidad completa ni motivo del examen)", () => {
   const z = soloISetf({ g: { u: "x" }, an: 0.2, ok: true, por: "pierde contra el SPY en el examen oculto", ais: 0.15, okis: true, d: "2026-11-12" });
   assert.deepEqual(Object.keys(z).sort(), ["gana_al_sp500_antes_del_examen", "gen", "rentab_antes_del_examen"]); assert.equal(z.rentab_antes_del_examen, 15);
+});
+
+// ---------- v471 · 30 días seguidos aprobado antes de ir a la cartera real de Trading 212 ----------
+import { sinProbados, DIAS_PROBADO } from "../runner/real.mjs";
+test("v471 · Trading 212 solo sigue ETF con 30 días seguidos aprobados: el mejor de los probados, no el n.º 1 si es nuevo", () => {
+  const books = { nuevo: { tgt: { w: { QQQ: 1 } } }, prob: { tgt: { w: { SPY: 1 } } }, act: { tgt: { w: { IEF: 1 } } } };
+  const S = (liga) => ({ lab: { etfLiga: liga }, books });
+  assert.equal(DIAS_PROBADO, 30);
+  // el n.º 1 lleva 9 días: no va; el 2.º lleva 45 y saca más de 1 punto al actual → cambia al 2.º
+  assert.equal(primero(S([{ k: "nuevo", sc: 0.30, dias: 9 }, { k: "prob", sc: 0.20, dias: 45 }, { k: "act", sc: 0.10, dias: 100 }]), "act").k, "prob");
+  // con 29 días todavía no; con 30 sí
+  assert.equal(primero(S([{ k: "nuevo", sc: 0.30, dias: 29 }, { k: "act", sc: 0.10, dias: 100 }]), "act"), null);
+  assert.equal(primero(S([{ k: "nuevo", sc: 0.30, dias: 30 }, { k: "act", sc: 0.10, dias: 100 }]), "act").k, "nuevo");
+  // el actual (exento, aunque lleve pocos días) se mantiene si el probado no le saca 1 punto
+  assert.equal(primero(S([{ k: "prob", sc: 0.105, dias: 60 }, { k: "act", sc: 0.10, dias: 2 }]), "act"), null);
+  // el actual es el mejor de los probados: se queda
+  assert.equal(primero(S([{ k: "nuevo", sc: 0.5, dias: 3 }, { k: "act", sc: 0.4, dias: 31 }, { k: "prob", sc: 0.1, dias: 50 }]), "act"), null);
+});
+test("v471 · si el actual deja de aprobar: cambia al mejor probado (sin margen); si no hay ninguno probado, se mantiene y se avisa", () => {
+  const books = { nuevo: { tgt: { w: { QQQ: 1 } } }, prob: { tgt: { w: { SPY: 1 } } }, act: { tgt: { w: { IEF: 1 } } } };
+  const S1 = { lab: { etfLiga: [{ k: "prob", sc: 0.101, dias: 31 }] }, books };   // el actual ya no está entre los aprobados
+  assert.equal(primero(S1, "act").k, "prob", "sin margen: el actual ha suspendido"); assert.equal(sinProbados(S1, "act"), false);
+  const S2 = { lab: { etfLiga: [{ k: "nuevo", sc: 0.9, dias: 5 }] }, books };
+  assert.equal(primero(S2, "act"), null, "ninguno probado: se mantiene el actual"); assert.equal(sinProbados(S2, "act"), true, "y se avisa");
+  assert.equal(sinProbados({ lab: { etfLiga: [{ k: "act", sc: 0.1, dias: 1 }] } }, "act"), false, "si el actual aprueba, no hay aviso");
 });

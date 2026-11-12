@@ -447,9 +447,14 @@ export function sugerencia(S, cur, map, excl) {
 // calculada en el bot (entra en la ficticia esa noche), se coge el siguiente que sí la tiene; y siempre que se pueda comprar en tu cuenta.
 export const MARGEN_1 = 0.01;
 export function pesosDistintos(a, b) { const ks = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]); let d = 0; for (const z of ks) d += Math.abs((+(a || {})[z] || 0) - (+(b || {})[z] || 0)); return d / 2 > 0.05; }
+// v471 · ⏳ la cartera real solo sigue métodos de ETF que llevan 30 DÍAS SEGUIDOS APROBADOS (la web guarda en S.lab.etfLiga cada aprobado con sus días).
+//   Se elige el mejor de esos (mismo orden que el podio). El actual se mantiene mientras ninguno probado le saque 1 punto al año; si el actual deja de
+//   aprobar y no hay ninguno probado, también se mantiene (y se avisa: ver sinProbados). Sin esa lista (web antigua), NO se cambia nada.
+export const DIAS_PROBADO = 30;
+export function sinProbados(S, cur) { const L = S && S.lab && Array.isArray(S.lab.etfLiga) ? S.lab.etfLiga : null; return !!(L && cur && !L.some((x) => x && x.k === cur) && !L.some((x) => x && x.dias >= DIAS_PROBADO)); }
 export function primero(S, cur, map, excl) {
-  // v456 · 💶 solo el podio de ETF (top3etf); si la web aún no lo ha calculado, el general como antes
-  const top = (S && S.lab && Array.isArray(S.lab.top3etf) && S.lab.top3etf.length ? S.lab.top3etf : S && S.lab && Array.isArray(S.lab.top3) && S.lab.top3) || [], books = (S && S.books) || {};
+  const liga = S && S.lab && Array.isArray(S.lab.etfLiga) ? S.lab.etfLiga : null; if (!liga) return null;
+  const top = liga.filter((x) => x && typeof x.dias === "number" && x.dias >= DIAS_PROBADO), books = (S && S.books) || {};
   const buyable = (k) => { if (!map || !Object.keys(map).length) return true; const B = books[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})), bad = sy.filter((s) => map[s] && !map[s].t); return !bad.length ? true : bad.every((s) => /acciones desactivadas|Divisa: solo euros/.test(map[s].why || "")) ? "acc" : false; };
   for (const [i, x] of top.entries()) { const k = x && x.k; if (!k || !books[k] || !books[k].tgt || !books[k].tgt.w) continue; if (k === cur || (excl || []).includes(k)) return null; const bu = buyable(k); if (bu === false) continue;
     const TVr = (S.btm && S.btm.tr && S.btm.tr.v) || {}, anDe = (z) => (S.labAn || {})[z];   // v368 · misma medida que el ranking: lo ganado desde el 2000 hasta hoy
@@ -458,7 +463,7 @@ export function primero(S, cur, map, excl) {
     const wc = books[cur] && books[cur].tgt && books[cur].tgt.w, anC = anDe(cur);
     // v455 · el podio se ordena por CALIDAD (nota = ganancia − 0,3 × caída): el margen de 1 punto se mide con esa misma nota si el actual sigue en el podio
     //        si el actual ya no está en el podio (ha suspendido o ha bajado), se cambia sin margen
-    const xc = top.find((z) => z && z.k === cur), conNota = typeof x.sc === "number";
+    const xc = liga.find((z) => z && z.k === cur), conNota = typeof x.sc === "number";   // v471 · el actual cuenta mientras siga aprobado (lleve los días que lleve)
     const bloquea = conNota ? !!(xc && typeof xc.sc === "number" && x.sc - xc.sc < MARGEN_1) : (typeof an === "number" && typeof anC === "number" && an - anC < MARGEN_1);
     if (wc && pesosDistintos(books[k].tgt.w, wc) && bloquea) return null;
     const c = (S.labConf || []).find((z) => z.k === k) || {}; return { k, n: c.n || nombreDe(S, k).replace(/ \(#.*\)$/, ""), an, pos: i + 1, needAcc: bu === "acc", primero: 1 }; }
@@ -1210,6 +1215,8 @@ async function main() {
         const lastCh = Math.max(0, R.metOv && R.metOv.ts ? Date.parse(R.metOv.ts) : 0, ...((R.metHist || []).slice(1).map((h) => Date.parse(h.d || "") || 0)));
         const anCur = b && b.S && b.S.labAn ? b.S.labAn[flojo] : null, muchoMejor = sg && sg.an != null && anCur != null && sg.an - anCur >= 0.04;
         const busy = auto ? (P && P.k === (sg && sg.k) && P.estado === "pendiente" && sg.needAcc) : (lastCh && now - lastCh < (muchoMejor || (sg && sg.inv) ? 30 : 90) * 864e5) || (P && P.k === (sg && sg.k) && (P.estado === "pendiente" || (P.estado === "rechazada" && now - Date.parse(P.fin || P.ts) < 60 * 864e5)));
+        // v471 · el método actual ya no aprueba y todavía no hay ninguno con 30 días aprobado: se mantiene el actual y se avisa (una vez)
+        if (auto && !sg && b && b.S && sinProbados(b.S, flojo)) { if (!R.sinProbados) { R.sinProbados = now.toISOString(); const t = `Tu método actual «${nombreDe(b.S, flojo)}» hoy no aprueba el examen del laboratorio, pero todavía no hay ningún otro de ETF con 30 días seguidos aprobado. Lo mantengo hasta que lo haya.`; rep.push("", "## ⚠️ Método actual sin aprobar", "", t); await avisa("⚠️ Cartera real: tu método ya no aprueba", t, { prio: 3 }); } } else if (R.sinProbados) delete R.sinProbados;
         if (sg && !busy) {
           const id = "m" + now.getTime().toString(36);
           if (P && P.estado === "pendiente") { P.estado = "sustituida"; P.fin = now.toISOString(); }
