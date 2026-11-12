@@ -181,7 +181,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       let ok = false;
       if (cuadreOk && edad >= 10 * 60e3) {
         if (ent.id && X0.estadoOrden) { try { const st = await X0.estadoOrden(k, ent); const fin = st && (st.final || (st.noExiste && edad >= 30 * 60e3)); const pend = X0.abiertas ? await X0.abiertas(k, ent) : 0; ok = !!fin && pend === 0; } catch (e) { ok = false; } }
-        else ok = !ent.id && edad >= 24 * 3600e3;   // sin identificador (de versiones anteriores): solo tras 24 h y con el cuadre del saldo hecho
+        else if (!ent.id && edad >= 24 * 3600e3) { try { ok = (X0.abiertas ? await X0.abiertas(k, ent) : 0) === 0; } catch (e) { ok = false; } }   // sin identificador (de versiones anteriores): solo tras 24 h, con el saldo cuadrado y sin órdenes a mercado abiertas en ese par (v464)
       }
       if (ok) { delete DUD[k]; if (RS) L(RS, now, `✅ ${k.split("-")[0]}: la orden dudosa queda resuelta (comprobada en ${EX} y cuadrada con el saldo real); se puede volver a operar`); continue; }
       if (edad > 24 * 3600e3 && !ent.avisado) { DUD[k] = { ...ent, avisado: 1 }; msgs.push(`💶 ⚠️ ${EX}: una orden de ${k.split("-")[0]} sigue sin resultado confirmado desde hace más de 24 h. No opero esa cripto hasta poder comprobarla; revísala en ${EX}.`); } else DUD[k] = ent; } return DUD; };
