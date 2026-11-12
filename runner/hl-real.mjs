@@ -120,7 +120,7 @@ const D2 = (x) => (Math.round(x * 100) / 100).toFixed(2).replace(".", ",");
 //   ya existe falla (422), así que solo UN proceso puede conseguirla aunque dos lo intenten a la vez. Lleva el identificador del proceso.
 //   Al ser una por hora, nunca se queda un candado «colgado» bloqueando las horas siguientes. Las etiquetas de más de 2 días se borran.
 export async function candado(clave) {
-  if (!TOKEN) return { ok: true, sin: 1 };   // sin GitHub (pruebas en local): no hay con quién competir
+  if (!TOKEN) return { ok: false, err: "sin token de GitHub" };   // v470 · sin GitHub NO hay candado: esta hora no se abre nada (solo se cierra y se protege)
   const H0 = { Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github+json", "Content-Type": "application/json" };
   try { let sha = env("GITHUB_SHA"); if (!/^[0-9a-f]{40}$/.test(sha)) { const r0 = await F(`https://api.github.com/repos/${REPO}/git/ref/heads/main`, { headers: H0, signal: AbortSignal.timeout(15000) }); sha = r0.ok ? (await r0.json()).object.sha : ""; }
     if (!sha) return { ok: false, err: "sin sha" };
@@ -135,10 +135,17 @@ async function limpiaCandados() { if (!TOKEN) return; try { const H0 = { Authori
 const HGH = () => ({ Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github+json", "Content-Type": "application/json" });
 const tagHora = (iso) => new Date(iso).toISOString().replace(/\D/g, "").slice(0, 14), horaTag = (k) => Date.UTC(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8), +k.slice(8, 10), +k.slice(10, 12), +k.slice(12, 14));
 // v469 · lista COMPLETA de marcas (por páginas; si la API no pagina, se detecta porque no aparece nada nuevo). null = no se ha podido leer
-async function listaMarcas() { const vistas = new Set(); for (let pg = 1; pg <= 20; pg++) { const r = await F(`https://api.github.com/repos/${REPO}/git/matching-refs/tags/hl-freno-?per_page=100&page=${pg}`, { headers: HGH(), signal: AbortSignal.timeout(15000) }); if (!r.ok) return null;
-    const a = ((await r.json()) || []).map((x) => String(x.ref)), n0 = vistas.size; for (const x of a) vistas.add(x); if (a.length < 100 || vistas.size === n0) break; }
-  return [...vistas].map((ref) => ({ ref, k: ref.replace("refs/tags/hl-freno-", "") })).filter((x) => /^\d{14}$/.test(x.k)); }
-export async function marcasFreno() { if (!TOKEN) return { ok: true, t: null };
+//   v470 · solo se da por buena una lectura COMPLETA demostrable: termina con una página de menos de 100 (o vacía). Cualquier duda = null (fallo):
+//   error HTTP o de red en cualquier página, respuesta que no es una lista, una página que repite marcas ya leídas o llegar al límite de páginas sin terminar.
+export const MARCAS_MAX_PAG = 50;
+async function listaMarcas() { const vistas = new Set();
+  for (let pg = 1; pg <= MARCAS_MAX_PAG; pg++) { const r = await F(`https://api.github.com/repos/${REPO}/git/matching-refs/tags/hl-freno-?per_page=100&page=${pg}`, { headers: HGH(), signal: AbortSignal.timeout(15000) }); if (!r.ok) return null;
+    const j = await r.json(); if (!Array.isArray(j)) return null; const a = j.map((x) => String(x && x.ref));
+    if (a.some((x) => vistas.has(x))) return null;   // página repetida o solapada: no se puede demostrar que se ha leído todo
+    for (const x of a) vistas.add(x);
+    if (a.length < 100) return [...vistas].map((ref) => ({ ref, k: ref.replace("refs/tags/hl-freno-", "") })).filter((x) => /^\d{14}$/.test(x.k)); }
+  return null; }   // límite de páginas alcanzado sin terminar
+export async function marcasFreno() { if (!TOKEN) return { ok: false, sinToken: 1 };   /* v470 · sin GitHub no se ha leído nada: es un FALLO */
   try { const L = await listaMarcas(); if (!L) return { ok: false }; const ts = L.map((x) => horaTag(x.k)); return { ok: true, t: ts.length ? Math.max(...ts) : null }; } catch (e) { return { ok: false }; } }
 export async function ponMarcaFreno(iso) { if (!TOKEN) return false;   // v468 · sin GitHub no hay marca: se cuenta como NO puesta
   try { let sha = env("GITHUB_SHA"); if (!/^[0-9a-f]{40}$/.test(sha)) { const r0 = await F(`https://api.github.com/repos/${REPO}/git/ref/heads/main`, { headers: HGH(), signal: AbortSignal.timeout(15000) }); sha = r0.ok ? (await r0.json()).object.sha : ""; } if (!sha) return false;
@@ -147,7 +154,7 @@ export async function ponMarcaFreno(iso) { if (!TOKEN) return false;   // v468 �
     if (r.status === 422) { const r2 = await F(`https://api.github.com/repos/${REPO}/git/ref/tags/hl-freno-${tagHora(iso)}`, { headers: HGH(), signal: AbortSignal.timeout(15000) }); return r2.status === 200; } return false; } catch (e) { return false; } }
 // v468 · al rearmar el freno, se borran las marcas anteriores a tu guardado de ajustes (así la lista nunca crece)
 //   v469 · TODAS (por páginas) y se COMPRUEBA que ya no están; devuelve true si ha quedado limpio (las que queden no estorban: son anteriores a tu guardado)
-export async function limpiaMarcasFreno(hasta) { if (!TOKEN) return true; try { const L = await listaMarcas(); if (!L) return false; const viejas = L.filter((x) => horaTag(x.k) < hasta); if (!viejas.length) return true;
+export async function limpiaMarcasFreno(hasta) { if (!TOKEN) return false;   /* v470 · sin GitHub no se ha limpiado nada */ try { const L = await listaMarcas(); if (!L) return false; const viejas = L.filter((x) => horaTag(x.k) < hasta); if (!viejas.length) return true;
     for (const x of viejas) await F(`https://api.github.com/repos/${REPO}/git/${x.ref}`, { method: "DELETE", headers: HGH(), signal: AbortSignal.timeout(15000) }).catch(() => {});
     const L2 = await listaMarcas(); return !!L2 && !L2.some((x) => horaTag(x.k) < hasta); } catch (e) { return false; } }
 // v460 · cierra UNA posición sin que un fallo pare a las demás; devuelve si Hyperliquid confirma el cierre
