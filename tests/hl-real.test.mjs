@@ -16,9 +16,9 @@ const H = 3600e3;
 function mundo(o = {}) {
   const W = { eq: o.eq ?? 100, neto: o.neto ?? 100, px: { BTC: 100, ETH: 10, SOL: 5, ...(o.px || {}) }, pos: {}, stops: [], oid: 1, fills: [], ordenes: [], refs: new Set(), guardado: null, avisos: [],
     ctl: o.ctl === undefined ? { estado: "on", uso: 100, plazas: 5, freno: 0.35, puesto: 1 } : o.ctl, ctlFallo: o.ctlFallo || null, refsFallo: !!o.refsFallo,
-    falloStop: o.falloStop || 0, stopIncompleto: o.stopIncompleto || 0, fillsRoto: !!o.fillsRoto, estadoRoto: !!o.estadoRoto, guardarFalla: !!o.guardarFalla, ledgerFallo: !!o.ledgerFallo, rompeTrasCierre: !!o.rompeTrasCierre, cancelFalla: o.cancelFalla || 0, marcasFallo: !!o.marcasFallo, falloCierre: new Set(o.falloCierre || []), parcial: o.parcial || 0, timeoutAbrir: !!o.timeoutAbrir, quiere: o.quiere || [] };
+    falloStop: o.falloStop || 0, stopIncompleto: o.stopIncompleto || 0, fillsRoto: !!o.fillsRoto, estadoRoto: !!o.estadoRoto, guardarFalla: !!o.guardarFalla, ledgerFallo: !!o.ledgerFallo, rompeTrasCierre: !!o.rompeTrasCierre, cancelFalla: o.cancelFalla || 0, marcasFallo: !!o.marcasFallo, ordenesFallo: !!o.ordenesFallo, lab: o.lab || null, falloCierre: new Set(o.falloCierre || []), parcial: o.parcial || 0, timeoutAbrir: !!o.timeoutAbrir, quiere: o.quiere || [] };
   for (const p of o.pos || []) { W.pos[p.c] = { szi: p.szi, entryPx: p.px ?? W.px[p.c] }; W.fills.push({ coin: p.c, dir: p.szi > 0 ? "Open Long" : "Open Short", time: Date.now() - (p.edadH ?? 1) * H, px: p.px ?? W.px[p.c], sz: Math.abs(p.szi) }); }
-  for (const s of o.stops || []) W.stops.push({ coin: s.c, oid: W.oid++, ...(s.side ? { side: s.side } : {}), sz: String(s.sz), origSz: String(s.sz), triggerPx: String(s.trig), isTrigger: true, orderType: "Stop Market", reduceOnly: s.noReduce ? false : true });
+  for (const s of o.stops || []) W.stops.push({ coin: s.c, oid: W.oid++, ...(s.side ? { side: s.side } : {}), sz: String(s.sz), origSz: String(s.sz), triggerPx: String(s.trig), isTrigger: true, orderType: s.tipo || "Stop Market", reduceOnly: s.noReduce ? false : true });
   // v466 · con posiciones de partida, el bot ya tenía su estado (salvo que la prueba diga lo contrario)
   if ((o.pos || []).length && !o.sinEstado) W.estadoIni = { pm: Object.fromEntries(o.pos.map((p) => [p.c, { h: 168, sl: 0.08, k: "m1" }])) };
   const coins = Object.keys(W.px), j = (x, st = 200) => ({ ok: st < 400, status: st, json: async () => x, text: async () => JSON.stringify(x) });
@@ -26,6 +26,8 @@ function mundo(o = {}) {
     const u = String(url), body = init.body ? JSON.parse(init.body) : null;
     if (u.includes("raw.githubusercontent.com") && u.includes("/hl-ctl/")) { if (W.ctlFallo === "red") throw new Error("fetch failed"); if (W.ctlFallo) return j({}, W.ctlFallo); return W.ctl ? j(W.ctl) : j({}, 404); }
     if (u.includes("raw.githubusercontent.com") && u.includes("/hl-real/")) { if (W.estadoRoto) return j({}, 500); if (!W.guardado && W.estadoIni) W.guardado = { enc: 1, t: new Date(Date.now() - 2 * H).toISOString(), ...(await encrypt(JSON.stringify(W.estadoIni), process.env.REAL_VIEW_PASS)) }; return W.guardado ? j(W.guardado) : j({}, 404); }
+    if (u.includes("/caza-lab/caza-lab.json")) return W.lab ? j(W.lab) : j({}, 404);
+    if (u.includes("/ia-lab/ia-lab.json")) return j({});
     if (u.includes("/contents/hl-real.json")) return W.guardado ? j({ t: W.guardado.t }) : j({}, 404);
     if (u.endsWith("/git/refs") && init.method === "POST") { if (W.refsFallo) return j({}, 500); if (W.refs.has(body.ref)) return j({ message: "Reference already exists" }, 422); W.refs.add(body.ref); return j({ ref: body.ref }, 201); }
     if (u.includes("/git/matching-refs/")) { if (W.marcasFallo && u.includes("hl-freno")) return j({}, 500); const pre = "refs/" + u.split("/git/matching-refs/")[1]; return j([...W.refs].filter((r) => r.startsWith(pre)).map((ref) => ({ ref }))); }
@@ -39,7 +41,7 @@ function mundo(o = {}) {
         case "userNonFundingLedgerUpdates": if (W.ledgerFallo) return j({}, 500); return j([{ delta: { type: "deposit", usdc: String(W.neto) } }]);
         case "userFills": if (W.fillsRoto) return j({}, 500); return j(W.fills);
         case "extraAgents": return j([{ address: "0x" + "c".repeat(40), validUntil: Date.now() + 100 * 864e5 }]);
-        case "frontendOpenOrders": return j(W.stops);
+        case "frontendOpenOrders": if (W.ordenesFallo) return j({}, 500); return j(W.stops);
         default: return j([]);
       }
     }
@@ -260,4 +262,39 @@ test("v466 · si la cancelación del stop viejo dice «ok» pero no se cancela: 
   assert.ok(W.avisos.some((t) => /duplicado/.test(t)));
   const W2 = mundo({ cancelFalla: 1, pos: [{ c: "BTC", szi: -0.1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 130 }] }); conecta(W2); await silencio(() => HL.ronda());
   assert.equal(W2.stops.filter((z) => z.coin === "BTC").length, 1, "el reintento lo cancela"); assert.ok(!W2.avisos.some((t) => /duplicado/.test(t)));
+});
+
+// ---------- v467 ----------
+test("v467 · un stop BUENO junto a uno MALO (no «solo cerrar», lado contrario): el malo se cancela y se comprueba; queda solo el bueno", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: -0.1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108 }, { c: "BTC", side: "A", sz: 0.1, trig: 108, noReduce: true }] }); conecta(W); await silencio(() => HL.ronda());
+  const s = W.stops.filter((z) => z.coin === "BTC"); assert.equal(s.length, 1); assert.equal(s[0].side, "B"); assert.equal(s[0].reduceOnly, true); assert.equal(+s[0].triggerPx, 108, "el bueno no se toca");
+});
+test("v467 · un stop que no es «Stop Market» (p. ej. stop-limit) no vale: se sustituye", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: -0.1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108, tipo: "Stop Limit" }] }); conecta(W); await silencio(() => HL.ronda());
+  const s = W.stops.filter((z) => z.coin === "BTC"); assert.equal(s.length, 1); assert.equal(s[0].orderType, "Stop Market");
+});
+test("v467 · posición SIN estado: su stop solo se respeta si protege de verdad (lado bueno y como mucho −25 %)", async () => {
+  for (const [trig, queda] of [[108, true], [140, false], [95, false]]) {
+    const W = mundo({ sinEstado: true, pos: [{ c: "BTC", szi: -0.1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig }] }); conecta(W); await silencio(() => HL.ronda());
+    const s = W.stops.filter((z) => z.coin === "BTC"); assert.equal(s.length, 1, "trig " + trig); assert.equal(+s[0].triggerPx === trig, queda, `stop a ${trig}: ${queda ? "se respeta" : "se sustituye"} (quedó ${s[0].triggerPx})`);
+    if (!queda) assert.ok(Math.abs(+s[0].triggerPx - 125) < 0.5, "el de emergencia −25 %");
+  }
+});
+test("v467 · si no se pueden consultar las órdenes: aviso explícito de que los stops NO se han revisado", async () => {
+  const W = mundo({ ordenesFallo: true, pos: [{ c: "BTC", szi: -0.1 }] }); conecta(W); await silencio(() => HL.ronda()); assert.ok(W.avisos.some((t) => /NO he podido revisar los stops/.test(t)));
+});
+test("v467 · FRENO sin nada abierto: también avisa (una vez)", async () => {
+  const W = mundo({ eq: 60, neto: 100 }); conecta(W); await silencio(() => HL.ronda()); assert.equal(W.avisos.filter((t) => /ha caído más de/.test(t)).length, 1);
+  await otraHora(W); assert.equal(W.avisos.filter((t) => /ha caído más de/.test(t)).length, 1, "no repite el aviso cada hora");
+});
+test("v467 · CUARENTENA estricta: sin datos de cuarentena, vacía o no superada → no se usa; superada o exenta → sí; nunca el podio antiguo", async () => {
+  assert.equal(HL.cuarentenaOk({ k: 1 }), false); assert.equal(HL.cuarentenaOk({ cuar: {} }), false); assert.equal(HL.cuarentenaOk({ cuar: { ok: false } }), false);
+  assert.equal(HL.cuarentenaOk({ cuar: { ok: "true" } }), false); assert.equal(HL.cuarentenaOk({ cuar: { ok: true } }), true); assert.equal(HL.cuarentenaOk({ cuar: { exento: true } }), true);
+  const met = { k: "m1", n: "x", g: { a: 0, b: null, f: "nada", h: 24, sl: 0.08 } };
+  for (const [lab, abre] of [[{ aprobadas: [met], criptos: ["BTC"] }, 0], [{ aprobadas: [], podio: [met], criptos: ["BTC"] }, 0], [{ aprobadas: [{ ...met, cuar: { ok: false } }] }, 0], [{ aprobadas: [{ ...met, cuar: { ok: true } }], criptos: ["BTC"] }, 1]]) {
+    const W = mundo({ lab, quiere: [{ c: "BTC", dir: 1 }] }); conecta(W); HL.deps.metodo = null; await silencio(() => HL.ronda()); assert.equal(aperturas(W).length, abre, JSON.stringify(lab).slice(0, 80));
+  }
+});
+test("v467 · guardar ajustes con un cambio no válido: termina con ERROR (no como guardado)", async () => {
+  process.env.CAMBIO = "{no es json"; await assert.rejects(silencio(() => HL.guardaAjustes())); delete process.env.CAMBIO;
 });

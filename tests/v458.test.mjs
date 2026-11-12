@@ -148,7 +148,28 @@ test("v466 · memoria del laboratorio: si no se puede leer o está dañada, se P
   LAB.deps.espera = async () => {};
   LAB.deps.fetch = r(500); await assert.rejects(LAB.memoriaVistas(false), /No puedo leer/); await assert.rejects(LAB.memoria(), /No puedo leer/);
   LAB.deps.fetch = async () => { throw new Error("fetch failed"); }; await assert.rejects(LAB.memoriaVistas(false)); await assert.rejects(LAB.memoria());
-  LAB.deps.fetch = r(404); await assert.rejects(LAB.memoriaVistas(false), /desaparecido/); assert.equal((await LAB.memoriaVistas(true)).length, (1 << 24) / 8, "primera vez: vacía es correcto"); assert.equal(await LAB.memoria(), null);
+  LAB.deps.fetch = r(404); await assert.rejects(LAB.memoriaVistas(false), /desaparecido/); assert.equal((await LAB.memoriaVistas(true)).length, (1 << 24) / 8, "primera vez: vacía es correcto");
+  await assert.rejects(LAB.memoria(), /desaparecido/, "v467 · un 404 de la memoria principal PARA el laboratorio");
+  process.env.LAB_INICIAR = "1"; assert.equal(await LAB.memoria(), null, "solo empezando de cero A PROPÓSITO"); delete process.env.LAB_INICIAR;
   LAB.deps.fetch = r(200, new ArrayBuffer(10)); await assert.rejects(LAB.memoriaVistas(false), /dañada/);
   LAB.deps.fetch = r(200, { algo: 1 }); await assert.rejects(LAB.memoria(), /dañada/);
+});
+
+// ---------- v467 ----------
+test("v467 · stop con hueco en la PRIMERA vela que lo atraviesa: se sale desde la apertura REAL (85), no desde el cierre anterior (100)", () => {
+  const d = { C: [100, 100, 84], O: [100, 100, 85], Lo: [99, 99, 80], Hi: [101, 101, 86] }; const r = salidaStop(d, 2, 100, 1, 0.08);
+  assert.ok(r < -0.15 && r >= -0.2, "≈ −16 %: " + r);
+  const sinO = salidaStop({ C: [100, 100, 84], Lo: [99, 99, 80], Hi: [101, 101, 86] }, 2, 100, 1, 0.08); assert.ok(sinO > r, "sin la apertura real se habría quedado corto: " + sinO);
+});
+import { validaBTC } from "../runner/caza-hl.mjs";
+test("v467 · BTC con huecos o sin historia: el examen se PARA", () => {
+  const T = Array.from({ length: 400 }, (_, i) => i), k = new Map(T.map((t) => [t, [100, 1, 101, 99, 100]])), f = new Map(T.map((t) => [t, 0.0001]));
+  assert.doesNotThrow(() => validaBTC(T, { BTC: { k, f } }));
+  const k2 = new Map(k); for (let t = 300; t < 330; t++) k2.delete(t); assert.throws(() => validaBTC(T, { BTC: { k: k2, f } }), /huecos/);
+  assert.throws(() => validaBTC(T, {}), /historia/); assert.throws(() => validaBTC(T, { BTC: { k: new Map([...k].slice(0, 100)), f } }), /historia/);
+});
+import { soloIS } from "../runner/ia-lab.mjs";
+test("v467 · a la IA solo le llegan datos anteriores al examen: nunca «aprobada» ni nada del examen oculto", () => {
+  const z = soloIS({ n: 3, nota: 1.2, casi: 1, aprobada: 1, mejor: { antes_del_examen: 12.5, pf: 1.3 }, o: { ret: 0.4 }, c2: { ret: 0.1 }, b: { ret: 0.2 } });
+  assert.deepEqual(Object.keys(z).sort(), ["antes_del_examen", "casi", "n", "nota", "pf"]); assert.ok(!("aprobada" in z));
 });

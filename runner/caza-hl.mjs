@@ -18,18 +18,20 @@ export async function datos(log) {
     // v360 · Hyperliquid solo da las últimas 5.000 velas (~208 días): la historia larga de precios sale de OKX (mismo contrato perpetuo
     // contra USDT, precios casi idénticos) y la financiación, de Hyperliquid. Si OKX no la tiene, se usan las velas de Hyperliquid.
     const k = new Map(), inst = (c === "kPEPE" ? "PEPE" : c === "kBONK" ? "BONK" : c === "kSHIB" ? "SHIB" : c) + "-USDT-SWAP";
-    try { let after = ""; for (let p = 0; p < 200; p++) { const r = await fetch(`https://www.okx.com/api/v5/market/history-candles?instId=${inst}&bar=1H&limit=100${after ? "&after=" + after : ""}`, { signal: AbortSignal.timeout(20000) }); if (r.status === 429) { await sleep(3000); p--; continue; } const j = await r.json(), d = (j && j.data) || []; if (!d.length) break; for (const y of d) k.set(+y[0], [+y[4], +y[7] || 0, +y[2], +y[3]]); after = Math.min(...d.map((y) => +y[0])); if (after < ini) break; await sleep(110); } } catch (e) {}
-    if (k.size < 24 * 300) for (let t = ini; t < fin; t += 4000 * H) { const r = await post({ type: "candleSnapshot", req: { coin: c, interval: "1h", startTime: t, endTime: Math.min(fin, t + 4000 * H) } }); for (const x of r || []) k.set(+x.t, [+x.c, +x.v || 0, +x.h, +x.l]); await sleep(250); }
+    try { let after = ""; for (let p = 0; p < 200; p++) { const r = await fetch(`https://www.okx.com/api/v5/market/history-candles?instId=${inst}&bar=1H&limit=100${after ? "&after=" + after : ""}`, { signal: AbortSignal.timeout(20000) }); if (r.status === 429) { await sleep(3000); p--; continue; } const j = await r.json(), d = (j && j.data) || []; if (!d.length) break; for (const y of d) k.set(+y[0], [+y[4], +y[7] || 0, +y[2], +y[3], +y[1]]); after = Math.min(...d.map((y) => +y[0])); if (after < ini) break; await sleep(110); } } catch (e) {}
+    if (k.size < 24 * 300) for (let t = ini; t < fin; t += 4000 * H) { const r = await post({ type: "candleSnapshot", req: { coin: c, interval: "1h", startTime: t, endTime: Math.min(fin, t + 4000 * H) } }); for (const x of r || []) k.set(+x.t, [+x.c, +x.v || 0, +x.h, +x.l, +x.o]); await sleep(250); }
     const f = new Map(); let t = ini;
     for (let g = 0; g < 40 && t < fin; g++) { const r = await post({ type: "fundingHistory", coin: c, startTime: t }); if (!r || !r.length) break; for (const x of r) f.set(Math.floor(+x.time / H) * H, +x.fundingRate); const last = +r[r.length - 1].time; if (last <= t) break; t = last + 1; await sleep(250); }
     D[c] = { k, f }; log(`  ${c}: ${k.size} velas de 1 h · ${f.size} horas de financiación`);
   }
   const T = []; for (let t = ini; t < fin; t += H) T.push(t);
-  for (const c of [...U]) if (D[c].k.size < T.length * 0.8 && c !== "BTC") { U.splice(U.indexOf(c), 1); log(`  ${c}: sin historia suficiente, fuera`); }
+  // v467 · BTC también pasa los controles: es la referencia de muchas señales, así que si NO tiene datos fiables se PARA el examen entero
+  validaBTC(T, D);
+  for (const c of [...U]) if (D[c].k.size < T.length * 0.8) { U.splice(U.indexOf(c), 1); log(`  ${c}: sin historia suficiente, fuera`); }
   // v466 · 🕳️ HUECOS: dentro del periodo que se examina (desde la hora EVAL0) no puede faltar más de HUECO_MAX (24) h seguidas de velas ni de financiación,
   //   ni puede empezar sin financiación conocida. Si falta, la cripto queda FUERA (no se rellena con precios planos ni con financiación inventada).
-  for (const c of [...U]) { if (c === "BTC") continue; const q = huecos(T, D[c]); if (q.velas > HUECO_MAX || q.fund > HUECO_MAX || q.sinFund) { U.splice(U.indexOf(c), 1); log(`  ${c}: datos con huecos (${q.sinFund ? "sin financiación al principio" : `${Math.max(q.velas, q.fund)} h seguidas sin datos`}), fuera`); } }
-  const out = {}; for (const c of U) { const C = new Float64Array(T.length), F = new Float64Array(T.length), V = new Float64Array(T.length), Hi = new Float64Array(T.length), Lo = new Float64Array(T.length); let last = NaN, lastF = 0; T.forEach((t, i) => { const x = D[c].k.get(t); if (x && x[0] > 0) { last = x[0]; V[i] = x[1]; Hi[i] = x[2]; Lo[i] = x[3]; } else { Hi[i] = Lo[i] = last; } C[i] = last; const f = D[c].f.get(t); if (f != null && Number.isFinite(f)) lastF = f; F[i] = lastF; }); out[c] = { C, F, V, Hi, Lo }; }   // v465 · huecos cortos (≤ 24 h): la última financiación conocida; nunca un dato del futuro
+  for (const c of [...U]) { const q = huecos(T, D[c]); if (q.velas > HUECO_MAX || q.fund > HUECO_MAX || q.sinFund) { U.splice(U.indexOf(c), 1); log(`  ${c}: datos con huecos (${q.sinFund ? "sin financiación al principio" : `${Math.max(q.velas, q.fund)} h seguidas sin datos`}), fuera`); } }
+  const out = {}; for (const c of U) { const C = new Float64Array(T.length), F = new Float64Array(T.length), V = new Float64Array(T.length), Hi = new Float64Array(T.length), Lo = new Float64Array(T.length), O = new Float64Array(T.length); let last = NaN, lastF = 0; T.forEach((t, i) => { const x = D[c].k.get(t); if (x && x[0] > 0) { O[i] = x[4] > 0 ? x[4] : last; last = x[0]; V[i] = x[1]; Hi[i] = x[2]; Lo[i] = x[3]; } else { Hi[i] = Lo[i] = O[i] = last; } C[i] = last; const f = D[c].f.get(t); if (f != null && Number.isFinite(f)) lastF = f; F[i] = lastF; }); out[c] = { C, F, V, Hi, Lo, O }; }   // v467 · O = apertura REAL de cada vela   // v465 · huecos cortos (≤ 24 h): la última financiación conocida; nunca un dato del futuro
   return { T, M: out, U };
 }
 
@@ -38,6 +40,8 @@ export async function datos(log) {
 // v465 · al saltar un stop a mercado se vende PEOR que el precio del stop: 0,3 % de deslizamiento (antes 0,1 %)
 export const STOP_SLIP = 0.003;
 export const EVAL0 = 220, HUECO_MAX = 24;
+export function validaBTC(T, D) { if (!D.BTC || D.BTC.k.size < T.length * 0.8) throw new Error("BTC no tiene historia suficiente: paro el examen");
+  const q = huecos(T, D.BTC); if (q.velas > HUECO_MAX || q.fund > HUECO_MAX || q.sinFund) throw new Error("BTC tiene huecos en los datos: paro el examen"); }
 // v466 · cuenta, dentro del periodo examinado, el mayor hueco seguido de velas y de financiación, y si la financiación empieza tarde
 export function huecos(T, d) { let hv = 0, hf = 0, mv = 0, mf = 0, vistoF = false, sinFund = false; for (let i = 0; i < T.length; i++) { const t = T[i], x = d.k.get(t), f = d.f.get(t);
     if (f != null && Number.isFinite(f)) { vistoF = true; hf = 0; } else hf++;
@@ -49,7 +53,8 @@ export function huecos(T, d) { let hv = 0, hf = 0, mv = 0, mf = 0, vistoF = fals
 //   Devuelve la rentabilidad de la operación (sin costes ni financiación) o null si el stop no salta en esa hora.
 export function salidaStop(d, i, p0, dir, sl) { const stopPx = dir > 0 ? p0 * (1 - sl) : p0 * (1 + sl), ext = dir > 0 ? d.Lo[i] : d.Hi[i];
   if (!(ext > 0) || (dir > 0 ? ext > stopPx : ext < stopPx)) return null;
-  const ab = d.C[i - 1] > 0 ? d.C[i - 1] : stopPx, base = dir > 0 ? Math.min(stopPx, ab) : Math.max(stopPx, ab), slip = Math.max(STOP_SLIP, 0.25 * Math.abs(ext - base) / base);
+  const ab = d.O && d.O[i] > 0 ? d.O[i] : d.C[i - 1] > 0 ? d.C[i - 1] : stopPx,   // v467 · apertura REAL de la vela (si falta, el cierre anterior)
+    base = dir > 0 ? Math.min(stopPx, ab) : Math.max(stopPx, ab), slip = Math.max(STOP_SLIP, 0.25 * Math.abs(ext - base) / base);
   let px = dir > 0 ? base * (1 - slip) : base * (1 + slip); px = dir > 0 ? Math.max(px, ext) : Math.min(px, ext);
   return Math.min(dir * (px / p0 - 1), -sl - STOP_SLIP); }   // nunca mejor que la regla anterior (stop − 0,3 %)
 // v465 · 📉 CAÍDA MÁXIMA HORA A HORA: la cuenta se valora cada hora con las posiciones abiertas a precio de mercado (más financiación y comisión de

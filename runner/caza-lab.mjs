@@ -33,8 +33,9 @@ export async function memoriaVistas(primeraVez) { const B = Buffer.alloc(BITS / 
 const vista = (B, k) => (B[bitDe(k) >> 3] >> (bitDe(k) & 7)) & 1, marca = (B, k) => { B[bitDe(k) >> 3] |= 1 << (bitDe(k) & 7); };
 // v466 · igual con la memoria principal (podio, aprobadas…): si no se puede leer, NO se empieza de cero (se perdería el podio que usa el bot real)
 export async function memoria() { let err = ""; for (let i = 0; i < 3; i++) { try { const r = await deps.fetch(`https://raw.githubusercontent.com/${REPO}/${RAMA}/${ARCH}?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) });
-      if (r.status === 404) return null; if (!r.ok) throw new Error("HTTP " + r.status); const j = await r.json(); if (!j || typeof j !== "object" || !Array.isArray(j.aprobadas)) throw new Error("memoria dañada"); return j; }
-    catch (e) { err = String(e.message).slice(0, 80); await deps.espera(3000 * (i + 1)); } }
+      if (r.status === 404) { if (process.env.LAB_INICIAR === "1") return null; throw new Error("la memoria del laboratorio ha desaparecido (404); para empezar de cero a propósito, lánzalo con LAB_INICIAR=1"); }   // v467 · un 404 inesperado PARA el laboratorio
+      if (!r.ok) throw new Error("HTTP " + r.status); const j = await r.json(); if (!j || typeof j !== "object" || !Array.isArray(j.aprobadas)) throw new Error("memoria dañada"); return j; }
+    catch (e) { err = String(e.message).slice(0, 120); if (/desaparecido/.test(err)) break; await deps.espera(3000 * (i + 1)); } }
   throw new Error("No puedo leer la memoria del laboratorio: " + err + ". Paro sin tocar nada."); }
 async function ideas(prev) {
   const vistas = new Set((prev || []).map((x) => x.link)), out = (prev || []).slice();
@@ -130,7 +131,7 @@ export async function lab(log = console.log) {
   // v366 · 🤖 resultados de cada receta de la IA (el ayudante los lee para aprender qué ideas funcionan)
   const iaRes = M0.ia || {}; for (const g of cand) { if (!g.ia) continue; const k = hs(clave(g)), nt = mem.probadas[k]; if (nt == null) continue; const z = (iaRes[g.ia] = iaRes[g.ia] || { n: 0, nota: 0 }); z.n++; if (nt > z.nota) z.nota = nt; }
   for (const x of mem.casi) if (x.g && x.g.ia && iaRes[x.g.ia]) { const z = iaRes[x.g.ia]; z.casi = Math.max(z.casi || 0, 1); z.mejor = z.mejor || { antes_del_examen: x.is ? +(x.is.ret * 100).toFixed(1) : null, pf: x.is ? +(+x.is.pf).toFixed(2) : null }; }   /* v465 · a la IA solo le llega lo anterior a los 90 días ocultos */
-  for (const x of mem.aprobadas) if (x.g && x.g.ia && iaRes[x.g.ia]) iaRes[x.g.ia].aprobada = 1;
+  for (const z of Object.values(iaRes)) delete z.aprobada;   // v467 · la IA NO sabe qué recetas aprobaron (el aprobado usa los 90 días ocultos)
   const iaN = cand.filter((g) => g.ia).length, iaCasi = mem.casi.filter((x) => x.g && x.g.ia).length, iaOk = mem.aprobadas.filter((x) => x.g && x.g.ia).length;
   if (IA.length) log(`🤖 IA: ${IA.length} recetas · ${iaN} combinaciones probadas en esta ronda · ${iaCasi} entre las «casi» · ${iaOk} aprobadas`);
   const out = { v: 1, limpio466: 1, totalVistas, exentos, t: new Date().toISOString(), ia: iaRes, iaVista: { recetas: IA.length, probadas: iaN, casi: iaCasi, aprobadas: iaOk }, dias: Math.round(n / 24), criptos: U, ...mem, ideas: ID, podio: mem.aprobadas.slice(0, 3), mejoresCasi: mem.casi.slice(0, 5).map((x) => ({ n: x.n, is: x.is, a: x.a, b: x.b, t: x.t })), pesosVista: Object.fromEntries(FAM.map((f) => [f, +peso(f).toFixed(2)])) };

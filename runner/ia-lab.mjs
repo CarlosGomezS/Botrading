@@ -41,10 +41,13 @@ async function geminiSolo(prompt, MS) {
 }
 
 // ---------- cripto ----------
+// v467 · 🔒 LISTA BLANCA de lo que la IA ve de cada receta suya: solo datos anteriores a los 90 días ocultos
+export const soloIS = (z) => ({ n: z.n, nota: z.nota, casi: z.casi ? 1 : 0, antes_del_examen: z.mejor ? z.mejor.antes_del_examen : null, pf: z.mejor ? z.mejor.pf : null });
 async function cripto(MS, prev) {
   const cl = await raw("caza-lab", "caza-lab.json"); const { FILTROS } = await import("./caza-hl2.mjs"), FN = Object.keys(FILTROS);
   const resIA = (cl && cl.ia) || {}, mias = (prev && prev.recetas) || [];
-  const fb = mias.map((r) => ({ r, s: resIA[r.id] })).filter((x) => x.s && x.s.n);
+  // v467 · 🔒 LISTA BLANCA: a la IA solo le llega lo calculado ANTES de los 90 días ocultos (veces probada, nota de búsqueda y si quedó entre las «casi»)
+  const fb = mias.map((r) => ({ r, s: resIA[r.id] ? soloIS(resIA[r.id]) : null })).filter((x) => x.s && x.s.n);
   const mejores = fb.slice().sort((a, b) => (b.s.nota || 0) - (a.s.nota || 0)).slice(0, 8), peores = fb.slice().sort((a, b) => (a.s.nota || 0) - (b.s.nota || 0)).slice(0, 5);
   const P = `Eres un investigador cuantitativo. Diseña estrategias NUEVAS de trading intradía para futuros perpetuos de criptomonedas en Hyperliquid (velas de 1 hora, 20 criptos líquidas, 18 meses de datos).
 Costes reales por operación: 0,045 % de comisión + 0,05 % de deslizamiento, más la financiación horaria. Se pueden abrir largos y cortos. Objetivo: 4-10 operaciones al día en total y ganar DE FORMA ROBUSTA.
@@ -215,6 +218,8 @@ async function main() {
   const prev = (await raw(RAMA, "ia-lab.json")) || {}; globalThis.__PREV = prev; const out = { v: 1, t: new Date().toISOString(), estado: "ok", cripto: prev.cripto || null, etf: prev.etf || null, tort: prev.tort || null, hist: prev.hist || [] };
   /* v409 · 🧠 MEMORIA LARGA: todas las lecciones que ha escrito alguna vez (sin repetir, con fecha), aunque luego las quite del cuaderno corto */
   const MEM = { cripto: [], etf: [], tort: [], ...(prev.memoria || {}) }; MEM.tort = MEM.tort || []; globalThis.__MEM = MEM;
+  // v467 · las lecciones de cripto escritas antes de cerrar la fuga del examen se borran UNA vez (podían venir de saber qué recetas aprobaron)
+  if (!prev.limpio467) { MEM.cripto = []; if (prev.cripto) prev.cripto = { ...prev.cripto, lecciones: [] }; out.cripto = prev.cripto || null; log("cripto: cuaderno de lecciones reiniciado (v467, sin datos del examen oculto)"); } out.limpio467 = 1;
   const guarda = (k, L) => { const ya = new Set(MEM[k].map((x) => x.l)); for (const l of L || []) if (l && !ya.has(l)) { MEM[k].unshift({ t: out.t, l }); ya.add(l); } MEM[k] = MEM[k].slice(0, 500); };
   guarda("cripto", prev.cripto && prev.cripto.lecciones); guarda("etf", prev.etf && prev.etf.lecciones); guarda("tort", prev.tort && prev.tort.lecciones);
   if (!KEY && !GROQ && !OR && !NV && !ZAI) { out.estado = "sin clave"; log("no hay clave GEMINI_KEY en los secretos de GitHub: los laboratorios siguen igual, sin ayudante"); }
@@ -236,4 +241,4 @@ async function main() {
   sh(`cd ${dir} && git init -q && git checkout -q -b ${RAMA} && git add ia-lab.json && git -c user.name=bot -c user.email=bot@users.noreply.github.com commit -qm "Ayudante IA del laboratorio" && git push -qf ${url} ${RAMA}`);
   log("ideas guardadas");
 }
-main().catch((e) => { console.log("🤖 IA · error:", String(e.message).slice(0, 120)); process.exit(0); });
+if (process.argv[1] && process.argv[1].endsWith("ia-lab.mjs")) main().catch((e) => { console.log("🤖 IA · error:", String(e.message).slice(0, 120)); process.exit(0); });
