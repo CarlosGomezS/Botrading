@@ -317,3 +317,56 @@ test("v476 · se apunta el deslizamiento REAL de cada orden (positivo = peor que
   assert.equal(aperturas(W).length, 1); assert.ok(Array.isArray(S.slip) && S.slip.length === 1); assert.equal(S.slip[0].x, "abre"); assert.ok(Math.abs(S.slip[0].d - 0.1) < 1e-6, "0,1 % peor");
   assert.deepEqual(Object.keys(S.slip[0]).sort(), ["d", "t", "x"], "sin importes ni criptos");
 });
+
+// ---------- v477 · auditoría v476 ----------
+const estadoDe = async (W) => JSON.parse(await (await import("../runner/real-cfg.mjs")).decrypt(W.guardado, process.env.REAL_VIEW_PASS));
+
+test("v477 · H-01: dos stops TUYOS en una cripto que gestiona el bot: ninguno se cancela ni se apunta como del bot", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: -0.1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108 }, { c: "BTC", side: "B", sz: 0.1, trig: 108 }] });
+  W.estadoIni.misStops = [];   // el bot ya lleva la cuenta de sus stops (v476+) y estos dos no son suyos
+  conecta(W); await silencio(() => HL.ronda());
+  assert.equal(W.stops.filter((z) => z.coin === "BTC").length, 2, "los dos siguen");
+  assert.ok(!W.ordenes.some((o) => o.stop), "la posición ya está protegida: no pone otro");
+  assert.deepEqual((await estadoDe(W)).misStops, [], "no se apropia de ninguno");
+});
+
+test("v477 · H-01: el stop que pone el bot al abrir SÍ queda apuntado como suyo (y al cerrar la posición se cancela)", async () => {
+  const W = mundo({ quiere: [{ c: "ETH", dir: 1 }] }); conecta(W); await silencio(() => HL.ronda());
+  const S = await estadoDe(W); assert.equal(W.stops.length, 1); assert.deepEqual(S.misStops, [W.stops[0].oid]);
+  W.pos = {}; W.quiere = []; await otraHora(W); assert.equal(W.stops.length, 0, "huérfano del bot: cancelado");
+});
+
+test("v477 · H-07: una posición que el bot no tiene apuntada (p. ej. abierta a mano) NO se adopta: ni stop, ni cierre por tiempo; ocupa plaza y se avisa una vez", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: -0.1, edadH: 500 }], quiere: [{ c: "ETH", dir: 1 }], ctl: { estado: "on", uso: 100, plazas: 1, freno: 0.35, puesto: 1 }, eq: 30, neto: 30 });
+  W.estadoIni = { pm: {}, misStops: [] };   // el bot tiene su estado, pero BTC no es suya
+  conecta(W); await silencio(() => HL.ronda());
+  assert.ok(!W.ordenes.some((o) => o.c === "BTC"), "ni stop ni cierre en BTC: " + JSON.stringify(W.ordenes));
+  assert.equal(aperturas(W).length, 0, "BTC ocupa la única plaza: no abre ETH");
+  assert.equal(W.avisos.filter((t) => /no ha abierto/.test(t)).length, 2, "aviso de la posición y de que está sin stop");
+  await otraHora(W); assert.ok(!W.ordenes.some((o) => o.c === "BTC")); assert.equal(W.avisos.filter((t) => /no ha abierto/.test(t)).length, 2, "no repite avisos");
+  // si vuelves a guardar los ajustes después del aviso, la da por suya (y le pone su stop)
+  W.ctl = { ...W.ctl, t: new Date(Date.now() + 60e3).toISOString() }; await otraHora(W);
+  assert.ok(W.ordenes.some((o) => o.c === "BTC"), "ahora sí la gestiona");
+});
+
+test("v477 · H-07: si la ronda anterior se cortó al abrir, la posición abierta en esa ronda SÍ es del bot (y su stop también)", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: -0.1, edadH: 1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108 }] });
+  W.estadoIni = { pm: {}, misStops: [], preApertura: 1, t: new Date(Date.now() - 1.5 * H).toISOString() };
+  conecta(W); await silencio(() => HL.ronda());
+  assert.ok(!W.avisos.some((t) => /no ha abierto/.test(t)), "es suya: sin aviso"); const S = await estadoDe(W);
+  assert.ok(S.pm.BTC, "adoptada"); assert.deepEqual(S.misStops, [W.stops[0].oid], "y su stop, apuntado");
+});
+
+test("v477 · H-06: un cierre que solo se ejecuta EN PARTE no cuenta como cerrado (no libera plaza ni dinero) y se avisa", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: 0.2, edadH: 200 }], stops: [{ c: "BTC", side: "A", sz: 0.2, trig: 92 }], quiere: [{ c: "ETH", dir: 1 }], ctl: { estado: "on", uso: 100, plazas: 1, freno: 0.35, puesto: 1 }, eq: 30, neto: 30 });
+  W.estadoIni.misStops = [1]; W.cierreParcial = 0.4; conecta(W); await silencio(() => HL.ronda());
+  assert.ok(Math.abs(W.pos.BTC.szi - 0.12) < 1e-9, "queda el 60 %"); const S = await estadoDe(W);
+  assert.ok(!S.ops.some((o) => o.x === "cierra"), "no se apunta como cerrada"); assert.equal(aperturas(W).length, 0, "la plaza sigue ocupada");
+  assert.ok(W.avisos.some((t) => /solo se ha cerrado una parte \(40 %\)/.test(t)));
+  W.cierreParcial = 0; await otraHora(W); assert.ok(!W.pos.BTC, "en la ronda siguiente termina de cerrarla");
+});
+
+test("v477 · H-10: se apunta cuánto se movió el precio desde el cierre de la vela de la señal hasta la compra", async () => {
+  const W = mundo({ quiere: [{ c: "ETH", dir: 1, px0: 9.9 }] }); conecta(W); await silencio(() => HL.ronda());
+  const S = await estadoDe(W), s = S.slip.find((x) => x.x === "señal"); assert.ok(s, JSON.stringify(S.slip)); assert.ok(Math.abs(s.d - (10 / 9.9 - 1) * 100) < 1e-3, "≈ 1,01 % peor");
+});

@@ -175,7 +175,10 @@ export async function limpiaMarcasFreno(hasta) { if (!TOKEN) return false;   /* 
 let SLIPS = null;
 export function deslizamiento(compra, mid, px) { if (!(mid > 0) || !(px > 0)) return null; return +((compra ? px / mid - 1 : 1 - px / mid) * 100).toFixed(4); }
 const anotaSlip = (x, compra, mid, px) => { const d = deslizamiento(compra, mid, px); if (d != null && SLIPS) { SLIPS.push({ t: new Date().toISOString(), x, d }); if (SLIPS.length > 300) SLIPS.splice(0, SLIPS.length - 300); } };
-async function cierraUna(p, I, mids, PK, holgura = SLIP) { try { const lado = +p.szi > 0, mid = +mids[p.coin] || +p.entryPx; const r = await mandar(orden(I.a, !lado, precioOk(mid * (lado ? 1 - holgura : 1 + holgura), I.szd), Math.abs(+p.szi), true), PK); if (r.ok && +mids[p.coin] > 0) anotaSlip("cierra", !lado, +mids[p.coin], r.px); return r; } catch (e) { return { ok: false, err: String(e.message).slice(0, 80) }; } }
+async function cierraUna(p, I, mids, PK, holgura = SLIP) { try { const lado = +p.szi > 0, mid = +mids[p.coin] || +p.entryPx; const pide = Math.abs(+p.szi), r = await mandar(orden(I.a, !lado, precioOk(mid * (lado ? 1 - holgura : 1 + holgura), I.szd), pide, true), PK); if (r.ok && +mids[p.coin] > 0) anotaSlip("cierra", !lado, +mids[p.coin], r.px);
+    // v477 · 🧩 CIERRE PARCIAL: la orden de cierre es «inmediata o se cancela»; si solo se vende una parte, NO cuenta como cerrada (no libera plaza ni dinero)
+    if (r.ok && !(r.sz >= pide * 0.999)) return { ok: false, parcial: true, px: r.px, sz: r.sz, err: `solo se ha cerrado una parte (${Math.round((r.sz / pide) * 100)} %); el resto sigue abierto con su stop y se reintenta en la próxima ronda` };
+    return r; } catch (e) { return { ok: false, err: String(e.message).slice(0, 80) }; } }
 // v460 · señales de la última vela cerrada para el método (separado para poder probar el resto sin datos de mercado)
 async function senalesVivas(M0, idx) { const g = M0.x.g, D = await datosVivos(M0.U.filter((c) => idx.has(c)));
   if (!D.M.BTC) return { err: "Sin datos de BTC; no abro nada esta hora." };
@@ -184,7 +187,7 @@ async function senalesVivas(M0, idx) { const g = M0.x.g, D = await datosVivos(M0
   const n = D.T.length, i = n - 1, X = { btcUp: null, up: {}, vol: {}, volMed: {} }; { const e = ema(D.M.BTC.C, 200); X.btcUp = Uint8Array.from(D.M.BTC.C, (c, k) => (c > e[k] ? 1 : 0)); for (const c of D.U) { const e2 = ema(D.M[c].C, 100); X.up[c] = Uint8Array.from(D.M[c].C, (x, k) => (x > e2[k] ? 1 : 0)); X.vol[c] = atr(D.M[c], 24); const s = [...X.vol[c]].filter(Number.isFinite).sort((p, q) => p - q); X.volMed[c] = s[Math.floor(s.length / 2)]; } }
   const filtro = FILTROS[g.f] || FILTROS["sin filtro"], quiere = [];
   for (const c of D.U) { if (!D.M[c].ultima) continue; let a, b = null; try { a = A.fn(D.M[c], D.T, D.M.BTC); if (B) b = B.fn(D.M[c], D.T, D.M.BTC); } catch (e) { continue; }
-    const dir = a[i]; if (!dir) continue; if (b) { let ok = false; for (let k = 0; k < 6 && !ok; k++) if (b[i - k] === dir) ok = true; if (!ok) continue; } if (!filtro(dir, i, X, c)) continue; quiere.push({ c, dir }); }
+    const dir = a[i]; if (!dir) continue; if (b) { let ok = false; for (let k = 0; k < 6 && !ok; k++) if (b[i - k] === dir) ok = true; if (!ok) continue; } if (!filtro(dir, i, X, c)) continue; quiere.push({ c, dir, px0: +D.M[c].C[i] || 0 }); }
   return { quiere }; }
 
 export async function ronda() {
@@ -225,7 +228,15 @@ export async function ronda() {
   const reArm = (iso) => lc.ok && CTL.t && Date.parse(CTL.t) > Date.parse(iso);
   const recon = !estadoOk || !pos.length ? null : LA.nuevo ? new Date().toISOString() : prev && prev.reconciliar && !reArm(prev.reconciliar) ? prev.reconciliar : null;
   if (recon) { log("Hyperliquid real: hay posiciones abiertas pero no hay estado guardado del bot. No las adopto, no abro nada y no las cierro por tiempo hasta que lo revises."); if (LA.nuevo) await aviso("⚠️ Hyperliquid: hay posiciones abiertas en la cuenta pero el bot no tiene su estado guardado (se ha borrado o es la primera vez). No las toco (siguen con su stop), no abro nada y no las cierro por tiempo. Revísalas en app.hyperliquid.xyz y, cuando estén como quieras, vuelve a guardar los ajustes de Hyperliquid en la app: entonces el bot las gestionará con su método."); }
-  if (!recon) for (const p of pos) if (!pm[p.coin] && estadoOk) pm[p.coin] = { h, sl: M0 && M0.x && M0.x.g ? M0.x.g.sl || 0 : 0, k: M0 && M0.x ? M0.x.k : null };
+  // v477 · 🔑 POSICIONES QUE EL BOT NO TIENE APUNTADAS (con su estado bien leído): ya NO se adoptan solas. Solo son suyas si la ronda anterior se cortó
+  //   justo al abrir (dejó el estado «antes de abrir») y la posición se abrió en esa ronda. Cualquier otra (p. ej. una que abras tú a mano) no se toca:
+  //   no se le cambia el stop ni se cierra por tiempo; ocupa plaza y cuenta como dinero usado, y se avisa una vez. Si vuelves a guardar los ajustes
+  //   de Hyperliquid después del aviso, el bot la da por suya.
+  const ajenasPrev = (prev && prev.ajenasPos) || {}, ajenasPos = {}, nuevosBot = new Set();
+  if (!recon) for (const p of pos) if (!pm[p.coin] && estadoOk) {
+    const t = fillsOk ? abierta(p.coin) : null, suya = !!(prev && prev.preApertura && prev.t && t && t >= Date.parse(prev.t) - 60e3), desde = ajenasPrev[p.coin] || new Date().toISOString();
+    if (suya || reArm(desde)) { pm[p.coin] = { h, sl: M0 && M0.x && M0.x.g ? M0.x.g.sl || 0 : 0, k: M0 && M0.x ? M0.x.k : null }; if (suya) nuevosBot.add(p.coin); }
+    else ajenasPos[p.coin] = desde; }
   // v465 · cada posición guarda la HORA DE APERTURA confirmada; si falta, se toma del historial (solo si se ha podido leer)
   for (const p of pos) if (pm[p.coin] && !pm[p.coin].t0 && fillsOk) { const t = abierta(p.coin); if (t) pm[p.coin].t0 = t; }
   for (const c of Object.keys(pm)) if (!pos.some((p) => p.coin === c)) delete pm[c];
@@ -236,7 +247,9 @@ export async function ronda() {
     else if (ag && !a) { log("⚠️ La clave del bot no aparece entre los agentes autorizados de tu cuenta."); if (new Date().getUTCMinutes() < 10) await aviso("🔑 Hyperliquid: la clave del bot ya no está autorizada en tu cuenta (caducada o borrada). El bot no puede operar: crea otra en app.hyperliquid.xyz/API y pégala en la app (HL_AGENT_KEY)."); } } catch (e) {}
   if (netoMal) { log("Lo ingresado neto en Hyperliquid no es positivo: el freno no tiene una base fiable y esta hora no abro nada."); if (!(prev && prev.netoMal)) await aviso("⚠️ Hyperliquid: según el historial, lo ingresado neto (ingresos − retiradas) no es positivo, así que el freno no puede calcularse. No abriré operaciones nuevas hasta que vuelva a serlo; lo abierto sigue con su stop."); }
   const FM = await marcasFreno(); if (!FM.ok) log("No he podido leer la marca del freno: esta hora no abro nada.");
-  const hechos = [], estado = { agenteHasta, slip: Array.isArray(prev && prev.slip) ? prev.slip.slice(-300) : [], misStops: Array.isArray(prev && prev.misStops) ? prev.misStops : undefined, reconciliar: recon || undefined, netoMal: netoMal ? 1 : undefined, w: yo, ctl: lc.ok ? CTL : prevCtl || CTL, ctlNoLeido: lc.ok ? undefined : 1, t: new Date().toISOString(), eq, neto, metodo: M0 && M0.x ? M0.x.n : null, ops: [], pm };
+  const hechos = [], estado = { ajenasPos: Object.keys(ajenasPos).length ? ajenasPos : undefined, agenteHasta, slip: Array.isArray(prev && prev.slip) ? prev.slip.slice(-300) : [], misStops: Array.isArray(prev && prev.misStops) ? prev.misStops : undefined, reconciliar: recon || undefined, netoMal: netoMal ? 1 : undefined, w: yo, ctl: lc.ok ? CTL : prevCtl || CTL, ctlNoLeido: lc.ok ? undefined : 1, t: new Date().toISOString(), eq, neto, metodo: M0 && M0.x ? M0.x.n : null, ops: [], pm };
+  { const nuevas = Object.keys(ajenasPos).filter((c) => !ajenasPrev[c]); if (Object.keys(ajenasPos).length) log(`Posiciones que el bot no tiene apuntadas: ${Object.keys(ajenasPos).length} (no las toco).`);
+    if (nuevas.length) await aviso(`ℹ️ Hyperliquid: hay ${nuevas.length === 1 ? "una posición" : nuevas.length + " posiciones"} en la cuenta que el bot no ha abierto (${nuevas.join(", ")}). No ${nuevas.length === 1 ? "la" : "las"} toco: ni stop ni cierre por tiempo, y ocupa${nuevas.length === 1 ? "" : "n"} plaza. Si es del bot, vuelve a guardar los ajustes de Hyperliquid en la app y la gestionará.`); }
   log(`Hyperliquid real: ${pos.length} posiciones abiertas · ${CTL.estado === "on" ? "activo" : CTL.estado === "pausa" ? "en pausa (no abre nuevas)" : "parado (cierra todo)"} · método ${M0 && M0.x ? "n.º " + CTL.puesto + " del podio" : "no disponible"}`);
 
   // 1) freno: la cuenta ha caído por debajo de lo ingresado menos el freno → cerrar todo y no abrir
@@ -286,7 +299,7 @@ export async function ronda() {
           const expo = pos.filter((p) => !estado.ops.some((o) => o.c === p.coin && o.x === "cierra")).reduce((a, p) => a + Math.abs(+p.szi) * (+mids[p.coin] || +p.entryPx || 0), 0) + estado.ops.filter((o) => o.x === "abre").reduce((a, o) => a + (o.v || 0), 0);
           if (expo + sz * mid > Math.min(uso, eq)) { log("Tope de exposición: con esta orden se pasaría del dinero que se usa; no la abro."); continue; }
           const r = await mandar(orden(I.a, q.dir > 0, precioOk(mid * (q.dir > 0 ? 1 + SLIP_ABRE : 1 - SLIP_ABRE), I.szd), sz, false), PK);
-          if (r.ok) { pm[q.c] = { h: g.h, sl: g.sl || 0, k: M0.x.k, t0: Date.now() }; anotaSlip("abre", q.dir > 0, mid, r.px); }
+          if (r.ok) { pm[q.c] = { h: g.h, sl: g.sl || 0, k: M0.x.k, t0: Date.now() }; nuevosBot.add(q.c); anotaSlip("abre", q.dir > 0, mid, r.px); if (q.px0 > 0) anotaSlip("señal", q.dir > 0, q.px0, r.px); }   // v477 · ⏱️ y cuánto se ha movido el precio desde el cierre de la vela de la señal (el laboratorio entra a ese precio)
           // v459 · 🛡️ una posición NUNCA se queda sin su stop: si no se puede poner, se reintenta al momento y, si vuelve a fallar, se cierra ya
           if (r.ok) { const dS = g.sl > 0 ? g.sl : STOP_EMERG; let okS = false; for (let z = 0; z < 2 && !okS; z++) { try { okS = await ponStop(I.a, q.dir, r.px, r.sz, I.szd, PK, dS); } catch (e) { okS = false; } if (!okS) await deps.espera(2500); }
             if (!okS) { const mid2 = +((await info({ type: "allMids" }).catch(() => ({})))[q.c]) || r.px, rc = await cierraUna({ coin: q.c, szi: q.dir * r.sz, entryPx: r.px }, I, { [q.c]: mid2 }, PK);
@@ -311,13 +324,18 @@ export async function ronda() {
     if (raras.length && !(prev && prev.raras === raras.length)) { log(`Órdenes condicionales de tipo desconocido: ${raras.length} (no las toco).`); await aviso(`⚠️ Hyperliquid: hay ${raras.length} orden${raras.length === 1 ? "" : "es"} condicional${raras.length === 1 ? "" : "es"} de un tipo que el bot no conoce. No la${raras.length === 1 ? "" : "s"} toco: revísala${raras.length === 1 ? "" : "s"} en app.hyperliquid.xyz → Open Orders.`); }
     // v476 · 🔑 PROPIEDAD: el bot solo cancela stops que son SUYOS: los que apuntó en rondas anteriores (estado cifrado, «misStops») o los de las posiciones
     //   que él gestiona. Un stop tuyo en una cripto sin posición del bot (o en una posición que no es del bot) NO se toca nunca: se avisa una vez.
-    const mios = new Set(Array.isArray(prev && prev.misStops) ? prev.misStops : []), gest = (c) => !!pm[c] && ab.some((p) => p.coin === c), esMio = (o) => mios.has(o.oid) || gest(o.coin);
+    // v477 · ya NO basta con que la cripto sea del bot: un stop es suyo si lo tiene apuntado, o si es de una posición que el bot acaba de abrir en esta ronda.
+    //   (Solo la primera vez, si aún no había nada apuntado —estado de antes de la v476—, se dan por suyos los de sus posiciones, para no tocar los que ya había.)
+    const sinApuntar = !(prev && Array.isArray(prev.misStops)), mios = new Set(sinApuntar ? [] : prev.misStops), gest = (c) => !!pm[c] && ab.some((p) => p.coin === c),
+      ooIds = new Set(oo.map((o) => o.oid)), esMio = (o) => mios.has(o.oid) || nuevosBot.has(o.coin) || (sinApuntar && gest(o.coin));
     const ajenos = oo.filter((o) => esStop(o) && !esMio(o)); estado.ajenos = ajenos.length || undefined;
     if (ajenos.length && !(prev && prev.ajenos === ajenos.length)) { log(`Stops que no son del bot: ${ajenos.length} (no los toco).`); await aviso(`ℹ️ Hyperliquid: hay ${ajenos.length} stop${ajenos.length === 1 ? "" : "s"} que no ha puesto el bot. No ${ajenos.length === 1 ? "lo" : "los"} toco. Si no ${ajenos.length === 1 ? "es tuyo" : "son tuyos"}, revísa${ajenos.length === 1 ? "lo" : "los"} en app.hyperliquid.xyz → Open Orders.`); }
     const canc = oo.filter((o) => esStop(o) && mios.has(o.oid) && !ab.some((p) => p.coin === o.coin) && idx.has(o.coin)).map((o) => ({ a: idx.get(o.coin).a, o: o.oid })), quitar = [...canc];   // v466 · todo lo que se cancela se comprueba después
     if (canc.length) await exchange({ type: "cancel", cancels: canc }, PK).catch(() => {});
     // v456 · el stop de cada posición va donde dice SU método (p. ej. −8 %), igual que en la prueba; si el método no tiene stop, el de emergencia (−25 %)
-    for (const p of ab) { const I = idx.get(p.coin); if (!I) continue; const lado = +p.szi > 0 ? 1 : -1, ent = +p.entryPx, dist = pm[p.coin] && pm[p.coin].sl > 0 ? pm[p.coin].sl : STOP_EMERG, want = ent * (lado > 0 ? 1 - dist : 1 + dist);
+    for (const p of ab) { const I = idx.get(p.coin); if (!I) continue;
+      if (ajenasPos[p.coin]) { if (!oo.some((o) => o.coin === p.coin && esStop(o)) && !(prev && prev.ajenasPos && prev.ajenasPos[p.coin])) await aviso(`⚠️ Hyperliquid: la posición de ${p.coin} que no ha abierto el bot está SIN stop. No la toco: revísala en app.hyperliquid.xyz.`); continue; }   // v477 · no es del bot: no se toca
+      const lado = +p.szi > 0 ? 1 : -1, ent = +p.entryPx, dist = pm[p.coin] && pm[p.coin].sl > 0 ? pm[p.coin].sl : STOP_EMERG, want = ent * (lado > 0 ? 1 - dist : 1 + dist);
       // v459 · el stop tiene que estar bien en TODO: precio, lado (vende si es largo, compra si es corto) y cantidad (cubre toda la posición)
       const sts = oo.filter((o) => o.coin === p.coin && esStop(o)), tam = Math.abs(+p.szi), ladoOk = (o) => (lado > 0 ? o.side === "A" : o.side === "B"), tamOk2 = (o) => { const z = +(o.sz ?? o.origSz); return z > 0 && z >= tam * 0.999; }, soloCierra = (o) => o.reduceOnly === true;   // v466 · y tiene que ser «solo cerrar» (nunca puede abrir una posición al revés)   // v465 · sin lado o sin cantidad = NO verificado
       // v467 · se revisa la lista ENTERA de órdenes de esa cripto: se queda UN stop válido y todas las demás (malas o sobrantes) se cancelan y se comprueba.
@@ -338,7 +356,7 @@ export async function ronda() {
         hechos.push(`🚨 ${p.coin}: ${sts.length ? "su stop no era correcto" : "estaba sin stop"} y no he podido poner el bueno, así que ${que}`); if (sigue !== false) await aviso(`🚨 Hyperliquid: ${p.coin} ${sigue ? "está abierta sin un stop correcto y no he podido cerrarla. Ciérrala a mano." : "puede seguir abierta sin un stop correcto (no he podido comprobarlo). Revísala en Hyperliquid."}`); } }
     // v476 · se apuntan los stops del bot que quedan (los de sus posiciones, incluidos los que acaba de poner, y los suyos de antes que sigan vivos)
     try { const ab2 = ((await info({ type: "clearinghouseState", user: yo })).assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0), oo2 = (await info({ type: "frontendOpenOrders", user: yo })) || [];
-      estado.misStops = oo2.filter((o) => esStop(o) && (mios.has(o.oid) || (!!pm[o.coin] && ab2.some((p) => p.coin === o.coin)))).map((o) => o.oid); } catch (e) { estado.misStops = [...mios]; }
+      estado.misStops = oo2.filter((o) => esStop(o) && (esMio(o) || (!ooIds.has(o.oid) && !!pm[o.coin] && ab2.some((p) => p.coin === o.coin)))).map((o) => o.oid); }   /* v477 · los suyos de antes + los que ha puesto en esta ronda */ catch (e) { estado.misStops = [...mios]; }
     // v466 · ✅ las cancelaciones se COMPRUEBAN: se vuelve a pedir la lista de órdenes; si alguna sigue viva se reintenta una vez y, si sigue, se avisa (stop duplicado)
     if (quitar.length) { const vivas = async () => { const o2 = (await info({ type: "frontendOpenOrders", user: yo })) || []; return quitar.filter((x) => o2.some((o) => o.oid === x.o)); };
       let v = null; try { v = await vivas(); if (v.length) { await exchange({ type: "cancel", cancels: v }, PK).catch(() => {}); await deps.espera(2000); v = await vivas(); } } catch (e) { v = null; }

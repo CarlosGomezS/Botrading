@@ -390,22 +390,35 @@ export function applyFill(R, side, t, q, eurAmt, meta = {}) {
   return { coste: cost, pnl };
 }
 // órdenes del bot que quedaron pendientes (bolsa cerrada, festivo…): se mira cómo acabaron y se apuntan
-async function reconcile(T, R, rep) {
-  const keep = [];
+// v477 · 🔒 NUNCA SE DESBLOQUEA POR TIEMPO: una orden cuyo resultado no se puede aclarar sigue bloqueando su activo (para no duplicarla).
+//   Pasados 3 días te avisa (una vez al día) y solo se libera cuando TÚ vuelves a guardar los ajustes después del primer aviso
+//   (es tu forma de decir «lo he revisado en Trading 212»). El historial se busca en varias páginas, no solo en las últimas 20 órdenes.
+const HIST_PAG = 4;
+async function historial(T, t) { const u = `/equity/history/orders?ticker=${encodeURIComponent(t)}&limit=50`; return T.pages ? await T.pages(u, HIST_PAG) : (((await T.call("GET", u)) || {}).items || []); }
+export async function reconcile(T, R, rep, { savedAt = null, ahora = Date.now() } = {}) {
+  const keep = [], avisos = [], hoy = new Date(ahora).toISOString().slice(0, 10), guardado = savedAt ? Date.parse(savedAt) : NaN;
+  // atasco: la orden sigue sin aclararse → se mantiene (bloqueando) salvo que la hayas liberado guardando los ajustes tras el primer aviso
+  const atasco = (o, txt) => {
+    if (ahora - Date.parse(o.ts) < 3 * 864e5) { keep.push(o); rep.push(`- ⏳ ${o.side} ${o.t}: ${txt}; ${o.t} sigue bloqueado para no duplicar la orden.`); return; }
+    if (o.av1 && Number.isFinite(guardado) && guardado > Date.parse(o.av1)) { rep.push(`- 🔓 ${o.side} ${o.t}: ${txt}. Has vuelto a guardar los ajustes después del aviso: se da por revisada y ${o.t} se desbloquea.`); return; }
+    if (!o.av1) o.av1 = new Date(ahora).toISOString();
+    if (o.avD !== hoy) { o.avD = hoy; avisos.push(`${o.side} ${o.t}: ${txt} desde ${String(o.ts).slice(0, 10)}.`); }
+    keep.push(o); rep.push(`- ⚠️ ${o.side} ${o.t}: ${txt} (más de 3 días). Sigue bloqueado: revísalo en Trading 212 y, cuando lo tengas claro, vuelve a guardar los ajustes para liberarlo.`);
+  };
   for (const o of R.pendBot || []) {
     // v476 · orden de resultado desconocido (sin id): se busca en el historial una NUESTRA (mismo activo, lado, cantidad, creada tras enviarla)
-    if (!o.id) { let f = null; try { const h = await T.call("GET", `/equity/history/orders?ticker=${encodeURIComponent(o.t)}&limit=20`); f = ((h && h.items) || []).find((x) => x.order && esNuestra(x.order, o.qq, Date.parse(o.ts))); } catch { keep.push(o); continue; }
+    if (!o.id) { let f = null; try { f = (await historial(T, o.t)).find((x) => x.order && esNuestra(x.order, o.qq, Date.parse(o.ts))); } catch { keep.push(o); continue; }
       if (!f) { try { const act = await T.call("GET", "/equity/orders"); const a2 = (act || []).find((x) => (x.ticker || (x.instrument && x.instrument.ticker)) === o.t && esNuestra(x, o.qq, Date.parse(o.ts))); if (a2) f = { order: a2 }; } catch { keep.push(o); continue; } }
-      if (!f) { if (Date.now() - Date.parse(o.ts) < 3 * 864e5) { keep.push(o); rep.push(`- ⏳ ${o.side} ${o.t}: su resultado sigue sin aclararse; ${o.t} sigue bloqueado para no duplicar la orden.`); } else rep.push(`- ⚠️ La orden ${o.side} ${o.t} de resultado desconocido no ha aparecido en 3 días: se da por NO hecha y se desbloquea (revisa la app de Trading 212).`); continue; }
+      if (!f) { atasco(o, "su resultado sigue sin aclararse (no aparece en Trading 212)"); continue; }
       o.id = f.order.id; rep.push(`- 🔎 La orden ${o.side} ${o.t} de resultado desconocido SÍ existe en Trading 212: se apunta.`); }
     let still = false;
     try { const x = await T.call("GET", "/equity/orders/" + o.id); if (x && !/FILLED|CANCEL|REJECT/.test(String(x.status))) still = true; } catch (e) { if (e.st !== 404) still = true; }
-    if (still) { if (Date.now() - Date.parse(o.ts) < 10 * 864e5) keep.push(o); else rep.push(`- ⚠️ La orden ${o.side} ${o.t} lleva más de 10 días pendiente: revísala en Trading 212.`); continue; }
+    if (still) { if (ahora - Date.parse(o.ts) < 10 * 864e5) keep.push(o); else atasco(o, "lleva más de 10 días pendiente en Trading 212"); continue; }
     let it = null;
-    try { const h = await T.call("GET", `/equity/history/orders?ticker=${encodeURIComponent(o.t)}&limit=20`); it = ((h && h.items) || []).find((x) => x.order && String(x.order.id) === String(o.id)); } catch { keep.push(o); continue; }
+    try { it = (await historial(T, o.t)).find((x) => x.order && String(x.order.id) === String(o.id)); } catch { keep.push(o); continue; }
     const rec = (R.orders || []).find((x) => String(x.id) === String(o.id));
     const fqP = Math.abs(+(it && it.order.filledQuantity) || 0);   // v459 · solo lo que Trading 212 confirma como ejecutado
-    if (it && /FILLED/.test(String(it.order.status)) && !(fqP > 0)) { if (Date.now() - Date.parse(o.ts) < 3 * 864e5) keep.push(o); else rep.push(`- ⚠️ La orden ${o.side} ${o.t} figura como ejecutada pero sin cantidad: revísala en Trading 212.`); continue; }
+    if (it && /FILLED/.test(String(it.order.status)) && !(fqP > 0)) { atasco(o, "figura como ejecutada pero sin cantidad"); continue; }
     if (it && (/FILLED/.test(String(it.order.status)) || fqP > 0)) {
       const q = fqP, net = it.fill && it.fill.walletImpact ? Math.abs(+it.fill.walletImpact.netValue) : o.eur, px = it.fill && it.fill.price;
       const r = applyFill(R, o.side, o.t, q, net, { px, id: o.id, d: String(it.fill && it.fill.filledAt || "").slice(0, 10), why: "orden pendiente que se ejecutó después" });
@@ -414,10 +427,10 @@ async function reconcile(T, R, rep) {
     } else if (it) {
       if (rec) Object.assign(rec, { estado: "rechazada", err: "Trading 212: " + it.order.status });
       rep.push(`- ✖ La orden pendiente ${o.side} ${o.t} terminó como ${it.order.status}: no se ejecutó.`);
-    } else if (Date.now() - Date.parse(o.ts) < 3 * 864e5) keep.push(o);
-    else { if (rec) Object.assign(rec, { estado: "desconocida", err: "no aparece en el historial de Trading 212" }); rep.push(`- ⚠️ No encuentro la orden ${o.side} ${o.t} en el historial de Trading 212: revísala en la app.`); }
+    } else { if (ahora - Date.parse(o.ts) >= 3 * 864e5 && rec) Object.assign(rec, { estado: "desconocida", err: "no aparece en el historial de Trading 212" }); atasco(o, "no aparece en el historial de Trading 212"); }
   }
   R.pendBot = keep;
+  return avisos;
 }
 // ¿está abierta la bolsa europea? (las órdenes de ETFs europeos solo se envían de 9:05 a 17:20, hora de España)
 // festivos en los que Xetra (Fráncfort) no abre: 1 ene, Viernes Santo, Lunes de Pascua, 1 may, 24, 25, 26 y 31 dic
@@ -1020,7 +1033,7 @@ async function main() {
     // subcuenta del bot: primero se miran las órdenes que quedaron pendientes, después el capital y las participaciones
     const notasL = [];
     ensureLedger(R, A, positions, m, notasL);
-    if ((R.pendBot || []).length) { rep.push("## Órdenes que estaban pendientes", ""); await reconcile(T, R, rep); rep.push(""); try { positions = (await T.call("GET", "/equity/positions")) || positions; } catch {} }
+    if ((R.pendBot || []).length) { rep.push("## Órdenes que estaban pendientes", ""); const avR = await reconcile(T, R, rep, { savedAt: LC && LC.savedAt }); if (avR.length) await avisa("⚠️ Trading 212: orden sin aclarar", avR.join("\n") + "\n\nEse activo sigue bloqueado para no duplicar la orden. Revísalo en la app de Trading 212 y, cuando lo tengas claro, vuelve a guardar los ajustes de la cartera real para liberarlo.", { prio: 4 }); rep.push(""); try { positions = (await T.call("GET", "/equity/positions")) || positions; } catch {} }
     syncLots(R, positions, m, notasL);
     // v449 · 💶 CUADRE DEL EFECTIVO: el efectivo del bot nunca puede ser mayor que el de la cuenta. Si lo es y en la cuenta hay participaciones
     // de SUS fondos sin apuntar (una compra suya que no llegó a anotarse: respuesta perdida, orden que se ejecutó más tarde…), son del bot.
@@ -1223,7 +1236,10 @@ async function main() {
         // si el nuevo es MUCHO mejor (≥4 puntos al año más que el tuyo), basta con 30 días desde el último cambio
         const lastCh = Math.max(0, R.metOv && R.metOv.ts ? Date.parse(R.metOv.ts) : 0, ...((R.metHist || []).slice(1).map((h) => Date.parse(h.d || "") || 0)));
         const anCur = b && b.S && b.S.labAn ? b.S.labAn[flojo] : null, muchoMejor = sg && sg.an != null && anCur != null && sg.an - anCur >= 0.04;
-        const busy = auto ? (P && P.k === (sg && sg.k) && P.estado === "pendiente" && sg.needAcc) : (lastCh && now - lastCh < (muchoMejor || (sg && sg.inv) ? 30 : 90) * 864e5) || (P && P.k === (sg && sg.k) && (P.estado === "pendiente" || (P.estado === "rechazada" && now - Date.parse(P.fin || P.ts) < 60 * 864e5)));
+        // v477 · ⏱️ el freno de tiempo entre cambios (90 días, o 30 si el nuevo es mucho mejor) vale TAMBIÉN en modo automático (antes se lo saltaba)
+        const frenoT = !!(lastCh && now - lastCh < (muchoMejor || (sg && sg.inv) ? 30 : 90) * 864e5);
+        if (auto && sg && frenoT) rep.push("", `⏱️ Hay un método mejor en el laboratorio, pero el último cambio fue hace ${Math.floor((now - lastCh) / 864e5)} días: como mucho un cambio cada ${muchoMejor || sg.inv ? 30 : 90} días. Se mantiene el actual.`);
+        const busy = auto ? frenoT || (P && P.k === (sg && sg.k) && P.estado === "pendiente" && sg.needAcc) : frenoT || (P && P.k === (sg && sg.k) && (P.estado === "pendiente" || (P.estado === "rechazada" && now - Date.parse(P.fin || P.ts) < 60 * 864e5)));
         // v471 · el método actual ya no aprueba y todavía no hay ninguno con 30 días aprobado: se mantiene el actual y se avisa (una vez)
         if (auto && !sg && b && b.S && sinProbados(b.S, flojo)) { if (!R.sinProbados) { R.sinProbados = now.toISOString(); const t = `Tu método actual «${nombreDe(b.S, flojo)}» hoy no aprueba el examen del laboratorio, pero todavía no hay ningún otro de ETF con 30 días seguidos aprobado. Lo mantengo hasta que lo haya.`; rep.push("", "## ⚠️ Método actual sin aprobar", "", t); await avisa("⚠️ Cartera real: tu método ya no aprueba", t, { prio: 3 }); } } else if (R.sinProbados) delete R.sinProbados;
         if (sg && !busy) {

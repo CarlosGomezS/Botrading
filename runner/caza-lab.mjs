@@ -46,6 +46,14 @@ async function ideas(prev) {
 }
 // v466 · 16 tramos al azar de 30 a 180 días entre la hora 260 y el corte (la mitad acaban justo en el corte); NUNCA entran en los 90 días ocultos
 export function calidadIS(x, corte) { const z = x && x.is; if (!z || !Number.isFinite(+z.ret)) return -9; const an = Math.pow(Math.max(0.0001, 1 + z.ret), 365 / Math.max(30, (corte - 260) / 24)) - 1; return an - 0.8 * Math.abs(z.dd || 0); }
+// v477 · 🧊 CUARENTENA CON EXIGENCIA PROPIA (no solo un reloj de 21 días): además de ganar, tiene que
+//   · operar a un ritmo parecido al suyo: al menos el 40 % de las operaciones que haría a su ritmo histórico (mínimo 8, o 4 si es de los lentos)
+//   · ganar más de lo que pierde: factor de beneficio ≥ 1,1
+//   · no caer más que en su peor caída histórica (con un suelo del 10 %)
+export const CUAR_DIAS = 21, CUAR_RITMO = 0.4, CUAR_PF = 1.1;
+export function minCuar(g, is, dias) { const base = g && g.h >= 48 ? 4 : 8, od = is && Number.isFinite(+is.opsDia) ? +is.opsDia : 0; return Math.max(base, Math.round(CUAR_RITMO * od * Math.max(CUAR_DIAS, dias || 0))); }
+export function ddMaxCuar(is) { return +Math.max(0.1, Math.abs(+(is && is.dd) || 0)).toFixed(4); }
+export function cuarPasa(dias, z, min, ddMax) { return !!(z && dias >= CUAR_DIAS && z.n >= min && z.ret > 0 && +z.pf >= CUAR_PF && Math.abs(+z.dd || 0) <= ddMax); }
 export function tramosAlAzar(corte) { const T = []; for (let q = 0; q < 16; q++) { const len = Math.max(24, Math.min(Math.round((30 + Math.random() * 150) * 24), corte - 260 - 24)), fin = q < 8 ? corte : 260 + len + Math.floor(Math.random() * Math.max(1, corte - 260 - len)); T.push([Math.max(260, fin - len), Math.min(fin, corte)]); } return T; }
 export async function lab(log = console.log) {
   const M0 = (await memoria()) || {};
@@ -124,8 +132,8 @@ export async function lab(log = console.log) {
   mem.casi = mem.casi.sort((a, b) => b.nota - a.nota).filter((x, i, A) => A.findIndex((y) => y.n === x.n) === i).slice(0, 60);
   // las aprobadas se vuelven a examinar cada ronda con los datos nuevos: si dejan de aprobar, salen del podio
   mem.aprobadas = mem.aprobadas.filter((x) => { const g2 = fixG(x.g); if (!g2 || !S[g2.a]) return false; x.g = g2; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2, is: { ret: r.is.ret, dd: r.is.dd, pf: r.is.pf, opsDia: r.is.opsDia } });
-    try { const t0 = Date.parse(x.desde), i0 = T.findIndex((t) => t >= t0), dias = (Date.now() - t0) / 864e5, z = i0 >= 0 && i0 < n - 1 ? cartera(r.ops, M, i0, n - 1, 5, x.g.sl) : { n: 0, ret: 0, pf: 0 }, min = lento(x.g) ? 4 : 8;
-      x.cuar = { dias: +dias.toFixed(1), n: z.n, ret: +(+z.ret || 0).toFixed(4), pf: +(+z.pf || 0).toFixed(2), min, exento: exentos.includes(x.k) || undefined, ok: dias >= 21 && z.n >= min && z.ret > 0 }; } catch (e) { x.cuar = { dias: 0, n: 0, ret: 0, min: 8, ok: false }; }
+    try { const t0 = Date.parse(x.desde), i0 = T.findIndex((t) => t >= t0), dias = (Date.now() - t0) / 864e5, z = i0 >= 0 && i0 < n - 1 ? cartera(r.ops, M, i0, n - 1, 5, x.g.sl) : { n: 0, ret: 0, pf: 0 }, min = minCuar(x.g, r.is, dias), ddMax = ddMaxCuar(r.is);
+      x.cuar = { dias: +dias.toFixed(1), n: z.n, ret: +(+z.ret || 0).toFixed(4), pf: +(+z.pf || 0).toFixed(2), dd: +(+z.dd || 0).toFixed(4), ddMax, min, exento: exentos.includes(x.k) || undefined, ok: cuarPasa(dias, z, min, ddMax) }; } catch (e) { x.cuar = { dias: 0, n: 0, ret: 0, min: 8, ok: false }; }
     if (r.okA && r.okB && r.okC) { try { x.vec = vecinosOk(x.g); } catch (e) { x.vec = { ok: true, res: [] }; } if (!x.vec.ok) log(`  🧭 Sale del podio por la prueba de vecinos: ${x.n.slice(0, 80)}`); }
     return r.okA && r.okB && r.okC && (!x.vec || x.vec.ok); }).sort((a, b) => Math.round(calidad(b) * 1000) - Math.round(calidad(a) * 1000) || (a.is ? a.is.dd : 1) - (b.is ? b.is.dd : 1));   /* v455 · ⚖️ por CALIDAD: ganancia al año − 0,8 × caída */   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
   for (const x of mem.aprobadas) x.nota = +calidad(x).toFixed(4);

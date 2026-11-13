@@ -386,6 +386,19 @@ test("ESCENARIOS: un año de uso con dinero real (simulado) de principio a fin",
       assert.equal(W.mk.calls.filter((c) => c.m === "POST").length, n0, "el cambio no envía órdenes hasta la revisión con la bolsa abierta");
       W.setSx(null);
     });
+    await t.test("16c · v477 · H-08: en modo automático también vale el freno de tiempo entre cambios (90 días, o 30 si es mucho mejor)", async () => {
+      // justo después del cambio automático a «trq» (16b) aparece otro ganador con 40 días aprobado y 1,5 puntos mejor: NO cambia hasta pasados 90 días
+      const bk = (w) => ({ cash: 0, pos: {}, trades: [], days: [{ d: "2026-11-01", eq: 500 }, { d: "2027-06-19", eq: 560 }], tgt: { d: "2027-06-01", w, bull: true } });
+      const sx = { lab: { top3: [{ k: "nuevo", sc: 0.125 }, { k: "trq", sc: 0.11 }], etfLiga: [{ k: "nuevo", sc: 0.125, dias: 40 }, { k: "trq", sc: 0.11, dias: 41 }, { k: "sect", sc: 0.09, dias: 40 }] },
+        labAn: { sect: 0.09, trq: 0.11, nuevo: 0.125 }, labConf: [], books: { sect: bk({ XLK: 1 }), trq: bk({ XLK: 1 }), nuevo: bk({ XLE: 1 }) } };
+      W.setSx(sx);
+      const r1 = await W.step("foto", "2027-06-21T16:50:00Z");
+      assert.equal(r1.code, 0, r1.so); assert.equal(r1.R.metOv && r1.R.metOv.k, "trq", "un día después del último cambio NO vuelve a cambiar: " + JSON.stringify(r1.R.metOv));
+      assert.match(r1.rep.md || JSON.stringify(r1.rep), /como mucho un cambio cada 90 días/);
+      const r2 = await W.step("foto", "2027-09-20T16:50:00Z");
+      assert.equal(r2.code, 0, r2.so); assert.equal(r2.R.metOv && r2.R.metOv.k, "nuevo", "pasados 90 días sí cambia");
+      W.setSx(null);
+    });
   } finally { await W.close(); }
 });
 

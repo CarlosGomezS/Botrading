@@ -120,3 +120,48 @@ test("OKX v463: una orden se puede comprobar después por su clOrdId (estado fin
   const st = await X.estadoOrden("AAA-EUR", { id: ex.orders[0].clOrdId, inst: "AAA-EUR" }); assert.equal(st.final, true); assert.ok(st.lleno > 0);
   assert.equal(await X.abiertas("AAA-EUR", { inst: "AAA-EUR" }), 0); ex.pend = [{ ordType: "market" }, { ordType: "conditional" }]; assert.equal(await X.abiertas("AAA-EUR", { inst: "AAA-EUR" }), 1);
 });
+
+// v477 · H-05: la devolución USDC → euros que queda SIN RESULTADO CONOCIDO no se vuelve a mandar con otro identificador
+test("v477 · OKX: si la venta de USDC queda sin respuesta, NO se manda otra encima; se apunta esa orden y se comprueba antes de nada", async () => {
+  const ex = okx({ "USDC-EUR": 0.9, "BBB-USDC": 3 }), base = ex.fx; let ventasUsdc = 0, ciego = true;
+  ex.fx = async (url, o) => { const u = new URL(url);
+    if (u.pathname === "/api/v5/trade/order" && o.method === "POST") { const b = JSON.parse(o.body);
+      if (b.instId === "BBB-USDC") return { ok: true, status: 200, json: async () => ({ code: "1", msg: "fallo", data: [{ sCode: "51008", sMsg: "rechazada" }] }) };
+      if (b.instId === "USDC-EUR" && b.side === "sell") ventasUsdc++; }
+    if (ciego && u.pathname === "/api/v5/trade/order" && o.method === "GET" && /USDC-EUR/.test(u.search) && ventasUsdc > 0) throw new Error("socket hang up");
+    return base(url, o); };
+  ex.api = OK.cliente("KEY", "SEC", "FRASE", ex.fx);
+  const X = OK.adaptador(ex.api, ex.I, tk("USDC-EUR", 0.9));
+  let err = null; try { await X.comprar("BBB-EUR", 50); } catch (e) { err = e; }
+  assert.ok(err, "la compra no se completa");
+  assert.equal(ventasUsdc, 1, "UNA sola venta de USDC (antes se mandaban hasta 3 con identificadores distintos)");
+  assert.ok(err.pendUsdc > 0 && err.pendRef && err.pendRef.id && err.pendRef.inst === "USDC-EUR", "se apunta ESA orden para comprobarla: " + JSON.stringify(err.pendRef));
+  // al volver a poder consultar, la orden aparece ejecutada: no se manda otra y se descuenta lo pendiente
+  ciego = false; const st = await X.estadoOrden(null, err.pendRef); assert.ok(st.final && st.lleno > 0);
+  // y si fue OKX quien la rechazó (resultado seguro), sí se puede reintentar
+  ventasUsdc = 0; const ex2 = okx({ "USDC-EUR": 0.9, "BBB-USDC": 3 }), b2 = ex2.fx; let veces = 0;
+  ex2.fx = async (url, o) => { const u = new URL(url); if (u.pathname === "/api/v5/trade/order" && o.method === "POST") { const b = JSON.parse(o.body);
+    if (b.instId === "BBB-USDC") return { ok: true, status: 200, json: async () => ({ code: "1", msg: "fallo", data: [{ sCode: "51008", sMsg: "rechazada" }] }) };
+    if (b.instId === "USDC-EUR" && b.side === "sell" && ++veces === 1) return { ok: true, status: 200, json: async () => ({ code: "1", msg: "fallo", data: [{ sCode: "51000", sMsg: "rechazada" }] }) }; }
+    return b2(url, o); };
+  ex2.api = OK.cliente("KEY", "SEC", "FRASE", ex2.fx);
+  let e2 = null; try { await OK.adaptador(ex2.api, ex2.I, tk("USDC-EUR", 0.9)).comprar("BBB-EUR", 50); } catch (e) { e2 = e; }
+  assert.ok(e2 && !e2.pendUsdc && /rechazada|51008/.test(e2.message), "rechazada por OKX → se reintenta y el USDC vuelve a euros: " + (e2 && e2.message));
+  assert.equal(veces, 2);
+});
+
+test("v477 · Real con OKX: el USDC pendiente con una venta SIN CONFIRMAR primero comprueba esa orden (si se hizo, no vende otra; si no se sabe, espera)", async () => {
+  const ex = okx({ "USDC-EUR": 0.9 }), tick = tk("USDC-EUR", 0.9), T = (m) => new Date(Date.UTC(2026, 10, 4, 12, m));
+  let o = await RL.vuelta(null, { mix: { pos: {}, lastEq: 100 } }, { copia: "mix" }, tick, T(0), { ex: OK.adaptador(ex.api, ex.I, tick) });
+  // una venta de 20 USDC que SÍ se hizo, pero el bot no llegó a confirmarla; en la cuenta quedan 30 USDC (10 son tuyos)
+  ex.bal.USDC = 50; await ex.api("POST", "/api/v5/trade/order", { instId: "USDC-EUR", tdMode: "cash", side: "sell", ordType: "market", sz: "20.00", tgtCcy: "base_ccy", clOrdId: "btperdida" });
+  let ciego = true; const base = ex.fx; ex.fx = async (url, op) => { if (ciego && /clOrdId=btperdida/.test(url)) throw new Error("socket hang up"); return base(url, op); }; ex.api = OK.cliente("KEY", "SEC", "FRASE", ex.fx);
+  o.RS.usdcPend = 20; o.RS.usdcRef = [{ inst: "USDC-EUR", id: "btperdida", t: T(0).toISOString() }];
+  const n0 = ex.orders.length;
+  o = await RL.vuelta(o.RS, { mix: { pos: {}, lastEq: 100 } }, { copia: "mix" }, tick, T(1), { ex: OK.adaptador(ex.api, ex.I, tick) });
+  assert.equal(ex.orders.length, n0, "sin poder comprobarla, NO vende otra"); assert.equal(o.RS.usdcRef.length, 1); assert.equal(o.RS.usdcPend, 20);
+  ciego = false;
+  o = await RL.vuelta(o.RS, { mix: { pos: {}, lastEq: 100 } }, { copia: "mix" }, tick, T(2), { ex: OK.adaptador(ex.api, ex.I, tick) });
+  assert.equal(ex.orders.length, n0, "se hizo: no se repite (tus 10 USDC no se tocan)"); assert.ok(!o.RS.usdcRef); assert.ok(!(o.RS.usdcPend > 0.01), "lo pendiente queda saldado: " + o.RS.usdcPend);
+  assert.ok(o.RS.log.some((l) => /SÍ se hizo/.test(l.txt)));
+});

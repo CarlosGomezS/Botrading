@@ -257,7 +257,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         L(RS, now, `⚠️ ${p.sym}: en la cuenta ya no queda nada; se da por cerrada`); delete RS.pos[m]; return; }
       try { r = await X.vender(m, q2); } catch (e2) { await repon(); throw e2; } if (frac >= 1) p.q = r.q; }
     RS.cash += r.got; RS.st.fees += r.fee; p.cob = (p.cob || 0) + r.got; p.q -= r.q; p.tVenta = Date.now();   // v297 · hora de la última venta del bot (para no contar dos veces)
-    if (r.pendUsdc > 0) RS.usdcPend = (RS.usdcPend || 0) + r.pendUsdc;   // v297 · USDC del bot que no pudo pasar a euros: solo ESE se convertirá luego
+    if (r.pendUsdc > 0) { RS.usdcPend = (RS.usdcPend || 0) + r.pendUsdc; if (r.pendRef) (RS.usdcRef = RS.usdcRef || []).push(r.pendRef); }   // v297 · USDC del bot que no pudo pasar a euros: solo ESE se convertirá luego
     if (frac >= 1 || p.q * (tick[m] ? tick[m].bid : p.px) < mk.min) {
       const pnl = p.cob - p.cost; RS.st.pnl += pnl; if (pnl >= 0) RS.st.wins++; else RS.st.losses++;
       RS.closed.unshift({ m, sym: p.sym, t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(p.cob), pnl: r2(pnl), pc: r2((p.cob / p.cost - 1) * 100), why: por }); RS.closed = RS.closed.slice(0, 300); delete RS.pos[m];
@@ -329,7 +329,15 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
 
       // v295 · 💵 USDC que se quedó a medias (compra o venta por USDC en OKX que se cortó en el segundo paso): se vuelve a pasar a euros
       // (v297: solo el USDC que dejó el PROPIO bot a medias, nunca el tuyo; su valor ya se apuntó al vender, aquí se ajusta la diferencia)
-      if (X.usdcAEur && RS.usdcPend > 5 && B.USDC > 5) try { const q = Math.min(RS.usdcPend, B.USDC), r = await X.usdcAEur(q); if (r && r.got > 0) { RS.cash += r.got - (r.est || r.got); RS.usdcPend = Math.max(0, RS.usdcPend - q); L(RS, now, `💵 ${r2(q)} USDC del bot que quedaron a medias se pasan a euros (${r2(r.got)} €)`); } } catch (e) {}
+      // v477 · 🔁 si una venta de USDC quedó SIN RESULTADO CONOCIDO, primero se comprueba ESA orden: si se hizo, se descuenta; si no se sabe, esta vez no se vende nada
+      let usdcEspera = false;
+      if (Array.isArray(RS.usdcRef) && RS.usdcRef.length) { const quedan = [];
+        for (const ref of RS.usdcRef) { let st = null; try { st = X.estadoOrden ? await X.estadoOrden(null, ref) : null; } catch (e) {}
+          if (st && st.final && st.lleno > 0) { RS.usdcPend = Math.max(0, (RS.usdcPend || 0) - st.lleno); L(RS, now, `💵 una venta de ${r2(st.lleno)} USDC que había quedado sin confirmar SÍ se hizo: se apunta y no se repite`); }
+          else if (st && (st.final || (st.noExiste && now - Date.parse(ref.t || 0) > 30 * 60e3))) L(RS, now, "💵 una venta de USDC que había quedado sin confirmar NO se hizo: se puede volver a intentar");
+          else quedan.push(ref); }
+        if (quedan.length) RS.usdcRef = quedan; else delete RS.usdcRef; usdcEspera = quedan.length > 0; }
+      if (X.usdcAEur && !usdcEspera && RS.usdcPend > 5 && B.USDC > 5) try { const q = Math.min(RS.usdcPend, B.USDC), r = await X.usdcAEur(q); if (r && r.got > 0) { RS.cash += r.got - (r.est || r.got); RS.usdcPend = Math.max(0, RS.usdcPend - q); L(RS, now, `💵 ${r2(q)} USDC del bot que quedaron a medias se pasan a euros (${r2(r.got)} €)`); } } catch (e) { if (e && e.pendRef) (RS.usdcRef = RS.usdcRef || []).push(e.pendRef); }
       // v295 · 🛡️ revisión cada 30 min: toda posición sin stop de emergencia confirmado lo vuelve a intentar
       // (v297: también se COMPRUEBA que los stops puestos siguen activos y cubren lo que hay; si no, se vuelven a poner)
       if (!RS.stopRev || now - Date.parse(RS.stopRev) > 30 * 60e3) { RS.stopRev = now.toISOString(); for (const m of Object.keys(RS.pos)) { const p = RS.pos[m]; let vale = !!p.stopId;
@@ -470,7 +478,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     RS.estado = "activo"; delete RS.err;
   } catch (e) {
     RS.err = String(e.message).slice(0, 120); L(RS, now, "⚠️ " + RS.err);
-    if (e && e.pendUsdc > 0) { RS.usdcPend = (RS.usdcPend || 0) + e.pendUsdc; RS.cash -= e.costeEur || 0; L(RS, now, `💵 ${r2(e.pendUsdc)} USDC del bot quedan pendientes de pasar a euros (se reintenta cada minuto)`); }   // v298
+    if (e && e.pendUsdc > 0) { RS.usdcPend = (RS.usdcPend || 0) + e.pendUsdc; if (e.pendRef) (RS.usdcRef = RS.usdcRef || []).push(e.pendRef); RS.cash -= e.costeEur || 0; L(RS, now, `💵 ${r2(e.pendUsdc)} USDC del bot quedan pendientes de pasar a euros (se reintenta cada minuto)`); }   // v298
     if ((X.errClave || errClave)(e)) { RS.estado = "clave"; if (!RS.avisoClave || now - Date.parse(RS.avisoClave) > 6 * 3600e3) { RS.avisoClave = now.toISOString(); msgs.push(`💶 ⚠️ ${EX} REAL: la clave no funciona (${RS.err}). Revisa que tenga permiso de OPERAR y que esté bien copiada en Ajustes.`); } }
   }
   const e2 = valor(RS, tick); RS.eq.push([now.toISOString(), r2(e2), r2(RS.start)]);   // v266 · también lo aportado hasta entonces (para no contar ingresos como ganancia) if (RS.eq.length > 3000) RS.eq = RS.eq.filter((_, i) => i % 2 === 0 || i > RS.eq.length - 500);

@@ -229,3 +229,32 @@ test("v475 · H-06: la nota que ORDENA el podio de Hyperliquid sale solo de ante
   assert.ok(LAB.calidadIS({ is: { ret: 0.6, dd: 0.4 } }, corte) < n0, "más caída antes del examen → peor nota");
   assert.equal(LAB.calidadIS({ a: { ret: 9 } }, corte), -9, "sin datos de antes del examen: al final");
 });
+
+// ---------- v477 · auditoría v476 ----------
+test("v477 · H-02: una orden de Trading 212 de resultado desconocido NUNCA se desbloquea sola por tiempo: avisa una vez al día y solo la liberas tú guardando los ajustes", async () => {
+  const { reconcile } = await import("../runner/real.mjs");
+  const llamadas = [], T = { call: async (m, p) => { llamadas.push(p); if (p.startsWith("/equity/history/orders")) return { items: [] }; if (p === "/equity/orders") return []; throw Object.assign(new Error("404"), { st: 404 }); } };
+  const t0 = Date.parse("2027-01-10T10:00:00Z"), R = { pendBot: [{ id: null, dudosa: 1, qq: 2, t: "VUAA", side: "COMPRA", qty: 2, eur: 200, ts: new Date(t0).toISOString() }], orders: [] };
+  let av = await reconcile(T, R, [], { ahora: t0 + 1 * D }); assert.equal(R.pendBot.length, 1); assert.equal(av.length, 0, "antes de 3 días no avisa");
+  av = await reconcile(T, R, [], { ahora: t0 + 4 * D }); assert.equal(R.pendBot.length, 1, "a los 4 días SIGUE bloqueada (antes se desbloqueaba)"); assert.equal(av.length, 1);
+  av = await reconcile(T, R, [], { ahora: t0 + 4 * D + 3600e3 }); assert.equal(av.length, 0, "una vez al día"); assert.equal(R.pendBot.length, 1);
+  av = await reconcile(T, R, [], { ahora: t0 + 30 * D, savedAt: new Date(t0 + 2 * D).toISOString() }); assert.equal(R.pendBot.length, 1, "unos ajustes guardados ANTES del aviso no la liberan"); assert.equal(av.length, 1);
+  const rep = []; await reconcile(T, R, rep, { ahora: t0 + 31 * D, savedAt: new Date(t0 + 30.5 * D).toISOString() }); assert.equal(R.pendBot.length, 0, "guardas los ajustes tras el aviso → liberada"); assert.ok(rep.some((l) => /se desbloquea/.test(l)));
+  // la búsqueda en el historial pide varias páginas cuando el cliente las admite
+  let pags = 0; const T2 = { call: T.call, pages: async (u, max) => { pags = max; return []; } }, R2 = { pendBot: [{ id: null, dudosa: 1, qq: 2, t: "VUAA", side: "COMPRA", qty: 2, ts: new Date(t0).toISOString() }] };
+  await reconcile(T2, R2, [], { ahora: t0 + D }); assert.ok(pags >= 4);
+});
+
+test("v477 · H-09: la cuarentena de Hyperliquid exige ritmo de operaciones, factor de beneficio y caída máxima (no solo 21 días ganando)", async () => {
+  const { minCuar, ddMaxCuar, cuarPasa } = await import("../runner/caza-lab.mjs");
+  assert.equal(minCuar({ h: 16 }, { opsDia: 4 }, 21), 34, "rápido de 4 op./día: al menos 34 en 21 días (antes bastaban 8)");
+  assert.equal(minCuar({ h: 72 }, { opsDia: 0.3 }, 21), 4, "lento: mínimo 4"); assert.equal(minCuar({ h: 16 }, null, 21), 8);
+  assert.equal(ddMaxCuar({ dd: -0.27 }), 0.27); assert.equal(ddMaxCuar({ dd: 0.05 }), 0.1, "suelo del 10 %");
+  const ok = { n: 40, ret: 0.02, pf: 1.3, dd: 0.05 };
+  assert.equal(cuarPasa(22, ok, 34, 0.27), true);
+  assert.equal(cuarPasa(20, ok, 34, 0.27), false, "menos de 21 días");
+  assert.equal(cuarPasa(22, { ...ok, n: 8 }, 34, 0.27), false, "8 operaciones de 34: no");
+  assert.equal(cuarPasa(22, { ...ok, pf: 1.05 }, 34, 0.27), false, "factor < 1,1");
+  assert.equal(cuarPasa(22, { ...ok, dd: 0.3 }, 34, 0.27), false, "cae más que su peor caída");
+  assert.equal(cuarPasa(22, { ...ok, ret: -0.01 }, 34, 0.27), false, "pierde");
+});
