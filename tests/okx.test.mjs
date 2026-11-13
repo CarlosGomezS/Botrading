@@ -165,3 +165,16 @@ test("v477 · Real con OKX: el USDC pendiente con una venta SIN CONFIRMAR primer
   assert.equal(ex.orders.length, n0, "se hizo: no se repite (tus 10 USDC no se tocan)"); assert.ok(!o.RS.usdcRef); assert.ok(!(o.RS.usdcPend > 0.01), "lo pendiente queda saldado: " + o.RS.usdcPend);
   assert.ok(o.RS.log.some((l) => /SÍ se hizo/.test(l.txt)));
 });
+
+test("v478 · OKX: un «no existe» a los pocos segundos NO se toma por seguro: la devolución de USDC no se reenvía, se apunta para comprobarla después", async () => {
+  const ex = okx({ "USDC-EUR": 0.9, "BBB-USDC": 3 }), base = ex.fx; let ventas = 0;
+  ex.fx = async (url, o) => { const u = new URL(url);
+    if (u.pathname === "/api/v5/trade/order" && o.method === "POST") { const b = JSON.parse(o.body);
+      if (b.instId === "BBB-USDC") return { ok: true, status: 200, json: async () => ({ code: "1", msg: "fallo", data: [{ sCode: "51008", sMsg: "rechazada" }] }) };
+      if (b.instId === "USDC-EUR" && b.side === "sell") { ventas++; await base(url, o); throw new Error("socket hang up"); } }
+    if (u.pathname === "/api/v5/trade/order" && o.method === "GET" && /USDC-EUR/.test(u.search) && ventas > 0) return { ok: true, status: 200, json: async () => ({ code: "51603", msg: "Order does not exist", data: [] }) };
+    return base(url, o); };
+  ex.api = OK.cliente("KEY", "SEC", "FRASE", ex.fx);
+  let err = null; try { await OK.adaptador(ex.api, ex.I, tk("USDC-EUR", 0.9)).comprar("BBB-EUR", 50); } catch (e) { err = e; }
+  assert.equal(ventas, 1, "una sola venta"); assert.ok(err && err.pendRef && err.pendRef.id, "apuntada para comprobarla: " + (err && err.message));
+});

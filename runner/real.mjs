@@ -391,31 +391,35 @@ export function applyFill(R, side, t, q, eurAmt, meta = {}) {
 }
 // órdenes del bot que quedaron pendientes (bolsa cerrada, festivo…): se mira cómo acabaron y se apuntan
 // v477 · 🔒 NUNCA SE DESBLOQUEA POR TIEMPO: una orden cuyo resultado no se puede aclarar sigue bloqueando su activo (para no duplicarla).
-//   Pasados 3 días te avisa (una vez al día) y solo se libera cuando TÚ vuelves a guardar los ajustes después del primer aviso
-//   (es tu forma de decir «lo he revisado en Trading 212»). El historial se busca en varias páginas, no solo en las últimas 20 órdenes.
+//   Pasados 3 días te avisa (una vez al día). El historial se busca en varias páginas, no solo en las últimas 20 órdenes.
+// v478 · 🔓 se libera SOLO con el botón «✅ La he revisado: liberar» de ESE aviso (cada orden tiene su identificador); guardar los ajustes ya no libera nada.
+//   Si Trading 212 no responde al consultarla, también cuenta como «sin aclarar» (sigue bloqueada y avisa igual).
 const HIST_PAG = 4;
 async function historial(T, t) { const u = `/equity/history/orders?ticker=${encodeURIComponent(t)}&limit=50`; return T.pages ? await T.pages(u, HIST_PAG) : (((await T.call("GET", u)) || {}).items || []); }
-export async function reconcile(T, R, rep, { savedAt = null, ahora = Date.now() } = {}) {
-  const keep = [], avisos = [], hoy = new Date(ahora).toISOString().slice(0, 10), guardado = savedAt ? Date.parse(savedAt) : NaN;
+export async function reconcile(T, R, rep, { ahora = Date.now() } = {}) {
+  const keep = [], avisos = [], hoy = new Date(ahora).toISOString().slice(0, 10);
   // atasco: la orden sigue sin aclararse → se mantiene (bloqueando) salvo que la hayas liberado guardando los ajustes tras el primer aviso
   const atasco = (o, txt) => {
     if (ahora - Date.parse(o.ts) < 3 * 864e5) { keep.push(o); rep.push(`- ⏳ ${o.side} ${o.t}: ${txt}; ${o.t} sigue bloqueado para no duplicar la orden.`); return; }
-    if (o.av1 && Number.isFinite(guardado) && guardado > Date.parse(o.av1)) { rep.push(`- 🔓 ${o.side} ${o.t}: ${txt}. Has vuelto a guardar los ajustes después del aviso: se da por revisada y ${o.t} se desbloquea.`); return; }
     if (!o.av1) o.av1 = new Date(ahora).toISOString();
-    if (o.avD !== hoy) { o.avD = hoy; avisos.push(`${o.side} ${o.t}: ${txt} desde ${String(o.ts).slice(0, 10)}.`); }
-    keep.push(o); rep.push(`- ⚠️ ${o.side} ${o.t}: ${txt} (más de 3 días). Sigue bloqueado: revísalo en Trading 212 y, cuando lo tengas claro, vuelve a guardar los ajustes para liberarlo.`);
+    if (!o.ref) o.ref = "d" + Math.floor(ahora).toString(36) + Math.random().toString(36).slice(2, 8);
+    if (o.avD !== hoy) { o.avD = hoy; avisos.push({ txt: `${o.side} ${o.t}: ${txt} desde ${String(o.ts).slice(0, 10)}.`, ref: o.ref, t: o.t }); }
+    keep.push(o); rep.push(`- ⚠️ ${o.side} ${o.t}: ${txt} (más de 3 días). Sigue bloqueado: revísalo en Trading 212 y pulsa «✅ La he revisado: liberar» en el aviso de Telegram.`);
   };
   for (const o of R.pendBot || []) {
     // v476 · orden de resultado desconocido (sin id): se busca en el historial una NUESTRA (mismo activo, lado, cantidad, creada tras enviarla)
-    if (!o.id) { let f = null; try { f = (await historial(T, o.t)).find((x) => x.order && esNuestra(x.order, o.qq, Date.parse(o.ts))); } catch { keep.push(o); continue; }
-      if (!f) { try { const act = await T.call("GET", "/equity/orders"); const a2 = (act || []).find((x) => (x.ticker || (x.instrument && x.instrument.ticker)) === o.t && esNuestra(x, o.qq, Date.parse(o.ts))); if (a2) f = { order: a2 }; } catch { keep.push(o); continue; } }
+    if (!o.id) { let cands = null; try { cands = (await historial(T, o.t)).filter((x) => x.order && esNuestra(x.order, o.qq, Date.parse(o.ts))).map((x) => x.order);
+        const act = await T.call("GET", "/equity/orders"); for (const a2 of act || []) if ((a2.ticker || (a2.instrument && a2.instrument.ticker)) === o.t && esNuestra(a2, o.qq, Date.parse(o.ts)) && !cands.some((c) => String(c.id) === String(a2.id))) cands.push(a2); }
+      catch { atasco(o, "no he podido consultar Trading 212 para aclararla"); continue; }
+      if (cands.length > 1) { atasco(o, `hay ${cands.length} órdenes que encajan (alguna podría ser tuya): no me atribuyo ninguna`); continue; }
+      const f = cands.length ? { order: cands[0] } : null;
       if (!f) { atasco(o, "su resultado sigue sin aclararse (no aparece en Trading 212)"); continue; }
       o.id = f.order.id; rep.push(`- 🔎 La orden ${o.side} ${o.t} de resultado desconocido SÍ existe en Trading 212: se apunta.`); }
     let still = false;
     try { const x = await T.call("GET", "/equity/orders/" + o.id); if (x && !/FILLED|CANCEL|REJECT/.test(String(x.status))) still = true; } catch (e) { if (e.st !== 404) still = true; }
     if (still) { if (ahora - Date.parse(o.ts) < 10 * 864e5) keep.push(o); else atasco(o, "lleva más de 10 días pendiente en Trading 212"); continue; }
     let it = null;
-    try { it = (await historial(T, o.t)).find((x) => x.order && String(x.order.id) === String(o.id)); } catch { keep.push(o); continue; }
+    try { it = (await historial(T, o.t)).find((x) => x.order && String(x.order.id) === String(o.id)); } catch { atasco(o, "no he podido consultar el historial de Trading 212 para aclararla"); continue; }
     const rec = (R.orders || []).find((x) => String(x.id) === String(o.id));
     const fqP = Math.abs(+(it && it.order.filledQuantity) || 0);   // v459 · solo lo que Trading 212 confirma como ejecutado
     if (it && /FILLED/.test(String(it.order.status)) && !(fqP > 0)) { atasco(o, "figura como ejecutada pero sin cantidad"); continue; }
@@ -629,11 +633,11 @@ export async function placeMarket(T, t, qty, ext, rep, dec0) {   // (exportada p
           // v465 · solo se reconoce como NUESTRA una orden del mismo activo, mismo LADO, misma CANTIDAD y creada después de enviarla (no una tuya del mismo ETF)
           const mismo = (o) => esNuestra(o, qq, tEnvio);
           const act = await T.call("GET", "/equity/orders");
-          const f = (act || []).find((o) => (o.ticker || (o.instrument && o.instrument.ticker)) === t && mismo(o));
-          if (f) return { ok: true, o: f, qty: qq, dudosa: true };
+          // v478 · y tiene que ser la ÚNICA que encaja: si hay dos iguales (una podría ser tuya), no se atribuye ninguna y queda pendiente de aclarar
+          const fs = (act || []).filter((o) => (o.ticker || (o.instrument && o.instrument.ticker)) === t && mismo(o));
           const h = await T.call("GET", `/equity/history/orders?ticker=${encodeURIComponent(t)}&limit=5`);
-          const g = ((h && h.items) || []).find((x) => x.order && Date.now() - Date.parse(x.order.createdAt) < 5 * 60e3 && mismo(x.order));
-          if (g) return { ok: true, o: g.order, qty: qq, dudosa: true };
+          const gs = ((h && h.items) || []).filter((x) => x.order && Date.now() - Date.parse(x.order.createdAt) < 5 * 60e3 && mismo(x.order)).filter((x) => !fs.some((o) => String(o.id) === String(x.order.id)));
+          if (fs.length + gs.length === 1) return { ok: true, o: fs.length ? fs[0] : gs[0].order, qty: qq, dudosa: true };
         } catch {}
         return { ok: false, err: "no hubo respuesta de Trading 212 y no aparece la orden. NO se reintenta para no duplicarla: revísalo en la app.", dudosa: true, qq, tEnvio };
       }
@@ -749,7 +753,7 @@ async function execute(T, A, R, plan, ctx, rep) {
     if (!p.ok) { res.push({ ...o, estado: p.dudosa ? "dudosa" : "error", err: p.err }); rep.push("  ✖ " + p.err);
       // v476 · 🔒 resultado DESCONOCIDO (sin respuesta o error 5xx y la orden no aparece): se apunta como pendiente SIN id y ese activo queda BLOQUEADO
       //   entre revisiones hasta que se aclare (aparece en el historial → se apunta; no aparece en 3 días → se avisa y se desbloquea)
-      if (p.dudosa) R.pendBot.push({ id: null, dudosa: 1, qq: p.qq != null ? p.qq : (o.side === "VENTA" ? -1 : 1) * Math.abs(qty), t: o.t, side: o.side, qty: Math.abs(qty), eur: o.eur, ts: new Date(p.tEnvio || Date.now()).toISOString(), plan: plan.id });
+      if (p.dudosa) R.pendBot.push({ id: null, dudosa: 1, ref: "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), qq: p.qq != null ? p.qq : (o.side === "VENTA" ? -1 : 1) * Math.abs(qty), t: o.t, side: o.side, qty: Math.abs(qty), eur: o.eur, ts: new Date(p.tEnvio || Date.now()).toISOString(), plan: plan.id });
       continue; }
     const f = await waitFill(T, p.o), st = String(f.status || "");
     // v459 · 🧾 solo se apunta lo que Trading 212 CONFIRMA: «FILLED» sin cantidad o «FILLED?» (aún no está en el historial) se dejan pendientes y se
@@ -1005,10 +1009,18 @@ async function main() {
       else { titulo = "No había propuesta pendiente"; rep.push("No había ninguna propuesta pendiente con ese identificador."); }
       return;
     }
+    // v478 · 🔓 «La he revisado: liberar» (botón del aviso de Telegram): suelta SOLO esa orden de resultado desconocido
+    if (tipo === "liberar") { const id = env("PLAN_ID"), i = (R.pendBot || []).findIndex((x) => x && x.ref && x.ref === id);
+      if (!id || i < 0) { titulo = "No había esa orden pendiente"; rep.push("No hay ninguna orden sin aclarar con ese identificador (quizá ya se aclaró sola o ya la liberaste)."); return; }
+      const o = R.pendBot.splice(i, 1)[0]; titulo = "Orden liberada"; rep.push(`Has revisado la orden ${o.side} ${o.t}: queda liberada y ${o.t} se desbloquea. Si en realidad SÍ se ejecutó, la próxima revisión verá esas participaciones en tu cuenta y las cuadrará con el efectivo del bot.`);
+      aviso = { title: "🔓 Orden liberada", msg: rep.join("\n"), prio: 3 }; return; }
     if (tipo === "metodo-si" || tipo === "metodo-no") {
       const P = R.metSug;
       if (!P || P.estado !== "pendiente" || env("PLAN_ID") !== P.id) { titulo = "No había esa propuesta de cambio"; rep.push("No hay ninguna propuesta de cambio de método pendiente con ese identificador (quizá ya la contestaste)."); return; }
       P.fin = now.toISOString();
+      // v478 · se comprueba que la propuesta SIGUE VIGENTE: el método que cambiaría sigue siendo el tuyo y no tiene más de 14 días
+      const actuales = [A.metodo, ...(Array.isArray(A.extra) ? A.extra : [])];
+      if (tipo === "metodo-si" && (!actuales.includes(P.de || A.metodo) || now - Date.parse(P.ts) > 14 * 864e5)) { P.estado = "caducada"; titulo = "Propuesta de cambio caducada"; rep.push(`Esa propuesta ya no vale: ${now - Date.parse(P.ts) > 14 * 864e5 ? "tiene más de 14 días" : "tu cartera ya no sigue el método que cambiaba"}. No he cambiado nada; si sigue habiendo uno mejor, te lo propondré de nuevo.`); aviso = { title: "⌛ Propuesta caducada", msg: rep.join("\n"), prio: 2 }; return; }
       if (tipo === "metodo-no") { P.estado = "rechazada"; titulo = "Cambio de método rechazado"; rep.push(`Sigues con «${NOMBRES[A.metodo] || A.metodo}». No te volveré a proponer «${P.n}» en 60 días.`); aviso = { title: "❌ Cambio de método rechazado", msg: rep.join("\n"), prio: 2 }; return; }
       P.estado = "aprobada"; R.metOv = { k: P.k, n: P.n, ts: now.toISOString(), de: P.de || A.metodo, acc: P.needAcc ? 1 : undefined }; aplicaCambio(A, P.de || A.metodo, P.k); R.metDesde = m.date; if (P.needAcc) { A.acciones = 1; A.divisa = "cualquiera"; } R.lastNormal = null;
       titulo = "Cambio de método aprobado"; rep.push(`A partir de la próxima revisión con la bolsa abierta, la cartera real sigue «${P.n}»: venderá lo que no esté en su cartera objetivo y comprará lo nuevo${A.modo === "confirmar" ? " (te pedirá aprobar las órdenes, como siempre)" : ""}.`, "Si guardas los ajustes desde la web, manda el método que tengas elegido allí.");
@@ -1033,7 +1045,7 @@ async function main() {
     // subcuenta del bot: primero se miran las órdenes que quedaron pendientes, después el capital y las participaciones
     const notasL = [];
     ensureLedger(R, A, positions, m, notasL);
-    if ((R.pendBot || []).length) { rep.push("## Órdenes que estaban pendientes", ""); const avR = await reconcile(T, R, rep, { savedAt: LC && LC.savedAt }); if (avR.length) await avisa("⚠️ Trading 212: orden sin aclarar", avR.join("\n") + "\n\nEse activo sigue bloqueado para no duplicar la orden. Revísalo en la app de Trading 212 y, cuando lo tengas claro, vuelve a guardar los ajustes de la cartera real para liberarlo.", { prio: 4 }); rep.push(""); try { positions = (await T.call("GET", "/equity/positions")) || positions; } catch {} }
+    if ((R.pendBot || []).length) { rep.push("## Órdenes que estaban pendientes", ""); const avR = await reconcile(T, R, rep); if (avR.length) await avisa("⚠️ Trading 212: orden sin aclarar", avR.map((x) => x.txt).join("\n") + "\n\nEse activo sigue bloqueado para no duplicar la orden. Revísalo en la app de Trading 212. Cuando lo tengas claro (la orden NO se hizo, o ya la has apuntado tú), pulsa el botón para liberarlo.", { prio: 4, kb: avR.slice(0, 6).map((x) => [{ text: `✅ ${x.t}: la he revisado, liberar`, callback_data: "lb:" + x.ref }]) }); rep.push(""); try { positions = (await T.call("GET", "/equity/positions")) || positions; } catch {} }
     syncLots(R, positions, m, notasL);
     // v449 · 💶 CUADRE DEL EFECTIVO: el efectivo del bot nunca puede ser mayor que el de la cuenta. Si lo es y en la cuenta hay participaciones
     // de SUS fondos sin apuntar (una compra suya que no llegó a anotarse: respuesta perdida, orden que se ejecutó más tarde…), son del bot.

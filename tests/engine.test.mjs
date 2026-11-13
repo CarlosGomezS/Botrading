@@ -399,6 +399,19 @@ test("ESCENARIOS: un año de uso con dinero real (simulado) de principio a fin",
       assert.equal(r2.code, 0, r2.so); assert.equal(r2.R.metOv && r2.R.metOv.k, "nuevo", "pasados 90 días sí cambia");
       W.setSx(null);
     });
+    await t.test("16d · v478 · H-06: aprobar una propuesta que ya NO está vigente (tu cartera ya no sigue el método que cambiaba) no cambia nada", async () => {
+      const trqT = { d: "2028-01-01", w: { XLK: 1 }, why: {}, bull: true };
+      W.setSx({ labAn: { sect: 0.09, trq: 0.11 }, labConf: [{ k: "trq", n: "Tendencia QQQ de 10 meses (Faber)", an: 0.11, dd: -0.34, opy: 1, d0: "2026-11-01", g: 0.06, gs: 0.03, nd: 120, ok: true }],
+        books: { sect: { cash: 0, pos: {}, trades: [], days: [{ d: "2026-10-01", eq: 500 }, { d: "2026-11-01", eq: 500 }, { d: "2028-01-08", eq: 510 }], tgt: { d: "2028-01-01", w: { XLK: 1 / 3, XLE: 1 / 3, XLF: 1 / 3 }, bull: true } },
+          trq: { cash: 0, pos: {}, trades: [], days: [{ d: "2026-11-01", eq: 500 }, { d: "2028-01-08", eq: 530 }], tgt: trqT } } });
+      W.setCfg({ metodo: "sect", metAuto: 0, savedAt: "2028-01-10T10:00:00Z" });
+      const r1 = await W.step("foto", "2028-01-10T16:50:00Z");
+      assert.equal(r1.code, 0, r1.so); assert.ok(r1.R.metSug && r1.R.metSug.estado === "pendiente" && r1.R.metSug.k === "trq", "propuesta creada: " + JSON.stringify(r1.R.metSug));
+      W.setCfg({ metodo: "trq", metAuto: 0, savedAt: "2028-01-10T17:00:00Z" });   // la cambias tú a mano antes de pulsar el botón viejo
+      const r2 = await W.step("metodo-si", "2028-01-10T17:10:00Z", { PLAN_ID: r1.R.metSug.id });
+      assert.match(r2.rep.titulo, /caducada/); assert.ok(!r2.R.metOv, "no aplica nada"); assert.equal(r2.R.metSug.estado, "caducada");
+      W.setSx(null);
+    });
   } finally { await W.close(); }
 });
 
@@ -418,5 +431,22 @@ test("v476 · H-09: compra con error 500 y sin rastro → bloqueada en las revis
     const c = await W.step("normal", "2026-10-26T08:20:00Z");
     assert.equal(postsXLE(), 1, "tampoco al aparecer"); assert.match(c.rep.md + JSON.stringify(c.R.reports.slice(0, 3)), /SÍ existe/); assert.ok(!c.R.pendBot.some((o) => o.t === "SXLEd_EQ"), "desbloqueada");
     assert.ok(lotQ(c.R, "SXLEd_EQ") > 0, "y apuntada en la cartera del bot");
+  } finally { W.close(); }
+});
+
+// ---------- v478 · H-04: una orden sin aclarar solo se libera con SU botón (guardar los ajustes no la libera) ----------
+test("v478 · H-04: orden de resultado desconocido → aviso con botón propio; guardar ajustes NO la libera; «liberar» con su identificador, sí", { timeout: 900000 }, async () => {
+  const W = await world(), K = W.mk.K;
+  K.txs.push({ ref: "d1", type: "DEPOSIT", amount: 120, at: "2026-10-21T08:00:00Z" });
+  const postsXLE = () => W.mk.calls.filter((c) => { if (c.m !== "POST" || !/orders\/market/.test(c.p)) return false; const b = JSON.parse(c.body || "{}"); return b.ticker === "SXLEd_EQ" && !(String(b.quantity).split(".")[1]?.length > K.precision); }).length;
+  try {
+    K.err500 = "SXLEd_EQ";
+    await W.step("normal", "2026-10-22T08:20:00Z"); K.err500 = null;
+    const b = await W.step("normal", "2026-10-27T08:20:00Z");
+    const o = b.R.pendBot.find((x) => x.t === "SXLEd_EQ"); assert.ok(o && o.ref, "bloqueada y con su identificador (para el botón del aviso)"); assert.equal(postsXLE(), 1);
+    W.setCfg({ savedAt: "2026-10-27T12:00:00Z" });
+    const c = await W.step("normal", "2026-10-28T08:20:00Z"); assert.ok(c.R.pendBot.some((x) => x.t === "SXLEd_EQ"), "guardar los ajustes NO la libera"); assert.equal(postsXLE(), 1);
+    const mal = await W.step("liberar", "2026-10-28T09:00:00Z", { PLAN_ID: "otro" }); assert.ok(mal.R.pendBot.some((x) => x.t === "SXLEd_EQ"), "identificador equivocado: nada");
+    const d = await W.step("liberar", "2026-10-28T09:05:00Z", { PLAN_ID: o.ref }); assert.match(d.rep.titulo, /liberada/); assert.ok(!d.R.pendBot.some((x) => x.t === "SXLEd_EQ"), "liberada");
   } finally { W.close(); }
 });

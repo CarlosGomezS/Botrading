@@ -238,8 +238,8 @@ test("v477 · H-02: una orden de Trading 212 de resultado desconocido NUNCA se d
   let av = await reconcile(T, R, [], { ahora: t0 + 1 * D }); assert.equal(R.pendBot.length, 1); assert.equal(av.length, 0, "antes de 3 días no avisa");
   av = await reconcile(T, R, [], { ahora: t0 + 4 * D }); assert.equal(R.pendBot.length, 1, "a los 4 días SIGUE bloqueada (antes se desbloqueaba)"); assert.equal(av.length, 1);
   av = await reconcile(T, R, [], { ahora: t0 + 4 * D + 3600e3 }); assert.equal(av.length, 0, "una vez al día"); assert.equal(R.pendBot.length, 1);
-  av = await reconcile(T, R, [], { ahora: t0 + 30 * D, savedAt: new Date(t0 + 2 * D).toISOString() }); assert.equal(R.pendBot.length, 1, "unos ajustes guardados ANTES del aviso no la liberan"); assert.equal(av.length, 1);
-  const rep = []; await reconcile(T, R, rep, { ahora: t0 + 31 * D, savedAt: new Date(t0 + 30.5 * D).toISOString() }); assert.equal(R.pendBot.length, 0, "guardas los ajustes tras el aviso → liberada"); assert.ok(rep.some((l) => /se desbloquea/.test(l)));
+  av = await reconcile(T, R, [], { ahora: t0 + 30 * D, savedAt: new Date(t0 + 29 * D).toISOString() }); assert.equal(R.pendBot.length, 1, "v478 · guardar los ajustes NO la libera (solo su botón)"); assert.equal(av.length, 1);
+  assert.ok(av[0].ref && av[0].ref === R.pendBot[0].ref && av[0].t === "VUAA", "cada aviso lleva el identificador de SU orden (para el botón)");
   // la búsqueda en el historial pide varias páginas cuando el cliente las admite
   let pags = 0; const T2 = { call: T.call, pages: async (u, max) => { pags = max; return []; } }, R2 = { pendBot: [{ id: null, dudosa: 1, qq: 2, t: "VUAA", side: "COMPRA", qty: 2, ts: new Date(t0).toISOString() }] };
   await reconcile(T2, R2, [], { ahora: t0 + D }); assert.ok(pags >= 4);
@@ -257,4 +257,26 @@ test("v477 · H-09: la cuarentena de Hyperliquid exige ritmo de operaciones, fac
   assert.equal(cuarPasa(22, { ...ok, pf: 1.05 }, 34, 0.27), false, "factor < 1,1");
   assert.equal(cuarPasa(22, { ...ok, dd: 0.3 }, 34, 0.27), false, "cae más que su peor caída");
   assert.equal(cuarPasa(22, { ...ok, ret: -0.01 }, 34, 0.27), false, "pierde");
+});
+
+test("v478 · H-01: la caída de la cuarentena se mide hora a hora (una operación que cae un 40 % y acaba ganando NO pasa)", async () => {
+  const { cuarZ, cuarPasa } = await import("../runner/caza-lab.mjs");
+  const C = [100, 100, 80, 60, 90, 110, 110, 110], X = { C, O: C.slice(), Hi: C.map((x) => x * 1.001), Lo: C.map((x) => x * 0.999), F: C.map(() => 0), V: C.map(() => 1e6) };
+  const ops = [[1, "X", 1, 5]], z = cuarZ(ops, { X }, 0, C.length, 0);
+  assert.ok(z.ret > 0, "acaba ganando"); assert.ok(z.dd > 0.08, "caída hora a hora contada: " + z.dd);
+  assert.equal(cuarPasa(22, { ...z, n: 40, pf: 2 }, 8, 0.05 + 0 * z.dd), false);
+});
+
+test("v478 · H-05/H-09: si Trading 212 no responde al consultarla, la orden sigue bloqueada Y avisa; si encajan dos órdenes, no se atribuye ninguna", async () => {
+  const { reconcile } = await import("../runner/real.mjs");
+  const t0 = Date.now() - 10 * D, dud = () => ({ pendBot: [{ id: null, dudosa: 1, qq: 2, t: "VUAA", side: "COMPRA", qty: 2, ts: new Date(t0).toISOString() }], orders: [] });
+  const caido = { call: async () => { throw Object.assign(new Error("503"), { st: 503 }); } }, R = dud();
+  let av = await reconcile(caido, R, [], { ahora: t0 + D }); assert.equal(R.pendBot.length, 1); assert.equal(av.length, 0);
+  av = await reconcile(caido, R, [], { ahora: t0 + 4 * D }); assert.equal(R.pendBot.length, 1, "sigue bloqueada"); assert.equal(av.length, 1, "y AVISA aunque no pueda consultar");
+  const ord = (id, seg) => ({ id, ticker: "VUAA", quantity: 2, createdAt: new Date(t0 + seg * 1000).toISOString(), status: "FILLED", filledQuantity: 2 });
+  const dos = { call: async (m, p) => (p.startsWith("/equity/history/orders") ? { items: [{ order: ord(1, 1) }, { order: ord(2, 3) }] } : p === "/equity/orders" ? [] : null) }, R2 = dud();
+  const rep = []; await reconcile(dos, R2, rep, { ahora: t0 + D }); assert.ok(!R2.pendBot[0].id, "no se atribuye ninguna de las dos"); assert.ok(rep.some((l) => /2 órdenes que encajan/.test(l)));
+  const una = { call: async (m, p) => (p.startsWith("/equity/history/orders") ? { items: [{ order: ord(1, 1) }] } : p === "/equity/orders" ? [] : null) }, R3 = dud();
+  const rep3 = []; try { await reconcile(una, R3, rep3, { ahora: t0 + D }); } catch (e) { /* el apunte en la cartera necesita el libro completo; aquí solo importa la atribución */ }
+  assert.ok(rep3.some((l) => /SÍ existe/.test(l)), "con una sola, sí se atribuye: " + rep3.join(" | "));
 });

@@ -126,7 +126,9 @@ export function adaptador(api, I, tick = {}) {
   // v477 · 🔁 SIN REINTENTOS A CIEGAS: una orden solo se vuelve a mandar (con otro identificador) si la anterior seguro que NO se hizo
   //   (OKX la rechazó con su propio código, o no existe). Si su resultado es DESCONOCIDO, se para y se devuelve su identificador
   //   para comprobar ESA orden más tarde (nunca se manda otra encima: podría vender dos veces).
-  const seguroNoHecha = (e) => !!e && ((e.status && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code))) || /la orden no llegó/.test(String(e.message)));
+  // v478 · solo un RECHAZO EXPLÍCITO de OKX cuenta como «seguro que no se hizo». Un «no existe» a los pocos segundos podría ser un retraso de OKX:
+  //   cuenta como resultado desconocido (se apunta y se vuelve a comprobar más tarde, nunca se reenvía en el acto).
+  const seguroNoHecha = (e) => !!e && !!(e.status && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code)));
   async function sinDuplicar(instId, side, sz) { for (let i = 0; i < 3; i++) { try { return { o: await orden(instId, side, sz, false) }; } catch (e) { if (!seguroNoHecha(e)) return { ref: { inst: (e && e.instId) || instId, id: e && e.clOrdId, t: new Date().toISOString() } }; if (i < 2) await sleep(1500); } } return { no: true }; }
   // compra con «eur» euros → { q (cripto neta), coste (€), fee (€ aprox.), px }
   async function comprar(m, eur) {
@@ -162,7 +164,7 @@ export function adaptador(api, I, tick = {}) {
   // v299 · compras hechas POR EL BOT (las suyas llevan identificador «bt…»), para no apropiarse de compras tuyas
   async function comprasBot(sym, desde) { const R = ruta(I, sym + "-EUR"); if (!R) return null; let q = 0; const d = await api("GET", `/api/v5/trade/orders-history?instType=SPOT&instId=${R.par.instId}&begin=${Math.floor(desde)}&limit=100`);
     for (const o of d || []) if (o.side === "buy" && String(o.clOrdId || "").startsWith("bt") && +o.accFillSz > 0) q += +o.accFillSz - (o.feeCcy === sym ? Math.abs(+o.fee || 0) : 0); return q; }
-  async function estadoStop(m, id) { const [d] = await api("GET", `/api/v5/trade/order-algo?algoId=${id}`); return { activo: !!d && d.state === "live", q: d ? +d.sz || 0 : 0 }; }
+  async function estadoStop(m, id) { const [d] = await api("GET", `/api/v5/trade/order-algo?algoId=${id}`); return { activo: !!d && d.state === "live", q: d ? +d.sz || 0 : 0, lado: d && d.side ? String(d.side) : null, px: d ? +d.slTriggerPx || 0 : 0 }; }   /* v478 · también lado y precio de disparo */
   async function quitaStop(m, id) { const R = ruta(I, m); if (!R) return; try { await api("POST", "/api/v5/trade/cancel-algos", [{ algoId: id, instId: R.par.instId }]); } catch (e) { if (!/51000|5127|not exist|no existe|cancel/i.test(String(e.message))) throw e; } }
   async function mercado(m) { const R = ruta(I, m), px = (tick[m] && (tick[m].ask || tick[m].bid)) || 0; return { min: Math.max(5, R ? R.par.min * px * 1.05 : 5) }; }
   async function saldoEur() { const [d] = await api("GET", "/api/v5/account/balance?ccy=EUR"); const x = d && (d.details || []).find((y) => y.ccy === "EUR"); return x ? +(x.availBal || x.cashBal) || 0 : 0; }

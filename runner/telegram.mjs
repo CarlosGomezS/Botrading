@@ -57,10 +57,10 @@ export function parseUpdates(ups, chat) {
       if (!chat || cid !== chat) { answers.push([q.id, "No autorizado."]); continue; }
       const mm = String(q.data || "").match(/^(ma|mx):([A-Za-z0-9_-]{1,40})$/);   // v175 · memes con dinero real: aprobar / todavía no
       if (mm) { memes = { accion: mm[1] === "ma" ? "aprobar" : "no", id: mm[2], msg: q.message ? { chat: cid, id: q.message.message_id } : null }; answers.push([q.id, mm[1] === "ma" ? "✅ Recibido: empiezo con dinero real" : "Vale, sigue en ficticio"]); continue; }
-      const m = String(q.data || "").match(/^(ap|re|mc|mr):([A-Za-z0-9_-]{1,40})$/);
+      const m = String(q.data || "").match(/^(ap|re|mc|mr|lb):([A-Za-z0-9_-]{1,40})$/);   // v478 · lb = «la he revisado: liberar» una orden de Trading 212 sin aclarar
       if (!m) { answers.push([q.id, "Botón no válido."]); continue; }
-      act = { accion: { ap: "aprobar", re: "rechazar", mc: "metodo-si", mr: "metodo-no" }[m[1]], plan: m[2], msg: q.message ? { chat: cid, id: q.message.message_id } : null };
-      answers.push([q.id, { ap: "✅ Recibido: lo apruebo en unos minutos", re: "❌ Recibido: lo rechazo", mc: "✅ Recibido: cambio el método en unos minutos", mr: "❌ Recibido: sigues con tu método" }[m[1]]]);
+      act = { accion: { ap: "aprobar", re: "rechazar", mc: "metodo-si", mr: "metodo-no", lb: "liberar" }[m[1]], plan: m[2], msg: q.message ? { chat: cid, id: q.message.message_id } : null };
+      answers.push([q.id, { ap: "✅ Recibido: lo apruebo en unos minutos", re: "❌ Recibido: lo rechazo", mc: "✅ Recibido: cambio el método en unos minutos", mr: "❌ Recibido: sigues con tu método", lb: "🔓 Recibido: la libero en unos minutos" }[m[1]]]);
     } else if (u.message && u.message.chat) {
       const cid = String(u.message.chat.id), t = String(u.message.text || "").trim();
       if (!chat) replies.push([cid, `Hola 👋 Tu número de chat es:\n\n${cid}\n\nCópialo en la web: 💶 Real → Ajustes de la cartera real → Claves → «Telegram: tu número de chat» (TELEGRAM_CHAT) y guarda. A partir de entonces te avisaré aquí de todo lo que haga la cartera real.`]);

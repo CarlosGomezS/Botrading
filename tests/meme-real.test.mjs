@@ -53,3 +53,8 @@ test("v476 · el bot de memes con dinero real NO arranca sin activarlo a propós
     process.env.MEME_REAL_ACTIVO = "1"; assert.equal(activo({}), true); }
   finally { if (v0 == null) delete process.env.MEME_REAL_ACTIVO; else process.env.MEME_REAL_ACTIVO = v0; }
 });
+test("v478 · Telegram: el botón «la he revisado: liberar» lanza la acción «liberar» con el identificador de ESA orden; desde otro chat, no", () => {
+  const cb = (data, chat = "7") => ({ update_id: 1, callback_query: { id: "q", data, message: { chat: { id: +chat }, message_id: 3 } } });
+  const r = parseUpdates([cb("lb:dabc123")], "7"); assert.equal(r.act.accion, "liberar"); assert.equal(r.act.plan, "dabc123");
+  assert.equal(parseUpdates([cb("lb:dabc123", "9")], "7").act, null);
+});

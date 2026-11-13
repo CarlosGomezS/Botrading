@@ -349,12 +349,37 @@ test("v477 · H-07: una posición que el bot no tiene apuntada (p. ej. abierta a
   assert.ok(W.ordenes.some((o) => o.c === "BTC"), "ahora sí la gestiona");
 });
 
-test("v477 · H-07: si la ronda anterior se cortó al abrir, la posición abierta en esa ronda SÍ es del bot (y su stop también)", async () => {
-  const W = mundo({ pos: [{ c: "BTC", szi: -0.1, edadH: 1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108 }] });
-  W.estadoIni = { pm: {}, misStops: [], preApertura: 1, t: new Date(Date.now() - 1.5 * H).toISOString() };
+test("v478 · si la ronda anterior se cortó al abrir, la posición que coincide con una INTENCIÓN apuntada es del bot (y su stop también); otra cripto abierta después, no", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: -0.1, edadH: 1 }, { c: "ETH", szi: 1, edadH: 0.9 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108 }] });
+  W.estadoIni = { pm: {}, misStops: [], preApertura: 1, t: new Date(Date.now() - 1.1 * H).toISOString(), intentos: [{ c: "BTC", dir: -1, t: Date.now() - 1.02 * H, g: { h: 168, sl: 0.08, k: "m1" }, antes: [] }] };
+  conecta(W); await silencio(() => HL.ronda()); const S = await estadoDe(W);
+  assert.ok(S.pm.BTC, "BTC coincide con su intención: adoptada"); assert.deepEqual(S.misStops, [W.stops.find((z) => z.coin === "BTC").oid], "y su stop, apuntado");
+  assert.ok(!S.pm.ETH && S.ajenasPos && S.ajenasPos.ETH, "ETH (abierta a mano después, sin intención del bot) NO se adopta aunque haya marca de «antes de abrir»");
+  assert.ok(!W.ordenes.some((o) => o.c === "ETH"), "ni stop ni cierre en ETH");
+  // una intención no vale para una posición abierta mucho después (más de 15 min)
+  const W2 = mundo({ pos: [{ c: "BTC", szi: -0.1, edadH: 0.5 }] }); W2.estadoIni = { pm: {}, misStops: [], intentos: [{ c: "BTC", dir: -1, t: Date.now() - 2 * H, g: { h: 168, sl: 0.08, k: "m1" }, antes: [] }] };
+  conecta(W2); await silencio(() => HL.ronda()); assert.ok(!(await estadoDe(W2)).pm.BTC, "fuera de la ventana: no es del bot");
+});
+
+test("v478 · apertura cuya RESPUESTA SE PIERDE: la posición se reconoce en esa misma ronda, queda apuntada y se sigue gestionando en las siguientes (repone el stop si desaparece)", async () => {
+  const W = mundo({ quiere: [{ c: "BTC", dir: 1 }], timeoutAbrir: true }); conecta(W); await silencio(() => HL.ronda());
+  let S = await estadoDe(W); assert.ok(W.pos.BTC && W.pos.BTC.szi > 0, "la orden sí entró");
+  assert.ok(S.pm.BTC, "apuntada como del bot: " + JSON.stringify(S.pm)); assert.equal(W.stops.filter((z) => z.coin === "BTC").length, 1, "con su stop"); assert.deepEqual(S.misStops, [W.stops[0].oid]);
+  assert.ok(!S.ajenasPos, "no es ajena");
+  W.timeoutAbrir = false; W.quiere = []; W.stops = []; await otraHora(W); S = await estadoDe(W);
+  assert.ok(S.pm.BTC, "sigue siendo del bot en la ronda siguiente"); assert.equal(W.stops.filter((z) => z.coin === "BTC").length, 1, "el stop desaparecido se repone");
+  assert.ok(!W.avisos.some((t) => /no ha abierto el bot/.test(t)), "sin avisos de posición ajena");
+});
+
+test("v478 · H-03: un stop TUYO en una cripto que el bot abre en esta ronda NO se cancela (solo son suyos los que aparecen después de abrir)", async () => {
+  const W = mundo({ quiere: [{ c: "BTC", dir: 1 }], stops: [{ c: "BTC", side: "A", sz: 0.05, trig: 90 }] }); W.estadoIni = { pm: {}, misStops: [] };
   conecta(W); await silencio(() => HL.ronda());
-  assert.ok(!W.avisos.some((t) => /no ha abierto/.test(t)), "es suya: sin aviso"); const S = await estadoDe(W);
-  assert.ok(S.pm.BTC, "adoptada"); assert.deepEqual(S.misStops, [W.stops[0].oid], "y su stop, apuntado");
+  assert.ok(W.stops.some((z) => z.oid === 1), "tu stop sigue"); assert.equal(W.stops.length, 2, "y el bot pone el suyo");
+  const S = await estadoDe(W); assert.deepEqual(S.misStops, [W.stops.find((z) => z.oid !== 1).oid], "solo apunta el suyo");
+});
+
+test("v478 · sin poder leer las órdenes abiertas antes de abrir, esa hora no se abre nada", async () => {
+  const W = mundo({ quiere: [{ c: "BTC", dir: 1 }], ordenesFallo: true }); conecta(W); await silencio(() => HL.ronda()); assert.equal(aperturas(W).length, 0);
 });
 
 test("v477 · H-06: un cierre que solo se ejecuta EN PARTE no cuenta como cerrado (no libera plaza ni dinero) y se avisa", async () => {

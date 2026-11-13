@@ -30,7 +30,7 @@ function exchange(px, opts = {}) {
     if (u.pathname === "/v2/trades") return R(200, (ex.trades || []).filter((x) => x.market === u.searchParams.get("market")));
     if (u.pathname === "/v2/order" && o.method === "DELETE") { const id = u.searchParams.get("orderId"); if (ex.stops) delete ex.stops[id]; return R(200, { orderId: id }); }
     if (u.pathname === "/v2/ordersOpen") return R(200, ex.abiertas || []);
-    if (u.pathname === "/v2/order" && o.method === "GET" && u.searchParams.get("orderId")) { if (ex.falloEstado) return R(500, { errorCode: 999, error: "error interno (prueba)" }); const st = ex.stops && ex.stops[u.searchParams.get("orderId")]; return st ? R(200, { status: "awaitingTrigger", amount: st.amount, amountRemaining: st.amount }) : R(404, { errorCode: 240, error: "no existe" }); }
+    if (u.pathname === "/v2/order" && o.method === "GET" && u.searchParams.get("orderId")) { if (ex.falloEstado) return R(500, { errorCode: 999, error: "error interno (prueba)" }); const st = ex.stops && ex.stops[u.searchParams.get("orderId")]; return st ? R(200, { status: "awaitingTrigger", amount: st.amount, amountRemaining: st.amount, ...(ex.sinDatosStop ? {} : { side: st.side, triggerAmount: st.triggerAmount, triggerPrice: st.triggerAmount }) }) : R(404, { errorCode: 240, error: "no existe" }); }
     if (u.pathname === "/v2/order" && o.method === "GET" && ex.ordenViva) return R(200, { status: "new", filledAmount: "0" });
     if (u.pathname === "/v2/order" && o.method === "GET") { const x = ex.porId && ex.porId[u.searchParams.get("clientOrderId")]; return x ? R(200, x) : R(404, { errorCode: 240, error: "no existe" }); }
     return R(404, { errorCode: 999 });
@@ -532,4 +532,18 @@ test("v475 · H-04: si al vender solo queda en la cuenta un resto por debajo del
   const { ex, o } = await conStopYVenta((ex) => { ex.saldoReal = 1; ex.bal["AAA-EUR"] = 1; }); const p = o.RS.pos["AAA-EUR"];   // 1 unidad × 2 € = 2 €, menos que el mínimo de 5 €
   assert.ok(p, "sigue registrada"); assert.ok(p.polvo, "como polvo"); assert.ok(Math.abs(p.q - 1) < 1e-9, "con lo que hay de verdad");
   assert.notEqual(p.stopEst, "ok", "v476 · su stop se quitó: NUNCA puede decir «ok»"); assert.equal(p.stopEst, "resto"); assert.ok(!p.stopId, "sin stop apuntado");
+});
+
+// ---------- v478 · comprobación COMPLETA del stop en el exchange (lado y precio de disparo) ----------
+test("v478 · Real: un stop activo con el PRECIO o el LADO equivocados se vuelve a poner bien (quitando el malo); sin poder ver esos datos, «sin comprobar»", async () => {
+  const ex = exchange({ "AAA-EUR": 2 }), deps = { api: ex.api, mercado: ex.mercado, rapido: 1 };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix" }, tk(ex.px), T(0), deps);
+  const sp = { sym: "AAA", q: 10, q0: 10, px: 2.002, cost: 60, cost0: 60, t0: T(1).toISOString() };
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), T(1), deps)); const id0 = RS.pos["AAA-EUR"].stopId, px0 = RS.pos["AAA-EUR"].stopPx; assert.equal(RS.pos["AAA-EUR"].stopEst, "ok");
+  ex.stops[id0].triggerAmount = String(px0 * 0.7);   // alguien lo ha movido muy abajo
+  let o = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), new Date(T(1).getTime() + 40 * 60e3), deps); RS = o.RS;
+  const id1 = RS.pos["AAA-EUR"].stopId; assert.equal(Object.keys(ex.stops).length, 1, "el malo se quita (solo queda uno)"); assert.ok(Math.abs(+ex.stops[id1].triggerAmount / px0 - 1) < 0.01, "al precio correcto"); assert.equal(RS.pos["AAA-EUR"].stopEst, "ok");
+  assert.ok(o.msgs.some((x) => /no tenía el precio o el lado correctos/.test(x)));
+  ex.sinDatosStop = true; o = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), new Date(T(1).getTime() + 80 * 60e3), deps);
+  assert.equal(o.RS.pos["AAA-EUR"].stopEst, "sin comprobar", "activo pero sin ver lado/precio: no se da por bueno");
 });
