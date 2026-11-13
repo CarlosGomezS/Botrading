@@ -92,7 +92,11 @@ const fresh = () => ({ v: 1, estado: "apagado", start: null, pos: {}, trades: []
 const L = (RS, now, txt) => { RS.log.unshift({ t: now.toISOString(), txt }); RS.log = RS.log.slice(0, 300); };
 
 // ---------- una vuelta (la llama meme.mjs en Solana después de decidir) ----------
+// v476 · 🔌 INTERRUPTOR: este bot de dinero real solo puede arrancar si se activa A PROPÓSITO (variable MEME_REAL_ACTIVO=1 en el flujo).
+//   Sin ella no hace nada (salvo terminar de gestionar algo que ya tuviera abierto con dinero real, para no dejarlo abandonado).
+export const activo = (S) => process.env.MEME_REAL_ACTIVO === "1" || !!(S && S.realAbierto);
 export async function pasoReal(S, by, now, eurUsd) {
+  if (!activo(S)) return null;
   let RS = null; try { RS = (await leerRS()) || fresh(); } catch (e) { console.log("Memes real: " + e.message); return; }
   const ctl = await leerCtl().catch(() => ({ aprobado: null, parado: false })), P = prueba(S), tieneClave = !!env("MEME_SOL_KEY");
   const antes = JSON.stringify([RS.estado, RS.pos, RS.trades.length]);

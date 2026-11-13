@@ -393,6 +393,11 @@ export function applyFill(R, side, t, q, eurAmt, meta = {}) {
 async function reconcile(T, R, rep) {
   const keep = [];
   for (const o of R.pendBot || []) {
+    // v476 · orden de resultado desconocido (sin id): se busca en el historial una NUESTRA (mismo activo, lado, cantidad, creada tras enviarla)
+    if (!o.id) { let f = null; try { const h = await T.call("GET", `/equity/history/orders?ticker=${encodeURIComponent(o.t)}&limit=20`); f = ((h && h.items) || []).find((x) => x.order && esNuestra(x.order, o.qq, Date.parse(o.ts))); } catch { keep.push(o); continue; }
+      if (!f) { try { const act = await T.call("GET", "/equity/orders"); const a2 = (act || []).find((x) => (x.ticker || (x.instrument && x.instrument.ticker)) === o.t && esNuestra(x, o.qq, Date.parse(o.ts))); if (a2) f = { order: a2 }; } catch { keep.push(o); continue; } }
+      if (!f) { if (Date.now() - Date.parse(o.ts) < 3 * 864e5) { keep.push(o); rep.push(`- ⏳ ${o.side} ${o.t}: su resultado sigue sin aclararse; ${o.t} sigue bloqueado para no duplicar la orden.`); } else rep.push(`- ⚠️ La orden ${o.side} ${o.t} de resultado desconocido no ha aparecido en 3 días: se da por NO hecha y se desbloquea (revisa la app de Trading 212).`); continue; }
+      o.id = f.order.id; rep.push(`- 🔎 La orden ${o.side} ${o.t} de resultado desconocido SÍ existe en Trading 212: se apunta.`); }
     let still = false;
     try { const x = await T.call("GET", "/equity/orders/" + o.id); if (x && !/FILLED|CANCEL|REJECT/.test(String(x.status))) still = true; } catch (e) { if (e.st !== 404) still = true; }
     if (still) { if (Date.now() - Date.parse(o.ts) < 10 * 864e5) keep.push(o); else rep.push(`- ⚠️ La orden ${o.side} ${o.t} lleva más de 10 días pendiente: revísala en Trading 212.`); continue; }
@@ -617,7 +622,7 @@ export async function placeMarket(T, t, qty, ext, rep, dec0) {   // (exportada p
           const g = ((h && h.items) || []).find((x) => x.order && Date.now() - Date.parse(x.order.createdAt) < 5 * 60e3 && mismo(x.order));
           if (g) return { ok: true, o: g.order, qty: qq, dudosa: true };
         } catch {}
-        return { ok: false, err: "no hubo respuesta de Trading 212 y no aparece la orden. NO se reintenta para no duplicarla: revísalo en la app.", dudosa: true };
+        return { ok: false, err: "no hubo respuesta de Trading 212 y no aparece la orden. NO se reintenta para no duplicarla: revísalo en la app.", dudosa: true, qq, tEnvio };
       }
       return { ok: false, err: explainT212(e) };
     }
@@ -728,7 +733,11 @@ async function execute(T, A, R, plan, ctx, rep) {
     R.prec = R.prec || {};
     const p = await placeMarket(T, o.t, qty, false, rep, R.prec[o.t]);
     if (p.ok && p.dec != null) R.prec[o.t] = p.dec;
-    if (!p.ok) { res.push({ ...o, estado: "error", err: p.err }); rep.push("  ✖ " + p.err); continue; }
+    if (!p.ok) { res.push({ ...o, estado: p.dudosa ? "dudosa" : "error", err: p.err }); rep.push("  ✖ " + p.err);
+      // v476 · 🔒 resultado DESCONOCIDO (sin respuesta o error 5xx y la orden no aparece): se apunta como pendiente SIN id y ese activo queda BLOQUEADO
+      //   entre revisiones hasta que se aclare (aparece en el historial → se apunta; no aparece en 3 días → se avisa y se desbloquea)
+      if (p.dudosa) R.pendBot.push({ id: null, dudosa: 1, qq: p.qq != null ? p.qq : (o.side === "VENTA" ? -1 : 1) * Math.abs(qty), t: o.t, side: o.side, qty: Math.abs(qty), eur: o.eur, ts: new Date(p.tEnvio || Date.now()).toISOString(), plan: plan.id });
+      continue; }
     const f = await waitFill(T, p.o), st = String(f.status || "");
     // v459 · 🧾 solo se apunta lo que Trading 212 CONFIRMA: «FILLED» sin cantidad o «FILLED?» (aún no está en el historial) se dejan pendientes y se
     //   reconcilian en la próxima ejecución; una orden cancelada que llegó a ejecutarse en parte se apunta como PARCIAL con lo que de verdad se compró/vendió

@@ -52,11 +52,11 @@ export function mundo(o = {}) {
       if (o2.r) { if (W.falloCierre.has(c)) return j({ status: "ok", response: { type: "order", data: { statuses: [{ error: "sin liquidez (prueba)" }] } } });
         const p = W.pos[c]; if (!p || !p.szi) return j({ status: "ok", response: { type: "order", data: { statuses: [{ error: "nada que reducir" }] } } });
         if (W.rompeTrasCierre) W.chRoto = true; const q = Math.min(sz, Math.abs(p.szi)); p.szi = p.szi > 0 ? p.szi - q : p.szi + q; if (Math.abs(p.szi) < 1e-9) delete W.pos[c]; W.fills.push({ coin: c, dir: "Close", time: Date.now(), px: W.px[c], sz: q, closedPnl: "0", fee: "0" });
-        return j({ status: "ok", response: { type: "order", data: { statuses: [{ filled: { totalSz: String(q), avgPx: String(W.px[c]) } }] } } }); }
+        return j({ status: "ok", response: { type: "order", data: { statuses: [{ filled: { totalSz: String(q), avgPx: String(W.px[c] * (1 + (W.slipFill || 0) * (compra ? 1 : -1))) } }] } } }); }
       if (W.timeoutAbrir) { const p = W.pos[c] || (W.pos[c] = { szi: 0, entryPx: W.px[c] }); p.szi += compra ? sz : -sz; throw new Error("The operation was aborted due to timeout"); }   // la orden SÍ entra, pero la respuesta se pierde
       const q = W.parcial ? +(sz * W.parcial).toFixed(3) : sz, p = W.pos[c] || (W.pos[c] = { szi: 0, entryPx: W.px[c] }); p.szi += compra ? q : -q; p.entryPx = W.px[c];
       W.fills.push({ coin: c, dir: compra ? "Open Long" : "Open Short", time: Date.now(), px: W.px[c], sz: q });
-      return j({ status: "ok", response: { type: "order", data: { statuses: [{ filled: { totalSz: String(q), avgPx: String(W.px[c]) } }] } } });
+      return j({ status: "ok", response: { type: "order", data: { statuses: [{ filled: { totalSz: String(q), avgPx: String(W.px[c] * (1 + (W.slipFill || 0) * (compra ? 1 : -1))) } }] } } });
     }
     throw new Error("URL no esperada en la prueba: " + u);
   };

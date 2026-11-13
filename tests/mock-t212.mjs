@@ -31,6 +31,7 @@ export function startMock() {
     for (const [t, qq] of Object.entries(K.sellByHand)) if (!A.done["hand" + t + qq]) { A.done["hand" + t + qq] = 1; if (A.pos[t]) { A.pos[t].q -= qq; A.cash += qq * K.px[t]; } }
     for (const [t, k] of Object.entries(K.split)) if (!A.done["split" + t + k]) { A.done["split" + t + k] = 1; if (A.pos[t]) { A.pos[t].q *= k; A.pos[t].avg /= k; K.px[t] /= k; } }
     if (K.fillPending) for (const o of A.pend.splice(0)) fill(o.ticker, o.quantity, o.id, o.createdAt);
+    if (K.revelar && K.ocultas) for (const o of K.ocultas.splice(0)) fill(o.ticker, o.quantity, o.id, o.createdAt);
   }
   const srv = http.createServer((q, r) => {
     let body = ""; q.on("data", (c) => (body += c)); q.on("end", () => {
@@ -55,6 +56,8 @@ export function startMock() {
         if (b.quantity < 0 && (!A.pos[b.ticker] || -b.quantity > A.pos[b.ticker].q + 1e-9)) return j({ code: "SellingEquityNotOwned" }, 400);
         if (K.reject.includes(b.ticker)) { A.hist.unshift({ order: { id, ticker: b.ticker, status: "REJECTED", filledQuantity: 0, createdAt: new Date().toISOString() } }); return j({ id, ticker: b.ticker, status: "REJECTED", quantity: b.quantity }); }
         const o = { id, ticker: b.ticker, quantity: b.quantity, createdAt: new Date().toISOString() };
+        // v476 · error 500 al enviar: la orden SÍ se hace, pero no se ve (ni en órdenes ni en historial ni en la cartera) hasta que K.revelar
+        if (K.err500 && K.err500 === b.ticker) { (K.ocultas = K.ocultas || []).push(o); return j({ code: "InternalError" }, 500); }
         if (K.pendingMode) { A.pend.push(o); return j({ ...o, status: "NEW" }); }
         fill(b.ticker, b.quantity, id, o.createdAt); return j({ ...o, status: "NEW" });
       }

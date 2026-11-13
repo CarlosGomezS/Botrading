@@ -208,11 +208,12 @@ test("v467 · un stop que no es «Stop Market» (p. ej. stop-limit) no vale: se 
   const W = mundo({ pos: [{ c: "BTC", szi: -0.1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108, tipo: "Stop Limit" }] }); conecta(W); await silencio(() => HL.ronda());
   const s = W.stops.filter((z) => z.coin === "BTC"); assert.equal(s.length, 1); assert.equal(s[0].orderType, "Stop Market");
 });
-test("v467 · posición SIN estado: su stop solo se respeta si protege de verdad (lado bueno y como mucho −25 %)", async () => {
+test("v467/v476 · posición SIN estado: su stop se respeta si protege; si no protege, el bot AÑADE el suyo (−25 %) y NO cancela el que no es suyo", async () => {
   for (const [trig, queda] of [[108, true], [140, false], [95, false]]) {
     const W = mundo({ sinEstado: true, pos: [{ c: "BTC", szi: -0.1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig }] }); conecta(W); await silencio(() => HL.ronda());
-    const s = W.stops.filter((z) => z.coin === "BTC"); assert.equal(s.length, 1, "trig " + trig); assert.equal(+s[0].triggerPx === trig, queda, `stop a ${trig}: ${queda ? "se respeta" : "se sustituye"} (quedó ${s[0].triggerPx})`);
-    if (!queda) assert.ok(Math.abs(+s[0].triggerPx - 125) < 0.5, "el de emergencia −25 %");
+    const s = W.stops.filter((z) => z.coin === "BTC").map((z) => +z.triggerPx).sort((a, b) => a - b);
+    if (queda) assert.deepEqual(s, [trig], "el suyo protege: no se toca ni se añade nada");
+    else { assert.ok(s.includes(trig), `stop a ${trig}: no es del bot, sigue ahí`); assert.ok(s.some((x) => Math.abs(x - 125) < 0.5), "y el bot añade el de emergencia −25 %"); assert.ok(W.avisos.some((t) => /no ha puesto el bot/.test(t)), "avisa"); }
   }
 });
 test("v467 · si no se pueden consultar las órdenes: aviso explícito de que los stops NO se han revisado", async () => {
@@ -294,4 +295,25 @@ test("v475 · H-03: datos en vivo con huecos (velas o financiación), sin la úl
   const e = ok(); for (let i = 1170; i < 1200; i++) e.f.delete(T[i]); assert.equal(HL.integridadViva(T, e).ok, false, "financiación sin datos recientes");
   const f = ok(); for (let i = 0; i < 1200; i += 4) f.k.delete(T[i]); assert.equal(HL.integridadViva(T, f).ok, false, "con un 25 % de velas faltando");
   assert.equal(HL.integridadViva(T, null).ok, false);
+});
+
+// ---------- v476 · H-08: el bot solo cancela SUS stops ----------
+test("v476 · H-08: un stop TUYO en una cripto sin posición del bot NO se cancela (se avisa una vez); uno que dejó el bot, sí", async () => {
+  const W = mundo({ stops: [{ c: "BTC", side: "A", sz: 0.1, trig: 90 }] }); conecta(W); await silencio(() => HL.ronda());
+  assert.equal(W.stops.filter((z) => z.coin === "BTC").length, 1, "tu stop sigue"); assert.equal(W.avisos.filter((t) => /no ha puesto el bot/.test(t)).length, 1);
+  await otraHora(W); assert.equal(W.stops.filter((z) => z.coin === "BTC").length, 1); assert.equal(W.avisos.filter((t) => /no ha puesto el bot/.test(t)).length, 1, "no repite el aviso");
+  // uno que SÍ es del bot: su posición se cierra (p. ej. por tiempo) y el stop queda huérfano → la ronda siguiente lo cancela
+  const W2 = mundo({ pos: [{ c: "BTC", szi: -0.1 }], stops: [{ c: "BTC", side: "B", sz: 0.1, trig: 108 }] }); conecta(W2); await silencio(() => HL.ronda());
+  assert.equal(W2.stops.filter((z) => z.coin === "BTC").length, 1, "stop del bot apuntado");
+  W2.pos = []; await otraHora(W2); assert.equal(W2.stops.filter((z) => z.coin === "BTC").length, 0, "huérfano del bot: cancelado");
+  assert.ok(!W2.avisos.some((t) => /no ha puesto el bot/.test(t)), "sin falsos avisos");
+});
+
+// ---------- v476 · deslizamiento real apuntado ----------
+test("v476 · se apunta el deslizamiento REAL de cada orden (positivo = peor que el precio medio), solo porcentajes", async () => {
+  assert.equal(HL.deslizamiento(true, 100, 100.1), 0.1); assert.equal(HL.deslizamiento(false, 100, 99.9), 0.1); assert.equal(HL.deslizamiento(true, 100, 99.95), -0.05); assert.equal(HL.deslizamiento(true, 0, 1), null);
+  const W = mundo({ quiere: [{ c: "ETH", dir: 1 }] }); W.slipFill = 0.001; conecta(W); await silencio(() => HL.ronda());
+  const S = JSON.parse(await (await import("../runner/real-cfg.mjs")).decrypt(W.guardado, process.env.REAL_VIEW_PASS));
+  assert.equal(aperturas(W).length, 1); assert.ok(Array.isArray(S.slip) && S.slip.length === 1); assert.equal(S.slip[0].x, "abre"); assert.ok(Math.abs(S.slip[0].d - 0.1) < 1e-6, "0,1 % peor");
+  assert.deepEqual(Object.keys(S.slip[0]).sort(), ["d", "t", "x"], "sin importes ni criptos");
 });

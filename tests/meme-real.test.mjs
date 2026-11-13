@@ -43,3 +43,13 @@ test("también vale si las reglas adoptadas ganan en 60+ casos vividos y lo conf
   assert.equal(prueba({ ...base, genomePrueba: { bt: { n: 80, pf: 1.6, med: 2.1 }, n: 4, med: 1.5 } }).ok, false, "falta confirmarlo en vivo");
   assert.equal(prueba({ ...base, genomePrueba: { bt: { n: 80, pf: 1.1, med: 0.4 }, n: 12, med: 1.5 } }).ok, false, "factor insuficiente");
 });
+
+// v476 · 🔌 interruptor explícito
+import { activo, pasoReal } from "../runner/meme-real.mjs";
+test("v476 · el bot de memes con dinero real NO arranca sin activarlo a propósito (MEME_REAL_ACTIVO=1)", async () => {
+  const v0 = process.env.MEME_REAL_ACTIVO; delete process.env.MEME_REAL_ACTIVO;
+  try { assert.equal(activo({}), false); assert.equal(await pasoReal({}, {}, new Date(), 1.08), null, "no hace nada (ni lee su estado)");
+    assert.equal(activo({ realAbierto: true }), true, "si ya tuviera algo abierto con dinero real, lo sigue gestionando");
+    process.env.MEME_REAL_ACTIVO = "1"; assert.equal(activo({}), true); }
+  finally { if (v0 == null) delete process.env.MEME_REAL_ACTIVO; else process.env.MEME_REAL_ACTIVO = v0; }
+});

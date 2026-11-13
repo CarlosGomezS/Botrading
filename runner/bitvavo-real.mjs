@@ -252,7 +252,8 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       const hay = X.saldo ? await X.saldo(p.sym) : 0, q2 = Math.min(qv, hay);
       if (!(q2 * bid >= mk.min)) {
         // v475 · 🧹 si QUEDA algo (menos que el mínimo), NO se borra: pasa al camino del polvo (completar hasta el mínimo y venderlo todo junto)
-        if (hay > 0) { p.q = hay; if (!p.polvo) L(RS, now, `⏳ ${p.sym}: lo que queda en la cuenta vale menos que el mínimo de ${EX}; la sigue vigilando para completarla y venderla entera`); p.polvo = now.toISOString(); return; }
+        if (hay > 0) { p.q = hay; if (quitado) { p.stopEst = "resto"; delete p.stopPx; }   // v476 · su stop se quitó para vender y un resto tan pequeño no admite stop: NUNCA se queda como «ok»
+          if (!p.polvo) L(RS, now, `⏳ ${p.sym}: lo que queda en la cuenta vale menos que el mínimo de ${EX} (sin stop: ${EX} no lo admite tan pequeño); la sigue vigilando para completarla y venderla entera`); p.polvo = now.toISOString(); return; }
         L(RS, now, `⚠️ ${p.sym}: en la cuenta ya no queda nada; se da por cerrada`); delete RS.pos[m]; return; }
       try { r = await X.vender(m, q2); } catch (e2) { await repon(); throw e2; } if (frac >= 1) p.q = r.q; }
     RS.cash += r.got; RS.st.fees += r.fee; p.cob = (p.cob || 0) + r.got; p.q -= r.q; p.tVenta = Date.now();   // v297 · hora de la última venta del bot (para no contar dos veces)

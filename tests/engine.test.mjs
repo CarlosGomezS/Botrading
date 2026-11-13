@@ -388,3 +388,22 @@ test("ESCENARIOS: un año de uso con dinero real (simulado) de principio a fin",
     });
   } finally { await W.close(); }
 });
+
+// ---------- v476 · H-09: Trading 212 responde 500 a una compra que SÍ se hace pero aún no se ve → ese activo queda bloqueado entre revisiones ----------
+test("v476 · H-09: compra con error 500 y sin rastro → bloqueada en las revisiones siguientes (nunca se repite); cuando aparece, se apunta", { timeout: 900000 }, async () => {
+  const W = await world(), K = W.mk.K;
+  K.txs.push({ ref: "d1", type: "DEPOSIT", amount: 120, at: "2026-10-21T08:00:00Z" });
+  // órdenes de XLE que Trading 212 ACEPTÓ (las rechazadas por decimales no cuentan: no se ejecutan)
+  const postsXLE = () => W.mk.calls.filter((c) => { if (c.m !== "POST" || !/orders\/market/.test(c.p)) return false; const b = JSON.parse(c.body || "{}"); return b.ticker === "SXLEd_EQ" && !(String(b.quantity).split(".")[1]?.length > K.precision); }).length;
+  try {
+    K.err500 = "SXLEd_EQ";
+    const a = await W.step("normal", "2026-10-22T08:20:00Z");
+    assert.equal(postsXLE(), 1, "una sola orden enviada"); assert.ok(a.R.pendBot.some((o) => o.t === "SXLEd_EQ" && o.dudosa && !o.id), "apuntada como dudosa (sin id)");
+    const b = await W.step("normal", "2026-10-23T08:20:00Z");
+    assert.equal(postsXLE(), 1, "la revisión siguiente NO la repite"); assert.match(b.rep.md, /sigue sin aclararse/); assert.ok(b.R.pendBot.some((o) => o.t === "SXLEd_EQ"), "sigue bloqueada");
+    K.err500 = null; K.revelar = true;   // aparece en Trading 212
+    const c = await W.step("normal", "2026-10-26T08:20:00Z");
+    assert.equal(postsXLE(), 1, "tampoco al aparecer"); assert.match(c.rep.md + JSON.stringify(c.R.reports.slice(0, 3)), /SÍ existe/); assert.ok(!c.R.pendBot.some((o) => o.t === "SXLEd_EQ"), "desbloqueada");
+    assert.ok(lotQ(c.R, "SXLEd_EQ") > 0, "y apuntada en la cartera del bot");
+  } finally { W.close(); }
+});

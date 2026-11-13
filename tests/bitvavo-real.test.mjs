@@ -531,4 +531,5 @@ test("v475 · H-01: si falla la venta y tampoco se puede volver a poner el stop:
 test("v475 · H-04: si al vender solo queda en la cuenta un resto por debajo del mínimo, NO se borra: queda vigilado como polvo", async () => {
   const { ex, o } = await conStopYVenta((ex) => { ex.saldoReal = 1; ex.bal["AAA-EUR"] = 1; }); const p = o.RS.pos["AAA-EUR"];   // 1 unidad × 2 € = 2 €, menos que el mínimo de 5 €
   assert.ok(p, "sigue registrada"); assert.ok(p.polvo, "como polvo"); assert.ok(Math.abs(p.q - 1) < 1e-9, "con lo que hay de verdad");
+  assert.notEqual(p.stopEst, "ok", "v476 · su stop se quitó: NUNCA puede decir «ok»"); assert.equal(p.stopEst, "resto"); assert.ok(!p.stopId, "sin stop apuntado");
 });
