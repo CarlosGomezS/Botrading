@@ -45,6 +45,7 @@ async function ideas(prev) {
   return out.slice(0, 200);
 }
 // v466 · 16 tramos al azar de 30 a 180 días entre la hora 260 y el corte (la mitad acaban justo en el corte); NUNCA entran en los 90 días ocultos
+export function calidadIS(x, corte) { const z = x && x.is; if (!z || !Number.isFinite(+z.ret)) return -9; const an = Math.pow(Math.max(0.0001, 1 + z.ret), 365 / Math.max(30, (corte - 260) / 24)) - 1; return an - 0.8 * Math.abs(z.dd || 0); }
 export function tramosAlAzar(corte) { const T = []; for (let q = 0; q < 16; q++) { const len = Math.max(24, Math.min(Math.round((30 + Math.random() * 150) * 24), corte - 260 - 24)), fin = q < 8 ? corte : 260 + len + Math.floor(Math.random() * Math.max(1, corte - 260 - len)); T.push([Math.max(260, fin - len), Math.min(fin, corte)]); } return T; }
 export async function lab(log = console.log) {
   const M0 = (await memoria()) || {};
@@ -81,7 +82,9 @@ export async function lab(log = console.log) {
   const clave = (g) => `${S[g.a] && S[g.a].fam}${JSON.stringify(S[g.a] && S[g.a].p)}|${g.b != null && S[g.b] ? S[g.b].fam + JSON.stringify(S[g.b].p) : "-"}|${g.f}|${g.h}|${g.sl}`;
   const nomS = (x) => (x.ia ? `🤖 IA «${x.ia.nombre}»` : `${x.fam} ${JSON.stringify(x.p)}`);
   const nombre = (g) => `${nomS(S[g.a])}${g.b != null ? " + confirma " + nomS(S[g.b]) : ""} · ${g.f} · cada operación dura ${g.h} h · stop ${g.sl ? "−" + g.sl * 100 + " %" : "no"}`;
-  const calidad = (x) => { const an = Math.pow(Math.max(0.0001, 1 + x.a.ret), 365 / Math.max(30, (n - 261) / 24)) - 1; return an - 0.8 * Math.abs(x.a.dd || 0); };   /* v457 · 0,8 */
+  // v475 · 🔒 el ORDEN del podio sale SOLO de lo anterior a los 90 días ocultos (rentabilidad al año antes del examen − 0,8 × su caída hora a hora antes del examen).
+  //   El examen oculto sigue decidiendo solo APROBAR o SUSPENDER; ya no decide cuál de las aprobadas va primera.
+  const calidad = (x) => calidadIS(x, CORTE_OCULTO);   /* v457 · 0,8 */
   const evalua = (g) => { const A = sig(g.a), B = g.b != null ? sig(g.b) : null, f = FILTROS[g.f], ops = [];
     for (const c of U) { const a = A[c], b = B && B[c]; let lib = 0; for (let i = 260; i < n - 1; i++) { if (i < lib || !a[i]) continue; if (b) { let ok = false; for (let k = 0; k < 6 && !ok; k++) if (b[i - k] === a[i]) ok = true; if (!ok) continue; } if (!f(a[i], i, X, c)) continue; ops.push([i, c, a[i], i + g.h]); lib = i + g.h; } }
     // v365 · 🎲 TRAMOS AL AZAR (distintos en cada ronda) + regla estricta «hasta hoy»: la historia completa hasta hoy, los últimos 6 meses
@@ -92,6 +95,7 @@ export async function lab(log = console.log) {
     // v453 · 🔒 FUERA DE MUESTRA: los últimos 90 días quedan «escondidos» para la búsqueda (la nota que guía qué probar y mutar sale solo de lo anterior)
     //   y sirven de examen final. 💸 COSTES DOBLES: además tiene que ganar pagando el doble de comisiones y deslizamiento.
     const cut = CORTE_OCULTO, ais = cartera(ops, M, 260, cut, 5, g.sl), oos = cartera(ops, M, cut, n - 1, 5, g.sl), c2 = cartera(ops, M, 260, n - 1, 5, g.sl, 2);
+    if (a.ret > 0 && a.opsDia >= minOpsB(g)) ais.dd = Math.max(ais.dd, caidaHoraria(ops, M, 260, cut, 5, g.sl));   // v475 · la caída de antes del examen, también hora a hora
     r.is = ais; r.o = { ret: oos.ret, pf: oos.pf, n: oos.n, dd: oos.dd }; r.c2 = { ret: c2.ret, pf: c2.pf };
     if (ais.ret > 0 && ais.opsDia >= minOpsB(g)) { const xs = []; for (const [i0, i1] of TRAMOS) { const z = cartera(ops, M, i0, i1, 5, g.sl); xs.push({ m: Math.pow(Math.max(0.01, 1 + z.ret), 720 / (i1 - i0)) - 1, dd: z.dd, ok: z.ret > 0 }); }
       const ms = xs.map((x) => x.m).sort((p, q) => p - q), dds = xs.map((x) => x.dd).sort((p, q) => q - p); r.t = { n: xs.length, g: xs.filter((x) => x.ok).length / xs.length, med: ms[Math.floor(ms.length / 2)], dd: dds[Math.floor(dds.length / 4)] }; }
@@ -115,15 +119,15 @@ export async function lab(log = console.log) {
     // v465 · 🔒 las «casi» (las madres de las mutaciones) se eligen SOLO con datos anteriores a los 90 días ocultos: así el examen final no se filtra a la búsqueda
     if (r.is.ret > 0 && r.is.pf >= 1.05 && r.is.opsDia >= minOpsB(g)) { mem.casi.push({ v: 466, g, n: nombre(g), nota: r.nota, is: { ret: r.is.ret, pf: r.is.pf, opsDia: r.is.opsDia, dd: r.is.dd }, a: r.a, b: r.b, t: r.t }); }
     if (r.okA && r.okB && r.okC && !mem.aprobadas.some((x) => x.k === k) && !vecinosOk(g).ok) continue;   /* v458 · sin vecinos que ganen: no aprueba */   /* v458 · sin vecinos que ganen: se queda en «casi» */
-    if (r.okA && r.okB && r.okC) { nOk++; if (!mem.aprobadas.some((x) => x.k === k)) mem.aprobadas.push({ k, g, n: nombre(g), a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2, desde: new Date().toISOString() }); } }
+    if (r.okA && r.okB && r.okC) { nOk++; if (!mem.aprobadas.some((x) => x.k === k)) mem.aprobadas.push({ k, g, n: nombre(g), a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2, is: { ret: r.is.ret, dd: r.is.dd, pf: r.is.pf, opsDia: r.is.opsDia }, desde: new Date().toISOString() }); } }
   for (const [f, v] of Object.entries(famStat)) { const top = v.sort((a, b) => b - a).slice(0, 5), m = top.reduce((a, b) => a + b, 0) / top.length; mem.pesos[f] = +((mem.pesos[f] || 1) * 0.7 + 0.3 * Math.max(0.2, m)).toFixed(3); }
   mem.casi = mem.casi.sort((a, b) => b.nota - a.nota).filter((x, i, A) => A.findIndex((y) => y.n === x.n) === i).slice(0, 60);
   // las aprobadas se vuelven a examinar cada ronda con los datos nuevos: si dejan de aprobar, salen del podio
-  mem.aprobadas = mem.aprobadas.filter((x) => { const g2 = fixG(x.g); if (!g2 || !S[g2.a]) return false; x.g = g2; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2 });
+  mem.aprobadas = mem.aprobadas.filter((x) => { const g2 = fixG(x.g); if (!g2 || !S[g2.a]) return false; x.g = g2; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2, is: { ret: r.is.ret, dd: r.is.dd, pf: r.is.pf, opsDia: r.is.opsDia } });
     try { const t0 = Date.parse(x.desde), i0 = T.findIndex((t) => t >= t0), dias = (Date.now() - t0) / 864e5, z = i0 >= 0 && i0 < n - 1 ? cartera(r.ops, M, i0, n - 1, 5, x.g.sl) : { n: 0, ret: 0, pf: 0 }, min = lento(x.g) ? 4 : 8;
       x.cuar = { dias: +dias.toFixed(1), n: z.n, ret: +(+z.ret || 0).toFixed(4), pf: +(+z.pf || 0).toFixed(2), min, exento: exentos.includes(x.k) || undefined, ok: dias >= 21 && z.n >= min && z.ret > 0 }; } catch (e) { x.cuar = { dias: 0, n: 0, ret: 0, min: 8, ok: false }; }
     if (r.okA && r.okB && r.okC) { try { x.vec = vecinosOk(x.g); } catch (e) { x.vec = { ok: true, res: [] }; } if (!x.vec.ok) log(`  🧭 Sale del podio por la prueba de vecinos: ${x.n.slice(0, 80)}`); }
-    return r.okA && r.okB && r.okC && (!x.vec || x.vec.ok); }).sort((a, b) => Math.round(calidad(b) * 1000) - Math.round(calidad(a) * 1000) || a.a.dd - b.a.dd);   /* v455 · ⚖️ por CALIDAD: ganancia al año − 0,8 × caída */   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
+    return r.okA && r.okB && r.okC && (!x.vec || x.vec.ok); }).sort((a, b) => Math.round(calidad(b) * 1000) - Math.round(calidad(a) * 1000) || (a.is ? a.is.dd : 1) - (b.is ? b.is.dd : 1));   /* v455 · ⚖️ por CALIDAD: ganancia al año − 0,8 × caída */   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
   for (const x of mem.aprobadas) x.nota = +calidad(x).toFixed(4);
   const ks = Object.keys(mem.probadas); if (ks.length > 40000) for (const k of ks.slice(0, ks.length - 40000)) delete mem.probadas[k];
   const totalVistas = (M0.totalVistas || Object.keys(M0.probadas || {}).length) + cand.length;

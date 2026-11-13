@@ -282,3 +282,16 @@ test("v470 · si la lectura de marcas es dudosa (página repetida), esa hora NO 
   const W = mundo({ pagRepetida: 1, quiere: [{ c: "BTC", dir: 1 }] }); conecta(W); marcas(W, 150); W.ctl = { ...W.ctl, t: new Date().toISOString() }; await silencio(() => HL.ronda()); assert.equal(aperturas(W).length, 0, "freno rearmado, pero la lectura de marcas no es fiable");
   const W2 = mundo({ quiere: [{ c: "BTC", dir: 1 }] }); conecta(W2); marcas(W2, 150); W2.ctl = { ...W2.ctl, t: new Date().toISOString() }; await silencio(() => HL.ronda()); assert.equal(aperturas(W2).length, 1, "control: con lectura completa y freno rearmado, sí abre");
 });
+
+// ---------- v475 · H-03: integridad de los datos en vivo ----------
+test("v475 · H-03: datos en vivo con huecos (velas o financiación), sin la última vela o con pocas velas → esa cripto no da señal", () => {
+  const T = Array.from({ length: 1200 }, (_, i) => i * H), ok = () => ({ k: new Map(T.map((t) => [t, [100, 1, 101, 99]])), f: new Map(T.map((t) => [t, 0.0001])) });
+  assert.deepEqual(HL.integridadViva(T, ok()), { ok: true });
+  const a = ok(); a.k.delete(T.at(-1)); assert.equal(HL.integridadViva(T, a).ok, false, "falta la última vela");
+  const b = ok(); for (let i = 500; i < 530; i++) b.k.delete(T[i]); assert.equal(HL.integridadViva(T, b).ok, false, "30 h seguidas sin velas");
+  const b2 = ok(); for (let i = 500; i < 520; i++) b2.k.delete(T[i]); assert.equal(HL.integridadViva(T, b2).ok, true, "20 h sí se toleran (como en el laboratorio)");
+  const c = ok(); for (let i = 0; i < 300; i++) c.f.delete(T[i]); assert.equal(HL.integridadViva(T, c).ok, false, "sin financiación al principio");
+  const e = ok(); for (let i = 1170; i < 1200; i++) e.f.delete(T[i]); assert.equal(HL.integridadViva(T, e).ok, false, "financiación sin datos recientes");
+  const f = ok(); for (let i = 0; i < 1200; i += 4) f.k.delete(T[i]); assert.equal(HL.integridadViva(T, f).ok, false, "con un 25 % de velas faltando");
+  assert.equal(HL.integridadViva(T, null).ok, false);
+});

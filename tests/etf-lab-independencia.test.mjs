@@ -31,6 +31,7 @@ function oos(esc, k) {   // resultados del examen oculto según el escenario: tr
   if (esc === "muy_negativo") return { s2: SEG(-0.95, -0.97, 300), ht: -0.95, c2: -9 };
   if (esc === "nulo") return { s2: SEG(0, 0, 0), ht: 0, c2: 0 };
   if (esc === "ausente") return { s2: {}, ht: undefined, c2: undefined };
+  if (esc.startsWith("azar_alto")) { const z = esc.endsWith("2") ? 77 : 99, a = hsh(k, z), b = hsh(k, z - 1); return { s2: SEG(1 + a * 8, -0.05 - b * 0.1, 10), ht: 2 + b * 5, c2: 0 }; }   // v475 · aprueban todos, con un examen distinto en cada método
   const a = hsh(k, 99), b = hsh(k, 98); return { s2: SEG(a * 4 - 1, -b, Math.round(a * 40)), ht: b * 3 - 1, c2: -a };   // «al azar»
 }
 function examen(esc) {   // el objeto que labJudge recibe (como S.btm), con datos que se generan al pedirlos
@@ -71,4 +72,16 @@ test("ETF · la búsqueda NO depende del examen oculto: con OOS muy positivo, mu
 test("ETF · las notas que guían la búsqueda son SOLO de antes del examen (anIS/okIS no cambian con el OOS; la rentabilidad completa sí)", () => {
   const { c } = cargar(); const k = "g_prueba"; const a = c.__X.labExam(examen("muy_positivo"), k), b = c.__X.labExam(examen("muy_negativo"), k);
   assert.equal(a.sc, b.sc); assert.equal(a.anIS, b.anIS); assert.equal(a.okIS, b.okIS); assert.notEqual(a.an, b.an, "la rentabilidad completa (para informar) sí cambia");
+});
+
+// v475 · H-07: el ORDEN del podio de ETF (top5List, código real) no depende del examen oculto: con dos exámenes distintos en los que aprueban,
+//   los métodos aprobados en ambos quedan en el MISMO orden relativo
+test("ETF · H-07: el orden del podio no cambia al cambiar el examen oculto (solo puede cambiar quién aprueba)", () => {
+  const P2 = cierre(["top5List", "labOrdenIS", "labHoldOk", "labExam"], FUERA.filter((x) => x !== "BTX" && x !== "STR")), keys = Array.from({ length: 150 }, (_, i) => "g_orden" + i);
+  const orden = (esc) => { const c = crea(P2, { ...entorno(), BTX: Object.fromEntries(keys.map((k) => [k, { lab: 1 }])), STR: {} }); const b = examen(esc); c.S.btm = b;
+    const all = keys.map((k) => ({ k, v: { c: "ok" }, r: b.rows[k], late: false })); return JSON.parse(JSON.stringify(c.__X.top5List(all, 200).T.map((x) => x.h.k))); };
+  const A = orden("azar_alto"), B = orden("azar_alto2"), Cn = orden("al_azar");
+  assert.ok(A.length >= 10 && B.length >= 10, `aprueban suficientes para comparar (${A.length}, ${B.length})`);
+  const rel = (X, Y) => { const com = X.filter((k) => Y.includes(k)); return [com, Y.filter((k) => com.includes(k))]; };
+  for (const [x, y, n] of [[A, B, "dos exámenes muy positivos distintos"], [A, Cn, "examen muy positivo frente a al azar"]]) { const [p, q] = rel(x, y); if (p.length >= 2) assert.equal(JSON.stringify(q), JSON.stringify(p), "mismo orden relativo: " + n); }
 });

@@ -1,8 +1,9 @@
 # Bot Trading en la nube (gratis, sin ordenador encendido)
 
-> **Estado actual (v471, 12/11/2026).** Lo de abajo es el historial de cambios; las reglas vigentes son estas.
+> **Estado actual (v475, 13/11/2026).** Lo de abajo es el historial de cambios; las reglas vigentes son estas.
 >
 > - **Dinero real:** Trading 212 (sigue solo el n.º 1 del podio de **ETF**; Mixtos y Acciones solo en ficticio por el sesgo de supervivencia), Bitvavo y OKX (Tortugas, perfil n.º 1 de su exchange; hoy **medio** en los dos) e Hyperliquid (n.º 1 *listo para real* del laboratorio).
+> - **v475 (auditoría v474):** Bitvavo/OKX vuelven a poner el stop en el acto si una venta falla después de quitarlo, y los restos por debajo del mínimo ya no se borran (pasan al camino del «polvo»); Trading 212 trata un error 5xx al enviar una orden como resultado desconocido (se busca la orden, nunca se repite); Hyperliquid en vivo exige datos íntegros (última vela, ≤ 24 h seguidas sin velas o financiación, financiación de toda la ventana); el ORDEN de los podios de ETF y de Hyperliquid sale solo de lo anterior al examen oculto (el examen solo decide quién aprueba).
 > - **Trading 212 y los 30 días (v471):** la cartera real solo sigue métodos de ETF que llevan **30 días seguidos aprobados** (si un día suspenden, vuelven a empezar); entre esos, el mejor clasificado, y solo si le saca 1 punto al año al actual. El podio muestra «día X de 30» o «✅ probado». Si el actual deja de aprobar y no hay ninguno probado, se mantiene y avisa. El contador empezó el 12/11/2026 para todos.
 > - **Nota de los podios:** rentabilidad anual − **0,8 ×** peor caída (ETF, Tortugas e Hyperliquid).
 > - **ETF:** 26 años, 2 años ocultos al buscar, costes dobles, 300 tramos al azar, prueba de estabilidad con 2 variantes vecinas.

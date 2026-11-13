@@ -205,3 +205,27 @@ test("v471 · si el actual deja de aprobar: cambia al mejor probado (sin margen)
   assert.equal(primero(S2, "act"), null, "ninguno probado: se mantiene el actual"); assert.equal(sinProbados(S2, "act"), true, "y se avisa");
   assert.equal(sinProbados({ lab: { etfLiga: [{ k: "act", sc: 0.1, dias: 1 }] } }, "act"), false, "si el actual aprueba, no hay aviso");
 });
+
+// ---------- v475 · H-02: Trading 212 responde 5xx al ENVIAR una orden ----------
+import { placeMarket } from "../runner/real.mjs";
+test("v475 · H-02: si Trading 212 responde 500 al enviar una compra, NO se repite: se busca la orden; si está, se da por hecha; si no, queda dudosa", { timeout: 60000 }, async () => {
+  const fallo = (st) => { const e = new Error("Trading 212 respondió HTTP " + st); e.st = st; e.body = "error interno"; return e; };
+  for (const st of [500, 502, 503]) {
+    let posts = 0; const ahora = () => new Date(Date.now() - 1000).toISOString();
+    const T1 = { call: async (m, p) => { if (m === "POST") { posts++; throw fallo(st); } if (p === "/equity/orders") return []; return { items: [{ order: { ticker: "SPY_US_EQ", quantity: 2.5, createdAt: new Date(Date.now()).toISOString(), status: "FILLED", filledQuantity: 2.5 } }] }; } };
+    const r1 = await placeMarket(T1, "SPY_US_EQ", 2.5, false, [], 4); assert.equal(posts, 1, `HTTP ${st}: una sola orden enviada`); assert.equal(r1.ok, true); assert.equal(r1.dudosa, true, "encontrada y confirmada");
+    let posts2 = 0; const T2 = { call: async (m, p) => { if (m === "POST") { posts2++; throw fallo(st); } if (p === "/equity/orders") return []; return { items: [] }; } };
+    const r2 = await placeMarket(T2, "SPY_US_EQ", 2.5, false, [], 4); assert.equal(posts2, 1, `HTTP ${st}: no se reintenta`); assert.equal(r2.ok, false); assert.equal(r2.dudosa, true, "queda dudosa (no se repite)"); void ahora;
+  }
+});
+
+// ---------- v475 · H-06: el orden del podio de Hyperliquid no mira el examen oculto ----------
+test("v475 · H-06: la nota que ORDENA el podio de Hyperliquid sale solo de antes del examen (cambiar el examen o la historia completa no la cambia)", () => {
+  const base = { is: { ret: 0.6, dd: 0.2 }, a: { ret: 0.9, dd: 0.25 }, o: { ret: 0.1 } }, corte = 13000;
+  const n0 = LAB.calidadIS(base, corte);
+  for (const o of [{ ret: 5 }, { ret: -0.9 }, { ret: 0 }, undefined]) for (const a of [{ ret: 9, dd: 0.01 }, { ret: -0.5, dd: 0.9 }, undefined])
+    assert.equal(LAB.calidadIS({ ...base, o, a }, corte), n0, "el examen y la historia completa no cambian la nota");
+  assert.ok(LAB.calidadIS({ is: { ret: 0.8, dd: 0.2 } }, corte) > n0, "más rentabilidad antes del examen → mejor nota");
+  assert.ok(LAB.calidadIS({ is: { ret: 0.6, dd: 0.4 } }, corte) < n0, "más caída antes del examen → peor nota");
+  assert.equal(LAB.calidadIS({ a: { ret: 9 } }, corte), -9, "sin datos de antes del examen: al final");
+});

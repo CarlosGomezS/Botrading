@@ -224,6 +224,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       let r = await intenta(pxN); if (!r.id && r.err) { await sleep(1500); r = await intenta(pxN); }
       if (r.id) { p.stopId = r.id; p.stopPx = pxN; p.stopEst = "ok"; delete p.stopErr; return; }
       if (tenia) { const rv = await intenta(pxV);   /* v461 · si ANTES tenía stop, cualquier cosa que no sea un stop confirmado (error o respuesta sin identificador) es un fallo: se repone el anterior o se vende */ if (rv.id) { p.stopId = rv.id; p.stopPx = pxV; p.stopEst = "ok"; L(RS, now, `⚠️ ${p.sym}: no pude mover el stop de emergencia; he vuelto a poner el anterior`); return; }
+        if (p.reponiendo) { p.stopEst = "error"; msgs.push(`💶 🚨 ${EX}: ${p.sym} no se ha podido vender y se ha quedado SIN stop en el exchange. Lo reintento en cada vuelta (el bot la vigila con su stop −6 %); si puedes, revísala a mano.`); return; }   // v475 · acabamos de fallar al venderla: no se reintenta aquí
         L(RS, now, `🚨 ${p.sym}: sin stop en ${EX} (no pude poner ni el nuevo ni el anterior): la vendo para no dejarla sin protección`);
         try { await cerrar(m, "no se pudo mantener su stop de emergencia en el exchange"); } catch (e) { p.stopEst = "error"; msgs.push(`💶 🚨 ${EX}: ${p.sym} se ha quedado SIN stop en el exchange y no he podido venderla. Lo reintento en cada vuelta (el bot la vigila con su stop −6 %); si puedes, revísala a mano.`); }
         return; }
@@ -241,12 +242,19 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if (RS.cash >= pon && (await libre()) >= pon) { try { const rb = await X.comprar(m, pon); RS.cash -= rb.coste; RS.st.fees += rb.fee; p.q += rb.q; p.cost += rb.coste; L(RS, now, `🧹 ${p.sym}: valía menos que el mínimo de ${EX}; compra ${r2(pon)} € para poder venderla entera`); } catch (e) { if (!p.polvo) L(RS, now, `⚠️ ${p.sym}: vale menos que el mínimo y no pude completarla (lo reintenta)`); p.polvo = now.toISOString(); return; }
         return cerrar(m, por, 1); }
       if (!p.polvo) L(RS, now, `⏳ ${p.sym}: vale menos que el mínimo de ${EX} y no hay euros libres para completarla; la sigue vigilando`); p.polvo = now.toISOString(); return; }
-    if (p.stopId && X.quitaStop) { try { await X.quitaStop(m, p.stopId); delete p.stopId; } catch (e) { L(RS, now, `⚠️ ${p.sym}: no pude quitar el stop de emergencia para vender; lo reintenta`); return; } }   // v291
-    let r; try { r = await X.vender(m, qv); } catch (e) { if (!/216|51008|insufficient|saldo/i.test(e.message)) throw e;
+    let quitado = false;
+    if (p.stopId && X.quitaStop) { try { await X.quitaStop(m, p.stopId); delete p.stopId; quitado = true; } catch (e) { L(RS, now, `⚠️ ${p.sym}: no pude quitar el stop de emergencia para vender; lo reintenta`); return; } }   // v291
+    // v475 · 🛡️ si la venta FALLA después de quitar el stop, se vuelve a poner el stop EN ESE MOMENTO (no se espera a la revisión de cada 30 min)
+    const repon = async () => { if (!quitado || !RS.pos[m] || p.reponiendo) return; p.reponiendo = 1; try { await protege(m); } finally { delete p.reponiendo; }
+      L(RS, now, p.stopId ? `🛡️ ${p.sym}: la venta falló; he vuelto a poner su stop de emergencia` : `🚨 ${p.sym}: la venta falló y NO he podido volver a poner su stop`); };
+    let r; try { r = await X.vender(m, qv); } catch (e) { if (!/216|51008|insufficient|saldo/i.test(e.message)) { await repon(); throw e; }
       // v278 · lo apuntado era un poco más de lo que hay (la comisión se cobró en la propia cripto): se vende lo que hay DE VERDAD
       const hay = X.saldo ? await X.saldo(p.sym) : 0, q2 = Math.min(qv, hay);
-      if (!(q2 * bid >= mk.min)) { L(RS, now, `⚠️ ${p.sym}: en la cuenta solo quedan ${hay} (menos que el mínimo); se da por cerrada`); delete RS.pos[m]; return; }
-      r = await X.vender(m, q2); if (frac >= 1) p.q = r.q; }
+      if (!(q2 * bid >= mk.min)) {
+        // v475 · 🧹 si QUEDA algo (menos que el mínimo), NO se borra: pasa al camino del polvo (completar hasta el mínimo y venderlo todo junto)
+        if (hay > 0) { p.q = hay; if (!p.polvo) L(RS, now, `⏳ ${p.sym}: lo que queda en la cuenta vale menos que el mínimo de ${EX}; la sigue vigilando para completarla y venderla entera`); p.polvo = now.toISOString(); return; }
+        L(RS, now, `⚠️ ${p.sym}: en la cuenta ya no queda nada; se da por cerrada`); delete RS.pos[m]; return; }
+      try { r = await X.vender(m, q2); } catch (e2) { await repon(); throw e2; } if (frac >= 1) p.q = r.q; }
     RS.cash += r.got; RS.st.fees += r.fee; p.cob = (p.cob || 0) + r.got; p.q -= r.q; p.tVenta = Date.now();   // v297 · hora de la última venta del bot (para no contar dos veces)
     if (r.pendUsdc > 0) RS.usdcPend = (RS.usdcPend || 0) + r.pendUsdc;   // v297 · USDC del bot que no pudo pasar a euros: solo ESE se convertirá luego
     if (frac >= 1 || p.q * (tick[m] ? tick[m].bid : p.px) < mk.min) {

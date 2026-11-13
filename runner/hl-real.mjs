@@ -54,15 +54,27 @@ async function mandar(o, pk) { const res = await exchange({ type: "order", order
 async function serie(c, fin) {
   const ini = fin - VELAS * H, k = new Map(), f = new Map();
   const v = await info({ type: "candleSnapshot", req: { coin: c, interval: "1h", startTime: ini, endTime: fin - 1 } }); for (const x of v || []) if (+x.t < fin) k.set(+x.t, [+x.c, +x.v || 0, +x.h, +x.l]);
-  let t = fin - 500 * H; for (let g = 0; g < 3 && t < fin; g++) { const r = await info({ type: "fundingHistory", coin: c, startTime: t }); if (!r || !r.length) break; for (const x of r) f.set(Math.floor(+x.time / H) * H, +x.fundingRate); const last = +r[r.length - 1].time; if (last <= t) break; t = last + 1; }
+  let t = ini; /* v475 · la financiación de TODA la ventana (antes solo las últimas 500 h; lo anterior contaba como 0) */ for (let g = 0; g < 4 && t < fin; g++) { const r = await info({ type: "fundingHistory", coin: c, startTime: t }); if (!r || !r.length) break; for (const x of r) f.set(Math.floor(+x.time / H) * H, +x.fundingRate); const last = +r[r.length - 1].time; if (last <= t) break; t = last + 1; }
   return { k, f };
 }
+// v475 · 🕳️ INTEGRIDAD DE LOS DATOS EN VIVO (los mismos controles que el laboratorio): al menos el 80 % de las velas, la ÚLTIMA vela presente,
+//   como mucho 24 h seguidas sin velas, financiación presente desde el principio, sin huecos de más de 24 h y con un dato de las últimas 24 h.
+//   Si una cripto no los cumple, NO da señal esta hora; si es BTC, no se abre nada (senalesVivas ya lo exige).
+export const HUECO_VIVO = 24;
+export function integridadViva(T, d) { if (!d || !d.k || !d.f) return { ok: false, motivo: "sin datos" }; if (d.k.size < T.length * 0.8) return { ok: false, motivo: "faltan velas" };
+  const fin = T[T.length - 1]; if (!(d.k.get(fin) && d.k.get(fin)[0] > 0)) return { ok: false, motivo: "falta la última vela" };
+  let hv = 0, hf = 0, mv = 0, mf = 0;   // huecos seguidos de velas y de financiación (la financiación cuenta también el hueco del principio)
+  for (const t of T) { const x = d.k.get(t), f = d.f.get(t); if (x && x[0] > 0) hv = 0; else hv++; if (f != null && Number.isFinite(f)) hf = 0; else hf++; mv = Math.max(mv, hv); mf = Math.max(mf, hf); }
+  if (mv > HUECO_VIVO) return { ok: false, motivo: `${mv} h seguidas sin velas` };
+  if (mf > HUECO_VIVO) return { ok: false, motivo: `financiación: ${mf} h seguidas sin datos` };
+  return { ok: true }; }
 async function datosVivos(U) {
   const fin = Math.floor(Date.now() / H) * H, T = []; for (let t = fin - VELAS * H; t < fin; t += H) T.push(t);
-  const M = {}; for (const c of U) { let d; try { d = await serie(c, fin); } catch (e) { continue; } if (d.k.size < VELAS * 0.8) continue;
+  const M = {}, fuera = []; for (const c of U) { let d; try { d = await serie(c, fin); } catch (e) { continue; } const iv = integridadViva(T, d); if (!iv.ok) { fuera.push(`${c} (${iv.motivo})`); continue; }
     const C = new Float64Array(T.length), F = new Float64Array(T.length), V = new Float64Array(T.length), Hi = new Float64Array(T.length), Lo = new Float64Array(T.length); let last = NaN, lastF = 0;
     T.forEach((t, i) => { const x = d.k.get(t); if (x && x[0] > 0) { last = x[0]; V[i] = x[1]; Hi[i] = x[2]; Lo[i] = x[3]; } else { Hi[i] = Lo[i] = last; } C[i] = last; { const f = d.f.get(t); if (f != null && Number.isFinite(f)) lastF = f; F[i] = lastF; } });
     M[c] = { C, F, V, Hi, Lo, ultima: d.k.has(fin - H) }; await sleep(120); }
+  if (fuera.length) log(`Datos en vivo incompletos, sin señal esta hora: ${fuera.slice(0, 12).join(" · ")}`);
   return { T, M, U: U.filter((c) => M[c]), fin };
 }
 

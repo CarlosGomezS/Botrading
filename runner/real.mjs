@@ -588,7 +588,7 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
 //   Si no cuadra todo, NO es nuestra: la orden queda dudosa y no se repite la compra.
 export const MARGEN_RELOJ = 5000;
 export function esNuestra(o, qq, tEnvio) { if (!o) return false; const q = +(o.quantity ?? o.filledQuantity ?? NaN), cr = Date.parse(o.createdAt || o.creationTime || ""); return Number.isFinite(q) && Number.isFinite(cr) && Number.isFinite(+tEnvio) && Math.sign(q) === Math.sign(qq) && Math.abs(Math.abs(q) - Math.abs(qq)) <= Math.abs(qq) * 1e-6 + 1e-9 && cr >= tEnvio - MARGEN_RELOJ && cr <= Date.now() + MARGEN_RELOJ; }
-async function placeMarket(T, t, qty, ext, rep, dec0) {
+export async function placeMarket(T, t, qty, ext, rep, dec0) {   // (exportada para las pruebas)
   let q = qty, dec = dec0 != null ? dec0 : 4;
   const fmt = (x, d) => Math.floor(x * 10 ** d) / 10 ** d;
   let nf = 0;
@@ -604,8 +604,8 @@ async function placeMarket(T, t, qty, ext, rep, dec0) {
       if (e.st === 400 && /precision/i.test(b) && dec > 0) { const m = b.match(/precision\D{0,12}(\d)/i); dec = m && +m[1] < dec ? +m[1] : dec - 1; rep.push(`  · ${t}: Trading 212 pide menos decimales; reintento con ${dec}`); continue; }
       // v21: Trading 212 pide algo de margen extra en las compras a mercado: se baja de 1% en 1% (antes 3%) para invertir lo máximo posible
       if (e.st === 400 && /insufficient|not enough|funds|balance/i.test(b) && q > 0 && nf < 8) { nf++; q = q * 0.99; await sleep(1500); rep.push(`  · ${t}: Trading 212 pide algo más de margen; reintento con un 1% menos (intento ${nf})`); continue; }
-      if (e.net || e.st === 408) {
-        // respuesta perdida: puede que SÍ se haya enviado. No se repite a ciegas: se comprueba.
+      if (e.net || e.st === 408 || e.st >= 500) {
+        // respuesta perdida o error del servidor (5xx, v475): puede que SÍ se haya enviado. No se repite a ciegas: se comprueba.
         await sleep(4000);
         try {
           // v465 · solo se reconoce como NUESTRA una orden del mismo activo, mismo LADO, misma CANTIDAD y creada después de enviarla (no una tuya del mismo ETF)

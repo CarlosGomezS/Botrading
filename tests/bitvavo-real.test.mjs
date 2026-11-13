@@ -24,6 +24,7 @@ function exchange(px, opts = {}) {
       assert.equal(b.orderType, "market"); assert.ok(b.clientOrderId, "cada orden lleva su identificador"); if (ex.timeout) { ex.timeout--; ex.orders.push(b); ex.porId = ex.porId || {}; const p0 = ex.px[b.market], quote0 = +b.amountQuote / 1.0025, q0 = quote0 / p0; ex.bal[b.market] = (ex.bal[b.market] || 0) + q0; ex.porId[b.clientOrderId] = { filledAmount: String(q0), filledAmountQuote: String(quote0), feePaid: String(quote0 * 0.0025), feeCurrency: "EUR", status: "filled" }; return R(504, { errorCode: 999, error: "tiempo agotado" }); }
       ex.orders.push(b); const p = ex.px[b.market];
       if (b.side === "buy") { const quote = +b.amountQuote / 1.0025, q = quote / p; ex.bal[b.market] = (ex.bal[b.market] || 0) + q; return R(200, { filledAmount: String(q), filledAmountQuote: String(quote), feePaid: String(quote * 0.0025), feeCurrency: "EUR" }); }
+      if (b.side === "sell" && ex.saldoReal && +b.amount > (ex.bal[b.market] || 0) + 1e-9) return R(400, { errorCode: 216, error: "insufficient balance (prueba)" });
       const q = +b.amount; assert.ok(String(b.amount).split(".")[1] === undefined || String(b.amount).split(".")[1].length <= 4, "respeta los decimales"); ex.bal[b.market] -= q; const quote = q * p; return R(200, { filledAmount: String(q), filledAmountQuote: String(quote), feePaid: String(quote * 0.0025), feeCurrency: "EUR" });
     }
     if (u.pathname === "/v2/trades") return R(200, (ex.trades || []).filter((x) => x.market === u.searchParams.get("market")));
@@ -508,4 +509,26 @@ test("Real v463: si no se puede comprobar que el stop sigue activo, NO se da por
   for (let i = 0; i < 3; i++) { const o = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), new Date(T(1).getTime() + (40 + i) * 60e3), deps); RS = o.RS; msgs = msgs.concat(o.msgs); assert.equal(RS.pos["AAA-EUR"].stopEst, "sin comprobar"); }
   assert.ok(msgs.some((x) => /no consigo comprobar que el stop/.test(x)));
   ex.falloEstado = false; const o = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), new Date(T(1).getTime() + 50 * 60e3), deps); assert.equal(o.RS.pos["AAA-EUR"].stopEst, "ok", "en cuanto se puede comprobar, vuelve a estar confirmado");
+});
+
+// ---------- v475 · H-01 y H-04 ----------
+async function conStopYVenta(o) {
+  const ex = exchange({ "AAA-EUR": 2 }), deps = { api: ex.api, mercado: ex.mercado, rapido: 1 };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix" }, tk(ex.px), T(0), deps);
+  const sp = { sym: "AAA", q: 10, q0: 10, px: 2.002, cost: 60, cost0: 60, t0: T(1).toISOString() };
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), T(1), deps)); assert.ok(RS.pos["AAA-EUR"].stopId, "stop puesto al comprar");
+  ex.px["AAA-EUR"] = 2.2; /* sube: venderla da ganancia (si no, el bot espera a cubrir comisiones y no vende) */ o(ex); let r = null; try { r = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix" }, tk(ex.px), T(3), deps); } catch (e) { r = { err: e, RS }; }   // el método ya no la tiene → hay que venderla
+  return { ex, o: r };
+}
+test("v475 · H-01: si la venta FALLA después de quitar el stop, el stop se vuelve a poner en ese mismo momento", async () => {
+  const { ex, o } = await conStopYVenta((ex) => { ex.falloVenta = new Set(["AAA-EUR"]); }); const p = o.RS.pos["AAA-EUR"];
+  assert.ok(o.RS.log.some((x) => /la venta falló; he vuelto a poner su stop/.test(x.txt)), "de verdad intentó venderla y falló"); assert.ok(p, "la posición sigue (no se pudo vender)"); assert.equal(p.stopEst, "ok"); assert.ok(p.stopId && ex.stops[p.stopId], "hay un stop ACTIVO en el exchange");
+});
+test("v475 · H-01: si falla la venta y tampoco se puede volver a poner el stop: aviso urgente, sin bucles", async () => {
+  const { o } = await conStopYVenta((ex) => { ex.falloVenta = new Set(["AAA-EUR"]); ex.falloStop = 10; }); const p = o.RS.pos["AAA-EUR"];
+  assert.ok(p); assert.equal(p.stopEst, "error"); assert.ok((o.msgs || []).some((x) => /SIN stop/.test(x)), "avisa");
+});
+test("v475 · H-04: si al vender solo queda en la cuenta un resto por debajo del mínimo, NO se borra: queda vigilado como polvo", async () => {
+  const { ex, o } = await conStopYVenta((ex) => { ex.saldoReal = 1; ex.bal["AAA-EUR"] = 1; }); const p = o.RS.pos["AAA-EUR"];   // 1 unidad × 2 € = 2 €, menos que el mínimo de 5 €
+  assert.ok(p, "sigue registrada"); assert.ok(p.polvo, "como polvo"); assert.ok(Math.abs(p.q - 1) < 1e-9, "con lo que hay de verdad");
 });
