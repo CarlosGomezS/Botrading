@@ -1,6 +1,6 @@
 # Bot Trading en la nube (gratis, sin ordenador encendido)
 
-> **Estado actual (v480, 13/11/2026) — versión estable: a partir de aquí, observar.** Lo de abajo es el historial de cambios; las reglas vigentes son estas.
+> **Estado actual: v1.0 «Ancla» (compilación 481, 13/11/2026) — primera versión estable en producción. Es la v480 sin cambios de comportamiento; a partir de aquí, observar.** Lo de abajo es el historial de cambios; las reglas vigentes son estas.
 >
 > - **Dinero real:** Trading 212 (sigue solo el n.º 1 del podio de **ETF**; Mixtos y Acciones solo en ficticio por el sesgo de supervivencia), Bitvavo y OKX (Tortugas, perfil n.º 1 de su exchange; hoy **medio** en los dos) e Hyperliquid (n.º 1 *listo para real* del laboratorio).
 > - **v480 (H17):** Hyperliquid: si hay una apertura sin aclarar y el historial todavía NO muestra ninguna apertura de esa cripto y dirección desde entonces (retraso), la posición queda «por identificar» (no se toca, se conserva la intención y no se abre nada); solo es ajena si el historial SÍ muestra cómo se abrió y no cuadra. Más de un día por identificar → aviso diario; guardar los ajustes la asigna al bot. Prueba de que un botón de Telegram reenviado tras un reinicio no hace nada la segunda vez. Riesgos que quedan (documentados): una posición tuya idéntica (misma cripto, dirección, minuto y tamaño) a una orden del bot sin respuesta; una orden de Trading 212 idéntica a una del bot sin respuesta.
