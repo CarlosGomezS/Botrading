@@ -251,12 +251,18 @@ export async function ronda() {
     return Math.min(...fx.map((z) => +z.time)); };
   const ajenasPrev = (prev && prev.ajenasPos) || {}, ajenasPos = {}, propias = new Map();   // propias: cripto → stops que ya había antes de que el bot la abriera
   const adopta = (c, i, t0) => { pm[c] = { h: (i && i.g && i.g.h) || h, sl: i && i.g ? i.g.sl || 0 : M0 && M0.x && M0.x.g ? M0.x.g.sl || 0 : 0, k: (i && i.g && i.g.k) || (M0 && M0.x ? M0.x.k : null), ...(t0 ? { t0 } : {}) }; propias.set(c, new Set((i && i.antes) || [])); };
+  // v480 · H17: si hay una apertura SIN ACLARAR en esa cripto y dirección y el historial todavía NO muestra ninguna apertura desde entonces (puede ir con retraso),
+  //   la posición no se da por ajena: queda «por identificar» (no se toca), se conserva la intención y se sigue sin abrir nada. Solo es ajena si el historial
+  //   SÍ muestra cómo se abrió y no cuadra con la orden del bot.
+  const sinAperturaVisible = (p, ints, fl) => { const lado = +p.szi > 0 ? 1 : -1, i = (ints || []).find((x) => x && x.dudosa && x.c === p.coin && Math.sign(x.dir) === lado); if (!i || !Array.isArray(fl)) return false;
+    return !fl.some((z) => z.coin === p.coin && (lado > 0 ? /^Open Long/ : /^Open Short/).test(String(z.dir)) && +z.time >= i.t - 60e3); };
   const porIdentificar = new Set();   // v479 · sin historial de ejecuciones no se puede demostrar de quién es: no se toca, no se adopta y no se da por ajena
   if (!recon) for (const p of pos) if (!pm[p.coin] && estadoOk) {
-    const i = fillsOk ? intPrev.find((x) => prueba(x, p, fills) != null) : null, t = i ? prueba(i, p, fills) : null, desde = ajenasPrev[p.coin] || new Date().toISOString();
+    const i = fillsOk ? intPrev.find((x) => prueba(x, p, fills) != null) : null, t = i ? prueba(i, p, fills) : null, desde = ajenasPrev[p.coin] || (prev && prev.porIdent && prev.porIdent[p.coin]) || new Date().toISOString();
     if (i) { adopta(p.coin, i, t); log("Posición abierta por el bot en una ronda anterior sin confirmar: se recupera y se gestiona."); }
     else if (reArm(desde)) adopta(p.coin, null, null);
     else if (!fillsOk && !ajenasPrev[p.coin]) porIdentificar.add(p.coin);
+    else if (!ajenasPrev[p.coin] && sinAperturaVisible(p, intPrev, fills)) porIdentificar.add(p.coin);   // v480 · H17: el historial aún no la muestra
     else ajenasPos[p.coin] = desde; }
   const intentos = intPrev.filter((i) => !pm[i.c] && !ajenasPos[i.c]);   // las que aún no se han resuelto siguen apuntadas
   // v479 · una apertura de resultado DESCONOCIDO se aclara con el historial: si no hay posición ni ejecución de apertura en esa cripto desde entonces, no se hizo.
@@ -265,6 +271,9 @@ export async function ronda() {
     const hayPos = pos.some((p) => p.coin === i.c), hayFill = (fills || []).some((z) => z.coin === i.c && /^Open/.test(z.dir) && +z.time >= i.t - 60e3);
     if (fillsOk && !hayPos && !hayFill && ahoraR - i.t > 2 * 60e3) { intentos.splice(k, 1); log("Una apertura de resultado desconocido NO se llegó a hacer (comprobado en el historial): se da por aclarada."); } }
   const bloqueoInt = intentos.some((i) => i.dudosa);
+  // v480 · una posición que lleva más de un día «por identificar» se avisa una vez al día (sigue sin tocarse y sin abrir nada nuevo)
+  const piPrev = (prev && prev.porIdent) || {}, porIdent = {}; for (const c of porIdentificar) porIdent[c] = piPrev[c] || new Date().toISOString();
+  const piViejas = Object.entries(porIdent).filter(([, d]) => ahoraR - Date.parse(d) > 24 * H).map(([c]) => c);
   // v465 · cada posición guarda la HORA DE APERTURA confirmada; si falta, se toma del historial (solo si se ha podido leer)
   for (const p of pos) if (pm[p.coin] && !pm[p.coin].t0 && fillsOk) { const t = abierta(p.coin); if (t) pm[p.coin].t0 = t; }
   for (const c of Object.keys(pm)) if (!pos.some((p) => p.coin === c)) delete pm[c];
@@ -275,7 +284,7 @@ export async function ronda() {
     else if (ag && !a) { log("⚠️ La clave del bot no aparece entre los agentes autorizados de tu cuenta."); if (new Date().getUTCMinutes() < 10) await aviso("🔑 Hyperliquid: la clave del bot ya no está autorizada en tu cuenta (caducada o borrada). El bot no puede operar: crea otra en app.hyperliquid.xyz/API y pégala en la app (HL_AGENT_KEY)."); } } catch (e) {}
   if (netoMal) { log("Lo ingresado neto en Hyperliquid no es positivo: el freno no tiene una base fiable y esta hora no abro nada."); if (!(prev && prev.netoMal)) await aviso("⚠️ Hyperliquid: según el historial, lo ingresado neto (ingresos − retiradas) no es positivo, así que el freno no puede calcularse. No abriré operaciones nuevas hasta que vuelva a serlo; lo abierto sigue con su stop."); }
   const FM = await marcasFreno(); if (!FM.ok) log("No he podido leer la marca del freno: esta hora no abro nada.");
-  const hechos = [], estado = { intentos, ajenasPos: Object.keys(ajenasPos).length ? ajenasPos : undefined, agenteHasta, slip: Array.isArray(prev && prev.slip) ? prev.slip.slice(-300) : [], misStops: Array.isArray(prev && prev.misStops) ? prev.misStops : undefined, reconciliar: recon || undefined, netoMal: netoMal ? 1 : undefined, w: yo, ctl: lc.ok ? CTL : prevCtl || CTL, ctlNoLeido: lc.ok ? undefined : 1, t: new Date().toISOString(), eq, neto, metodo: M0 && M0.x ? M0.x.n : null, ops: [], pm };
+  const hechos = [], estado = { porIdent: Object.keys(porIdent).length ? porIdent : undefined, intentos, ajenasPos: Object.keys(ajenasPos).length ? ajenasPos : undefined, agenteHasta, slip: Array.isArray(prev && prev.slip) ? prev.slip.slice(-300) : [], misStops: Array.isArray(prev && prev.misStops) ? prev.misStops : undefined, reconciliar: recon || undefined, netoMal: netoMal ? 1 : undefined, w: yo, ctl: lc.ok ? CTL : prevCtl || CTL, ctlNoLeido: lc.ok ? undefined : 1, t: new Date().toISOString(), eq, neto, metodo: M0 && M0.x ? M0.x.n : null, ops: [], pm };
   { const nuevas = Object.keys(ajenasPos).filter((c) => !ajenasPrev[c]); if (Object.keys(ajenasPos).length) log(`Posiciones que el bot no tiene apuntadas: ${Object.keys(ajenasPos).length} (no las toco).`);
     if (nuevas.length) await aviso(`ℹ️ Hyperliquid: hay ${nuevas.length === 1 ? "una posición" : nuevas.length + " posiciones"} en la cuenta que el bot no ha abierto (${nuevas.join(", ")}). No ${nuevas.length === 1 ? "la" : "las"} toco: ni stop ni cierre por tiempo, y ocupa${nuevas.length === 1 ? "" : "n"} plaza. Si es del bot, vuelve a guardar los ajustes de Hyperliquid en la app y la gestionará.`); }
   log(`Hyperliquid real: ${pos.length} posiciones abiertas · ${CTL.estado === "on" ? "activo" : CTL.estado === "pausa" ? "en pausa (no abre nuevas)" : "parado (cierra todo)"} · método ${M0 && M0.x ? "n.º " + CTL.puesto + " del podio" : "no disponible"}`);
@@ -318,6 +327,7 @@ export async function ronda() {
   if (CTL.estado === "on" && !ledOk) log("No he podido leer el historial de ingresos (lo necesita el freno): esta hora no abro nada.");
   if (CTL.estado === "on" && (!estadoOk || !fillsOk)) log("Sin estado o historial fiable: esta hora no abro nada.");
   if (CTL.estado === "on" && bloqueoInt) { log("Hay una apertura de resultado desconocido sin aclarar: esta hora no abro nada."); const hoyB = new Date().toISOString().slice(0, 10); estado.avBloqueo = hoyB; if (!(prev && prev.avBloqueo === hoyB)) await aviso("⚠️ Hyperliquid: una apertura quedó sin confirmar y todavía no sé si se hizo. No abro nada nuevo hasta aclararlo (lo compruebo cada hora con el historial). Lo abierto sigue con su stop."); }
+  if (piViejas.length) { const hoyP = new Date().toISOString().slice(0, 10); estado.avPorIdent = hoyP; if (!(prev && prev.avPorIdent === hoyP)) await aviso(`⚠️ Hyperliquid: hay ${piViejas.length === 1 ? "una posición" : piViejas.length + " posiciones"} (${piViejas.join(", ")}) que llevan más de un día sin poder identificarse (el historial no muestra cómo se abrieron). No las toco y no abro nada nuevo. Si son del bot, vuelve a guardar los ajustes de Hyperliquid en la app y las gestionará; si son tuyas, revísalas en app.hyperliquid.xyz.`); }
   if (CTL.estado === "on" && frenoSlip) log("Freno por deslizamiento: esta hora no abro nada.");
   if (CTL.estado === "on" && lc.ok && ledOk && !netoMal && estadoOk && !recon && FM.ok && fillsOk && !sinCandado && !bloqueoInt && !frenoSlip && M0 && M0.x && M0.x.g) {
     const g = M0.x.g, SV = await (deps.senales || senalesVivas)(M0, idx);
@@ -379,7 +389,7 @@ export async function ronda() {
     if (nuevasR.length) { try { f3 = (await info({ type: "userFills", user: yo })) || []; } catch (e) { f3 = null; } }
     for (const p of nuevasR) { const i = f3 ? estado.intentos.find((x) => prueba(x, p, f3) != null) : null, tF = i ? prueba(i, p, f3) : null;
       if (i && tF) { adopta(p.coin, i, tF); estado.intentos = estado.intentos.filter((x) => x !== i); hechos.push(`🔎 ${p.coin}: la apertura no confirmó, pero el historial demuestra que se hizo; la gestiona el bot (stop y cierre por tiempo).`); }
-      else if (!f3) porIdentificar.add(p.coin);
+      else if (!f3 || sinAperturaVisible(p, estado.intentos, f3)) porIdentificar.add(p.coin);   /* v480 · H17: sin historial, o aún sin la apertura: no se decide */
       else { ajenasPos[p.coin] = new Date().toISOString(); estado.ajenasPos = ajenasPos; await aviso(`ℹ️ Hyperliquid: ha aparecido una posición en ${p.coin} que no puedo demostrar que haya abierto el bot. No la toco: ni stop ni cierre por tiempo. Si es del bot, vuelve a guardar los ajustes de Hyperliquid en la app.`); } }
     const ajenos = oo.filter((o) => esStop(o) && !esMio(o)); estado.ajenos = ajenos.length || undefined;
     if (ajenos.length && !(prev && prev.ajenos === ajenos.length)) { log(`Stops que no son del bot: ${ajenos.length} (no los toco).`); await aviso(`ℹ️ Hyperliquid: hay ${ajenos.length} stop${ajenos.length === 1 ? "" : "s"} que no ha puesto el bot. No ${ajenos.length === 1 ? "lo" : "los"} toco. Si no ${ajenos.length === 1 ? "es tuyo" : "son tuyos"}, revísa${ajenos.length === 1 ? "lo" : "los"} en app.hyperliquid.xyz → Open Orders.`); }

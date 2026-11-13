@@ -448,5 +448,8 @@ test("v478 · H-04: orden de resultado desconocido → aviso con botón propio; 
     const c = await W.step("normal", "2026-10-28T08:20:00Z"); assert.ok(c.R.pendBot.some((x) => x.t === "SXLEd_EQ"), "guardar los ajustes NO la libera"); assert.equal(postsXLE(), 1);
     const mal = await W.step("liberar", "2026-10-28T09:00:00Z", { PLAN_ID: "otro" }); assert.ok(mal.R.pendBot.some((x) => x.t === "SXLEd_EQ"), "identificador equivocado: nada");
     const d = await W.step("liberar", "2026-10-28T09:05:00Z", { PLAN_ID: o.ref }); assert.match(d.rep.titulo, /liberada/); assert.ok(!d.R.pendBot.some((x) => x.t === "SXLEd_EQ"), "liberada");
+    // v480 · el mismo botón llega OTRA VEZ (p. ej. Telegram lo reenvía tras un reinicio): la segunda vez no hace nada
+    const n1 = W.mk.calls.filter((c) => c.m === "POST").length, e = await W.step("liberar", "2026-10-28T09:10:00Z", { PLAN_ID: o.ref });
+    assert.match(e.rep.titulo, /No había esa orden/); assert.equal(W.mk.calls.filter((c) => c.m === "POST").length, n1, "ninguna orden");
   } finally { W.close(); }
 });

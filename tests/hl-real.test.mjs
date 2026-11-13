@@ -440,3 +440,30 @@ test("v479 · freno por deslizamiento: con ≥ 20 órdenes y una media > 3 × 0,
   const W2 = mundo({ quiere: [{ c: "BTC", dir: 1 }] }); W2.estadoIni = { pm: {}, misStops: [], slip: slip(0.2, 19) }; conecta(W2); await silencio(() => HL.ronda()); assert.equal(aperturas(W2).length, 1, "con menos de 20 órdenes no frena");
   const W3 = mundo({ quiere: [{ c: "BTC", dir: 1 }] }); W3.estadoIni = { pm: {}, misStops: [], slip: slip(0.14) }; conecta(W3); await silencio(() => HL.ronda()); assert.equal(aperturas(W3).length, 1, "por debajo del triple no frena");
 });
+
+// ---------- v480 · H17: el historial de Hyperliquid tarda en mostrar una apertura que SÍ se hizo ----------
+test("v480 · H17: apertura ambigua y el historial TARDA en mostrarla: la posición no se da por ajena, se conserva la intención y no se abre nada; cuando aparece en el historial, se recupera", async () => {
+  const W = mundo({ quiere: [{ c: "BTC", dir: 1 }], ambigua: true, retrasoFills: true }); conecta(W); await silencio(() => HL.ronda());
+  let S = await estadoDe(W); assert.ok(W.pos.BTC, "la orden sí entró"); assert.ok(!S.pm.BTC && !(S.ajenasPos && S.ajenasPos.BTC), "ni suya ni ajena todavía");
+  assert.ok(S.intentos.some((i) => i.c === "BTC" && i.dudosa), "intención conservada");
+  W.ambigua = false; W.quiere = [{ c: "ETH", dir: 1 }]; await otraHora(W); S = await estadoDe(W);   // la ronda siguiente: el historial SIGUE sin mostrarla
+  assert.ok(!(S.ajenasPos && S.ajenasPos.BTC), "sigue sin darse por ajena"); assert.ok(S.intentos.some((i) => i.c === "BTC" && i.dudosa), "la intención sigue");
+  assert.ok(!W.pos.ETH, "y no se abre nada nuevo"); assert.ok(!W.avisos.some((t) => /no ha abierto el bot|no puedo demostrar/.test(t)), "sin avisos de posición ajena");
+  assert.ok(!W.ordenes.some((o) => o.c === "BTC" && (o.reduce || o.stop)), "mientras no se identifique, no se toca (ni stop ni cierre)");
+  W.retrasoFills = false; await otraHora(W); S = await estadoDe(W);   // ya aparece en el historial
+  assert.ok(S.pm.BTC, "recuperada como del bot"); assert.ok(!(S.intentos || []).some((i) => i.dudosa), "aclarada"); assert.equal(W.stops.filter((z) => z.coin === "BTC").length, 1, "con su stop");
+});
+
+test("v480 · H17: si el historial SÍ muestra cómo se abrió la posición y no cuadra con la orden del bot (otro tamaño), es ajena aunque hubiera una apertura sin aclarar", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: 0.5, edadH: 0.9 }] }); W.estadoIni = { pm: {}, misStops: [], intentos: [{ c: "BTC", dir: 1, t: Date.now() - 1 * H, sz: 0.1, dudosa: 1, g: { h: 168, sl: 0.08, k: "m1" }, antes: [] }] };
+  conecta(W); await silencio(() => HL.ronda()); const S = await estadoDe(W);
+  assert.ok(S.ajenasPos && S.ajenasPos.BTC, "ajena: su apertura se ve y no es la del bot"); assert.ok(!S.pm.BTC); assert.ok(!W.ordenes.some((o) => o.c === "BTC"));
+});
+
+test("v480 · una posición que lleva más de un día «por identificar» se avisa (una vez al día) y se libera si vuelves a guardar los ajustes", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: 0.1, edadH: 30 }], retrasoFills: true }); W.fills.forEach((f) => { f.oculto = 1; });
+  W.estadoIni = { pm: {}, misStops: [], porIdent: { BTC: new Date(Date.now() - 25 * H).toISOString() }, intentos: [{ c: "BTC", dir: 1, t: Date.now() - 30 * H, sz: 0.1, dudosa: 1, g: { h: 168, sl: 0.08, k: "m1" }, antes: [] }] };
+  conecta(W); await silencio(() => HL.ronda()); assert.equal(W.avisos.filter((t) => /sin poder identificarse/.test(t)).length, 1); assert.ok(!W.ordenes.some((o) => o.c === "BTC"), "no se toca");
+  await otraHora(W); assert.equal(W.avisos.filter((t) => /sin poder identificarse/.test(t)).length, 1, "una vez al día");
+  W.ctl = { ...W.ctl, t: new Date(Date.now() + 60e3).toISOString() }; await otraHora(W); assert.ok((await estadoDe(W)).pm.BTC, "guardando los ajustes, la gestiona el bot");
+});
