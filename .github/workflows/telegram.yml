@@ -28,6 +28,7 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          TELEGRAM_USER: ${{ secrets.TELEGRAM_USER }}   # v479 · opcional: solo hace falta si usas un grupo (en un chat privado, tu chat ya es tu usuario)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node runner/telegram.mjs
       # v91 · arranque de seguridad del laboratorio: GitHub a veces no activa los horarios de los flujos nuevos. Si la última ronda

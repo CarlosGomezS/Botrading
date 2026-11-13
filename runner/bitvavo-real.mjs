@@ -490,6 +490,13 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   if (RS) RS.dudosas = await resuelveDudosas(); return { RS, msgs, ctl };
 }
 // día en España (para el freno diario)
+// v412 · en «automático» sigue al n.º 1 del podio de SU exchange (mismo filtro que el podio: examen, tramos y últimos 6 meses)
+// v479 · 🔒 con DINERO REAL el automático solo puede elegir los perfiles «Bajo» y «Medio»: el «Máximo» (hasta el 100 % en una cripto) sigue en ficticio
+//   y solo se usaría con dinero real si lo eliges tú a mano en los ajustes.
+export const PERFILES_AUTO_REAL = ["bajo", "medio"];
+export function riesgoAuto(EL, ex, TE0) { const vale = (rk) => PERFILES_AUTO_REAL.includes(rk);
+  const pod = ((EL && EL.podio) || []).find((x) => x.ex === ex && vale(x.rk) && TE0 && TE0.perfiles && TE0.perfiles[x.rk] && TE0.perfiles[x.rk].ok === true); if (pod) return pod.rk;
+  const PF = (TE0 && TE0.perfiles) || {}; const ok = Object.entries(PF).filter(([k, x]) => vale(k) && x && x.ok === true).sort((a, b) => b[1].ret - a[1].ret); return ok.length ? ok[0][0] : "medio"; }
 export const diaES = (d) => new Date(d).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 // ¿se dan las condiciones para retomar tras el freno? (lo decides tú; aquí solo se comprueba y se avisa)
 export function retomar(RS, src, now) {
@@ -602,7 +609,7 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
     R0.base = baseOk ? (T ? "activa" : "sin datos de tendencia") : "pendiente del examen";
     // v318 · 🎚️ las reglas y señales del perfil de riesgo elegido para esta cuenta
     // v321 · 🤖 «auto»: en cada examen usa el nivel que MÁS gana en 2 años entre los que aprueban
-    const TE0 = EL && EL.tortugas && EL.tortugas[ex], autoRk = (() => { /* v412 · en «automático» sigue al n.º 1 del podio de SU exchange (mismo filtro que el podio: examen, tramos y últimos 6 meses) */ const pod = ((EL && EL.podio) || []).find((x) => x.ex === ex && TE0 && TE0.perfiles && TE0.perfiles[x.rk] && TE0.perfiles[x.rk].ok === true); if (pod) return pod.rk; const PF = (TE0 && TE0.perfiles) || {}; const ok = Object.entries(PF).filter(([, x]) => x && x.ok === true).sort((a, b) => b[1].ret - a[1].ret); return ok.length ? ok[0][0] : "medio"; })();
+    const TE0 = EL && EL.tortugas && EL.tortugas[ex], autoRk = riesgoAuto(EL, ex, TE0);
     const rk = !cfg.riesgo || cfg.riesgo === "auto" ? autoRk : cfg.riesgo; const TE = TE0 && TE0.perfiles && TE0.perfiles[rk] ? TE0.perfiles[rk] : rk === "medio" ? TE0 : null, tortOk = !!(TE && TE.ok === true && TE.v === VEX_REAL && now - Date.parse(EL.t) < 12 * 3600e3);
     const TS0 = S.tort && S.tort[ex] && now - S.tort[ex].t < 30 * 3600e3 ? S.tort[ex] : null, TS = TS0 ? (TS0.perfiles && TS0.perfiles[rk] ? { t: TS0.t, ...TS0.perfiles[rk] } : rk === "medio" ? TS0 : null) : null; R0.riesgo = rk;
     R0.tortugas = tortOk ? (TS ? "activas" : "sin velas diarias todavía") : TE ? `no aprueban (${TE.motivo || "examen"})` : "pendientes del examen";

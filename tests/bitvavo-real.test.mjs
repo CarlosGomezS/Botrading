@@ -547,3 +547,12 @@ test("v478 · Real: un stop activo con el PRECIO o el LADO equivocados se vuelve
   ex.sinDatosStop = true; o = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": sp }) }, { copia: "mix" }, tk(ex.px), new Date(T(1).getTime() + 80 * 60e3), deps);
   assert.equal(o.RS.pos["AAA-EUR"].stopEst, "sin comprobar", "activo pero sin ver lado/precio: no se da por bueno");
 });
+
+test("v479 · Tortugas: en automático con dinero real NUNCA se elige el perfil «Máximo», aunque sea el n.º 1 del podio; «Bajo» y «Medio», sí", () => {
+  const TE0 = { perfiles: { alto: { ok: true, ret: 3 }, medio: { ok: true, ret: 1 }, bajo: { ok: true, ret: 0.5 } } };
+  const EL = { podio: [{ ex: "bitvavo", rk: "alto" }, { ex: "bitvavo", rk: "bajo" }, { ex: "okx", rk: "alto" }] };
+  assert.equal(RL.riesgoAuto(EL, "bitvavo", TE0), "bajo", "el n.º 1 es «Máximo»: se salta y va al siguiente permitido");
+  assert.equal(RL.riesgoAuto(EL, "okx", TE0), "medio", "en OKX solo hay «Máximo» en el podio: el mejor permitido que aprueba");
+  assert.equal(RL.riesgoAuto({ podio: [] }, "okx", { perfiles: { alto: { ok: true, ret: 9 } } }), "medio", "si solo aprueba «Máximo», no se elige");
+  assert.equal(RL.riesgoAuto({ podio: [{ ex: "okx", rk: "medio" }] }, "okx", TE0), "medio");
+});

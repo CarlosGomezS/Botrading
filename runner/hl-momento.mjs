@@ -25,6 +25,7 @@ export function elige(c, f, p = P) { const btc = c.BTC; if (!btc || btc.length <
   return { cual: ok.k, r: ok.r, f: ok.f, motivo: `${ok.k} sube un ${r2(ok.r * 100)} % en ${p.L} h y su financiación es normal` }; }
 
 // un paso (cada minuto): marca precios, cobra/paga financiación por hora, cierra las de 6 h y, si empieza una hora nueva, decide
+// v479 · los registros de GitHub son públicos: aquí no se escriben nombres de criptos ni resultados (el detalle va en el estado de la app)
 export async function paso(Z, now = Date.now(), fx = fetch, log = () => {}) {
   Z = Z || { t0: now, eq: P.inicio, cash: P.inicio, pos: [], cerradas: [], decisiones: [], st: { n: 0, gan: 0, fees: 0, fund: 0 } };
   const [meta, ctxs] = await post({ type: "metaAndAssetCtxs" }, fx), U = universo(meta, ctxs), px = Object.fromEntries(meta.universe.map((u, i) => [u.name, +ctxs[i].markPx || 0])), fNow = Object.fromEntries(meta.universe.map((u, i) => [u.name, +ctxs[i].funding || 0]));
@@ -33,7 +34,7 @@ export async function paso(Z, now = Date.now(), fx = fetch, log = () => {}) {
   for (const p of Z.pos) if ((p.fAt || p.t0) < hora && px[p.c] > 0) { const pago = p.q * px[p.c] * (fNow[p.c] || 0); Z.cash -= pago; p.fund = (p.fund || 0) + pago; Z.st.fund += pago; p.fAt = hora; }
   // cierres a las 6 h
   for (const p of Z.pos.filter((p) => now - p.t0 >= P.H * 3600e3 && px[p.c] > 0)) { const sal = px[p.c] * (1 - P.slip), bruto = p.q * sal, fee = bruto * P.fee; Z.cash += bruto - fee; Z.st.fees += fee; const pnl = bruto - fee - p.coste - (p.fund || 0); Z.st.n++; if (pnl > 0) Z.st.gan++;
-    Z.cerradas.unshift({ c: p.c, t0: p.t0, t1: now, px0: p.px, px1: sal, coste: r2(p.coste), pnl: r2(pnl), pc: r2((pnl / p.coste) * 100) }); Z.cerradas = Z.cerradas.slice(0, 300); log(`🧪🐋 Hyperliquid (ficticio): vende ${p.c} a las 6 h · ${pnl >= 0 ? "+" : ""}${r2((pnl / p.coste) * 100)} %`); }
+    Z.cerradas.unshift({ c: p.c, t0: p.t0, t1: now, px0: p.px, px1: sal, coste: r2(p.coste), pnl: r2(pnl), pc: r2((pnl / p.coste) * 100) }); Z.cerradas = Z.cerradas.slice(0, 300); log("🧪🐋 Hyperliquid (ficticio): vende una posición a las 6 h"); }
   Z.pos = Z.pos.filter((p) => !(now - p.t0 >= P.H * 3600e3 && px[p.c] > 0));
   // decisión de la hora (con velas cerradas)
   if (Z.ultHora !== hora) { Z.ultHora = hora; const c = {}, f = {};
@@ -42,8 +43,8 @@ export async function paso(Z, now = Date.now(), fx = fetch, log = () => {}) {
     if (!c.BTC) try { const v = await post({ type: "candleSnapshot", req: { coin: "BTC", interval: "1h", startTime: hora - 130 * 3600e3, endTime: hora - 1 } }, fx); c.BTC = v.map((x) => [+x.t, +x.c]); } catch (e) {}
     const d = elige(c, f); Z.decisiones.unshift({ t: hora, ...d }); Z.decisiones = Z.decisiones.slice(0, 72);
     const eq0 = Z.cash + Z.pos.reduce((s, p) => s + p.q * (px[p.c] || p.px), 0);
-    if (d.cual && px[d.cual] > 0 && Z.pos.length < P.plazas) { const eur = Math.min(eq0 / P.plazas, Z.cash); if (eur > 1) { const ent = px[d.cual] * (1 + P.slip), fee = eur * P.fee; Z.cash -= eur; Z.st.fees += fee; Z.pos.push({ c: d.cual, t0: now, px: ent, q: (eur - fee) / ent, coste: eur, fAt: hora }); log(`🧪🐋 Hyperliquid (ficticio): compra ${d.cual} (${d.motivo}); la vende en 6 h`); } }
-    else log(`🧪🐋 Hyperliquid (ficticio): esta hora no compra · ${d.motivo}`); }
+    if (d.cual && px[d.cual] > 0 && Z.pos.length < P.plazas) { const eur = Math.min(eq0 / P.plazas, Z.cash); if (eur > 1) { const ent = px[d.cual] * (1 + P.slip), fee = eur * P.fee; Z.cash -= eur; Z.st.fees += fee; Z.pos.push({ c: d.cual, t0: now, px: ent, q: (eur - fee) / ent, coste: eur, fAt: hora }); log("🧪🐋 Hyperliquid (ficticio): compra una cripto; la vende en 6 h"); } }
+    else log("🧪🐋 Hyperliquid (ficticio): esta hora no compra"); }
   Z.eq = r2(Z.cash + Z.pos.reduce((s, p) => s + p.q * (px[p.c] || p.px), 0)); Z.t = now;
   if (!Z.curva || !Z.curva.length || now - Z.curva[Z.curva.length - 1][0] >= 3600e3) Z.curva = (Z.curva || []).concat([[now, Z.eq]]).slice(-24 * 60);
   return Z; }

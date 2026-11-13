@@ -22,3 +22,8 @@ test("Hyperliquid ficticio: con BTC a la baja no compra", () => {
   const c = { BTC: Array.from({ length: 120 }, (_, i) => [i, 200 - i]), SOL: Array.from({ length: 120 }, (_, i) => [i, i < 100 ? 100 : 120]) };
   const d = HP.elige(c, { SOL: 0 }); assert.equal(d.cual, null); assert.match(d.motivo, /BTC/);
 });
+test("v479 · H-16: el Hyperliquid ficticio no escribe nombres de criptos ni resultados en el registro (que es público)", async () => {
+  const L = [], T = Date.UTC(2026, 10, 8, 10, 1); let Z = await HP.paso(null, T, fx(px, { DOGE: 0.0002 }), (x) => L.push(x));
+  const px2 = { ...px, SOL: { ...px.SOL, now: 110 } }; Z = await HP.paso(Z, T + 6 * 3600e3 + 60e3, fx(px2, { DOGE: 0.0002 }), (x) => L.push(x));
+  assert.ok(L.length >= 2, "escribe algo: " + L.join(" | ")); for (const l of L) { assert.ok(!/\b(BTC|ETH|SOL|DOGE)\b/.test(l), "sin criptos: " + l); assert.ok(!/%/.test(l), "sin resultados: " + l); }
+});

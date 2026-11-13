@@ -395,3 +395,48 @@ test("v477 · H-10: se apunta cuánto se movió el precio desde el cierre de la 
   const W = mundo({ quiere: [{ c: "ETH", dir: 1, px0: 9.9 }] }); conecta(W); await silencio(() => HL.ronda());
   const S = await estadoDe(W), s = S.slip.find((x) => x.x === "señal"); assert.ok(s, JSON.stringify(S.slip)); assert.ok(Math.abs(s.d - (10 / 9.9 - 1) * 100) < 1e-3, "≈ 1,01 % peor");
 });
+
+// ---------- v479 · seguridad y fiabilidad operativa ----------
+const reescribe = async (W, f) => { const RC = await import("../runner/real-cfg.mjs"), S = JSON.parse(await RC.decrypt(W.guardado, process.env.REAL_VIEW_PASS)); f(S); W.guardado = { enc: 1, t: W.guardado.t, ...(await RC.encrypt(JSON.stringify(S), process.env.REAL_VIEW_PASS)) }; };
+
+test("v479 · H-13: respuesta AMBIGUA de Hyperliquid («ok» sin estado) a una apertura que SÍ se ejecutó: no se toma por rechazo; el historial lo demuestra y la posición queda gestionada (también tras un reinicio)", async () => {
+  const W = mundo({ quiere: [{ c: "BTC", dir: 1 }, { c: "ETH", dir: 1 }], ambigua: true }); conecta(W); await silencio(() => HL.ronda());
+  let S = await estadoDe(W); assert.ok(W.pos.BTC && W.pos.BTC.szi > 0); assert.ok(!W.pos.ETH, "tras un resultado desconocido no abre nada más esa hora");
+  assert.ok(S.pm.BTC, "es del bot: " + JSON.stringify(S.pm)); assert.equal(W.stops.filter((z) => z.coin === "BTC").length, 1); assert.deepEqual(S.misStops, [W.stops[0].oid]);
+  W.ambigua = false; W.quiere = []; W.stops = []; await otraHora(W); S = await estadoDe(W);
+  assert.ok(S.pm.BTC, "sigue gestionada tras reiniciar"); assert.equal(W.stops.filter((z) => z.coin === "BTC").length, 1, "repone el stop desaparecido");
+});
+
+test("v479 · H-13: respuesta ambigua y la orden NO se ejecutó: queda «sin aclarar», bloquea nuevas aperturas (aviso una vez al día) hasta que el historial demuestra que no se hizo", async () => {
+  const W = mundo({ quiere: [{ c: "BTC", dir: 1 }], ambiguaSinEntrar: true }); conecta(W); await silencio(() => HL.ronda());
+  let S = await estadoDe(W); assert.ok(!W.pos.BTC); assert.ok(S.intentos.some((i) => i.c === "BTC" && i.dudosa), "intención conservada como dudosa");
+  W.ambiguaSinEntrar = false; W.quiere = [{ c: "ETH", dir: 1 }]; await otraHora(W);
+  assert.ok(!W.pos.ETH, "bloqueada: no abre nada nuevo"); assert.equal(W.avisos.filter((t) => /quedó sin confirmar/.test(t)).length, 1);
+  await otraHora(W); assert.equal(W.avisos.filter((t) => /quedó sin confirmar/.test(t)).length, 1, "aviso una vez al día");
+  await reescribe(W, (S) => { for (const i of S.intentos) i.t -= 10 * 60e3; });   // pasan unos minutos: el historial ya es concluyente
+  await otraHora(W); S = await estadoDe(W); assert.ok(!(S.intentos || []).some((i) => i.dudosa), "aclarada: no se hizo"); assert.ok(W.pos.ETH, "y ya vuelve a abrir");
+});
+
+test("v479 · H-12: la orden del bot NO entra y aparece una posición TUYA en la misma cripto y dirección: no se adopta (tamaño distinto al de la orden del bot), no se toca y se avisa", async () => {
+  const W = mundo({ quiere: [{ c: "BTC", dir: 1 }], manualAlAbrir: { c: "BTC", szi: 0.777 } }); W.estadoIni = { pm: {}, misStops: [] }; conecta(W); await silencio(() => HL.ronda());
+  const S = await estadoDe(W); assert.ok(!S.pm.BTC, "no es del bot"); assert.ok(S.ajenasPos && S.ajenasPos.BTC);
+  assert.ok(!W.ordenes.some((o) => o.c === "BTC" && (o.stop || o.reduce)), "ni stop ni cierre en tu posición"); assert.ok(W.avisos.some((t) => /no puedo demostrar que haya abierto el bot/.test(t)));
+  await otraHora(W); assert.ok(!W.ordenes.some((o) => o.c === "BTC" && (o.stop || o.reduce)), "tampoco tras reiniciar");
+});
+
+test("v479 · H-12: una posición desconocida con el historial ILEGIBLE no se adopta ni se da por ajena: no se toca y se decide cuando se pueda leer", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: 0.1, edadH: 1 }], fillsRoto: true }); W.estadoIni = { pm: {}, misStops: [], intentos: [{ c: "BTC", dir: 1, t: Date.now() - 1.02 * H, sz: 0.1, g: { h: 168, sl: 0.08, k: "m1" }, antes: [] }] };
+  conecta(W); await silencio(() => HL.ronda()); let S = await estadoDe(W);
+  assert.ok(!S.pm.BTC && !(S.ajenasPos && S.ajenasPos.BTC), "ni suya ni ajena todavía"); assert.ok(!W.ordenes.some((o) => o.c === "BTC")); assert.ok(!W.avisos.some((t) => /no ha abierto el bot/.test(t)));
+  W.fillsRoto = false; await otraHora(W); S = await estadoDe(W); assert.ok(S.pm.BTC, "con el historial legible, se demuestra que es del bot");
+});
+
+test("v479 · freno por deslizamiento: con ≥ 20 órdenes y una media > 3 × 0,05 %, no abre nada nuevo y avisa; NO cierra ni toca los stops de lo abierto", async () => {
+  const slip = (d, n = 20) => Array.from({ length: n }, (_, k) => ({ t: new Date(Date.now() - k * 60e3).toISOString(), x: k % 2 ? "abre" : "cierra", d }));
+  const W = mundo({ pos: [{ c: "ETH", szi: 1, edadH: 2 }], stops: [{ c: "ETH", side: "A", sz: 1, trig: 9.2 }], quiere: [{ c: "BTC", dir: 1 }] }); W.estadoIni.misStops = [1]; W.estadoIni.slip = slip(0.2);
+  conecta(W); await silencio(() => HL.ronda());
+  assert.equal(aperturas(W).length, 0, "no abre"); assert.equal(W.avisos.filter((t) => /deslizamiento/.test(t)).length, 1);
+  assert.ok(!W.ordenes.some((o) => o.c === "ETH"), "ni cierra ni toca el stop de lo abierto"); assert.equal(W.stops.length, 1); assert.ok((await estadoDe(W)).frenoSlip);
+  const W2 = mundo({ quiere: [{ c: "BTC", dir: 1 }] }); W2.estadoIni = { pm: {}, misStops: [], slip: slip(0.2, 19) }; conecta(W2); await silencio(() => HL.ronda()); assert.equal(aperturas(W2).length, 1, "con menos de 20 órdenes no frena");
+  const W3 = mundo({ quiere: [{ c: "BTC", dir: 1 }] }); W3.estadoIni = { pm: {}, misStops: [], slip: slip(0.14) }; conecta(W3); await silencio(() => HL.ronda()); assert.equal(aperturas(W3).length, 1, "por debajo del triple no frena");
+});
