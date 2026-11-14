@@ -453,3 +453,21 @@ test("v478 · H-04: orden de resultado desconocido → aviso con botón propio; 
     assert.match(e.rep.titulo, /No había esa orden/); assert.equal(W.mk.calls.filter((c) => c.m === "POST").length, n1, "ninguna orden");
   } finally { W.close(); }
 });
+
+// ---------- vendes a mano parte de lo del bot y retiras ese dinero: se descuenta UNA vez (antes se restaba dos y el bot vendía para cubrirlo) ----------
+test("retirada tras vender a mano: el dinero que el bot ya había descontado no se vuelve a restar cuando Trading 212 registra la retirada; no vende nada", { timeout: 900000 }, async () => {
+  const W = await world(), K = W.mk.K;
+  K.txs.push({ ref: "d1", type: "DEPOSIT", amount: 1000, at: "2026-10-21T08:00:00Z" }); W.setCfg({ limite: 1000, sumarIngresos: 1, savedAt: "2026-10-20T08:00:00Z" });
+  const ventasBot = (R) => (R.orders || []).filter((o) => o.side === "VENTA" && o.estado === "ejecutada").length;
+  try {
+    const a = await W.step("normal", "2026-10-22T08:20:00Z"), tk = Object.keys(a.R.ledger.lots)[0], q0 = a.R.ledger.lots[tk].q;
+    K.sellByHand[tk] = +(q0 * 0.2).toFixed(3);   // vendes el 20 % a mano…
+    const b = await W.step("normal", "2026-10-23T08:20:00Z"), cap1 = b.R.ledger.cap, cc = b.R.account.cash.availableToTrade;
+    assert.ok(b.R.ledger.retPend > 0, "apunta lo ya descontado: " + b.R.ledger.retPend);
+    K.txs.push({ ref: "w1", type: "WITHDRAW", amount: -cc, at: "2026-10-23T12:00:00Z" });   // …y retiras todo el efectivo
+    const c = await W.step("normal", "2026-10-26T08:20:00Z"), L = c.R.ledger, v0 = ventasBot(c);
+    assert.ok(L.cash >= -0.01, "el efectivo del bot NO queda en negativo: " + L.cash);
+    assert.ok(cap1 - L.cap <= Math.max(0, cc - b.R.ledger.retPend) + 0.02, `no se descuenta dos veces: puesto ${cap1} → ${L.cap}, retirada ${cc}`);
+    const d = await W.step("normal", "2026-10-27T08:20:00Z"); assert.equal(ventasBot(d), v0, "y no vende nada para «cubrir» un negativo inventado");
+  } finally { W.close(); }
+});

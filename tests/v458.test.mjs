@@ -280,3 +280,11 @@ test("v478 · H-05/H-09: si Trading 212 no responde al consultarla, la orden sig
   const rep3 = []; try { await reconcile(una, R3, rep3, { ahora: t0 + D }); } catch (e) { /* el apunte en la cartera necesita el libro completo; aquí solo importa la atribución */ }
   assert.ok(rep3.some((l) => /SÍ existe/.test(l)), "con una sola, sí se atribuye: " + rep3.join(" | "));
 });
+
+test("retirada: lo ya descontado (ventas a mano y efectivo usado) se reconstruye del historial para estados guardados antes", async () => {
+  const { retPendInicial } = await import("../runner/real.mjs"), ahora = new Date().toISOString();
+  const H = [{ ts: ahora, tipo: "ajuste", t: "efectivo", eur: -21.38, nota: "cuadre: el efectivo del bot (21,38 €) era mayor que el de la cuenta" }, { ts: ahora, tipo: "ajuste", t: "X", eur: -200.2, nota: "en la cuenta hay 11 participaciones de X y el bot tenía 14: se descuentan 3 (¿las vendiste tú?). Se cuenta como retirada del bot." }, { ts: ahora, tipo: "compra", eur: -100 }];
+  assert.equal(retPendInicial({ hist: H }), 221.58);
+  assert.equal(retPendInicial({ hist: [{ ts: ahora, tipo: "retirada", eur: -50 }, ...H] }), 0, "lo anterior a una retirada ya registrada no cuenta");
+  assert.equal(retPendInicial({ hist: [{ ...H[0], ts: "2020-01-01T00:00:00Z" }] }), 0, "más de 30 días: no cuenta");
+});

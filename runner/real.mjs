@@ -332,6 +332,12 @@ export function ensureLedger(R, A, positions, m, notas) {
   }
   return L;
 }
+// lo que el bot ya había descontado como retirada (ventas tuyas a mano y efectivo usado por ti) desde la última retirada registrada, últimos 30 días.
+//   Sirve para estados guardados antes de llevar esta cuenta (retPend): se reconstruye una vez a partir de su historial.
+export function retPendInicial(L) { let s = 0; const lim = Date.now() - 30 * 864e5;
+  for (const h of (L && L.hist) || []) { if (h.tipo === "retirada") break; if (Date.parse(h.ts) < lim) break;
+    if (h.tipo === "ajuste" && +h.eur < 0 && (/¿las vendiste tú\?/.test(String(h.nota)) || /^cuadre: el efectivo del bot/.test(String(h.nota)))) s += -h.eur; }
+  return r2(s); }
 export function syncLots(R, positions, m, notas) {
   const L = R.ledger, byT = Object.fromEntries(positions.map((p) => [p.instrument.ticker, p]));
   // desdoblamiento o agrupación (split): las participaciones se multiplican por k y el precio medio se divide por k, sin órdenes de por medio
@@ -352,7 +358,7 @@ export function syncLots(R, positions, m, notas) {
     if (have + 1e-6 < lot.q) {
       const gone = lot.q - have, frac = gone / lot.q, val = p ? gone * unitVal(p) : 0, cost = lot.cost * frac;
       lot.q = have; lot.cost = r2(lot.cost - cost);
-      L.cap = r2(L.cap - val); flowAdd(R, m.date, -val);   // (el ajuste «Dinero que trabaja el bot» no cambia: solo el capital)
+      L.cap = r2(L.cap - val); flowAdd(R, m.date, -val); L.retPend = r2((+L.retPend || 0) + val);   // (el ajuste «Dinero que trabaja el bot» no cambia: solo el capital) · retPend: ya descontado, para no restarlo otra vez al llegar la retirada
       hist(R, { tipo: "ajuste", t, q: gone, eur: -r2(val), nota: `en la cuenta hay ${have} participaciones de ${t} y el bot tenía ${r2(gone + have)}: se descuentan ${r2(gone)} (¿las vendiste tú?). Se cuenta como retirada del bot.` });
       notas.push(`${t}: en Trading 212 hay menos participaciones que las que compró el bot (¿las vendiste a mano?). Se descuentan de su cartera.`);
       if (lot.q <= 1e-6) delete L.lots[t];
@@ -1060,7 +1066,7 @@ async function main() {
           notasL.push(`${t}: ${eur(coste)} en participaciones eran del bot y salían como tuyas (una compra suya sin anotar). Corregido: ahora cuentan como del bot.`);
           if (resto <= 0.5) break; }
         // si aun así sobra, ese efectivo lo has usado TÚ (compras tuyas o una retirada): sale del dinero del bot, como una retirada (no es pérdida)
-        if (resto > 0.5) { L.cash = r2(L.cash - resto); L.cap = r2(L.cap - resto); flowAdd(R, m.date, -resto);
+        if (resto > 0.5) { L.cash = r2(L.cash - resto); L.cap = r2(L.cap - resto); flowAdd(R, m.date, -resto); L.retPend = r2((+L.retPend || 0) + resto);
           hist(R, { tipo: "ajuste", t: "efectivo", q: 0, eur: -resto, nota: `cuadre: el efectivo del bot (${eur(L.cash + resto)}) era mayor que el de la cuenta (${eur(accCash)}). Esos ${eur(resto)} los has usado tú (compras tuyas o una retirada): salen del dinero del bot como una retirada, no como pérdida.` });
           notasL.push(`El bot tenía apuntados ${eur(resto)} de efectivo que ya no están en la cuenta (los has usado tú). Corregido: su efectivo pasa a ${eur(L.cash)} y se cuenta como retirada, no como pérdida.`); } } } catch (e) {}
     R.positions = mapPos(positions, R); noteSeen(R, positions);
@@ -1097,10 +1103,16 @@ async function main() {
         R.cuenta = (R.cuenta || []); R.cuenta.unshift({ ts: now.toISOString(), eur: d, net: r2(net) });
         if (A.sumarIngresos !== 0 && R.ledger && R.ledger.limite != null) {
           // v21: lo que ingresas (o retiras) en Trading 212 pasa al bot (o sale de él) automáticamente
-          const L = R.ledger, dd = d < 0 ? Math.max(d, -L.cap) : R.deposits.full ? Math.min(d, Math.max(0, r2(net - L.limite))) : d;   /* v402: lo que ya estaba contado no se suma dos veces */
-          L.auto = r2((L.auto || 0) + dd); L.cap = r2(L.cap + dd); L.cash = r2(L.cash + dd); L.limite = r2(L.limite + dd); R.applied = null;
+          // RETIRADA YA DESCONTADA: si antes de que Trading 212 la registre el bot ya había descontado ese dinero (participaciones que vendiste a mano
+          //   o efectivo suyo que ya no estaba), no se vuelve a restar: solo se descuenta lo que falte. Sin esto se restaba dos veces, el efectivo del
+          //   bot quedaba en negativo y vendía para cubrirlo.
+          const L = R.ledger; if (L.retPend == null) L.retPend = retPendInicial(L);
+          const cubierto = d < 0 ? r2(Math.min(-d, Math.max(0, +L.retPend || 0))) : 0; if (cubierto > 0) L.retPend = r2(L.retPend - cubierto);
+          const dd = d < 0 ? Math.min(0, Math.max(r2(d + cubierto), -L.cap)) : R.deposits.full ? Math.min(d, Math.max(0, r2(net - L.limite))) : d;   /* v402: lo que ya estaba contado no se suma dos veces */
+          L.auto = r2((L.auto || 0) + dd); L.cap = r2(L.cap + dd); L.cash = r2(L.cash + dd); L.limite = r2(L.limite + dd - cubierto); R.applied = null;
+          if (cubierto > 0) notasL.push(`Has retirado ${eur(-d)} de tu cuenta de Trading 212: ${eur(cubierto)} ya estaban descontados del bot (participaciones que vendiste a mano o su efectivo), así que no se vuelven a restar.${dd < 0 ? "" : " El bot sigue con lo que tiene."}`);
           if (dd) hist(R, { tipo: dd > 0 ? "aportación" : "retirada", eur: dd, nota: dd > 0 ? `ingreso en Trading 212 sumado al bot (${eur(dd)})` : `retirada de Trading 212 descontada del bot (${eur(-dd)})` }); flowAdd(R, m.date, dd);
-          notasL.push(dd > 0 ? `Has ingresado ${eur(dd)} en tu cuenta de Trading 212: se suma al bot, que ahora trabaja con ${eur(L.limite)}. Lo invertirá según el método en esta misma revisión (cuenta como aportación, no como ganancia).` : `Has retirado ${eur(-dd)} de tu cuenta de Trading 212: se descuenta del bot, que ahora trabaja con ${eur(L.limite)}. Si no le llega el efectivo, venderá lo necesario.`);
+          if (dd !== 0 || !(cubierto > 0)) notasL.push(dd > 0 ? `Has ingresado ${eur(dd)} en tu cuenta de Trading 212: se suma al bot, que ahora trabaja con ${eur(L.limite)}. Lo invertirá según el método en esta misma revisión (cuenta como aportación, no como ganancia).` : `Has retirado ${eur(-dd)} de tu cuenta de Trading 212: se descuenta del bot, que ahora trabaja con ${eur(L.limite)}. Si no le llega el efectivo, venderá lo necesario.`);
         } else notasL.push(d > 0 ? `Has ingresado ${eur(d)} en tu cuenta de Trading 212. El bot NO lo usa: sigue trabajando con ${eur(A.limite)} más sus ganancias. Si quieres que invierta también lo nuevo, sube «Dinero que trabaja el bot».` : `Has retirado ${eur(-d)} de tu cuenta de Trading 212. Si el efectivo libre queda por debajo del del bot, este usará solo lo que haya.`);
         aviso = { title: d > 0 ? `💶 Cartera real: has ingresado ${eur(d)}` : `💶 Cartera real: has retirado ${eur(-d)}`, msg: notasL[notasL.length - 1], prio: 3 };
       }
