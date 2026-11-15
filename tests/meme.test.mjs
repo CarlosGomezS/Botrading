@@ -301,3 +301,15 @@ test("Turbo se pausa si pierde claramente y no compra más (sigue vendiendo lo a
   pasoTurbo(S, { [a]: q }, new Date(T0 + 60000), ext); assert.equal(S.turbo.pausado, true); assert.equal(Object.keys(S.turbo.pos).length, 0, "no compra");
   S.turboGenomeId = "v99"; S.turboGenome = { ...TURBO }; pasoTurbo(S, { [a]: q }, new Date(T0 + 120000), ext); assert.equal(S.turbo.pausado, false, "vuelve con reglas nuevas");
 });
+
+test("v1.0 · muestras: si en el mismo tramo se tocan el stop y el objetivo de ganancia, cuenta el stop (no se sabe qué fue antes; antes contaba primero la ganancia)", () => {
+  const M = freshM(), t = (m) => new Date(T0 + m * 60000), ext = { rc: { a: okInfo }, gt: { a: gtInfo(gtTr(300), T0) } };
+  registrar(M, [["a", par("a")]], { a: par("a") }, ext, t(0)); for (let i = 1; i <= 150; i++) registrar(M, [], { a: par("a", { px: 1.02 }) }, ext, t(i * 10));
+  const s0 = M.hechas.find((x) => x.a === "a"), g = { ...VIDEO, tp: 0.3, tpFrac: 0.5, esc: 0, stop: 0.2, trailOn: 9 };
+  const ambos = { ...s0, p: [s0.p[0], [10, 0.75, 1.5, 0.7], [20, 1.02, 1.02, 1.02]] }, soloStop = { ...s0, p: [s0.p[0], [10, 0.75, 0.75, 0.7], [20, 1.02, 1.02, 1.02]] };
+  const rA = simular(g, ambos); assert.ok(rA != null);
+  assert.equal(rA, simular(g, soloStop), "tocar también el objetivo en ese tramo no mejora el resultado");
+  assert.ok(rA < -0.15, "pierde como un stop: " + rA);
+  const antes = { ...s0, p: [s0.p[0], [10, 1.25, 1.5, 1.1], [20, 0.75, 0.75, 0.7]] };   // objetivo en un tramo y stop en el SIGUIENTE: la venta parcial sí cuenta
+  assert.ok(simular(g, antes) > rA + 0.1, "si el objetivo llegó antes (otro tramo), se cobra la parcial");
+});
