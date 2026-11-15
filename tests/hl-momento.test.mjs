@@ -38,3 +38,13 @@ test("v1.0 · un precio 0, negativo o no numérico no da señal (antes salía un
   const rb = HP.elige({ BTC: sube.map((x, i) => (i === 100 ? [i, 0] : x)) }, {}); assert.equal(rb.cual, null);
   const ok = HP.elige({ BTC: sube, ETH: c((i) => (i < 125 ? 10 : 11)) }, { BTC: 0.00001, ETH: 0.00001 }); assert.equal(ok.cual, "ETH", "con precios buenos sigue eligiendo: " + JSON.stringify(ok));
 });
+
+test("v1.0 · financiación desconocida = sin dato: esa cripto no se elige (antes contaba como 0, «normal»)", async () => {
+  const sube = Array.from({ length: 130 }, (_, i) => [i, 90 + i * 0.1]), c = Array.from({ length: 130 }, (_, i) => [i, i < 125 ? 10 : 11]);
+  for (const f of [undefined, null, NaN]) assert.equal(HP.elige({ BTC: sube, ETH: c }, { BTC: 0.00001, ETH: f }).cual, null, "financiación " + f);
+  const fx2 = async (u, o) => { const b = JSON.parse(o.body); let j; if (b.type === "metaAndAssetCtxs") j = [{ universe: [{ name: "BTC" }, { name: "ETH" }] }, [{ markPx: "100", dayNtlVlm: "1000000", funding: "0.00001" }, { markPx: "11", dayNtlVlm: "1000000" }]];
+    else if (b.type === "candleSnapshot") { const k = b.req.coin; j = Array.from({ length: 130 }, (_, i) => { const t = b.req.startTime + i * 3600e3; return { t, T: t + 3600e3 - 1, c: String(k === "BTC" ? 90 + i * 0.1 : i < 125 ? 10 : 11) }; }); }
+    else if (b.type === "fundingHistory") j = b.coin === "BTC" ? [{ fundingRate: "0.00001" }] : [];
+    return { ok: true, json: async () => j }; };
+  const Z = await HP.paso(null, Date.UTC(2026, 10, 8, 10, 1), fx2); assert.equal(Z.pos.length, 0, "ETH sin financiación conocida: no la compra " + JSON.stringify(Z.decisiones && Z.decisiones[0]));
+});

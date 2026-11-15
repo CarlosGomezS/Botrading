@@ -20,7 +20,8 @@ function exchange(px, opts = {}) {
     if (u.pathname === "/v2/balance") { const all = [{ symbol: "EUR", available: String(ex.eur), inOrder: "0" }, ...Object.entries(ex.bal).filter(([, q]) => q > 1e-12).map(([m, q]) => ({ symbol: m.replace("-EUR", ""), available: String(q), inOrder: "0" }))]; const sy = u.searchParams.get("symbol"); return R(200, sy ? all.filter((x) => x.symbol === sy) : all); }
     if (u.pathname === "/v2/assets") return R(200, { symbol: u.searchParams.get("symbol"), decimals: 4 });
     if (u.pathname === "/v2/order" && o.method === "POST") {
-      const b = JSON.parse(o.body); assert.equal(typeof b.operatorId, "number"); if (b.orderType === "stopLoss" && ex.stopSinId) { ex.stopSinId--; return R(200, {}); } if (b.orderType === "stopLoss" && ex.falloStop) { ex.falloStop--; return R(400, { errorCode: 205, error: "stop rechazado (prueba)" }); } if (b.orderType === "market" && b.side === "sell" && ex.falloVenta && ex.falloVenta.has(b.market)) return R(400, { errorCode: 216, error: "venta rechazada (prueba)" }); if (b.orderType === "stopLoss") { ex.stops = ex.stops || {}; const id = "S" + Object.keys(ex.stops).length; ex.stops[id] = b; return R(200, { orderId: id }); }
+      const b = JSON.parse(o.body); assert.equal(typeof b.operatorId, "number"); if (b.orderType === "stopLoss" && (ex.timeoutStop || ex.timeoutStopNada)) { ex.stopsEnviados = (ex.stopsEnviados || 0) + 1; assert.ok(b.clientOrderId, "v1.0: el stop lleva su identificador"); if (ex.timeoutStopNada) { ex.timeoutStopNada--; return R(504, { errorCode: 999, error: "tiempo agotado (prueba)" }); } ex.timeoutStop--; ex.stops = ex.stops || {}; const id = "S" + Object.keys(ex.stops).length; ex.stops[id] = b; ex.porId = ex.porId || {}; ex.porId[b.clientOrderId] = { orderId: id, status: "awaitingTrigger" }; return R(504, { errorCode: 999, error: "tiempo agotado (prueba)" }); }   /* v1.0 · B-001 */
+      if (b.orderType === "stopLoss" && ex.stopSinId) { ex.stopSinId--; return R(200, {}); } if (b.orderType === "stopLoss" && ex.falloStop) { ex.falloStop--; return R(400, { errorCode: 205, error: "stop rechazado (prueba)" }); } if (b.orderType === "market" && b.side === "sell" && ex.falloVenta && ex.falloVenta.has(b.market)) return R(400, { errorCode: 216, error: "venta rechazada (prueba)" }); if (b.orderType === "stopLoss") { ex.stops = ex.stops || {}; const id = "S" + Object.keys(ex.stops).length; ex.stops[id] = b; return R(200, { orderId: id }); }
       assert.equal(b.orderType, "market"); assert.ok(b.clientOrderId, "cada orden lleva su identificador"); if (ex.timeout) { ex.timeout--; ex.orders.push(b); ex.porId = ex.porId || {}; const p0 = ex.px[b.market], quote0 = +b.amountQuote / 1.0025, q0 = quote0 / p0; ex.bal[b.market] = (ex.bal[b.market] || 0) + q0; ex.porId[b.clientOrderId] = { filledAmount: String(q0), filledAmountQuote: String(quote0), feePaid: String(quote0 * 0.0025), feeCurrency: "EUR", status: "filled" }; return R(504, { errorCode: 999, error: "tiempo agotado" }); }
       ex.orders.push(b); const p = ex.px[b.market];
       if (b.side === "buy") { const quote = +b.amountQuote / 1.0025, q = quote / p; ex.bal[b.market] = (ex.bal[b.market] || 0) + q; return R(200, { filledAmount: String(q), filledAmountQuote: String(quote), feePaid: String(quote * 0.0025), feeCurrency: "EUR" }); }
@@ -555,4 +556,17 @@ test("v479 · Tortugas: en automático con dinero real NUNCA se elige el perfil 
   assert.equal(RL.riesgoAuto(EL, "okx", TE0), "medio", "en OKX solo hay «Máximo» en el podio: el mejor permitido que aprueba");
   assert.equal(RL.riesgoAuto({ podio: [] }, "okx", { perfiles: { alto: { ok: true, ret: 9 } } }), "medio", "si solo aprueba «Máximo», no se elige");
   assert.equal(RL.riesgoAuto({ podio: [{ ex: "okx", rk: "medio" }] }, "okx", TE0), "medio");
+});
+
+test("v1.0 · B-001 · Bitvavo: si la respuesta al poner el stop se pierde, pregunta por ESE stop (su identificador) y lo da por puesto: nunca pone un segundo stop encima", async () => {
+  const ex = exchange({ "AAA-EUR": 2 }); ex.timeoutStop = 1; const X = RL.bitvavoEx(ex.api, ex.mercado);
+  const id = await X.ponStop("AAA-EUR", 10, 1.8); assert.equal(id, "S0", "encuentra el stop que sí entró");
+  assert.equal(Object.keys(ex.stops).length, 1, "un solo stop en el exchange"); assert.equal(ex.stopsEnviados, 1, "no lo vuelve a mandar");
+  const ex2 = exchange({ "AAA-EUR": 2 }); ex2.timeoutStopNada = 1; const X2 = RL.bitvavoEx(ex2.api, ex2.mercado);
+  await assert.rejects(() => X2.ponStop("AAA-EUR", 10, 1.8), /tiempo agotado/, "si el stop NO entró, falla (y quien lo llama reintenta o vende, como antes)");
+  assert.equal(Object.keys(ex2.stops || {}).length, 0);
+  const ex3 = exchange({ "AAA-EUR": 2 }); ex3.timeoutStop = 1; const deps = { api: ex3.api, mercado: ex3.mercado, rapido: 1 };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix" }, tk(ex3.px), T(0), deps);
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": { sym: "AAA", q: 10, q0: 10, px: 2.002, cost: 60, cost0: 60, t0: T(1).toISOString() } }) }, { copia: "mix" }, tk(ex3.px), T(1), deps));
+  assert.ok(RS.pos["AAA-EUR"], "compra"); assert.equal(Object.keys(ex3.stops).length, 1, "con el bot completo: un solo stop"); assert.equal(RS.pos["AAA-EUR"].stopId, "S0"); assert.equal(RS.pos["AAA-EUR"].stopEst, "ok");
 });

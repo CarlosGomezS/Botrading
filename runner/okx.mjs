@@ -94,10 +94,12 @@ export function rawDeHistoria(st, PO) {
 // lista de criptos al contado (pública): { BASE: { EUR: {instId, lot, min}, USDC: {...} } }
 export async function instrumentos(fx = fetch) {
   const r = await fx(BASE + "/api/v5/public/instruments?instType=SPOT", { signal: AbortSignal.timeout(20000) }); const j = await r.json();
-  const out = {}; for (const i of j.data || []) { if (i.state !== "live" || !["EUR", "USDC"].includes(i.quoteCcy)) continue; (out[i.baseCcy] || (out[i.baseCcy] = {}))[i.quoteCcy] = { instId: i.instId, lot: dec(i.lotSz), min: +i.minSz || 0 }; }
+  const out = {}; for (const i of j.data || []) { if (i.state !== "live" || !["EUR", "USDC"].includes(i.quoteCcy)) continue; (out[i.baseCcy] || (out[i.baseCcy] = {}))[i.quoteCcy] = { instId: i.instId, lot: dec(i.lotSz), min: +i.minSz || 0, ...(+i.tickSz > 0 ? { tick: +i.tickSz, tdec: dec(i.tickSz) } : {}) };   /* v1.0 · O-001 · paso de precio del mercado */ }
   return out;
 }
 // ¿se puede operar esta cripto (mercado de Bitvavo «X-EUR») en OKX? → la ruta: directa en EUR o pasando por USDC
+// v1.0 · O-001 · el precio de disparo del stop va en el paso de precio de ese mercado (tickSz), redondeado hacia abajo (un poco más lejos, nunca más cerca); sin dato, 5 cifras
+export function precioStop(par, px) { const t = par && par.tick; if (!(t > 0)) return String(+px.toPrecision(5)); const n = Math.floor(px / t + 1e-9); return (Math.max(1, n) * t).toFixed(par.tdec || 0); }
 export function ruta(I, m) { const b = String(m).replace(/-EUR$/, ""), x = I && I[b]; if (!x) return null; if (x.EUR) return { tipo: "eur", par: x.EUR }; if (x.USDC && I.USDC && I.USDC.EUR) return { tipo: "usdc", par: x.USDC, puente: I.USDC.EUR }; return null; }
 
 // adaptador para el módulo de dinero real (misma forma que el de Bitvavo)
@@ -155,7 +157,7 @@ export function adaptador(api, I, tick = {}) {
   // v291 · 🛡️ stop de emergencia en el propio OKX (orden condicional). Solo en criptos con par en EUR (las de USDC venderían a USDC).
   async function ponStop(m, q, px) { const R = ruta(I, m); if (!R || R.tipo !== "eur") return null; const sz = abajo(q, R.par.lot); if (!(sz > 0) || sz < R.par.min) return null;
     const algoClOrdId = "st" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);   // v295 · identificador propio: si se pierde la respuesta, se busca
-    try { const [o] = await api("POST", "/api/v5/trade/order-algo", { instId: R.par.instId, tdMode: "cash", side: "sell", ordType: "conditional", sz: sz.toFixed(R.par.lot), slTriggerPx: String(+px.toPrecision(5)), slOrdPx: "-1", algoClOrdId }); if (o && o.algoId) return String(o.algoId); }
+    try { const [o] = await api("POST", "/api/v5/trade/order-algo", { instId: R.par.instId, tdMode: "cash", side: "sell", ordType: "conditional", sz: sz.toFixed(R.par.lot), slTriggerPx: precioStop(R.par, px), slOrdPx: "-1", algoClOrdId }); if (o && o.algoId) return String(o.algoId); }
     catch (e) { if (e && e.status && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code))) throw e; }
     await sleep(800); try { const [d] = await api("GET", `/api/v5/trade/order-algo?algoClOrdId=${algoClOrdId}`); if (d && d.algoId) return String(d.algoId); } catch (e) {} return null; }
   // v295 · USDC que quedó a medias (ruta EUR→USDC→cripto cortada) → a euros

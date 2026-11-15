@@ -122,7 +122,13 @@ export function bitvavoEx(api, mercado, saldoEur) {
   // v291 · 🛡️ STOP DE EMERGENCIA EN EL PROPIO EXCHANGE (por si el bot no pudiera actuar): orden «stopLoss» de Bitvavo. Bloquea esas criptos,
   // así que antes de cualquier venta del bot se quita y, si queda algo, se vuelve a poner.
   const ponStop = async (m, q, px) => { const mk = await mercado(m), f = 10 ** mk.dec, amount = Math.floor(q * f) / f; if (!(amount > 0) || amount * px < mk.min) return null;
-    const o = await api("POST", "/order", { market: m, side: "sell", orderType: "stopLoss", amount: amount.toFixed(mk.dec), triggerAmount: String(+px.toPrecision(5)), triggerType: "price", triggerReference: "lastTrade", operatorId: OPERADOR }); return o && o.orderId ? String(o.orderId) : null; };
+    // v1.0 · B-001 · el stop lleva identificador propio: si la respuesta se pierde (red, tiempo agotado), se pregunta por ESE stop antes de volver a intentarlo (nunca dos stops)
+    const clientOrderId = randomUUID();
+    try { const o = await api("POST", "/order", { market: m, side: "sell", orderType: "stopLoss", amount: amount.toFixed(mk.dec), triggerAmount: String(+px.toPrecision(5)), triggerType: "price", triggerReference: "lastTrade", clientOrderId, operatorId: OPERADOR }); return o && o.orderId ? String(o.orderId) : null; }
+    catch (e) { if (e && e.status && e.status < 500 && e.status !== 408 && e.status !== 429) throw e;
+      for (let i = 0; i < 4; i++) { await new Promise((r) => setTimeout(r, 800 + i * 500)); let o = null; try { o = await api("GET", `/order?market=${m}&clientOrderId=${clientOrderId}`); } catch (e2) { continue; }
+        if (o && o.orderId && ["new", "awaitingTrigger", "partiallyFilled"].includes(o.status)) return String(o.orderId); if (o && o.status) break; }
+      throw e; } };
   const quitaStop = async (m, id) => { try { await api("DELETE", `/order?market=${m}&orderId=${id}`); } catch (e) { if (!/240|no.*(exist|encontr)|not found|filled|cancel/i.test(String(e.message))) throw e; } };
   const estadoStop = async (m, id) => { const o = await api("GET", `/order?market=${m}&orderId=${id}`); return { activo: !!o && ["new", "awaitingTrigger", "partiallyFilled"].includes(o.status), q: o ? +o.amountRemaining || +o.amount || 0 : 0, lado: o && o.side ? String(o.side) : null, px: o ? +o.triggerPrice || +o.triggerAmount || 0 : 0 }; };   // v297 · v478: también lado y precio de disparo
   // v299 · compras hechas POR EL BOT (sus órdenes llevan su «operatorId»), para no apropiarse de compras tuyas

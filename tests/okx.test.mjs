@@ -178,3 +178,13 @@ test("v478 · OKX: un «no existe» a los pocos segundos NO se toma por seguro: 
   let err = null; try { await OK.adaptador(ex.api, ex.I, tk("USDC-EUR", 0.9)).comprar("BBB-EUR", 50); } catch (e) { err = e; }
   assert.equal(ventas, 1, "una sola venta"); assert.ok(err && err.pendRef && err.pendRef.id, "apuntada para comprobarla: " + (err && err.message));
 });
+
+test("v1.0 · O-001 · OKX: el precio del stop va en el paso de precio de cada mercado (tickSz), redondeado hacia abajo", async () => {
+  const fx = async () => ({ ok: true, status: 200, json: async () => ({ code: "0", data: [{ instId: "ADA-EUR", baseCcy: "ADA", quoteCcy: "EUR", state: "live", lotSz: "0.01", minSz: "1", tickSz: "0.0001" }, { instId: "BTC-EUR", baseCcy: "BTC", quoteCcy: "EUR", state: "live", lotSz: "0.00001", minSz: "0.00001", tickSz: "0.1" }] }) });
+  const I = await OK.instrumentos(fx); assert.equal(I.ADA.EUR.tick, 0.0001); assert.equal(I.ADA.EUR.tdec, 4);
+  assert.equal(OK.precioStop(I.ADA.EUR, 0.123456), "0.1234", "ADA: múltiplo de 0,0001 (antes salía 0.12346)");
+  assert.equal(OK.precioStop(I.BTC.EUR, 51234.567), "51234.5");
+  assert.equal(OK.precioStop(I.ADA.EUR, 0.1235), "0.1235", "ya en el paso: igual");
+  assert.equal(OK.precioStop({ instId: "X", lot: 2 }, 0.123456), "0.12346", "sin dato del paso: 5 cifras, como antes");
+  for (const [par, px] of [[I.ADA.EUR, 0.98765], [I.BTC.EUR, 60001.29]]) { const v = +OK.precioStop(par, px); assert.ok(v <= px && px - v < par.tick + 1e-12); assert.ok(Math.abs(v / par.tick - Math.round(v / par.tick)) < 1e-6); }
+});

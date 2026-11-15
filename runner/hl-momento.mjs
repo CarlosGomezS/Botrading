@@ -22,14 +22,14 @@ export function elige(c, f, p = P) { const btc = c.BTC; if (!btc || btc.length <
   const ok0 = (x) => Number.isFinite(+x) && +x > 0;   /* v1.0 · precios 0, negativos o no numéricos no dan señal (darían una subida «infinita») */
   const cand = Object.entries(c).filter(([, v]) => v.length > p.L && ok0(v[v.length - 1][1]) && ok0(v[v.length - 1 - p.L][1])).map(([k, v]) => ({ k, r: v[v.length - 1][1] / v[v.length - 1 - p.L][1] - 1, f: f[k] })).filter((x) => Number.isFinite(x.r) && x.r > p.min).sort((a, b) => b.r - a.r);
   if (!cand.length) return { cual: null, motivo: `ninguna sube más de un ${p.min * 100} % en ${p.L} h` };
-  const ok = cand.find((x) => x.f != null && x.f < p.fmax); if (!ok) return { cual: null, motivo: `las que suben (${cand.slice(0, 3).map((x) => x.k).join(", ")}) tienen a los alcistas amontonados` };
+  const ok = cand.find((x) => x.f != null && Number.isFinite(x.f) && x.f < p.fmax); if (!ok) return { cual: null, motivo: `las que suben (${cand.slice(0, 3).map((x) => x.k).join(", ")}) tienen a los alcistas amontonados` };
   return { cual: ok.k, r: ok.r, f: ok.f, motivo: `${ok.k} sube un ${r2(ok.r * 100)} % en ${p.L} h y su financiación es normal` }; }
 
 // un paso (cada minuto): marca precios, cobra/paga financiación por hora, cierra las de 6 h y, si empieza una hora nueva, decide
 // v479 · los registros de GitHub son públicos: aquí no se escriben nombres de criptos ni resultados (el detalle va en el estado de la app)
 export async function paso(Z, now = Date.now(), fx = fetch, log = () => {}) {
   Z = Z || { t0: now, eq: P.inicio, cash: P.inicio, pos: [], cerradas: [], decisiones: [], st: { n: 0, gan: 0, fees: 0, fund: 0 } };
-  const [meta, ctxs] = await post({ type: "metaAndAssetCtxs" }, fx), U = universo(meta, ctxs), px = Object.fromEntries(meta.universe.map((u, i) => [u.name, +ctxs[i].markPx || 0])), fNow = Object.fromEntries(meta.universe.map((u, i) => [u.name, +ctxs[i].funding || 0]));
+  const [meta, ctxs] = await post({ type: "metaAndAssetCtxs" }, fx), U = universo(meta, ctxs), px = Object.fromEntries(meta.universe.map((u, i) => [u.name, +ctxs[i].markPx || 0])), fNow = Object.fromEntries(meta.universe.map((u, i) => [u.name, ctxs[i].funding != null && ctxs[i].funding !== "" && Number.isFinite(+ctxs[i].funding) ? +ctxs[i].funding : null]));   /* v1.0 · financiación desconocida = sin dato (no da señal), no «0» */
   const hora = Math.floor(now / 3600e3) * 3600e3;
   // financiación: una vez por hora y posición (si es positiva, el comprado paga)
   for (const p of Z.pos) if ((p.fAt || p.t0) < hora && px[p.c] > 0) { const pago = p.q * px[p.c] * (fNow[p.c] || 0); Z.cash -= pago; p.fund = (p.fund || 0) + pago; Z.st.fund += pago; p.fAt = hora; }
