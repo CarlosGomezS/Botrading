@@ -31,7 +31,8 @@ export function mundo(o = {}) {
       const pos = () => Object.entries(W.pos).filter(([, p]) => p.szi !== 0).map(([c, p]) => ({ position: { coin: c, szi: String(p.szi), entryPx: String(p.entryPx), unrealizedPnl: String((W.px[c] - p.entryPx) * p.szi), positionValue: String(Math.abs(p.szi) * W.px[c]) } }));
       switch (body.type) {
         case "meta": return j({ universe: coins.map((c) => ({ name: c, szDecimals: 3 })) });
-        case "clearinghouseState": if (W.chRoto) return j({}, 500); return j({ marginSummary: { accountValue: String(W.eq) }, assetPositions: pos() });
+        case "clearinghouseState": if (W.chRoto) return j({}, 500); if (W.saldoRaro !== undefined) return j({ marginSummary: W.saldoRaro, assetPositions: pos() });   /* v1.0 · H-001 · un 200 con el saldo mal */
+          return j({ marginSummary: { accountValue: String(W.eq) }, assetPositions: pos() });
         case "allMids": return j(Object.fromEntries(coins.map((c) => [c, String(W.px[c])])));
         case "userNonFundingLedgerUpdates": if (W.ledgerFallo) return j({}, 500); return j([{ delta: { type: "deposit", usdc: String(W.neto) } }]);
         case "userFills": if (W.fillsRoto) return j({}, 500); return j(W.fills.filter((f) => !f.oculto || !W.retrasoFills));

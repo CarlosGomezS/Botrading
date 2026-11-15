@@ -27,3 +27,14 @@ test("v479 · H-16: el Hyperliquid ficticio no escribe nombres de criptos ni res
   const px2 = { ...px, SOL: { ...px.SOL, now: 110 } }; Z = await HP.paso(Z, T + 6 * 3600e3 + 60e3, fx(px2, { DOGE: 0.0002 }), (x) => L.push(x));
   assert.ok(L.length >= 2, "escribe algo: " + L.join(" | ")); for (const l of L) { assert.ok(!/\b(BTC|ETH|SOL|DOGE)\b/.test(l), "sin criptos: " + l); assert.ok(!/%/.test(l), "sin resultados: " + l); }
 });
+
+test("v1.0 · un precio 0, negativo o no numérico no da señal (antes salía una subida «infinita» y la elegía)", () => {
+  const sube = Array.from({ length: 130 }, (_, i) => [i, 90 + i * 0.1]), c = (v) => Array.from({ length: 130 }, (_, i) => [i, v(i)]);
+  for (const malo of [0, -5, NaN, "x"]) {
+    const r = HP.elige({ BTC: sube, ETH: c((i) => (i < 125 ? malo : 10)) }, { BTC: 0.00001, ETH: 0.00001 });
+    assert.notEqual(r.cual, "ETH", "con precio " + malo + ": " + JSON.stringify(r));
+    assert.ok(r.r == null || Number.isFinite(r.r));
+  }
+  const rb = HP.elige({ BTC: sube.map((x, i) => (i === 100 ? [i, 0] : x)) }, {}); assert.equal(rb.cual, null);
+  const ok = HP.elige({ BTC: sube, ETH: c((i) => (i < 125 ? 10 : 11)) }, { BTC: 0.00001, ETH: 0.00001 }); assert.equal(ok.cual, "ETH", "con precios buenos sigue eligiendo: " + JSON.stringify(ok));
+});

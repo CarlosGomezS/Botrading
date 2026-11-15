@@ -467,3 +467,30 @@ test("v480 · una posición que lleva más de un día «por identificar» se avi
   await otraHora(W); assert.equal(W.avisos.filter((t) => /sin poder identificarse/.test(t)).length, 1, "una vez al día");
   W.ctl = { ...W.ctl, t: new Date(Date.now() + 60e3).toISOString() }; await otraHora(W); assert.ok((await estadoDe(W)).pm.BTC, "guardando los ajustes, la gestiona el bot");
 });
+
+test("v1.0 · H-001 · si Hyperliquid devuelve el saldo incompleto o raro (con un 200): no lo toma como 0 €, no echa el freno ni cierra nada; la ronda se para y avisa", async () => {
+  for (const raro of [{}, { accountValue: null }, { accountValue: "" }, { accountValue: "NaN" }, { accountValue: "abc" }, { accountValue: "-5" }]) {
+    const W = mundo({ pos: [{ c: "BTC", szi: 0.2, px: 100, edadH: 2 }], stops: [{ c: "BTC", side: "A", sz: 0.2, trig: 92 }], quiere: [{ c: "ETH", dir: 1 }] }); conecta(W); W.saldoRaro = raro;
+    await assert.rejects(() => silencio(() => HL.ronda()), /saldo incompleto o no válido/, JSON.stringify(raro));
+    assert.deepEqual(abiertas(W), [{ c: "BTC", szi: 0.2 }], "la posición sigue abierta: " + JSON.stringify(raro));
+    assert.equal(W.ordenes.length, 0, "ni abre, ni cierra, ni toca stops: " + JSON.stringify(raro));
+    assert.equal([...W.refs].filter((r) => r.includes("hl-freno-")).length, 0, "no echa el freno: " + JSON.stringify(raro));
+    assert.equal(W.stops.length, 1, "el stop sigue puesto");
+    W.saldoRaro = undefined; await otraHora(W); assert.deepEqual(abiertas(W).map((x) => x.c).sort(), ["BTC", "ETH"], "cuando el saldo vuelve bien, sigue normal");
+  }
+  const W0 = mundo({ pos: [{ c: "BTC", szi: 0.2, px: 100, edadH: 2 }], stops: [{ c: "BTC", side: "A", sz: 0.2, trig: 92 }] }); conecta(W0); W0.saldoRaro = { accountValue: "0" };
+  await silencio(() => HL.ronda()); assert.deepEqual(abiertas(W0), [], "un saldo 0 DE VERDAD sí es una caída real: el freno actúa como siempre");
+  assert.equal(HL.saldoValido({ marginSummary: { accountValue: "59.05" } }), 59.05);
+});
+
+test("v1.0 · H-002 · un stop que pones TÚ en la misma cripto justo mientras el bot la abre no se da por suyo: no se cancela ni se apunta como del bot", async () => {
+  const W = mundo({ quiere: [{ c: "BTC", dir: 1 }] }); W.estadoIni = { pm: {}, misStops: [] }; conecta(W); const f0 = W.fetch; let puesto = false;
+  W.fetch = async (u, init = {}) => { const r = await f0(u, init); if (!puesto && String(u).endsWith("/exchange")) { const b = JSON.parse(init.body); if (b.action.type === "order" && b.action.orders[0].t.trigger) { puesto = true; W.stops.push({ coin: "BTC", oid: 999, side: "A", sz: String(b.action.orders[0].s), origSz: String(b.action.orders[0].s), triggerPx: "85", isTrigger: true, orderType: "Stop Market", reduceOnly: true }); } } return r; };
+  conecta(W); HL.deps.fetch = W.fetch; await silencio(() => HL.ronda());
+  assert.ok(puesto, "el bot ha puesto su stop");
+  assert.ok(W.stops.some((s) => s.oid === 999), "tu stop sigue ahí");
+  const bot = W.stops.filter((s) => s.coin === "BTC" && s.oid !== 999); assert.equal(bot.length, 1, "y el del bot también");
+  const S = await estadoDe(W); assert.ok(!S.misStops.includes(999), "tu stop no se apunta como del bot"); assert.ok(S.misStops.includes(bot[0].oid), "el del bot sí");
+  delete W.pos.BTC; W.quiere = []; await otraHora(W); assert.ok(W.stops.some((s) => s.oid === 999), "aunque la posición se cierre, el bot no cancela tu stop");
+  assert.ok(!W.stops.some((s) => s.oid === bot[0].oid), "el suyo sí lo retira");
+});

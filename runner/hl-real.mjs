@@ -42,7 +42,16 @@ function orden(a, compra, px, sz, reduce) { return { a, b: compra, p: aTexto(px)
 export const STOP_EMERG = 0.25;
 export function ordenStop(a, lado, entrada, sz, szd, dist = STOP_EMERG) { const tp = entrada * (lado > 0 ? 1 - dist : 1 + dist), lim = tp * (lado > 0 ? 0.9 : 1.1);
   return { a, b: lado < 0, p: aTexto(precioOk(lim, szd)), s: aTexto(sz), r: true, t: { trigger: { isMarket: true, triggerPx: aTexto(precioOk(tp, szd)), tpsl: "sl" } } }; }
-async function ponStop(a, lado, entrada, sz, szd, pk, dist = STOP_EMERG) { const res = await exchange({ type: "order", orders: [ordenStop(a, lado, entrada, sz, szd, dist)], grouping: "na" }, pk);
+// v1.0 · H-001 · el saldo tiene que llegar BIEN (un número ≥ 0). Si falta o es raro, no se toma como 0 € (eso echaría el freno y cerraría todo):
+//   la ronda se para sin abrir, cerrar ni echar el freno, y avisa. Las posiciones siguen protegidas por sus stops, que están en Hyperliquid.
+export function saldoValido(st) { const v = st && st.marginSummary ? st.marginSummary.accountValue : undefined, n = v === null || v === undefined || (typeof v === "string" && !v.trim()) ? NaN : +v;
+  if (!Number.isFinite(n) || n < 0) throw new Error("Hyperliquid ha devuelto el saldo incompleto o no válido. Esta hora no hago nada (ni abro, ni cierro, ni echo el freno); tus posiciones siguen con sus stops.");
+  return n; }
+// v1.0 · H-002 · los stops que el bot manda en esta ronda (cripto, lado, cantidad y precio EXACTOS que se enviaron): una orden nueva solo es del bot si cuadra con uno de estos
+const PUESTOS = [];
+export const cuadraConPuesto = (o, a) => PUESTOS.some((p) => p.a === a && o.side === p.side && Math.abs(+(o.sz ?? o.origSz) - p.sz) <= p.sz * 0.001 && Math.abs(+o.triggerPx / p.trig - 1) < 0.001);
+async function ponStop(a, lado, entrada, sz, szd, pk, dist = STOP_EMERG) { const os = ordenStop(a, lado, entrada, sz, szd, dist); PUESTOS.push({ a, side: os.b ? "B" : "A", sz: +os.s, trig: +os.t.trigger.triggerPx });
+  const res = await exchange({ type: "order", orders: [os], grouping: "na" }, pk);
   // v465 · solo cuenta como puesto si Hyperliquid lo CONFIRMA de forma explícita (en espera de activarse, en el libro o ejecutado); una respuesta incompleta no vale
   const st = res.j && res.j.status === "ok" && res.j.response && res.j.response.data && res.j.response.data.statuses && res.j.response.data.statuses[0]; return !!(st && !st.error && (st === "waitingForTrigger" || st.waitingForTrigger || st.resting || st.filled)); }
 async function mandar(o, pk) { const res = await exchange({ type: "order", orders: [o], grouping: "na" }, pk);
@@ -194,7 +203,7 @@ async function senalesVivas(M0, idx) { const g = M0.x.g, D = await datosVivos(M0
     const dir = a[i]; if (!dir) continue; if (b) { let ok = false; for (let k = 0; k < 6 && !ok; k++) if (b[i - k] === dir) ok = true; if (!ok) continue; } if (!filtro(dir, i, X, c)) continue; quiere.push({ c, dir, px0: +D.M[c].C[i] || 0 }); }
   return { quiere }; }
 
-export async function ronda() {
+export async function ronda() { PUESTOS.length = 0;
   const forzar = env("FORZAR") === "1";
   // v441 · una sola ronda por hora aunque la lancen dos sitios (el bot de cada minuto y el horario de respaldo); a mano (FORZAR=1) siempre
   if (!forzar) { try { const r = await F(`https://api.github.com/repos/${REPO}/contents/${ARCH}?ref=${RAMA}`, { headers: { Accept: "application/vnd.github.raw+json", ...(TOKEN ? { Authorization: "Bearer " + TOKEN } : {}) }, signal: AbortSignal.timeout(15000) });
@@ -209,7 +218,7 @@ export async function ronda() {
   const PK = pk.startsWith("0x") ? pk : "0x" + pk, dirDe = deps.direccion || (async (k) => { await libs(); return new ETH.Wallet(k).address.toLowerCase(); }), mia = await dirDe(PK);
   if (mia === yo) { log("⚠️ Has puesto la clave privada de tu cartera principal, no la de un agente. Por seguridad no opero: crea una clave de agente en app.hyperliquid.xyz/API."); await aviso("⚠️ Hyperliquid: la clave que has puesto es la de tu cartera principal (puede retirar dinero). Bórrala de Ajustes y crea una clave de agente en app.hyperliquid.xyz/API."); return; }
   const meta = await info({ type: "meta" }), idx = new Map(meta.universe.map((u, i) => [u.name, { a: i, szd: u.szDecimals }]));
-  const st = await info({ type: "clearinghouseState", user: yo }), eq = +st.marginSummary.accountValue || 0, mids = await info({ type: "allMids" });
+  const st = await info({ type: "clearinghouseState", user: yo }), eq = saldoValido(st), mids = await info({ type: "allMids" });
   const pos = (st.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0);
   let ledOk = true; const led = await info({ type: "userNonFundingLedgerUpdates", user: yo, startTime: 0 }).catch(() => { ledOk = false; return []; });   // v461 · sin el historial de ingresos no se puede calcular el freno → esta hora no se abre nada
   let neto = 0; for (const u of led || []) { const d = u.delta || {}; if (d.type === "deposit") neto += +d.usdc || 0; else if (d.type === "withdraw") neto -= +d.usdc || 0; }
@@ -380,8 +389,13 @@ export async function ronda() {
     //   que él gestiona. Un stop tuyo en una cripto sin posición del bot (o en una posición que no es del bot) NO se toca nunca: se avisa una vez.
     // v477 · ya NO basta con que la cripto sea del bot: un stop es suyo si lo tiene apuntado, o si es de una posición que el bot acaba de abrir en esta ronda.
     //   (Solo la primera vez, si aún no había nada apuntado —estado de antes de la v476—, se dan por suyos los de sus posiciones, para no tocar los que ya había.)
+    // v1.0 · H-002 · una orden que ha aparecido después de que el bot abriera solo es suya si es EXACTAMENTE lo que pone el bot: la que acaba de mandar en esta ronda,
+    //   o (si la ronda anterior se cortó) la que su método pone a esa posición: lado contrario, toda la cantidad y precio del método. Un stop tuyo distinto no se toca nunca.
+    const delBot = (o) => { if (!idx.has(o.coin)) return false; if (cuadraConPuesto(o, idx.get(o.coin).a)) return true; const p = ab.find((x) => x.coin === o.coin), m = pm[o.coin]; if (!p || !m) return false;
+      const lado = +p.szi > 0 ? 1 : -1, d = m.sl > 0 ? m.sl : STOP_EMERG, want = +p.entryPx * (lado > 0 ? 1 - d : 1 + d), tam = Math.abs(+p.szi);
+      return o.side === (lado > 0 ? "A" : "B") && Math.abs(+(o.sz ?? o.origSz) - tam) <= tam * 0.001 && Math.abs(+o.triggerPx / want - 1) < 0.006; };
     const sinApuntar = !(prev && Array.isArray(prev.misStops)), mios = new Set(sinApuntar ? [] : prev.misStops), gest = (c) => !!pm[c] && ab.some((p) => p.coin === c),
-      ooIds = new Set(oo.map((o) => o.oid)), esMio = (o) => mios.has(o.oid) || (propias.has(o.coin) && !propias.get(o.coin).has(o.oid)) || (sinApuntar && gest(o.coin));
+      ooIds = new Set(oo.map((o) => o.oid)), esMio = (o) => mios.has(o.oid) || (propias.has(o.coin) && !propias.get(o.coin).has(o.oid) && delBot(o)) || (sinApuntar && gest(o.coin));
     // v478 · una apertura de ESTA hora cuya respuesta se perdió: la posición no estaba al empezar y coincide con una intención → es del bot (se gestiona ya)
     // v479 · y solo si el HISTORIAL lo demuestra: una ejecución de apertura en esa cripto y dirección dentro de la ventana de la intención. Sin esa prueba no se adopta:
     //   si el historial no se puede leer, no se toca (se aclara en la próxima ronda); si se lee y no cuadra, es ajena (no se toca y se avisa).
@@ -420,7 +434,7 @@ export async function ronda() {
         hechos.push(`🚨 ${p.coin}: ${sts.length ? "su stop no era correcto" : "estaba sin stop"} y no he podido poner el bueno, así que ${que}`); if (sigue !== false) await aviso(`🚨 Hyperliquid: ${p.coin} ${sigue ? "está abierta sin un stop correcto y no he podido cerrarla. Ciérrala a mano." : "puede seguir abierta sin un stop correcto (no he podido comprobarlo). Revísala en Hyperliquid."}`); } }
     // v476 · se apuntan los stops del bot que quedan (los de sus posiciones, incluidos los que acaba de poner, y los suyos de antes que sigan vivos)
     try { const ab2 = ((await info({ type: "clearinghouseState", user: yo })).assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0), oo2 = (await info({ type: "frontendOpenOrders", user: yo })) || [];
-      estado.misStops = oo2.filter((o) => esStop(o) && (esMio(o) || (!ooIds.has(o.oid) && !!pm[o.coin] && !ajenasPos[o.coin] && ab2.some((p) => p.coin === o.coin)))).map((o) => o.oid); }   /* v477 · los suyos de antes + los que ha puesto en esta ronda */ catch (e) { estado.misStops = [...mios]; }
+      estado.misStops = oo2.filter((o) => esStop(o) && (esMio(o) || (!ooIds.has(o.oid) && !!pm[o.coin] && !ajenasPos[o.coin] && ab2.some((p) => p.coin === o.coin) && delBot(o)))).map((o) => o.oid); }   /* v477 · los suyos de antes + los que ha puesto en esta ronda */ catch (e) { estado.misStops = [...mios]; }
     // v466 · ✅ las cancelaciones se COMPRUEBAN: se vuelve a pedir la lista de órdenes; si alguna sigue viva se reintenta una vez y, si sigue, se avisa (stop duplicado)
     if (quitar.length) { const vivas = async () => { const o2 = (await info({ type: "frontendOpenOrders", user: yo })) || []; return quitar.filter((x) => o2.some((o) => o.oid === x.o)); };
       let v = null; try { v = await vivas(); if (v.length) { await exchange({ type: "cancel", cancels: v }, PK).catch(() => {}); await deps.espera(2000); v = await vivas(); } } catch (e) { v = null; }

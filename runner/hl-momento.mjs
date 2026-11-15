@@ -18,8 +18,9 @@ export function universo(meta, ctxs, n = P.universo) { return meta.universe.map(
 const ema = (x, n) => { const k = 2 / (n + 1); let e = x[0]; for (let i = 1; i < x.length; i++) e += k * (x[i] - e); return e; };
 // decisión de esta hora con las velas de 1 h CERRADAS (c: { cripto: [[t, cierre], ...] }) y la financiación media de 8 h (f: { cripto: tasa })
 export function elige(c, f, p = P) { const btc = c.BTC; if (!btc || btc.length < 51) return { cual: null, motivo: "sin velas de BTC" };
-  const cb = btc.map((x) => x[1]); if (!(cb[cb.length - 1] > ema(cb.slice(-120), 50))) return { cual: null, motivo: "BTC por debajo de su media de 50 h" };
-  const cand = Object.entries(c).filter(([, v]) => v.length > p.L).map(([k, v]) => ({ k, r: v[v.length - 1][1] / v[v.length - 1 - p.L][1] - 1, f: f[k] })).filter((x) => x.r > p.min).sort((a, b) => b.r - a.r);
+  const cb = btc.map((x) => x[1]); if (!cb.slice(-120).every((x) => Number.isFinite(+x) && +x > 0)) return { cual: null, motivo: "velas de BTC con precios no válidos" }; if (!(cb[cb.length - 1] > ema(cb.slice(-120), 50))) return { cual: null, motivo: "BTC por debajo de su media de 50 h" };
+  const ok0 = (x) => Number.isFinite(+x) && +x > 0;   /* v1.0 · precios 0, negativos o no numéricos no dan señal (darían una subida «infinita») */
+  const cand = Object.entries(c).filter(([, v]) => v.length > p.L && ok0(v[v.length - 1][1]) && ok0(v[v.length - 1 - p.L][1])).map(([k, v]) => ({ k, r: v[v.length - 1][1] / v[v.length - 1 - p.L][1] - 1, f: f[k] })).filter((x) => Number.isFinite(x.r) && x.r > p.min).sort((a, b) => b.r - a.r);
   if (!cand.length) return { cual: null, motivo: `ninguna sube más de un ${p.min * 100} % en ${p.L} h` };
   const ok = cand.find((x) => x.f != null && x.f < p.fmax); if (!ok) return { cual: null, motivo: `las que suben (${cand.slice(0, 3).map((x) => x.k).join(", ")}) tienen a los alcistas amontonados` };
   return { cual: ok.k, r: ok.r, f: ok.f, motivo: `${ok.k} sube un ${r2(ok.r * 100)} % en ${p.L} h y su financiación es normal` }; }
