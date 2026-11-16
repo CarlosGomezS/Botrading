@@ -10,6 +10,7 @@ import { writeFileSync, readFileSync, rmSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { validaReceta, INDICADORES, OPS, SALIDAS, STOPS, describe } from "./ia-receta.mjs";
 import { leeFuentes } from "./fuentes-ideas.mjs";
+import { lectura } from "./ia-mercado.mjs";
 const env = (k) => (process.env[k] || "").trim(), REPO = env("GITHUB_REPOSITORY") || "CarlosGomezS/Botrading", TOKEN = env("GITHUB_TOKEN"), KEY = env("GEMINI_KEY");
 const RAMA = "ia-lab", sh = (c) => execSync(c, { stdio: "pipe", encoding: "utf8", maxBuffer: 1 << 28 });
 const raw = async (rama, f) => { try { const r = await fetch(`https://raw.githubusercontent.com/${REPO}/${rama}/${f}?t=${Date.now()}`, { signal: AbortSignal.timeout(60000) }); if (r.ok) return await r.json(); } catch (e) {} return null; };
@@ -26,7 +27,7 @@ async function modelos() {
   } catch (e) {}
   return ["gemini-2.5-flash", "gemini-2.0-flash"];
 }
-const T0 = Date.now(), QUEDA = () => 16 * 60e3 - (Date.now() - T0);   // como mucho ~11 min en total: siempre da tiempo a guardar
+const T0 = Date.now(), QUEDA = () => 21 * 60e3 - (Date.now() - T0);   /* v1.0 · algo más de tiempo para la lectura del mercado */   // como mucho ~11 min en total: siempre da tiempo a guardar
 async function geminiSolo(prompt, MS) {
   let ultimo = "";
   for (const m of MS) for (let t = 0; t < 2; t++) { if (QUEDA() < 90e3) throw new Error("sin tiempo · " + ultimo);
@@ -39,6 +40,56 @@ async function geminiSolo(prompt, MS) {
     } catch (e) { ultimo = m + " " + String(e.message).slice(0, 60); }
   }
   throw new Error(ultimo || "sin respuesta");
+}
+
+// ---------- v1.0 · lista de recetas: las nuevas primero, sin repetir; las que el laboratorio ha APROBADO o tiene «casi» NUNCA se caen
+//   de la lista (el bot real busca aquí la receta de su método: si se cayera, no sabría construirla)
+export const LIM_RECETAS = 200;
+export function fusiona(nuevas, viejas, cl) {
+  const todas = [...(nuevas || []), ...(viejas || [])].filter((r, i, A) => r && r.id && A.findIndex((z) => z.id === r.id) === i);
+  const usadas = JSON.stringify([(cl && cl.aprobadas) || [], (cl && cl.casi) || [], (cl && cl.podio) || [], (cl && cl.mejoresCasi) || []]), fija = (r) => usadas.includes(r.id);
+  const fijas = todas.filter(fija), resto = todas.filter((r) => !fija(r));
+  return [...resto.slice(0, Math.max(0, LIM_RECETAS - fijas.length)), ...fijas];
+}
+// v1.0 · de dónde salen las recetas y cómo les va (para TI, en la app; a la IA no se le enseña: el aprobado usa los 90 días ocultos)
+export function porOrigen(recetas, cl) {
+  const o = {}, res = (cl && cl.ia) || {}, apr = JSON.stringify((cl && cl.aprobadas) || []);
+  for (const r of recetas || []) { const k = r.via || "ia"; const z = (o[k] = o[k] || { recetas: 0, probadas: 0, casi: 0, aprobadas: 0 }), x = res[r.id] || {}; z.recetas++; z.probadas += +x.n || 0; z.casi += x.casi ? 1 : 0; z.aprobadas += apr.includes(r.id) ? 1 : 0; }
+  for (const z of Object.values(o)) z.aprueba_pct = z.probadas ? +((100 * z.aprobadas) / z.probadas).toFixed(3) : null;
+  return o;
+}
+// v1.0 · 📈 la IA estudia el mercado en NÚMEROS («datos») o en GRÁFICAS («graficas», solo Gemini, que ve imágenes) y propone recetas
+async function geminiImg(prompt, imgs, MS) {
+  let ultimo = ""; for (const m of MS) for (let t = 0; t < 2; t++) { if (QUEDA() < 90e3) throw new Error("sin tiempo · " + ultimo);
+    try { const parts = [{ text: prompt }, ...imgs.flatMap((im, i) => [{ text: `Imagen ${i + 1}: ${im.coin}` }, { inlineData: { mimeType: "image/png", data: im.png.toString("base64") } }])];
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": KEY }, signal: AbortSignal.timeout(Math.max(30000, Math.min(150000, QUEDA() - 60000))),
+        body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", temperature: 1.0 } }) });
+      if (r.status === 429 || r.status >= 500) { ultimo = m + " HTTP " + r.status; await new Promise((z) => setTimeout(z, 8000)); continue; }
+      if (!r.ok) { ultimo = m + " HTTP " + r.status; break; }
+      const j = await r.json(), txt = (((j.candidates || [])[0] || {}).content || {}).parts?.map((p) => p.text || "").join("") || "";
+      return { modelo: m, json: JSON.parse(txt.replace(/^```(json)?|```$/g, "").trim()) };
+    } catch (e) { ultimo = m + " " + String(e.message).slice(0, 60); } }
+  throw new Error(ultimo || "sin respuesta");
+}
+async function criptoMercado(MS, modo, L, FN) {
+  const N = 8, base = `Eres un investigador cuantitativo. Diseña ${N} estrategias NUEVAS de trading para futuros perpetuos de criptomonedas en Hyperliquid (velas de 1 hora, largos y cortos).
+Costes reales por operación: 0,045 % de comisión + 0,05 % de deslizamiento, más la financiación horaria. El examen es muy duro (gana en toda la historia, en los últimos 6 meses y en el 60 % de 16 tramos al azar; factor de beneficio ≥ 1,15; caída < 30 %) y después hay 21 días de cuarentena en vivo.
+${modo === "graficas" ? `ESTUDIA LAS GRÁFICAS adjuntas (una por cripto, hasta el ${L.hasta.slice(0, 10)}). Arriba: 1 año en velas diarias (línea azul oscuro = precio, naranja = media de 50 días, morada = media de 200; barras = volumen, verde si subió ese día y roja si bajó). Abajo: los últimos 2 meses en velas de 4 h (naranja = media de 20). Fíjate en tendencias, rangos, rupturas, giros, cómo se comporta el volumen y qué tienen en común las criptos, y tradúcelo a reglas.`
+  : `ESTUDIA ESTOS DATOS del mercado (calculados con el precio hasta el ${L.hasta.slice(0, 10)}), cripto a cripto: ${JSON.stringify(L.criptos)}
+Significado: ret_Xd = lo que ha hecho en X días (%); tendencia según las medias de 50 y 200 días; volatilidad_relativa > 1 = más movida de lo normal; autocorrelacion_4h > 0 = las subidas tienden a seguir, < 0 = tiende a darse la vuelta; rupturas = qué pasó de media en las 24 h siguientes a romper el máximo o mínimo de 20 velas de 4 h (aciertos = % de veces que siguió); rsi4h_bajo_30_rebote = qué pasó tras un RSI < 30; franja_utc y dia_semana = rentabilidad media de cada franja horaria y día.`}
+Busca lo que se repite de verdad (no casualidades de una sola cripto) y conviértelo en reglas: por ejemplo, si las rupturas se dan la vuelta, apuesta en contra; si unas horas son mejores, filtra por hora; si va con BTC, usa btc_ret o rel_btc.`;
+  const P = `${base}
+FORMATO OBLIGATORIO. Responde SOLO un JSON: {"recetas":[ ... ${N} recetas ... ]}. Cada receta:
+{"nombre": "corto, en castellano", "idea": "qué has visto en ${modo === "graficas" ? "las gráficas" : "los datos"} y por qué debería funcionar (1 frase, castellano)", "largo": [condiciones], "corto": [condiciones], "salida_h": una de ${JSON.stringify(SALIDAS)}, "stop": uno de ${JSON.stringify(STOPS)}, "filtro": uno de ${JSON.stringify(FN)}}
+"largo" = condiciones que TODAS deben cumplirse para comprar (0 a 4); "corto" = para vender en corto (0 a 4). Al menos una de las dos con condiciones.
+Condición: {"a": EXPR, "op": uno de ${JSON.stringify(OPS)}, "b": EXPR o número, "x": multiplicador opcional de b entre 0.5 y 2}
+EXPR: {"ind": nombre, "n": entero 2-500 si lo pide, "k": 0.5-5 si lo pide}. Indicadores: ${JSON.stringify(INDICADORES)}. Parámetros: ema/sma/rsi/atr_pct/maximo/minimo/ret/vol_rel/zscore/financiacion/btc_ret/rel_btc llevan n; bb_sup/bb_inf llevan n y k; precio y hora no llevan nada.
+Ejemplo: {"nombre":"Ruptura con BTC a favor","idea":"…","largo":[{"a":{"ind":"precio"},"op":">","b":{"ind":"maximo","n":48}},{"a":{"ind":"btc_ret","n":24},"op":">","b":0}],"corto":[],"salida_h":8,"stop":0.03,"filtro":"sin filtro"}
+Que las ${N} sean MUY distintas entre sí.`;
+  const { modelo, json } = modo === "graficas" ? await geminiImg(P, L.imagenes, MS.filter((m) => /gemini/i.test(m))) : await gemini(P, MS);
+  const nuevas = ((json && json.recetas) || []).map((r) => validaReceta(r, FN)).filter(Boolean).map((r) => ({ ...r, via: modo, t: new Date().toISOString(), modelo }));
+  log(`cripto · ${modo === "graficas" ? "📈 gráficas" : "🔢 datos del mercado"}: la IA (${modelo}) propone ${((json && json.recetas) || []).length} recetas · válidas ${nuevas.length}`); for (const r of nuevas) log(`  · ${r.nombre}: ${describe(r)}`);
+  return nuevas;
 }
 
 // ---------- cripto ----------
@@ -74,7 +125,7 @@ ${(globalThis.__WEB || []).length ? `IDEAS RECIENTES DE INTERNET (estudios y blo
 Que las 15 sean MUY distintas entre sí y distintas de lo ya probado: 5 MEJORAS de las mejores que ya hay (cambia 1-2 condiciones con una razón clara), 6 ideas NUEVAS tuyas y 4 inspiradas en las ideas de internet. Busca recetas MUY buenas: que ganen en casi todos los tramos con caídas pequeñas.`;
   const { modelo, json } = await gemini(P, MS);
   const nuevas = ((json && json.recetas) || []).map((r) => validaReceta(r, FN)).filter(Boolean);
-  const todas = [...nuevas.map((r) => ({ ...r, t: new Date().toISOString(), modelo })), ...mias].filter((r, i, A) => A.findIndex((z) => z.id === r.id) === i).slice(0, 150);
+  const todas = fusiona(nuevas.map((r) => ({ ...r, t: new Date().toISOString(), modelo })), mias, cl);
   log(`cripto: la IA (${modelo}) propone ${((json && json.recetas) || []).length} recetas · válidas ${nuevas.length}`); for (const r of nuevas.slice(0, 15)) log(`  · ${r.nombre}: ${describe(r)}`);
   const lec = Array.isArray(json && json.lecciones) ? json.lecciones.map((x) => String(x).replace(/[<>`]/g, "").slice(0, 220)).filter(Boolean).slice(0, 20) : null;
   if (lec && lec.length) { log("cripto · cuaderno de lecciones:"); for (const x of lec) log("  📓 " + x); }
@@ -233,6 +284,15 @@ async function main() {
     try { out.cripto = await cripto(MS, prev.cripto); h.cripto = out.cripto.nuevas; } catch (e) { h.errC = String(e.message).slice(0, 80); log("cripto: la IA no respondió (" + h.errC + "); el laboratorio sigue igual"); }
     try { out.tort = await tortugas(MS, prev.tort); h.tort = out.tort.nuevas; } catch (e) { h.errT = String(e.message).slice(0, 80); log("Tortugas: la IA no respondió (" + h.errT + "); el examen sigue igual"); }
     try { out.etf = await etf(MS, prev.etf); h.etf = out.etf.nuevos; } catch (e) { h.errE = String(e.message).slice(0, 80); log("ETF: la IA no respondió (" + h.errE + "); el laboratorio sigue igual"); }
+    // v1.0 · 📈 la IA estudia el mercado (números y gráficas, solo hasta antes de los 90 días ocultos) y propone recetas propias
+    try { const cl = await raw("caza-lab", "caza-lab.json"); const { FILTROS } = await import("./caza-hl2.mjs"), FN = Object.keys(FILTROS);
+      if (QUEDA() > 240e3) { const L = await lectura((cl && cl.criptos) || ["BTC", "ETH", "SOL"]); log(`📈 lectura del mercado hasta ${L.hasta.slice(0, 10)}: ${Object.keys(L.criptos).length} criptos · ${L.imagenes.length} gráficas`);
+        out.mercado = { hasta: L.hasta, criptos: Object.keys(L.criptos) }; const extra = [];
+        if (Object.keys(L.criptos).length) { try { const d = await criptoMercado(MS, "datos", L, FN); extra.push(...d); h.datos = d.length; } catch (e) { h.errD = String(e.message).slice(0, 80); log("datos del mercado: la IA no respondió (" + h.errD + ")"); } }
+        if (KEY && L.imagenes.length && QUEDA() > 150e3) { try { const g = await criptoMercado(MS, "graficas", L, FN); extra.push(...g); h.graf = g.length; } catch (e) { h.errG = String(e.message).slice(0, 80); log("gráficas: la IA no respondió (" + h.errG + ")"); } }
+        if (extra.length) { const c0 = out.cripto || prev.cripto || {}; out.cripto = { ...c0, recetas: fusiona(extra, c0.recetas || [], cl) }; } }
+      if (out.cripto && out.cripto.recetas) { out.porOrigen = porOrigen(out.cripto.recetas, cl); log("de dónde salen las recetas: " + JSON.stringify(out.porOrigen)); }
+    } catch (e) { log("lectura del mercado: no se pudo (" + String(e.message).slice(0, 80) + "); lo demás sigue igual"); }
     out.nvOk = globalThis.__NVOK || prev.nvOk || null;
     out.webN = (globalThis.__WEB || []).length; out.web = (globalThis.__WEB || []).slice(0, 12).map((x) => ({ f: x.fuente, t: x.titulo })); out.webFuentes = globalThis.__WEB_FUENTES || null;
     out.modeloOk = [out.tort && out.tort.modelo, out.cripto && out.cripto.modelo, out.etf && out.etf.modelo].map((x) => (String(x || "").match(/gemini-[\w.-]+/) || [])[0]).find(Boolean) || prev.modeloOk || null;

@@ -75,7 +75,7 @@ export async function lab(log = console.log) {
   const S = senales(D);
   // v366 · 🤖 recetas del ayudante IA (Gemini): se añaden como señales extra; tienen que aprobar el mismo examen que todas
   let IA = []; try { const RX = await import("./ia-receta.mjs"); const j = await (await fetch(`https://raw.githubusercontent.com/${REPO}/ia-lab/ia-lab.json?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) })).json(); const FNk = Object.keys(FILTROS);
-    IA = (((j && j.cripto && j.cripto.recetas) || []).map((r) => RX.validaReceta(r, FNk)).filter(Boolean)).slice(0, 150); for (const r of IA) S.push({ fam: "🤖 IA", p: { ia: r.id, n: r.nombre }, fn: RX.senalReceta(r), ia: r }); } catch (e) { IA = []; }
+    IA = (((j && j.cripto && j.cripto.recetas) || []).map((r) => RX.validaReceta(r, FNk)).filter(Boolean)).slice(0, 200); for (const r of IA) S.push({ fam: "🤖 IA", p: { ia: r.id, n: r.nombre }, fn: RX.senalReceta(r), ia: r }); } catch (e) { IA = []; }
   if (IA.length) log(`🤖 Recetas del ayudante IA: ${IA.length}`);
   const iaIdx = new Map(S.map((x, j) => [x.ia ? x.ia.id : null, j]).filter(([k]) => k));
   const fixG = (g) => { if (!g) return null; const z = { ...g }; if (z.ia) { const j = iaIdx.get(z.ia); if (j == null) return null; z.a = j; } else if (S[z.a] && S[z.a].ia) return null; if (z.iab) { const j = iaIdx.get(z.iab); if (j == null) z.b = null; else z.b = j; } return z; };
