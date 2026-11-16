@@ -46,6 +46,20 @@ async function ideas(prev) {
   return out.slice(0, 200);
 }
 // v466 · 16 tramos al azar de 30 a 180 días entre la hora 260 y el corte (la mitad acaban justo en el corte); NUNCA entran en los 90 días ocultos
+// v1.0 · 🧬 PODIO DE IDEAS DISTINTAS: en el escaparate, la mejor versión de cada idea de fondo; las variantes siguen en «aprobadas» (segundo plano).
+//   Una segunda variante de la misma idea solo entra si es MUY superior a la mejor idea distinta (nota ≥ esa + max(0,05; 50 %)), y nunca más de 2 iguales.
+//   El n.º 1 es siempre el mejor de todos (no cambia). El bot real sigue leyendo «aprobadas» como siempre: esto no le afecta.
+export const ideaDe = (x) => String((x && x.n) || "").split(" · ")[0].replace(/\s*\{[^}]*\}/g, "").replace(/\s+/g, " ").trim();
+export function podioDiverso(L, k = 3, maxIgual = 2) {
+  const out = [], cuenta = {}, resto = (L || []).slice(), nota = (x) => (Number.isFinite(+x.nota) ? +x.nota : -9);
+  while (out.length < k && resto.length) {
+    const iN = resto.findIndex((x) => !cuenta[ideaDe(x)]), iR = resto.findIndex((x) => cuenta[ideaDe(x)] && cuenta[ideaDe(x)] < maxIgual);
+    let i = iN; if (iR >= 0 && (iN < 0 ? false : iR < iN && nota(resto[iR]) >= nota(resto[iN]) + Math.max(0.05, 0.5 * Math.abs(nota(resto[iN]))))) i = iR;
+    if (i < 0) break; const x = resto.splice(i, 1)[0], id = ideaDe(x); cuenta[id] = (cuenta[id] || 0) + 1; out.push({ ...x, idea: id, ...(cuenta[id] > 1 ? { variante: 1 } : {}) });
+  }
+  return out;
+}
+export const resumenIdeas = (L) => { const c = {}; for (const x of L || []) c[ideaDe(x)] = (c[ideaDe(x)] || 0) + 1; return { distintas: Object.keys(c).length, total: (L || []).length, porIdea: c }; };
 export function calidadIS(x, corte) { const z = x && x.is; if (!z || !Number.isFinite(+z.ret)) return -9; const an = Math.pow(Math.max(0.0001, 1 + z.ret), 365 / Math.max(30, (corte - 260) / 24)) - 1; return an - 0.8 * Math.abs(z.dd || 0); }
 // v477 · 🧊 CUARENTENA CON EXIGENCIA PROPIA (no solo un reloj de 21 días): además de ganar, tiene que
 //   · operar a un ritmo parecido al suyo: al menos el 40 % de las operaciones que haría a su ritmo histórico (mínimo 8, o 4 si es de los lentos)
@@ -150,7 +164,7 @@ export async function lab(log = console.log) {
   for (const z of Object.values(iaRes)) delete z.aprobada;   // v467 · la IA NO sabe qué recetas aprobaron (el aprobado usa los 90 días ocultos)
   const iaN = cand.filter((g) => g.ia).length, iaCasi = mem.casi.filter((x) => x.g && x.g.ia).length, iaOk = mem.aprobadas.filter((x) => x.g && x.g.ia).length;
   if (IA.length) log(`🤖 IA: ${IA.length} recetas · ${iaN} combinaciones probadas en esta ronda · ${iaCasi} entre las «casi» · ${iaOk} aprobadas`);
-  const out = { v: 1, limpio466: 1, totalVistas, exentos, t: new Date().toISOString(), ia: iaRes, iaVista: { recetas: IA.length, probadas: iaN, casi: iaCasi, aprobadas: iaOk }, dias: Math.round(n / 24), criptos: U, ...mem, ideas: ID, fuentesIdeas: globalThis.__CAZA_FUENTES || null, podio: mem.aprobadas.slice(0, 3), mejoresCasi: mem.casi.slice(0, 5).map((x) => ({ n: x.n, is: x.is, a: x.a, b: x.b, t: x.t })), pesosVista: Object.fromEntries(FAM.map((f) => [f, +peso(f).toFixed(2)])) };
+  const out = { v: 1, limpio466: 1, totalVistas, exentos, t: new Date().toISOString(), ia: iaRes, iaVista: { recetas: IA.length, probadas: iaN, casi: iaCasi, aprobadas: iaOk }, dias: Math.round(n / 24), criptos: U, ...mem, ideas: ID, fuentesIdeas: globalThis.__CAZA_FUENTES || null, podio: podioDiverso(mem.aprobadas, 3), ideasAprobadas: resumenIdeas(mem.aprobadas), mejoresCasi: mem.casi.slice(0, 5).map((x) => ({ n: x.n, is: x.is, a: x.a, b: x.b, t: x.t })), pesosVista: Object.fromEntries(FAM.map((f) => [f, +peso(f).toFixed(2)])) };
   log(`🧠 Probadas ahora ${cand.length} (en total ${totalVistas}) · aprueban ${nOk} · en el podio ${out.podio.length} · familias con más peso: ${Object.entries(out.pesosVista).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([f, w]) => f + " " + w).join(", ")}`);
   // v364 · 🔔 Telegram solo cuando un método ENTRA en el podio
   try { const ant = new Set((M0.podio || []).map((x) => x.k)), nuevos = out.podio.map((x, i) => ({ x, i })).filter(({ x }) => !ant.has(x.k));
