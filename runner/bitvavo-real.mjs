@@ -117,7 +117,7 @@ export function bitvavoEx(api, mercado, saldoEur) {
   const saldo = async (sym) => { const b = await api("GET", "/balance?symbol=" + sym), x = (Array.isArray(b) ? b : [b]).find((y) => y && y.symbol === sym); return x ? +x.available || 0 : 0; };
   const saldos = async () => { const b = await api("GET", "/balance"), o = {}; for (const x of Array.isArray(b) ? b : []) { const q = (+x.available || 0) + (+x.inOrder || 0); if (q > 0) o[x.symbol] = q; } return o; };   // v278
   // v282 · operaciones REALES de la cuenta (las mismas del historial de Bitvavo), cripto a cripto
-  const operaciones = async (syms) => { const out = []; for (const sym of syms) { if (/^(EUR|USDC|USDT|EURC)$/.test(sym)) continue; let d; try { d = await api("GET", `/trades?market=${sym}-EUR&limit=500`); } catch { continue; }
+  const operaciones = async (syms) => { const out = []; for (const sym of syms) { if (/^(EUR|USDC|USDT|EURC)$/.test(sym)) continue; let d; try { d = await api("GET", `/trades?market=${sym}-EUR&limit=500`); } catch (e) { if (e && e.status >= 400 && e.status < 500 && e.status !== 408 && e.status !== 429) continue; throw e; }   /* v1.0 · B-002 · un historial que FALLA (red, 5xx) se dice; un mercado que no existe (4xx) se salta como antes */
     for (const x of Array.isArray(d) ? d : []) { const q = +x.amount || 0, px = +x.price || 0, fee = +x.fee || 0, feeE = !x.feeCurrency || x.feeCurrency === "EUR" ? fee : fee * px; out.push({ t: +x.timestamp, sym, side: x.side, q: q - (x.side === "buy" && x.feeCurrency === sym ? fee : 0), eur: q * px, fee: feeE }); } } return out; };
   // v291 · 🛡️ STOP DE EMERGENCIA EN EL PROPIO EXCHANGE (por si el bot no pudiera actuar): orden «stopLoss» de Bitvavo. Bloquea esas criptos,
   // así que antes de cualquier venta del bot se quita y, si queda algo, se vuelve a poner.
@@ -293,14 +293,16 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     if (B0) for (const [m, p] of Object.entries(RS.pos)) {
       if ((ctl.conservar || []).includes(p.sym)) continue;
       const hay = +B0[p.sym] || 0, falta = p.q - hay; if (!(falta > p.q * 0.02)) { delete p.pendConc; continue; }
-      const desde = Math.max(Date.parse(p.t0), p.tVenta || 0) - 30e3; let got = 0, qv = 0, fee = 0;
-      if (X.operaciones) try { for (const o of (await X.operaciones([p.sym])).filter((o) => o.side === "sell" && o.t > desde).sort((a, b) => a.t - b.t)) { if (qv >= falta * 1.01) break; qv += o.q; got += o.eur - o.fee; fee += o.fee; } } catch (e) {}
+      const desde = Math.max(Date.parse(p.t0), p.tVenta || 0) - 30e3; let got = 0, qv = 0, fee = 0, histFalla = false;
+      if (X.operaciones) try { for (const o of (await X.operaciones([p.sym])).filter((o) => o.side === "sell" && o.t > desde).sort((a, b) => a.t - b.t)) { if (qv >= falta * 1.01) break; qv += o.q; got += o.eur - o.fee; fee += o.fee; } } catch (e) { histFalla = true; }
       if (got > 0) { RS.cash += got; RS.st.fees += fee; p.cob = (p.cob || 0) + got; p.tVenta = Date.now(); delete p.pendConc;
         if (hay * ((tick[m] && tick[m].bid) || p.px) >= 1) { p.q = hay; L(RS, now, `🧾 ${p.sym}: vendida una parte en ${EX} fuera del bot (+${r2(got)} € apuntados)`); continue; }
         const pnl = p.cob - p.cost; RS.st.pnl += pnl; if (pnl >= 0) RS.st.wins++; else RS.st.losses++;
         RS.closed.unshift({ m, sym: p.sym, t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(p.cob), pnl: r2(pnl), pc: r2((p.cob / p.cost - 1) * 100), why: "vendida en el exchange (stop de emergencia o a mano)", src: p.src || null }); RS.closed = RS.closed.slice(0, 300);
         L(RS, now, `${pnl >= 0 ? "✅" : "🔻"} ${p.sym}: vendida en ${EX} fuera del bot (stop de emergencia o a mano): ${r2(pnl)} € · se apuntan los ${r2(got)} € que entraron`); msgs.push(`💶 🛡️ REAL: ${p.sym} se ha vendido en ${EX} fuera del bot (stop de emergencia o a mano): ${pnl >= 0 ? "+" : ""}${r2(pnl)} €.`); delete RS.pos[m]; continue; }
-      p.pendConc = p.pendConc || now.toISOString();
+      // v1.0 · B-002 · si el historial NO se ha podido leer, no se sabe si hubo venta: no se da por retirada (se perderían esos euros del apunte); se espera
+      if (histFalla) { p.pendConc = p.pendConc || now.toISOString(); if (!p.avisoHist) { p.avisoHist = 1; L(RS, now, `🔍 ${p.sym}: falta en la cuenta y el historial de ${EX} no responde; se espera a poder leerlo antes de apuntar nada`); } continue; }
+      delete p.avisoHist; p.pendConc = p.pendConc || now.toISOString();
       if (now - Date.parse(p.pendConc) > 15 * 60e3) { L(RS, now, `🔍 ${p.sym}: falta en la cuenta y no hay venta en el historial en 15 min (¿retirada o traspaso?); ${hay > 0 ? "se apunta lo que queda" : "se quita del apunte"}`); if (hay > 0 && hay * ((tick[m] && tick[m].bid) || p.px) >= 1) { p.q = hay; delete p.pendConc; } else delete RS.pos[m]; }
     }
     // 💰 cuánto dinero usar (lo eliges en la app): nunca más de lo que haya libre de verdad en tu cuenta
@@ -567,7 +569,7 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
   if (!(env("BITVAVO_KEY") && env("BITVAVO_SECRET")) && !(env("OKX_KEY") && env("OKX_SECRET") && env("OKX_PASSPHRASE"))) { S.real = { estado: "sin clave" }; return; }
   let EL = null; try { EL = await io.leer("examen-largo.json", "examen-largo"); } catch (e) {}   // v293
   let ctl = await io.leer("ctl.json", "bitvavo-ctl"); if (!ctl) { ctl = { copia: "mix", parado: false, capital: CAPITAL, ex: "bitvavo", t: now.toISOString() }; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
-  const CU = cuentas(ctl); let ctlMod = false;
+  const CU = cuentas(ctl); let ctlMod = false; const parches = [];   // v1.0 · B-003 · lo que el bot cambia en ctl, para volver a aplicarlo sobre la versión MÁS RECIENTE al guardar
   const fuentes = { eq: S, ...Object.fromEntries(SUBS_OK.filter((k) => k !== "eq").map((k) => [k, S.sub && S.sub[k]])) };
   S.real = { estado: EXS.some((e) => CU[e].on) ? "activo" : "apagado", parado: !!ctl.parado, cuentas: {} };
   marcaMuy(S, fuentes, now);
@@ -591,7 +593,9 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
         else { const r = await X.vender(m, q); txt = `💶 ${N} · 💱 vendido tu ${sym}: ${r.q} ${sym} → ${r.got.toFixed(2)} € (ya en euros para el bot).`; } }
       catch (e) { txt = `💶 ${N} · ⚠️ no pude vender tu ${sym}: ${String(e.message).slice(0, 100)}`; }
       await io.tg(txt); console.log(`Real (${ex}): conversión a euros pedida · ${/vendido/.test(txt) ? "hecha" : "no hecha"}`);
-      const k = (ctl.cuentas = ctl.cuentas || {}); k[ex] = { ...(k[ex] || {}), convertir: { ...cfg.convertir, hecho: cfg.convertir.at, txt: txt.replace(/^💶 \S+ · /, "") } }; ctlMod = true; }
+      const cv = { ...cfg.convertir, hecho: cfg.convertir.at, txt: txt.replace(/^💶 \S+ · /, "") }, exC = ex;
+      const pc = (c) => { const k = (c.cuentas = c.cuentas || {}), ya = k[exC] && k[exC].convertir; if (ya && ya.at && ya.at !== cv.at) return; k[exC] = { ...(k[exC] || {}), convertir: cv }; };   // si has pedido OTRA conversión entretanto, no se pisa
+      pc(ctl); parches.push(pc); ctlMod = true; }
     let copia = cfg.copia;
     // v295 · 📆 TRES ESTADOS por método, según el examen de un año de SU regla actual (y, en Consenso, de su comité):
     //  · «aprobada»: aprueba el año o es «suave», examen reciente → el dinero real la puede seguir
@@ -628,8 +632,9 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
     const out = await vuelta(RS, fuentes, c2, tick, now, { ex: X });
     const msgs = out.msgs.map((m) => (m.includes(N) ? m : m.replace(/^💶 /, `💶 ${N} · `)));
     if (out.ctlCambia && cfg.on) {   // lo que cambia solo (freno grande, aviso de falta de saldo) se guarda en ESA cuenta
-      const k = (ctl.cuentas = ctl.cuentas || Object.fromEntries(EXS.map((e) => [e, { on: CU[e].on, copia: CU[e].copia, capital: CU[e].capital }])));
-      k[ex] = { ...(k[ex] || {}), avisoSinSaldo: out.ctl.avisoSinSaldo || 0, ...(out.ctl.parado && !c2.parado ? { parado: true, motivo: out.ctl.motivo } : {}) }; ctlMod = true;
+      const exC = ex, cambio = { avisoSinSaldo: out.ctl.avisoSinSaldo || 0, ...(out.ctl.parado && !c2.parado ? { parado: true, motivo: out.ctl.motivo } : {}) };
+      const pc = (c) => { const k = (c.cuentas = c.cuentas || Object.fromEntries(EXS.map((e) => [e, { on: CU[e].on, copia: CU[e].copia, capital: CU[e].capital }]))); k[exC] = { ...(k[exC] || {}), ...cambio }; };
+      pc(ctl); parches.push(pc); ctlMod = true;
     }
     if (out.sinEmpezar) { R0.estado = "sin saldo"; for (const m of msgs) await io.tg(m); console.log("Real (" + ex + "): sin saldo suficiente"); continue; }
     // v345 · 🧠 aviso (una sola vez) cuando ya hay bastantes operaciones reales de Tortugas para aprender también de ellas
@@ -648,7 +653,9 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
       const pos = Object.keys(out.RS.pos || {}).length, fuente = fuentes[out.RS.copia], abiertasM = fuente ? Object.keys(fuente.pos || {}).length : null;
       console.log(`Real (${ex}): ${out.RS.estado}${out.RS.err ? " (con avisos: " + String(out.RS.err).replace(/[A-Z0-9]{2,10}-EUR|\d+[.,]?\d*\s*€/g, "·").slice(0, 80) + ")" : ""} · ${soloT() ? "sigue a las Tortugas" : `copia ${out.RS.copia} (el método tiene ${abiertasM} abiertas)`} · abiertas reales ${pos}${Object.keys(cat).length ? " · " + Object.entries(cat).map(([k, v]) => k + " ×" + v).join(", ") : ""}`); }
   }
-  if (ctlMod) { ctl.t = now.toISOString(); delete ctl.avisoSinSaldo; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
+  // v1.0 · B-003 · se relee el control JUSTO antes de guardar y solo se aplican los cambios del bot: así no se pisa un «Parar» (o cualquier ajuste) que hayas guardado durante la ronda
+  if (ctlMod) { let base = ctl; try { const f = await io.leer("ctl.json", "bitvavo-ctl"); if (f && typeof f === "object") { base = JSON.parse(JSON.stringify(f)); for (const pc of parches) pc(base); } } catch (e) {}
+    base.t = now.toISOString(); delete base.avisoSinSaldo; io.publicar("ctl.json", base, "bitvavo-ctl"); }
   // compatibilidad: el estado «principal» es el de la primera cuenta encendida
   const pri = EXS.find((e) => CU[e].on); if (pri) Object.assign(S.real, { estado: S.real.cuentas[pri].estado, ex: pri, copia: S.real.cuentas[pri].copia });
 }

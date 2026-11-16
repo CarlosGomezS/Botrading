@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { prueba, plan, frenos, tamOrden, LIM } from "../runner/meme-real.mjs";
-import { parseUpdates, procesa, autorizado } from "../runner/telegram.mjs";
+import { parseUpdates, procesa, autorizado, usuarioRaro } from "../runner/telegram.mjs";
 
 test("solo se propone dinero real cuando el terminal ha demostrado que gana", () => {
   const cl = (n, w, l) => ({ closed: [...Array(w).fill({ pnl: 2 }), ...Array(l).fill({ pnl: -1 })].slice(0, n) });
@@ -86,4 +86,9 @@ test("v479 · H-15: solo obedece a TU usuario: en un grupo, otro miembro no pued
   assert.equal(autorizado(undefined, "7"), false, "sin remitente, no");
   const msg = (t, from) => ({ update_id: 5, message: { chat: { id: -100 }, from: { id: from }, text: t } });
   assert.equal(parseUpdates([msg("/parar", 9)], "-100", "7").memes, null, "/parar de otro miembro: no"); assert.equal(parseUpdates([msg("/parar", 7)], "-100", "7").memes.accion, "parar");
+});
+
+test("v1.0 · TELEGRAM_USER tiene que ser un número: un @alias se detecta (y se avisa en el registro)", () => {
+  assert.equal(usuarioRaro("@Carlos"), true); assert.equal(usuarioRaro("carlos"), true); assert.equal(usuarioRaro("123456789"), false); assert.equal(usuarioRaro(""), false);
+  assert.equal(autorizado(123456789, 123456789, "@Carlos"), false, "con un @alias no se obedece a nadie (seguro)");
 });

@@ -278,7 +278,10 @@ export async function ronda() { PUESTOS.length = 0;
   //   Mientras siga sin aclararse, no se abre nada nuevo (y se avisa una vez al día).
   for (let k = intentos.length - 1; k >= 0; k--) { const i = intentos[k]; if (!i.dudosa) continue;
     const hayPos = pos.some((p) => p.coin === i.c), hayFill = (fills || []).some((z) => z.coin === i.c && /^Open/.test(z.dir) && +z.time >= i.t - 60e3);
-    if (fillsOk && !hayPos && !hayFill && ahoraR - i.t > 2 * 60e3) { intentos.splice(k, 1); log("Una apertura de resultado desconocido NO se llegó a hacer (comprobado en el historial): se da por aclarada."); } }
+    if (fillsOk && !hayPos && !hayFill && ahoraR - i.t > 2 * 60e3) { intentos.splice(k, 1); log("Una apertura de resultado desconocido NO se llegó a hacer (comprobado en el historial): se da por aclarada."); continue; }
+    // v1.0 · H-003 · SÍ se abrió y ya se ha cerrado entre rondas (p. ej. saltó su stop): el historial lo demuestra → aclarada (si no, bloquearía las aperturas para siempre)
+    const tOpen = Math.min(...(fills || []).filter((z) => z.coin === i.c && /^Open/.test(z.dir) && +z.time >= i.t - 60e3).map((z) => +z.time));
+    if (fillsOk && !hayPos && hayFill && (fills || []).some((z) => z.coin === i.c && /^Close/.test(z.dir) && +z.time >= tOpen)) { intentos.splice(k, 1); log("Una apertura de resultado desconocido SÍ se hizo y ya se ha cerrado (comprobado en el historial): se da por aclarada."); } }
   const bloqueoInt = intentos.some((i) => i.dudosa);
   // v480 · una posición que lleva más de un día «por identificar» se avisa una vez al día (sigue sin tocarse y sin abrir nada nuevo)
   const piPrev = (prev && prev.porIdent) || {}, porIdent = {}; for (const c of porIdentificar) porIdent[c] = piPrev[c] || new Date().toISOString();

@@ -28,7 +28,7 @@ function exchange(px, opts = {}) {
       if (b.side === "sell" && ex.saldoReal && +b.amount > (ex.bal[b.market] || 0) + 1e-9) return R(400, { errorCode: 216, error: "insufficient balance (prueba)" });
       const q = +b.amount; assert.ok(String(b.amount).split(".")[1] === undefined || String(b.amount).split(".")[1].length <= 4, "respeta los decimales"); ex.bal[b.market] -= q; const quote = q * p; return R(200, { filledAmount: String(q), filledAmountQuote: String(quote), feePaid: String(quote * 0.0025), feeCurrency: "EUR" });
     }
-    if (u.pathname === "/v2/trades") return R(200, (ex.trades || []).filter((x) => x.market === u.searchParams.get("market")));
+    if (u.pathname === "/v2/trades") { if (ex.falloTrades) return R(500, { errorCode: 999, error: "historial caído (prueba)" }); return R(200, (ex.trades || []).filter((x) => x.market === u.searchParams.get("market"))); }
     if (u.pathname === "/v2/order" && o.method === "DELETE") { const id = u.searchParams.get("orderId"); if (ex.stops) delete ex.stops[id]; return R(200, { orderId: id }); }
     if (u.pathname === "/v2/ordersOpen") return R(200, ex.abiertas || []);
     if (u.pathname === "/v2/order" && o.method === "GET" && u.searchParams.get("orderId")) { if (ex.falloEstado) return R(500, { errorCode: 999, error: "error interno (prueba)" }); const st = ex.stops && ex.stops[u.searchParams.get("orderId")]; return st ? R(200, { status: "awaitingTrigger", amount: st.amount, amountRemaining: st.amount, ...(ex.sinDatosStop ? {} : { side: st.side, triggerAmount: st.triggerAmount, triggerPrice: st.triggerAmount }) }) : R(404, { errorCode: 240, error: "no existe" }); }
@@ -569,4 +569,34 @@ test("v1.0 · B-001 · Bitvavo: si la respuesta al poner el stop se pierde, preg
   let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix" }, tk(ex3.px), T(0), deps);
   ({ RS } = await RL.vuelta(RS, { mix: fuente({ "AAA-EUR": { sym: "AAA", q: 10, q0: 10, px: 2.002, cost: 60, cost0: 60, t0: T(1).toISOString() } }) }, { copia: "mix" }, tk(ex3.px), T(1), deps));
   assert.ok(RS.pos["AAA-EUR"], "compra"); assert.equal(Object.keys(ex3.stops).length, 1, "con el bot completo: un solo stop"); assert.equal(RS.pos["AAA-EUR"].stopId, "S0"); assert.equal(RS.pos["AAA-EUR"].stopEst, "ok");
+});
+
+test("v1.0 · B-002 · si el historial del exchange FALLA, una cripto que falta no se da por retirada a los 15 min (se perderían sus euros del apunte): se espera a poder leerlo", async () => {
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 100 }, tk(ex.px), T(0), deps);
+  const sp = { sym: "A", px: 1, cost0: 15, cost: 15, q: 15, q0: 15, t0: T(1).toISOString() };
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100 }, tk(ex.px), T(1), deps));
+  const q = RS.pos["A-EUR"].q, cash0 = RS.cash; ex.bal["A-EUR"] = 0; ex.eur += q * 0.9 * 0.9975; ex.falloTrades = true;
+  ex.trades = [{ timestamp: Date.parse(T(2)), market: "A-EUR", side: "sell", amount: String(q), price: "0.9", fee: String(q * 0.9 * 0.0025), feeCurrency: "EUR" }];
+  for (const m of [3, 10, 20, 40]) ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100 }, tk(ex.px), T(m), deps));
+  assert.ok(RS.pos["A-EUR"], "40 min con el historial caído: la posición sigue apuntada (no se tira)"); assert.equal(RS.cash, cash0);
+  ex.falloTrades = false; ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100 }, tk(ex.px), T(41), deps));
+  assert.ok(!RS.pos["A-EUR"]); assert.ok(Math.abs(RS.cash - (cash0 + q * 0.9 * 0.9975)) < 0.01, `cuando vuelve el historial, se apunta el dinero: caja ${RS.cash}`);
+});
+
+test("v1.0 · B-003 · si pulsas «Parar» (o cambias un ajuste) mientras el bot está en su ronda, el bot no lo pisa al guardar sus propios cambios", async () => {
+  const S = { pos: {}, lastEq: 100, sub: {} }, store = {}, msgs = [], io = { leer: async (f, r) => store[r + "/" + f] || null, publicar: (f, o, r) => { store[r + "/" + f] = JSON.parse(JSON.stringify(o)); }, tg: async (m) => { msgs.push(m); } };
+  Object.assign(process.env, { BITVAVO_KEY: "CLAVE", BITVAVO_SECRET: "SECRETO", REAL_VIEW_PASS: "pw-de-prueba-123" });
+  const ex = exchange({ "BTC-EUR": 60000 }, { eur: 0 }), f0 = globalThis.fetch; let btc = 0.002;
+  globalThis.fetch = async (u, o) => { const x = new URL(u); if (x.pathname === "/v2/balance" && x.searchParams.get("symbol") === "BTC") return { ok: true, status: 200, json: async () => [{ symbol: "BTC", available: String(btc) }] };
+    const r = await ex.fx(u, o); if (x.pathname === "/v2/order" && o.method === "POST") { ex.eur += 0.002 * 60000 * 0.9975; btc = 0;
+      store["bitvavo-ctl/ctl.json"] = { ...store["bitvavo-ctl/ctl.json"], parado: true, motivo: "lo has parado tú", t: "tu-cambio" }; }   // ← pulsas Parar justo ahora
+    return r; };
+  try {
+    store["bitvavo-ctl/ctl.json"] = { copia: "eq", cuentas: { bitvavo: { on: true, copia: "eq", capital: 50, convertir: { sym: "BTC", at: "c1" } }, okx: { on: false } } };
+    await RL.paso(S, tk(ex.px), new Date(), io);
+    const c = store["bitvavo-ctl/ctl.json"];
+    assert.equal(c.parado, true, "tu «Parar» sigue ahí"); assert.equal(c.motivo, "lo has parado tú");
+    assert.equal(c.cuentas.bitvavo.convertir.hecho, "c1", "y el cambio del bot (conversión hecha) también");
+  } finally { globalThis.fetch = f0; for (const k of ["BITVAVO_KEY", "BITVAVO_SECRET", "REAL_VIEW_PASS"]) delete process.env[k]; }
 });

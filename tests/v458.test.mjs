@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as TT from "../runner/tortugas.mjs";
 import { desvioTort, FRENO } from "../runner/bitvavo-real.mjs";
-import { primero, desvio } from "../runner/real.mjs";
+import { primero, desvio, botEquity, compraPendiente } from "../runner/real.mjs";
 
 const D = 864e5;
 const serie = (f, n = 400) => { const a = []; let p = 100; for (let i = 0; i < n; i++) { const o = p; p *= 1 + f(i); a.push([i * D, o, Math.max(o, p) * 1.005, Math.min(o, p) * 0.995, p, 1e6]); } return a; };
@@ -287,4 +287,13 @@ test("retirada: lo ya descontado (ventas a mano y efectivo usado) se reconstruye
   assert.equal(retPendInicial({ hist: H }), 221.58);
   assert.equal(retPendInicial({ hist: [{ ts: ahora, tipo: "retirada", eur: -50 }, ...H] }), 0, "lo anterior a una retirada ya registrada no cuenta");
   assert.equal(retPendInicial({ hist: [{ ...H[0], ts: "2020-01-01T00:00:00Z" }] }), 0, "más de 30 días: no cuenta");
+});
+
+test("v1.0 · T-001 · Trading 212: una compra del bot que sigue PENDIENTE aparta su dinero (no se puede volver a gastar con dinero tuyo de la cuenta)", () => {
+  const R = { ledger: { cash: 100, lots: {} }, pendBot: [{ id: 1, t: "A", side: "COMPRA", qty: 1, eur: 60 }, { id: 2, t: "B", side: "VENTA", qty: 1, eur: 30 }, { id: null, dudosa: 1, t: "C", side: "COMPRA", eur: 15 }] };
+  assert.equal(compraPendiente(R), 75, "solo compras (también la dudosa)");
+  const E = botEquity(R, [], 500); assert.equal(E.cashUsable, 25, "con 500 € en la cuenta (tuyos), el bot solo puede usar 100 − 75");
+  assert.equal(E.cash, 100, "su efectivo apuntado no cambia (el dinero sigue siendo suyo)"); assert.equal(E.eq, 100);
+  assert.equal(botEquity(R, [], 10).cashUsable, 10, "si la cuenta tiene menos, manda la cuenta (como antes)");
+  assert.equal(botEquity({ ledger: { cash: 100, lots: {} } }, [], 500).cashUsable, 100, "sin pendientes, igual que antes");
 });

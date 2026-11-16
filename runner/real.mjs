@@ -375,8 +375,11 @@ export function split(R, positions) {
   }
   return out;
 }
+// v1.0 · T-001 · las compras del bot que siguen PENDIENTES (bolsa cerrada o resultado dudoso) apartan su dinero: aún no se han apuntado en el efectivo,
+//   y sin esto, si en la cuenta hay dinero tuyo aparte, el bot podría volver a gastar ese importe con tu dinero
+export const compraPendiente = (R) => r2((R.pendBot || []).filter((x) => x && x.side === "COMPRA").reduce((s, x) => s + Math.max(0, +x.eur || 0), 0));
 export function botEquity(R, positions, accCash) {
-  const inv = split(R, positions).reduce((t, x) => t + x.bv, 0), c = Math.max(0, Math.min(R.ledger.cash, accCash));
+  const inv = split(R, positions).reduce((t, x) => t + x.bv, 0), c = Math.max(0, Math.min(R.ledger.cash - compraPendiente(R), accCash));
   return { inv: r2(inv), cash: r2(R.ledger.cash), cashUsable: r2(c), eq: r2(inv + R.ledger.cash) };
 }
 // apunta una orden ejecutada en la subcuenta del bot; devuelve {coste, pnl}
@@ -726,7 +729,7 @@ async function execute(T, A, R, plan, ctx, rep) {
     if (o.side === "VENTA") qty = -o.qty;
     else {
       const acc = +((ctx.account.cash && ctx.account.cash.availableToTrade) || 0) - spent;
-      const cashNow = Math.min(R.ledger.cash, acc);
+      const cashNow = Math.min(R.ledger.cash - compraPendiente(R), acc);   // v1.0 · T-001
       const amt = Math.min(o.eur, cashNow - 0.3);
       if (amt < A.minOrden) { skip("omitida", `al bot solo le quedan ${eur(Math.max(0, cashNow))} libres (cuenta ${eur(Math.max(0, acc))})`); continue; }
       if (!fx && inst.cur && inst.cur !== "EUR") fx = await fxRates();

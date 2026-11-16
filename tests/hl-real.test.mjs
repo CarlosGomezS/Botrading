@@ -494,3 +494,16 @@ test("v1.0 · H-002 · un stop que pones TÚ en la misma cripto justo mientras e
   delete W.pos.BTC; W.quiere = []; await otraHora(W); assert.ok(W.stops.some((s) => s.oid === 999), "aunque la posición se cierre, el bot no cancela tu stop");
   assert.ok(!W.stops.some((s) => s.oid === bot[0].oid), "el suyo sí lo retira");
 });
+
+test("v1.0 · H-003 · una apertura de resultado desconocido que SÍ se hizo y ya se cerró entre rondas (saltó su stop) se da por aclarada: no bloquea las aperturas para siempre", async () => {
+  const intento = () => [{ c: "BTC", dir: 1, t: Date.now() - 1 * H, sz: 0.1, dudosa: 1, g: { h: 168, sl: 0.08, k: "m1" }, antes: [] }];
+  const W = mundo({ quiere: [{ c: "ETH", dir: 1 }] }); W.estadoIni = { pm: {}, misStops: [], intentos: intento() };
+  W.fills.push({ coin: "BTC", dir: "Open Long", time: Date.now() - 1 * H + 5000, px: 100, sz: 0.1 }, { coin: "BTC", dir: "Close Long", time: Date.now() - 0.5 * H, px: 92, sz: 0.1 });
+  conecta(W); await silencio(() => HL.ronda()); const S = await estadoDe(W);
+  assert.ok(!(S.intentos || []).some((i) => i.c === "BTC"), "aclarada"); assert.ok(W.ordenes.some((o) => o.c === "ETH"), "y sigue abriendo");
+  // si el historial solo muestra la apertura (el cierre aún no aparece), sigue sin aclarar y bloqueando, como antes
+  const W2 = mundo({ quiere: [{ c: "ETH", dir: 1 }] }); W2.estadoIni = { pm: {}, misStops: [], intentos: intento() };
+  W2.fills.push({ coin: "BTC", dir: "Open Long", time: Date.now() - 1 * H + 5000, px: 100, sz: 0.1 });
+  conecta(W2); await silencio(() => HL.ronda()); const S2 = await estadoDe(W2);
+  assert.ok((S2.intentos || []).some((i) => i.c === "BTC" && i.dudosa)); assert.ok(!W2.ordenes.some((o) => o.c === "ETH"), "sin pruebas del cierre, no abre nada");
+});

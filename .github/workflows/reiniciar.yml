@@ -91,6 +91,6 @@ jobs:
           git add ajustes.json
           if git diff --cached --quiet; then echo "ajustes.json ya estaba por defecto"; else
             git commit -q -m "Reinicio total: ajustes por defecto"
-            for i in 1 2 3; do git pull -q --rebase origin main && git push -q origin HEAD:main && break || sleep 3; done
+            ok=0; for i in 1 2 3; do if git pull -q --rebase origin main && git push -q origin HEAD:main; then ok=1; break; fi; sleep 3; done; [ "$ok" = 1 ] || { echo "No se pudo guardar tras 3 intentos"; exit 1; }
           fi
           echo "Listo: la web queda vacía y el bot empieza de cero en su próxima ejecución."

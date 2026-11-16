@@ -36,7 +36,7 @@ jobs:
           git add real-ajustes.json
           if git diff --cached --quiet; then echo "Sin cambios"; else
             git commit -q -m "Ajustes de la cartera real"
-            for i in 1 2 3; do git pull -q --rebase origin main && git push -q origin HEAD:main && break || sleep 3; done
+            ok=0; for i in 1 2 3; do if git pull -q --rebase origin main && git push -q origin HEAD:main; then ok=1; break; fi; sleep 3; done; [ "$ok" = 1 ] || { echo "No se pudo guardar tras 3 intentos"; exit 1; }
           fi
       - name: 🚨 Avisar por Telegram si algo ha fallado
         if: failure()

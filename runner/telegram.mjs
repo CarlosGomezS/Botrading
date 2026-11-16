@@ -49,7 +49,10 @@ async function dispatch(accion, plan) {
 
 // v479 · 🔐 solo obedece a TU usuario: el botón tiene que venir de tu chat Y pulsarlo tu cuenta de Telegram (TELEGRAM_USER; en un chat privado
 //   tu número de chat ES tu usuario, así que no hace falta configurarlo). En un grupo sin TELEGRAM_USER no se obedece a nadie.
+//   TELEGRAM_USER tiene que ser tu NÚMERO de usuario (no tu @alias): con un @alias no obedecería a nadie (seguro, pero los botones no harían nada).
+export const usuarioRaro = (user = "") => !!String(user || "").trim() && !/^\d+$/.test(String(user).trim());
 export const autorizado = (fromId, chat, user = "") => { const f = String(fromId || ""); if (!f) return false; if (user) return f === String(user); return Number(chat) > 0 && f === String(chat); };
+if (usuarioRaro(USER)) console.log("⚠️ TELEGRAM_USER no es un número de usuario de Telegram (¿has puesto tu @alias?): así no se obedece ningún botón. Pon tu número o bórralo si es un chat privado.");
 // v479 · 📬 devuelve TODAS las órdenes en el orden en que se pulsaron (items), no solo la última; act/memes (la última) se mantienen por compatibilidad
 export function parseUpdates(ups, chat, user = "") {
   let act = null, last = 0, memes = null; const replies = [], answers = [], items = [];
