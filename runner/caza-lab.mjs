@@ -12,9 +12,9 @@ import { senales, FILTROS } from "./caza-hl2.mjs";
 import { execSync } from "node:child_process";
 import { writeFileSync, rmSync, mkdirSync } from "node:fs";
 import path from "node:path";
+import { leeFuentes } from "./fuentes-ideas.mjs";
 const env = (k) => (process.env[k] || "").trim(), REPO = env("GITHUB_REPOSITORY") || "CarlosGomezS/Botrading", TOKEN = env("GITHUB_TOKEN");
 const RAMA = "caza-lab", ARCH = "caza-lab.json", PRUEBAS = +env("CAZA_N") || 1500;
-const FUENTES = [["arXiv (finanzas cuantitativas)", "https://export.arxiv.org/api/query?search_query=cat:q-fin.TR+OR+cat:q-fin.PM&sortBy=submittedDate&sortOrder=descending&max_results=40"], ["Alpha Architect", "https://alphaarchitect.com/feed/"], ["Quantpedia", "https://quantpedia.com/feed/"]];
 const CLAVES = { "RSI rebote": /mean.?revers|reversal|oversold|overbought|\bRSI\b/i, "Bollinger rebote": /mean.?revers|bollinger|reversal/i, "Bollinger ruptura": /breakout|bollinger|squeeze/i, "Donchian ruptura": /breakout|trend.?follow|donchian|turtle/i, "Cruce de medias": /moving.?average|trend.?follow|crossover/i, MACD: /\bMACD\b|trend.?follow|momentum/i, "VWAP rebote": /\bVWAP\b|intraday|execution/i, "Ruptura de volatilidad": /volatility|breakout|range/i, "Volatilidad, contra": /volatility|reversal/i, "Pico de volumen": /volume|order.?flow|liquidity/i, "Pico de volumen, contra": /volume|liquidity|reversal/i, "Sesión (hora UTC), a favor": /intraday|time.?of.?day|seasonal|overnight|session/i, "Sesión (hora UTC), contra": /intraday|time.?of.?day|seasonal|overnight|reversal/i, Supertrend: /trend.?follow|momentum|ATR/i, "Arbitraje contra BTC": /pairs|stat.*arb|cointegrat|relative.?value|cross.?section/i, "Financiación extrema, contra": /funding|carry|basis|perpetual|futures/i };
 const sh = (c) => execSync(c, { stdio: "pipe", encoding: "utf8", maxBuffer: 1 << 28 });
 const hs = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
@@ -39,9 +39,10 @@ export async function memoria() { let err = ""; for (let i = 0; i < 3; i++) { tr
   throw new Error("No puedo leer la memoria del laboratorio: " + err + ". Paro sin tocar nada."); }
 async function ideas(prev) {
   const vistas = new Set((prev || []).map((x) => x.link)), out = (prev || []).slice();
-  for (const [fuente, url] of FUENTES) { try { const r = await fetch(url, { signal: AbortSignal.timeout(20000), headers: { "User-Agent": "bot-trading-lab" } }); if (!r.ok) continue; const x = await r.text();
-    const items = [...x.matchAll(/<(item|entry)[\s>][\s\S]*?<\/\1>/g)].slice(0, 40); for (const m of items) { const b = m[0], tit = ((b.match(/<title[^>]*>([\s\S]*?)<\/title>/) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").replace(/\s+/g, " ").trim(), link = ((b.match(/<link[^>]*href="([^"]+)"/) || b.match(/<link>([\s\S]*?)<\/link>/) || b.match(/<id>([\s\S]*?)<\/id>/) || [])[1] || "").trim(), fecha = ((b.match(/<(pubDate|published|updated)>([\s\S]*?)<\/\1>/) || [])[2] || "").trim(), txt = tit + " " + ((b.match(/<(description|summary)[^>]*>([\s\S]*?)<\/\1>/) || [])[2] || "");
-      if (!tit || !link || vistas.has(link)) continue; vistas.add(link); const fams = Object.entries(CLAVES).filter(([, re]) => re.test(txt)).map(([f]) => f); out.unshift({ fuente, tit: tit.slice(0, 200), link, fecha: Date.parse(fecha) ? new Date(fecha).toISOString() : new Date().toISOString(), fams, visto: new Date().toISOString() }); } } catch (e) {} }
+  // v1.0 · fuentes, filtro de ruido y mezcla compartidos (fuentes-ideas.mjs); las familias se deducen del título Y el resumen
+  let L = { items: [] }; try { L = await leeFuentes(); globalThis.__CAZA_FUENTES = L.porFuente; } catch (e) {}
+  for (const it of L.items) { if (!it.link || vistas.has(it.link)) continue; vistas.add(it.link); const txt = it.titulo + " " + it.resumen;
+    const fams = Object.entries(CLAVES).filter(([, re]) => re.test(txt)).map(([f]) => f); out.unshift({ fuente: it.fuente, tit: it.titulo.slice(0, 200), link: it.link, fecha: it.fecha || new Date().toISOString(), fams, visto: new Date().toISOString() }); }
   return out.slice(0, 200);
 }
 // v466 · 16 tramos al azar de 30 a 180 días entre la hora 260 y el corte (la mitad acaban justo en el corte); NUNCA entran en los 90 días ocultos
@@ -149,7 +150,7 @@ export async function lab(log = console.log) {
   for (const z of Object.values(iaRes)) delete z.aprobada;   // v467 · la IA NO sabe qué recetas aprobaron (el aprobado usa los 90 días ocultos)
   const iaN = cand.filter((g) => g.ia).length, iaCasi = mem.casi.filter((x) => x.g && x.g.ia).length, iaOk = mem.aprobadas.filter((x) => x.g && x.g.ia).length;
   if (IA.length) log(`🤖 IA: ${IA.length} recetas · ${iaN} combinaciones probadas en esta ronda · ${iaCasi} entre las «casi» · ${iaOk} aprobadas`);
-  const out = { v: 1, limpio466: 1, totalVistas, exentos, t: new Date().toISOString(), ia: iaRes, iaVista: { recetas: IA.length, probadas: iaN, casi: iaCasi, aprobadas: iaOk }, dias: Math.round(n / 24), criptos: U, ...mem, ideas: ID, podio: mem.aprobadas.slice(0, 3), mejoresCasi: mem.casi.slice(0, 5).map((x) => ({ n: x.n, is: x.is, a: x.a, b: x.b, t: x.t })), pesosVista: Object.fromEntries(FAM.map((f) => [f, +peso(f).toFixed(2)])) };
+  const out = { v: 1, limpio466: 1, totalVistas, exentos, t: new Date().toISOString(), ia: iaRes, iaVista: { recetas: IA.length, probadas: iaN, casi: iaCasi, aprobadas: iaOk }, dias: Math.round(n / 24), criptos: U, ...mem, ideas: ID, fuentesIdeas: globalThis.__CAZA_FUENTES || null, podio: mem.aprobadas.slice(0, 3), mejoresCasi: mem.casi.slice(0, 5).map((x) => ({ n: x.n, is: x.is, a: x.a, b: x.b, t: x.t })), pesosVista: Object.fromEntries(FAM.map((f) => [f, +peso(f).toFixed(2)])) };
   log(`🧠 Probadas ahora ${cand.length} (en total ${totalVistas}) · aprueban ${nOk} · en el podio ${out.podio.length} · familias con más peso: ${Object.entries(out.pesosVista).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([f, w]) => f + " " + w).join(", ")}`);
   // v364 · 🔔 Telegram solo cuando un método ENTRA en el podio
   try { const ant = new Set((M0.podio || []).map((x) => x.k)), nuevos = out.podio.map((x, i) => ({ x, i })).filter(({ x }) => !ant.has(x.k));

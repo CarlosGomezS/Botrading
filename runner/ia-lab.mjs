@@ -9,6 +9,7 @@ import { execSync } from "node:child_process";
 import { writeFileSync, readFileSync, rmSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { validaReceta, INDICADORES, OPS, SALIDAS, STOPS, describe } from "./ia-receta.mjs";
+import { leeFuentes } from "./fuentes-ideas.mjs";
 const env = (k) => (process.env[k] || "").trim(), REPO = env("GITHUB_REPOSITORY") || "CarlosGomezS/Botrading", TOKEN = env("GITHUB_TOKEN"), KEY = env("GEMINI_KEY");
 const RAMA = "ia-lab", sh = (c) => execSync(c, { stdio: "pipe", encoding: "utf8", maxBuffer: 1 << 28 });
 const raw = async (rama, f) => { try { const r = await fetch(`https://raw.githubusercontent.com/${REPO}/${rama}/${f}?t=${Date.now()}`, { signal: AbortSignal.timeout(60000) }); if (r.ok) return await r.json(); } catch (e) {} return null; };
@@ -211,11 +212,10 @@ Responde SOLO un JSON: {"lecciones":[hasta 20 lecciones breves en castellano], "
   return { reglas, nuevas: nuevas.length, modelo, web: !!web, lecciones: lec && lec.length ? lec : (prev && prev.lecciones) || [] }; }
 
 // v447 · 🌐 IDEAS DE INTERNET para todos los módulos: lo último publicado en estudios y blogs de trading cuantitativo (sin depender de Gemini)
-async function ideasWeb() { const F = [["arXiv (finanzas cuantitativas)", "https://export.arxiv.org/api/query?search_query=cat:q-fin.TR+OR+cat:q-fin.PM+OR+cat:q-fin.ST&sortBy=submittedDate&sortOrder=descending&max_results=40"], ["Alpha Architect", "https://alphaarchitect.com/feed/"], ["Quantpedia", "https://quantpedia.com/feed/"], ["CXO Advisory", "https://www.cxoadvisory.com/feed/"], ["Robot Wealth", "https://robotwealth.com/feed/"], ["QuantStart", "https://www.quantstart.com/articles/rss/"]], out = [];
-  await Promise.all(F.map(async ([f, u]) => { try { const r = await fetch(u, { signal: AbortSignal.timeout(15000), headers: { "User-Agent": "bot-trading-lab" } }); if (!r.ok) return; const x = await r.text();
-    for (const m of [...x.matchAll(/<(item|entry)[\s>][\s\S]*?<\/\1>/g)].slice(0, 25)) { const b = m[0], t = ((b.match(/<title[^>]*>([\s\S]*?)<\/title>/) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>|<[^>]+>/g, "").replace(/\s+/g, " ").trim(), d = ((b.match(/<(description|summary)[^>]*>([\s\S]*?)<\/\1>/) || [])[2] || "").replace(/<!\[CDATA\[|\]\]>|<[^>]+>|&[a-z#0-9]+;/g, " ").replace(/\s+/g, " ").trim();
-      if (t) out.push({ fuente: f, titulo: t.slice(0, 160), resumen: d.slice(0, 260) }); } } catch (e) {} }));
-  log(`🌐 ideas leídas de internet: ${out.length} (${[...new Set(out.map((x) => x.fuente))].join(", ") || "ninguna"})`); return out; }
+// v1.0 · fuentes, filtro de ruido y mezcla en fuentes-ideas.mjs (las mismas para caza-lab); la IA recibe título y resumen
+async function ideasWeb() { const { items, porFuente } = await leeFuentes(); globalThis.__WEB_FUENTES = porFuente;
+  const out = items.map((x) => ({ fuente: x.fuente, titulo: x.titulo.slice(0, 160), resumen: x.resumen.slice(0, 500) }));
+  log(`🌐 ideas útiles de internet: ${out.length} · ` + Object.entries(porFuente).map(([f, v]) => `${f}: ${v.error || v.utiles + "/" + v.leidas}`).join(" · ")); return out; }
 async function main() {
   globalThis.__WEB = await ideasWeb().catch(() => []);
   const prev = (await raw(RAMA, "ia-lab.json")) || {}; globalThis.__PREV = prev; const out = { v: 1, t: new Date().toISOString(), estado: "ok", cripto: prev.cripto || null, etf: prev.etf || null, tort: prev.tort || null, hist: prev.hist || [] };
@@ -234,7 +234,7 @@ async function main() {
     try { out.tort = await tortugas(MS, prev.tort); h.tort = out.tort.nuevas; } catch (e) { h.errT = String(e.message).slice(0, 80); log("Tortugas: la IA no respondió (" + h.errT + "); el examen sigue igual"); }
     try { out.etf = await etf(MS, prev.etf); h.etf = out.etf.nuevos; } catch (e) { h.errE = String(e.message).slice(0, 80); log("ETF: la IA no respondió (" + h.errE + "); el laboratorio sigue igual"); }
     out.nvOk = globalThis.__NVOK || prev.nvOk || null;
-    out.webN = (globalThis.__WEB || []).length; out.web = (globalThis.__WEB || []).slice(0, 12).map((x) => ({ f: x.fuente, t: x.titulo }));
+    out.webN = (globalThis.__WEB || []).length; out.web = (globalThis.__WEB || []).slice(0, 12).map((x) => ({ f: x.fuente, t: x.titulo })); out.webFuentes = globalThis.__WEB_FUENTES || null;
     out.modeloOk = [out.tort && out.tort.modelo, out.cripto && out.cripto.modelo, out.etf && out.etf.modelo].map((x) => (String(x || "").match(/gemini-[\w.-]+/) || [])[0]).find(Boolean) || prev.modeloOk || null;
     if (h.errC && h.errE) out.estado = "error"; out.hist = [h, ...out.hist].slice(0, 200); }
   try { guarda("cripto", out.cripto && out.cripto.lecciones); guarda("etf", out.etf && out.etf.lecciones); guarda("tort", out.tort && out.tort.lecciones); out.memoria = MEM; log(`memoria larga: ${MEM.cripto.length} lecciones de cripto · ${MEM.tort.length} de Tortugas · ${MEM.etf.length} de ETF`); } catch (e) {}
