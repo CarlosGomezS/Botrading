@@ -32,3 +32,26 @@ test("Hyperliquid · si no hay ideas distintas, el podio se queda corto antes qu
   assert.deepEqual(podioDiverso([], 3), []);
   assert.deepEqual(resumenIdeas([m("a1", A, 0.4), m("a2", A2, 0.3), m("b", B, 0.1)]).distintas, 2);
 });
+
+// ---------- ETF (el código vive en index.html: se extrae y se prueba tal cual) ----------
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+const H = readFileSync(new URL("../index.html", import.meta.url), "utf8"), trozo = (ini) => { const i = H.indexOf(ini); assert.ok(i >= 0, ini); let d = 0, j = H.indexOf("{", i); for (; j < H.length; j++) { if (H[j] === "{") d++; else if (H[j] === "}" && --d === 0) break; } return H.slice(i, j + 1); };
+const etf = (genes) => { const ctx = { window: {}, MX: (k) => (genes[k] ? { lab: genes[k] } : null), STR: {} }; vm.createContext(ctx);
+  vm.runInContext(`const labKof=x=>x.h?x.h.k:x.lv.k;${trozo("function ideaLab(k)")}${trozo("function diversoLab(L,kOf,scOf,n)")};this.ideaLab=ideaLab;this.diversoLab=diversoLab;`, ctx); return ctx; };
+const G = { g1: { u: "grw", r: "GLD", m: 100 }, g2: { u: "grw", r: "GLD", m: 240 }, b1: { bl: [{ u: "grw", r: "GLD" }, { u: "grw", r: "GLD", k: 240 }] }, g3: { u: "sec", r: "TLT" }, bm: { bl: [{ u: "grw", r: "GLD" }, { u: "sec", r: "TLT" }] } };
+const e = (k, sc) => ({ h: { k }, sc });
+
+test("ETF · misma idea = mismo universo y refugio (también las mezclas de versiones de esa idea); cada método clásico es su propia idea", () => {
+  const C = etf(G);
+  assert.equal(C.ideaLab("g1"), C.ideaLab("g2")); assert.equal(C.ideaLab("b1"), C.ideaLab("g1"), "mezcla de dos versiones de la misma idea");
+  assert.notEqual(C.ideaLab("g3"), C.ideaLab("g1")); assert.match(C.ideaLab("bm"), /^mez:/); assert.equal(C.ideaLab("sect"), "fijo:sect");
+});
+
+test("ETF · el escaparate pone una de cada idea; el n.º 1 no cambia y el resto sigue detrás en su orden", () => {
+  const C = etf(G), L = [e("g1", 0.1386), e("b1", 0.1369), e("g2", 0.1351), e("sect", 0.12), e("g3", 0.11), e("trq", 0.10)];
+  const R = Array.from(C.diversoLab(L, (x) => x.h.k, (x) => x.sc, 3), (x) => x.h.k);
+  assert.deepEqual(R, ["g1", "sect", "g3", "b1", "g2", "trq"]); assert.equal(R.length, L.length, "no se pierde ninguno");
+  const R2 = Array.from(C.diversoLab([e("g1", 0.30), e("g2", 0.25), e("sect", 0.12), e("g3", 0.11)], (x) => x.h.k, (x) => x.sc, 3), (x) => x.h.k);
+  assert.deepEqual(R2, ["g1", "g2", "sect", "g3"], "0,25 ≥ 0,12 + 50 % y + 2 puntos: variante muy superior"); assert.ok(C.window.__labVar.has("g2"));
+});
