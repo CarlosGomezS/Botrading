@@ -334,6 +334,14 @@ export function ensureLedger(R, A, positions, m, notas) {
 }
 // lo que el bot ya había descontado como retirada (ventas tuyas a mano y efectivo usado por ti) desde la última retirada registrada, últimos 30 días.
 //   Sirve para estados guardados antes de llevar esta cuenta (retPend): se reconstruye una vez a partir de su historial.
+// v1.0 · «Ingresado» de cada día del historial, según la FECHA de cada movimiento de Trading 212. Antes, una retirada que se leía con días de retraso
+//   se apuntaba el día en que se leía, y el «Desde ayer» de la app la contaba como ganancia de ese día. Solo cambia ese dato (para enseñar), nada del bot.
+export function apDiario(R, tx) {
+  const mov = []; for (const x of tx || []) { const f = String(x.dateTime || x.date || "").slice(0, 10), a = Math.abs(+x.amount || 0);
+    const v = x.type === "DEPOSIT" ? a : x.type === "WITHDRAW" ? -a : x.type === "TRANSFER" ? +x.amount || 0 : null; if (v == null) continue; if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) return false; mov.push([f, v]); }
+  for (const d of R.days || []) if (d && d.d) d.ap = r2(mov.filter(([f]) => f <= d.d).reduce((s, [, v]) => s + v, 0));
+  return true;
+}
 export function retPendInicial(L) { let s = 0; const lim = Date.now() - 30 * 864e5;
   for (const h of (L && L.hist) || []) { if (h.tipo === "retirada") break; if (Date.parse(h.ts) < lim) break;
     if (h.tipo === "ajuste" && +h.eur < 0 && (/¿las vendiste tú\?/.test(String(h.nota)) || /^cuadre: el efectivo del bot/.test(String(h.nota)))) s += -h.eur; }
@@ -1101,6 +1109,7 @@ async function main() {
       let net = 0, n = 0;
       for (const x of tx) { const a = Math.abs(+x.amount || 0); if (x.type === "DEPOSIT") { net += a; n++; } else if (x.type === "WITHDRAW") { net -= a; n++; } else if (x.type === "TRANSFER") { net += +x.amount || 0; n++; } }
       R.deposits = { net: r2(net), n, at: now.toISOString(), full: tx.length < 1000 };
+      if (R.deposits.full) apDiario(R, tx);   // v1.0 · cada ingreso o retirada, en el día en que pasó (aunque se descubra días después)
       if (prevNet != null && Math.abs(net - prevNet) > 0.004) {
         const d = r2(net - prevNet);
         R.cuenta = (R.cuenta || []); R.cuenta.unshift({ ts: now.toISOString(), eur: d, net: r2(net) });

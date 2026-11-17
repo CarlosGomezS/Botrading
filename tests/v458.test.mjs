@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as TT from "../runner/tortugas.mjs";
 import { desvioTort, FRENO } from "../runner/bitvavo-real.mjs";
-import { primero, desvio, botEquity, compraPendiente } from "../runner/real.mjs";
+import { primero, desvio, botEquity, compraPendiente, apDiario } from "../runner/real.mjs";
 
 const D = 864e5;
 const serie = (f, n = 400) => { const a = []; let p = 100; for (let i = 0; i < n; i++) { const o = p; p *= 1 + f(i); a.push([i * D, o, Math.max(o, p) * 1.005, Math.min(o, p) * 0.995, p, 1e6]); } return a; };
@@ -296,4 +296,15 @@ test("v1.0 · T-001 · Trading 212: una compra del bot que sigue PENDIENTE apart
   assert.equal(E.cash, 100, "su efectivo apuntado no cambia (el dinero sigue siendo suyo)"); assert.equal(E.eq, 100);
   assert.equal(botEquity(R, [], 10).cashUsable, 10, "si la cuenta tiene menos, manda la cuenta (como antes)");
   assert.equal(botEquity({ ledger: { cash: 100, lots: {} } }, [], 500).cashUsable, 100, "sin pendientes, igual que antes");
+});
+
+test("v1.0 · «Ingresado» de cada día según la fecha REAL de cada movimiento: una retirada que se lee tarde no sale como ganancia «desde ayer»", () => {
+  const R = { days: [{ d: "2026-11-12", v: 1023.82, ap: 1049.3 }, { d: "2026-11-13", v: 807.81, ap: 1049.3 }, { d: "2026-11-16", v: 804.81, ap: 1049.3 }, { d: "2026-11-17", v: 806.73, ap: 827.74 }] };
+  const tx = [{ type: "DEPOSIT", amount: 1049.3, dateTime: "2026-10-20T10:00:00Z" }, { type: "WITHDRAW", amount: -221.56, dateTime: "2026-11-13T09:00:00Z" }, { type: "DIVIDEND", amount: 1, dateTime: "2026-11-14T09:00:00Z" }];
+  assert.equal(apDiario(R, tx), true);
+  assert.deepEqual(R.days.map((x) => x.ap), [1049.3, 827.74, 827.74, 827.74], "la retirada cuenta desde el día 13");
+  const desdeAyer = (D) => { const pv = D[D.length - 2], td = D[D.length - 1]; return +(td.v - pv.v - (td.ap - pv.ap)).toFixed(2); };   // la fórmula de la app
+  assert.equal(desdeAyer(R.days), 1.92, "hoy: +1,92 € (antes salía +223,48 €)");
+  assert.equal(desdeAyer(R.days.slice(0, 2)), 5.55, "el día 13: bajó 216 € pero 221,56 eran tu retirada → +5,55 €");
+  const R2 = { days: [{ d: "2026-11-17", ap: 5 }] }; assert.equal(apDiario(R2, [{ type: "DEPOSIT", amount: 10 }]), false, "si falta alguna fecha, no se toca nada"); assert.equal(R2.days[0].ap, 5);
 });
