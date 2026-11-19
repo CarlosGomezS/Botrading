@@ -666,3 +666,18 @@ test("G-2.1 · una compra por USDC con el 2.º paso dudoso: sus euros salen de l
   ex.bal["A-EUR"] = 20; ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 1000 }, tk(ex.px), T(2), deps));
   assert.ok(RS.pos["A-EUR"], "la compra sí se hizo: es del bot"); assert.ok(Math.abs(RS.cash - (cash0 - 20)) < 0.01, "sin descontarla dos veces"); assert.equal(RS.start, start0);
 });
+
+test("G2-3 · el «polvo» se completa como mucho UNA vez por posición, aunque siga por debajo del mínimo en las vueltas siguientes", async () => {
+  const ex = exchange({ "A-EUR": 1 }); let { RS, deps } = await conPos(ex, { "A-EUR": { src: "tortuga", q: 2, px: 1, stop: 0.9 } });
+  ex.px["A-EUR"] = 0.5; const t1 = () => { const t = tk(ex.px); t["A-EUR"] = { bid: 0.05, ask: 0.06, sp: 0 }; return t; };   // precio de venta desfasado: aun completada, «sigue» por debajo del mínimo
+  const n0 = ex.orders.length; for (let k = 1; k <= 4; k++) ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 1000 }, t1(), T(k), deps));
+  assert.ok(ex.orders.slice(n0).filter((o) => o.side === "buy").length <= 1, "como mucho una compra en 4 vueltas");
+});
+
+test("G2-5 · una compra dudosa de las Tortugas cuyo historial aún no aparece: se ESPERA (no se adopta como una cualquiera)", async () => {
+  const ex = exchange({ "A-EUR": 1 }), base = RL.bitvavoEx(ex.api, ex.mercado), X = { ...base, comprasBot: async () => 0 }, deps = { api: ex.api, mercado: ex.mercado, ex: X };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 1000 }, tk(ex.px), T(0), deps);
+  RS.compraDud = { "A-EUR": { t: T(0).toISOString(), src: "tortuga", stopD: 0.08, N: 0.04 } }; ex.bal["A-EUR"] = 20; ex.eur -= 20;
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 1000 }, tk(ex.px), T(1), deps));
+  assert.ok(!RS.pos["A-EUR"], "espera"); assert.ok(RS.compraDud["A-EUR"], "sigue apuntada");
+});

@@ -188,3 +188,20 @@ test("v1.0 · O-001 · OKX: el precio del stop va en el paso de precio de cada m
   assert.equal(OK.precioStop({ instId: "X", lot: 2 }, 0.123456), "0.12346", "sin dato del paso: 5 cifras, como antes");
   for (const [par, px] of [[I.ADA.EUR, 0.98765], [I.BTC.EUR, 60001.29]]) { const v = +OK.precioStop(par, px); assert.ok(v <= px && px - v < par.tick + 1e-12); assert.ok(Math.abs(v / par.tick - Math.round(v / par.tick)) < 1e-6); }
 });
+
+// ---------- v1.0 · G2-1 / G2-2 · USDC pendiente: el de VENTAS ya está en la caja; el de COMPRAS fallidas no ----------
+test("G2-2 · al pasar a euros el USDC de una compra que no se hizo, sus euros vuelven ENTEROS a la caja (antes se perdían)", async () => {
+  const ex = okx({ "USDC-EUR": 0.95, "AAA-EUR": 2 }), I = ex.I, X = OK.adaptador(ex.api, I, { "USDC-EUR": { bid: 0.95, ask: 0.951 } }), deps = { api: ex.api, mercado: X.mercado, ex: X };
+  let { RS } = await RL.vuelta(null, { mix: { pos: {}, lastEq: 100 } }, { copia: "mix", capital: 100 }, { "USDC-EUR": { bid: 0.95, ask: 0.951 } }, new Date(Date.UTC(2026, 10, 4, 12, 0)), deps);
+  const cash0 = RS.cash; RS.cash -= 20; RS.usdcPendC = 21; ex.eur -= 20; ex.bal.USDC = 21;   // la compra fallida dejó 21 USDC (20 € que salieron de la caja)
+  ({ RS } = await RL.vuelta(RS, { mix: { pos: {}, lastEq: 100 } }, { copia: "mix", capital: 100 }, { "USDC-EUR": { bid: 0.95, ask: 0.951 } }, new Date(Date.UTC(2026, 10, 4, 12, 1)), deps));
+  assert.ok(!(RS.usdcPendC > 0), "convertido"); assert.ok(Math.abs(RS.cash - (cash0 - 20 + 21 * 0.95 * 0.998)) < 0.1, `caja ${RS.cash} (debería volver ~${cash0})`);
+});
+
+test("G2-1 · USDC de una VENTA aún sin pasar a euros: el cuadre no lo toma por una retirada tuya (no baja la base del freno)", async () => {
+  const ex = okx({ "USDC-EUR": 0.95, "AAA-EUR": 2 }), I = ex.I, X = OK.adaptador(ex.api, I, { "USDC-EUR": { bid: 0.95, ask: 0.951 } }), deps = { api: ex.api, mercado: X.mercado, ex: X }; ex.eur = 100;   // en la cuenta, justo el dinero del bot
+  let { RS } = await RL.vuelta(null, { mix: { pos: {}, lastEq: 100 } }, { copia: "mix", capital: 100 }, { "USDC-EUR": { bid: 0.95, ask: 0.951 } }, new Date(Date.UTC(2026, 10, 4, 12, 0)), deps);
+  const start0 = RS.start; RS.cash += 3.8; RS.usdcPend = 4; ex.bal.USDC = 4;   // una venta dejó 4 USDC (menos de 5: aún no se puede convertir); su valor ya está en la caja
+  ({ RS } = await RL.vuelta(RS, { mix: { pos: {}, lastEq: 100 } }, { copia: "mix", capital: 100 }, { "USDC-EUR": { bid: 0.95, ask: 0.951 } }, new Date(Date.UTC(2026, 10, 4, 12, 1)), deps));
+  assert.equal(RS.start, start0, "no es dinero que sacaste tú"); assert.ok(RS.cash > 99, `caja ${RS.cash}`);
+});

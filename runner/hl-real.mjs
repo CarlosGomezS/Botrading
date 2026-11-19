@@ -262,7 +262,7 @@ async function ronda0() { PUESTOS.length = 0;
   let ledOk = true; const led = await info({ type: "userNonFundingLedgerUpdates", user: yo, startTime: 0 }).catch(() => { ledOk = false; return []; });   // v461 · sin el historial de ingresos no se puede calcular el freno → esta hora no se abre nada
   const neto = netoIngresado(led, yo);   // v1.0 · cuenta también los ingresos que no llegan como «deposit»
   // v1.0 · G-4.4 · el USDC que esté en Spot también es tuyo: cuenta para el freno (mover dinero de futuros a Spot ya no lo dispara). Si no se puede leer, 0.
-  let spotUsdc = 0; try { const sp = await info({ type: "spotClearinghouseState", user: yo }); spotUsdc = ((sp && sp.balances) || []).filter((b) => /^USDC$/i.test(b.coin)).reduce((a, b) => a + (+b.total || 0), 0); if (!(spotUsdc >= 0)) spotUsdc = 0; } catch (e) { spotUsdc = 0; }
+  let spotUsdc = 0, spotOk = true; try { const sp = await info({ type: "spotClearinghouseState", user: yo }); spotUsdc = ((sp && sp.balances) || []).filter((b) => /^USDC$/i.test(b.coin)).reduce((a, b) => a + (+b.total || 0), 0); if (!(spotUsdc >= 0)) { spotUsdc = 0; spotOk = false; } } catch (e) { spotUsdc = 0; spotOk = false; }
   if (saldoCeroSospechoso(eq, pos, neto, ledOk)) throw new Error(msgSaldoCero(spotUsdc));
   const netoMal = ledOk && !(neto > 0);   // v466 · lo ingresado neto no es positivo: el freno no tiene base fiable → no se abre nada
   let fillsOk = true; const fills = await info({ type: "userFills", user: yo }).catch(() => { fillsOk = false; return []; });   // v465 · si falla, NO se inventa la antigüedad de las posiciones
@@ -356,6 +356,8 @@ async function ronda0() { PUESTOS.length = 0;
   SLIPS = estado.slip;   // v476 · aquí se van apuntando los deslizamientos de esta ronda
   const frenoMarca = FM.ok && FM.t && !reArm(new Date(FM.t).toISOString()) ? new Date(FM.t).toISOString() : null;   // v466 · la segunda vía
   const frenoAhora = neto > 0 && eq + spotUsdc < neto * (1 - CTL.freno), frenoEst = prev && prev.frenoDesde && !reArm(prev.frenoDesde) ? prev.frenoDesde : null, frenoPrev = frenoEst || frenoMarca;
+  // v1.0 · G2-4 · si NO se ha podido leer Spot y sin él saltaría el freno (y no estaba ya echado), no se sabe si es una caída de verdad: esta hora no se hace nada
+  if (frenoAhora && !spotOk && !frenoPrev) throw new Error("No he podido leer tu saldo en Spot y sin él saltaría el freno. Esta hora no hago nada (ni echo el freno); lo reintento.");
   const freno = frenoAhora || !!frenoPrev, parar = CTL.estado === "parado", todo = freno || parar;
   let marcaOk = true; if (freno) { estado.frenoDesde = frenoPrev || new Date().toISOString(); if (!(FM.ok && FM.t && FM.t >= Date.parse(estado.frenoDesde) - 1000)) marcaOk = await ponMarcaFreno(estado.frenoDesde); } else { if (prev && prev.frenoDesde) log("Freno rearmado: has vuelto a guardar los ajustes después de que saltase."); if (FM.ok && FM.t && lc.ok && CTL.t && !(await limpiaMarcasFreno(Date.parse(CTL.t)))) { estado.limpiezaFreno = 1; log("No he podido borrar del todo las marcas viejas del freno; lo reintento en la próxima ronda."); if (!(prev && prev.limpiezaFreno)) await aviso("ℹ️ Hyperliquid: no he podido borrar las marcas viejas del freno. No estorban (son anteriores a tu último guardado de ajustes, así que el freno está rearmado); lo reintento cada hora."); } }
   // 2) cerrar las que ya han cumplido su tiempo (con 10 min de margen) o todas si salta el freno o está parado.
@@ -447,7 +449,7 @@ async function ronda0() { PUESTOS.length = 0;
     // v478 · una apertura de ESTA hora cuya respuesta se perdió: la posición no estaba al empezar y coincide con una intención → es del bot (se gestiona ya)
     // v479 · y solo si el HISTORIAL lo demuestra: una ejecución de apertura en esa cripto y dirección dentro de la ventana de la intención. Sin esa prueba no se adopta:
     //   si el historial no se puede leer, no se toca (se aclara en la próxima ronda); si se lee y no cuadra, es ajena (no se toca y se avisa).
-    let f3 = null; const nuevasR = ab.filter((p) => !pm[p.coin] && !ajenasPos[p.coin] && !porIdentificar.has(p.coin) && !pos.some((x) => x.coin === p.coin));
+    let f3 = null; const nuevasR = ab.filter((p) => !pm[p.coin] && !ajenasPos[p.coin] && !porIdentificar.has(p.coin) && (!pos.some((x) => x.coin === p.coin) || estado.ops.some((o) => o.c === p.coin && o.x === "cierra")));   // v1.0 · G2-5 · también la que se cerró y se reabrió esta hora
     if (nuevasR.length) { try { f3 = (await info({ type: "userFills", user: yo })) || []; } catch (e) { f3 = null; } }
     for (const p of nuevasR) { const i = f3 ? estado.intentos.find((x) => prueba(x, p, f3) != null) : null, tF = i ? prueba(i, p, f3) : null;
       if (i && tF) { adopta(p.coin, i, tF); estado.intentos = estado.intentos.filter((x) => x !== i); hechos.push(`🔎 ${p.coin}: la apertura no confirmó, pero el historial demuestra que se hizo; la gestiona el bot (stop y cierre por tiempo).`); }

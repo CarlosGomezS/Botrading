@@ -585,3 +585,10 @@ test("G-4.3 · si la ronda falla ANTES de mandar nada, suelta el candado de la h
   assert.equal([...W.refs].filter((r) => r.includes("hl-lock-")).length, 0, "candado suelto");
   W.chRoto = false; await silencio(() => HL.ronda()); assert.equal(aperturas(W).length, 1, "el reintento de esa misma hora opera");
 });
+
+test("G2-4 · si falla la lectura de Spot y sin ella saltaría el freno, no lo echa (no se sabe si es una caída de verdad); si Spot se lee bien, decide con él", async () => {
+  const W = mundo({ eq: 40, neto: 100, quiere: [], pos: [{ c: "BTC", szi: 0.1 }] }); conecta(W); W.spot = 60; W.spotFallo = true;
+  await assert.rejects(() => silencio(() => HL.ronda()), /saldo en Spot/);
+  assert.deepEqual(abiertas(W).map((x) => x.c), ["BTC"], "no cierra nada"); assert.equal([...W.refs].filter((r) => r.includes("hl-freno-")).length, 0, "no echa el freno");
+  W.spotFallo = false; await silencio(() => HL.ronda()); assert.deepEqual(abiertas(W).map((x) => x.c), ["BTC"], "con Spot leído: 40 + 60 = 100, no salta");
+});
