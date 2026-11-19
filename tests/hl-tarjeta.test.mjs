@@ -27,3 +27,14 @@ test("Hyperliquid · con Bitvavo u OKX en pantalla se refresca solo la cifra de 
 test("Hyperliquid · al cargar los datos se pide ya el saldo en vivo (sin esperar 10 s)", () => {
   assert.match(declaracion("bvRealLoad").txt || "", /finally\{MM\.bvBusy=false;[\s\S]*setTimeout\(\(\)=>\{try\{hlVivo\(\)\}catch\(e\)\{\}\},400\)/);
 });
+
+test("Hyperliquid · la app calcula lo ingresado IGUAL que el bot (también los ingresos por traspaso)", async () => {
+  process.env.HL_WALLET ??= "0x" + "b".repeat(40);
+  const BOT = await import("../runner/hl-real.mjs"), { hlNeto } = crea(["hlUsdc", "hlNeto"]).__X, YO = "0x" + "b".repeat(40), O = "0x" + "c".repeat(40);
+  const L = (d) => ({ delta: d }), casos = [
+    [L({ type: "deposit", usdc: "57.995289" }), L({ type: "send", user: O, destination: YO, token: "USDC", amount: "54.38" })],
+    [L({ type: "deposit", usdc: "58" }), L({ type: "withdraw", usdc: "8" }), L({ type: "accountClassTransfer", usdc: "5", toPerp: true })],
+    [L({ type: "spotTransfer", user: O, destination: YO, token: "PURR", amount: "9", usdcValue: "9" }), L({ type: "internalTransfer", user: YO, destination: O, usdc: "3" }), L({ type: "subAccountTransfer", user: O, destination: YO, usdc: "4" })]];
+  for (const c of casos) assert.equal(hlNeto(c, YO), BOT.netoIngresado(c, YO));
+  assert.equal(Math.round(hlNeto(casos[0], YO) * 100) / 100, 112.38);
+});

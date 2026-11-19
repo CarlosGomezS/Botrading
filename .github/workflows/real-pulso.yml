@@ -35,9 +35,9 @@ jobs:
           D=$(date -u +%u); M=$((10#$(date -u +%H) * 60 + 10#$(date -u +%M)))
           # v157: se lee la cuenta las 24 horas (solo lectura, sin órdenes): al abrir la app siempre ves lo que hay en Trading 212
           echo "go=true" >> "$GITHUB_OUTPUT"; echo "Día $D, minuto $M (UTC): se lee la cuenta."
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         if: steps.hora.outputs.go == 'true'
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         if: steps.hora.outputs.go == 'true'
         with:
           node-version: 22
@@ -80,7 +80,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           sparse-checkout: runner
       - name: Siguiente vuelta (en cadena, las 24 horas)

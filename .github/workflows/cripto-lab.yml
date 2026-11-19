@@ -48,16 +48,16 @@ jobs:
             labs: "mixokx eqokx turbookx cuantokx consensookx tendokx exploraokx riesgookx"
             baja: mixokx
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           sparse-checkout: runner
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
       # v288 · 📚 historial propio de OKX: se conserva entre tramos con la caché de GitHub (se va completando hasta 90 días)
       - name: Recuperar el historial de OKX
         if: matrix.grupo == 'okx'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: /tmp/okxh
           key: okx-hist-${{ github.run_id }}
@@ -74,7 +74,7 @@ jobs:
           for k in ${{ matrix.labs }}; do echo "=== $k"; tail -n 60 /tmp/lab-$k.log; done
       - name: Guardar el historial de OKX
         if: always() && matrix.grupo == 'okx'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: /tmp/okxh
           key: okx-hist-${{ github.run_id }}

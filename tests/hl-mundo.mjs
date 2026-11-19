@@ -6,7 +6,7 @@ export const H = 3600e3;
 
 // ---------- el mundo de mentira ----------
 export function mundo(o = {}) {
-  const W = { eq: o.eq ?? 100, neto: o.neto ?? 100, px: { BTC: 100, ETH: 10, SOL: 5, ...(o.px || {}) }, pos: {}, stops: [], oid: 1, fills: [], ordenes: [], refs: new Set(), guardado: null, avisos: [],
+  const W = { led: o.led || null, eq: o.eq ?? 100, neto: o.neto ?? 100, px: { BTC: 100, ETH: 10, SOL: 5, ...(o.px || {}) }, pos: {}, stops: [], oid: 1, fills: [], ordenes: [], refs: new Set(), guardado: null, avisos: [],
     ctl: o.ctl === undefined ? { estado: "on", uso: 100, plazas: 5, freno: 0.35, puesto: 1 } : o.ctl, ctlFallo: o.ctlFallo || null, refsFallo: !!o.refsFallo,
     falloStop: o.falloStop || 0, stopIncompleto: o.stopIncompleto || 0, fillsRoto: !!o.fillsRoto, estadoRoto: !!o.estadoRoto, guardarFalla: !!o.guardarFalla, ledgerFallo: !!o.ledgerFallo, rompeTrasCierre: !!o.rompeTrasCierre, cancelFalla: o.cancelFalla || 0, marcasFallo: !!o.marcasFallo, ordenesFallo: !!o.ordenesFallo, borrarFalla: !!o.borrarFalla, pagRepetida: o.pagRepetida || 0, pagFallo: o.pagFallo || 0, pagRed: o.pagRed || 0, lab: o.lab || null, falloCierre: new Set(o.falloCierre || []), parcial: o.parcial || 0, timeoutAbrir: !!o.timeoutAbrir, ambigua: !!o.ambigua, ambiguaSinEntrar: !!o.ambiguaSinEntrar, retrasoFills: !!o.retrasoFills, manualAlAbrir: o.manualAlAbrir || null, quiere: o.quiere || [] };
   for (const p of o.pos || []) { W.pos[p.c] = { szi: p.szi, entryPx: p.px ?? W.px[p.c] }; W.fills.push({ coin: p.c, dir: p.szi > 0 ? "Open Long" : "Open Short", time: Date.now() - (p.edadH ?? 1) * H, px: p.px ?? W.px[p.c], sz: Math.abs(p.szi) }); }
@@ -34,7 +34,7 @@ export function mundo(o = {}) {
         case "clearinghouseState": if (W.chRoto) return j({}, 500); if (W.saldoRaro !== undefined) return j({ marginSummary: W.saldoRaro, assetPositions: pos() });   /* v1.0 · H-001 · un 200 con el saldo mal */
           return j({ marginSummary: { accountValue: String(W.eq) }, assetPositions: pos() });
         case "allMids": return j(Object.fromEntries(coins.map((c) => [c, String(W.px[c])])));
-        case "userNonFundingLedgerUpdates": if (W.ledgerFallo) return j({}, 500); return j([{ delta: { type: "deposit", usdc: String(W.neto) } }]);
+        case "userNonFundingLedgerUpdates": if (W.ledgerFallo) return j({}, 500); return j(W.led || [{ delta: { type: "deposit", usdc: String(W.neto) } }]);
         case "userFills": if (W.fillsRoto) return j({}, 500); return j(W.fills.filter((f) => !f.oculto || !W.retrasoFills));
         case "extraAgents": return j([{ address: "0x" + "c".repeat(40), validUntil: Date.now() + 100 * 864e5 }]);
         case "frontendOpenOrders": if (W.ordenesFallo) return j({}, 500); return j(W.stops);

@@ -517,3 +517,26 @@ test("v1.0 · método PROVISIONAL: se usa mientras ninguno haya pasado la cuaren
   assert.deepEqual(HL.listaReal([{ k: "pp", cuar: { exento: true, provisional: true, ok: true } }, listo]).map((x) => x.k), ["pp", "l"], "si el provisional pasa también la cuarentena, deja de ser provisional");
   assert.deepEqual(HL.listaReal([cuar]), []); assert.deepEqual(HL.listaReal(null), []);
 });
+
+// ---------- v1.0 · 💵 lo ingresado neto cuenta también los ingresos que no llegan como «deposit» (cuenta en modo «Unified») ----------
+const YO = "0x" + "b".repeat(40), OTRO = "0x" + "c".repeat(40), SIS = "0x2000000000000000000000000000000000000000";
+test("ingresado · depósitos, retiradas y traspasos en USDC que entran o salen; lo de dentro de la cuenta no cuenta", () => {
+  const L = (d) => ({ time: 1, delta: d });
+  const led = [L({ type: "deposit", usdc: "57.995289" }), L({ type: "send", user: SIS, destination: YO, token: "USDC", amount: "54.38", usdcValue: "54.38" }),
+    L({ type: "accountClassTransfer", usdc: "54.38", toPerp: true }), L({ type: "send", user: YO, destination: YO, sourceDex: "spot", destinationDex: "", token: "USDC", amount: "54.38" }),
+    L({ type: "spotTransfer", user: OTRO, destination: YO, token: "HYPE:0xabc", amount: "3", usdcValue: "120" }),
+    L({ type: "internalTransfer", user: YO, destination: OTRO, usdc: "2", fee: "1" }), L({ type: "withdraw", usdc: "5", nonce: 1, fee: "1" })];
+  assert.equal(Math.round(HL.netoIngresado(led, YO.toUpperCase().replace("0X", "0x")) * 100) / 100, 105.38, "57,99 + 54,38 − 2 − 5 (una cripto recibida en spot y lo propio no cuentan)");
+  assert.equal(HL.netoIngresado([L({ type: "deposit", usdc: "58" }), L({ type: "withdraw", usdc: "8" })], YO), 50, "lo de siempre sigue igual");
+  assert.equal(HL.netoIngresado(null, YO), 0);
+  const D = HL.ledDiag(led, YO); assert.equal(D.length, 7); assert.equal(D[1].dir, "entra"); assert.equal(D[3].dir, "propio"); assert.equal(D[1].usdc, 54.38);
+  assert.ok(!JSON.stringify(D).includes(YO.slice(2)) && !JSON.stringify(D).includes(OTRO.slice(2)) && !JSON.stringify(D).includes("2000000000"), "el diagnóstico no lleva direcciones");
+});
+
+test("ingresado · un ingreso que llega como traspaso cuenta para el FRENO (antes quedaba calculado sobre menos dinero)", async () => {
+  // 58 por el puente + 54 por traspaso = 112 ingresados; la cuenta vale 60 → con el freno del 35 % (por debajo de 72,8) tiene que saltar
+  const W = mundo({ eq: 60, led: [{ time: 1, delta: { type: "deposit", usdc: "58" } }, { time: 2, delta: { type: "send", user: SIS, destination: YO, token: "USDC", amount: "54", usdcValue: "54" } }], quiere: [{ c: "ETH", dir: 1 }], pos: [{ c: "BTC", szi: 0.1 }] });
+  conecta(W); await silencio(() => HL.ronda());
+  assert.deepEqual(abiertas(W), [], "salta el freno y lo cierra todo"); assert.equal(aperturas(W).length, 0);
+  const S = await estadoDe(W); assert.equal(S.neto, 112); assert.ok(Array.isArray(S.ledDiag) && S.ledDiag.some((x) => x.tipo === "send" && x.dir === "entra"));
+});

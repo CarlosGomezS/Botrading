@@ -47,6 +47,29 @@ export function ordenStop(a, lado, entrada, sz, szd, dist = STOP_EMERG) { const 
 export function saldoValido(st) { const v = st && st.marginSummary ? st.marginSummary.accountValue : undefined, n = v === null || v === undefined || (typeof v === "string" && !v.trim()) ? NaN : +v;
   if (!Number.isFinite(n) || n < 0) throw new Error("Hyperliquid ha devuelto el saldo incompleto o no válido. Esta hora no hago nada (ni abro, ni cierro, ni echo el freno); tus posiciones siguen con sus stops.");
   return n; }
+// v1.0 · 💵 LO INGRESADO NETO = el dinero en dólares (USDC) que ENTRA en la cuenta desde fuera, menos el que SALE.
+//   Antes solo se contaban los «deposit» y «withdraw» del puente de Arbitrum. Un ingreso que llega por otro camino (p. ej. con la cuenta
+//   en modo «Unified»: envío o traspaso al saldo de la cuenta) no se contaba, y el freno quedaba calculado sobre menos dinero del ingresado.
+//   · deposit / withdraw: como siempre
+//   · internalTransfer, subAccountTransfer, spotTransfer, send: suman si llegan A ESTA cuenta desde otra, restan si salen a otra.
+//     Los movimientos dentro de la propia cuenta (de spot a futuros, entre sus propios mercados) no son ingresos y no cuentan.
+//   · solo USDC: una cripto recibida en spot no está en el saldo de futuros que mira el freno; si se contara, podría echarlo sin motivo.
+const esYo = (a, yo) => typeof a === "string" && a.toLowerCase() === yo;
+export function usdcDe(d) { if (!d) return 0; const t = d.type;
+  if (t === "internalTransfer" || t === "subAccountTransfer") return Math.abs(+d.usdc || 0);
+  const tok = String(d.token || "").toUpperCase(); if (tok && !/^USDC(:|$)/.test(tok)) return 0;
+  const v = d.amount != null ? +d.amount : d.usdcValue != null ? +d.usdcValue : d.usdc != null ? +d.usdc : NaN; return Number.isFinite(v) ? Math.abs(v) : 0; }
+export const TRASPASOS = ["internalTransfer", "subAccountTransfer", "spotTransfer", "send"];
+export function netoIngresado(led, yo) { const w = String(yo || "").toLowerCase(); let n = 0;
+  for (const u of Array.isArray(led) ? led : []) { const d = (u && u.delta) || {};
+    if (d.type === "deposit") n += +d.usdc || 0;
+    else if (d.type === "withdraw") n -= +d.usdc || 0;
+    else if (TRASPASOS.includes(d.type)) { const entra = esYo(d.destination, w), sale = esYo(d.user, w); if (entra === sale) continue; const v = usdcDe(d); n += entra ? v : -v; } }
+  return n; }
+// diagnóstico (va SOLO en el estado cifrado): los últimos movimientos del historial, con su tipo, sus campos y su importe en USDC; sin direcciones
+export function ledDiag(led, yo) { const w = String(yo || "").toLowerCase();
+  return (Array.isArray(led) ? led : []).slice(-15).map((u) => { const d = (u && u.delta) || {}; const entra = esYo(d.destination, w), sale = esYo(d.user, w);
+    return { t: u && u.time, tipo: String(d.type || "?").slice(0, 40), campos: Object.keys(d).filter((k) => !/^(user|destination|hash)$/.test(k)).slice(0, 15), usdc: Math.round(usdcDe(d) * 100) / 100 || (d.usdc != null ? Math.round(+d.usdc * 100) / 100 : null), dir: d.destination || d.user ? (entra && sale ? "propio" : entra ? "entra" : sale ? "sale" : "ajeno") : undefined }; }); }
 // v1.0 · H-002 · los stops que el bot manda en esta ronda (cripto, lado, cantidad y precio EXACTOS que se enviaron): una orden nueva solo es del bot si cuadra con uno de estos
 const PUESTOS = [];
 export const cuadraConPuesto = (o, a) => PUESTOS.some((p) => p.a === a && o.side === p.side && Math.abs(+(o.sz ?? o.origSz) - p.sz) <= p.sz * 0.001 && Math.abs(+o.triggerPx / p.trig - 1) < 0.001);
@@ -226,7 +249,7 @@ export async function ronda() { PUESTOS.length = 0;
   const st = await info({ type: "clearinghouseState", user: yo }), eq = saldoValido(st), mids = await info({ type: "allMids" });
   const pos = (st.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0);
   let ledOk = true; const led = await info({ type: "userNonFundingLedgerUpdates", user: yo, startTime: 0 }).catch(() => { ledOk = false; return []; });   // v461 · sin el historial de ingresos no se puede calcular el freno → esta hora no se abre nada
-  let neto = 0; for (const u of led || []) { const d = u.delta || {}; if (d.type === "deposit") neto += +d.usdc || 0; else if (d.type === "withdraw") neto -= +d.usdc || 0; }
+  const neto = netoIngresado(led, yo);   // v1.0 · cuenta también los ingresos que no llegan como «deposit»
   const netoMal = ledOk && !(neto > 0);   // v466 · lo ingresado neto no es positivo: el freno no tiene base fiable → no se abre nada
   let fillsOk = true; const fills = await info({ type: "userFills", user: yo }).catch(() => { fillsOk = false; return []; });   // v465 · si falla, NO se inventa la antigüedad de las posiciones
   const abierta = (c) => { const f = (fills || []).filter((z) => z.coin === c && /^Open/.test(z.dir)).sort((a, b) => b.time - a.time)[0]; return f ? +f.time : null; };
@@ -301,7 +324,7 @@ export async function ronda() { PUESTOS.length = 0;
     else if (ag && !a) { log("⚠️ La clave del bot no aparece entre los agentes autorizados de tu cuenta."); if (new Date().getUTCMinutes() < 10) await aviso("🔑 Hyperliquid: la clave del bot ya no está autorizada en tu cuenta (caducada o borrada). El bot no puede operar: crea otra en app.hyperliquid.xyz/API y pégala en la app (HL_AGENT_KEY)."); } } catch (e) {}
   if (netoMal) { log("Lo ingresado neto en Hyperliquid no es positivo: el freno no tiene una base fiable y esta hora no abro nada."); if (!(prev && prev.netoMal)) await aviso("⚠️ Hyperliquid: según el historial, lo ingresado neto (ingresos − retiradas) no es positivo, así que el freno no puede calcularse. No abriré operaciones nuevas hasta que vuelva a serlo; lo abierto sigue con su stop."); }
   const FM = await marcasFreno(); if (!FM.ok) log("No he podido leer la marca del freno: esta hora no abro nada.");
-  const hechos = [], estado = { porIdent: Object.keys(porIdent).length ? porIdent : undefined, intentos, ajenasPos: Object.keys(ajenasPos).length ? ajenasPos : undefined, agenteHasta, slip: Array.isArray(prev && prev.slip) ? prev.slip.slice(-300) : [], misStops: Array.isArray(prev && prev.misStops) ? prev.misStops : undefined, reconciliar: recon || undefined, netoMal: netoMal ? 1 : undefined, w: yo, ctl: lc.ok ? CTL : prevCtl || CTL, ctlNoLeido: lc.ok ? undefined : 1, t: new Date().toISOString(), eq, neto, metodo: M0 && M0.x ? M0.x.n : null, ops: [], pm };
+  const hechos = [], estado = { porIdent: Object.keys(porIdent).length ? porIdent : undefined, intentos, ajenasPos: Object.keys(ajenasPos).length ? ajenasPos : undefined, agenteHasta, slip: Array.isArray(prev && prev.slip) ? prev.slip.slice(-300) : [], misStops: Array.isArray(prev && prev.misStops) ? prev.misStops : undefined, reconciliar: recon || undefined, netoMal: netoMal ? 1 : undefined, w: yo, ctl: lc.ok ? CTL : prevCtl || CTL, ctlNoLeido: lc.ok ? undefined : 1, t: new Date().toISOString(), eq, neto, ledDiag: ledOk ? ledDiag(led, yo) : undefined, metodo: M0 && M0.x ? M0.x.n : null, ops: [], pm };
   { const nuevas = Object.keys(ajenasPos).filter((c) => !ajenasPrev[c]); if (Object.keys(ajenasPos).length) log(`Posiciones que el bot no tiene apuntadas: ${Object.keys(ajenasPos).length} (no las toco).`);
     if (nuevas.length) await aviso(`ℹ️ Hyperliquid: hay ${nuevas.length === 1 ? "una posición" : nuevas.length + " posiciones"} en la cuenta que el bot no ha abierto (${nuevas.join(", ")}). No ${nuevas.length === 1 ? "la" : "las"} toco: ni stop ni cierre por tiempo, y ocupa${nuevas.length === 1 ? "" : "n"} plaza. Si es del bot, vuelve a guardar los ajustes de Hyperliquid en la app y la gestionará.`); }
   log(`Hyperliquid real: ${pos.length} posiciones abiertas · ${CTL.estado === "on" ? "activo" : CTL.estado === "pausa" ? "en pausa (no abre nuevas)" : "parado (cierra todo)"} · método ${M0 && M0.x ? "n.º " + CTL.puesto + " del podio" : "no disponible"}`);
