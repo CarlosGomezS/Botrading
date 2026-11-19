@@ -507,3 +507,13 @@ test("v1.0 · H-003 · una apertura de resultado desconocido que SÍ se hizo y y
   conecta(W2); await silencio(() => HL.ronda()); const S2 = await estadoDe(W2);
   assert.ok((S2.intentos || []).some((i) => i.c === "BTC" && i.dudosa)); assert.ok(!W2.ordenes.some((o) => o.c === "ETH"), "sin pruebas del cierre, no abre nada");
 });
+
+test("v1.0 · método PROVISIONAL: se usa mientras ninguno haya pasado la cuarentena; en cuanto uno la pasa, se deja", () => {
+  const prov = { k: "p", cuar: { exento: true, provisional: true, ok: false } }, cuar = { k: "c", cuar: { ok: false } }, viejo = { k: "v", cuar: { exento: true } };
+  assert.deepEqual(HL.listaReal([prov, cuar]).map((x) => x.k), ["p"], "nadie ha pasado: el provisional");
+  const listo = { k: "l", cuar: { ok: true } };
+  assert.deepEqual(HL.listaReal([prov, cuar, listo]).map((x) => x.k), ["l"], "uno ya ha pasado: se deja el provisional aunque vaya delante en el podio");
+  assert.deepEqual(HL.listaReal([prov, listo, viejo]).map((x) => x.k), ["l", "v"], "un exento de los de antes (no provisional) sigue contando como siempre");
+  assert.deepEqual(HL.listaReal([{ k: "pp", cuar: { exento: true, provisional: true, ok: true } }, listo]).map((x) => x.k), ["pp", "l"], "si el provisional pasa también la cuarentena, deja de ser provisional");
+  assert.deepEqual(HL.listaReal([cuar]), []); assert.deepEqual(HL.listaReal(null), []);
+});

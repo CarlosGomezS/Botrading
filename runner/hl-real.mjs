@@ -110,10 +110,15 @@ export async function guardaAjustes() { let c = {}; try { c = JSON.parse(env("CA
   throw new Error("no he podido guardar los ajustes (4 intentos)"); }   // v467 · que GitHub marque la ejecución como fallida y llegue el aviso: nunca un «guardado» (ni un rearme del freno) que no lo es
 // v467 · 🧊 cuarentena ESTRICTA: solo la pasa un método con cuar.ok === true o cuar.exento === true; sin datos de cuarentena = NO (y nunca se tira del podio antiguo)
 export const cuarentenaOk = (z) => !!(z && z.cuar && typeof z.cuar === "object" && (z.cuar.ok === true || z.cuar.exento === true));
+// v1.0 · un método PROVISIONAL solo vale mientras ninguno haya pasado de verdad la cuarentena: en cuanto uno la pasa, se deja el provisional
+export function listaReal(aprobadas) {
+  const A = (Array.isArray(aprobadas) ? aprobadas : []).filter(cuarentenaOk), reales = A.filter((z) => z.cuar.ok === true);
+  return reales.length ? A.filter((z) => !z.cuar.provisional || z.cuar.ok === true) : A;
+}
 async function metodo(puesto = 1) {
   const get = async (rama, arch) => { const r = await F(`https://raw.githubusercontent.com/${REPO}/${rama}/${arch}?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) }); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); };
   // v456 · 🧊 solo métodos que han pasado la CUARENTENA de 21 días en ficticio (o el que ya estaba en uso, exento); en el orden del podio
-  const L = await get("caza-lab", "caza-lab.json"), lista = (Array.isArray(L.aprobadas) ? L.aprobadas : []).filter(cuarentenaOk), x = lista[puesto - 1] || lista[0]; if (!x) return null;
+  const L = await get("caza-lab", "caza-lab.json"), lista = listaReal(L.aprobadas), x = lista[puesto - 1] || lista[0]; if (!x) return null;
   let IA = []; try { const RX = await import("./ia-receta.mjs"), j = await get("ia-lab", "ia-lab.json"), FNk = Object.keys(FILTROS); IA = ((j && j.cripto && j.cripto.recetas) || []).map((r) => RX.validaReceta(r, FNk)).filter(Boolean); x.RX = RX; } catch (e) {}
   return { x, IA, U: L.criptos || [] };
 }

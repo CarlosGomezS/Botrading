@@ -77,7 +77,10 @@ export async function lab(log = console.log) {
   const M0 = (await memoria()) || {};
   // v456 · 🧊 CUARENTENA: un método que aprueba pasa 21 días en ficticio (precios reales, sin dinero) antes de poder usarse con dinero real.
   //   Exento: el que ya estaba operando con dinero real cuando se creó la cuarentena (el n.º 1 del podio en ese momento).
-  const exentos = Array.isArray(M0.exentos) ? M0.exentos : ["q411nb"];   // q411nb = «Compresión Donchian + Z-Score + BTC Momentum», en uso con dinero real desde el 12/11/2026
+  const exentos = Array.isArray(M0.exentos) ? M0.exentos : ["q411nb"];
+  // v1.0 · PROVISIONAL (decisión del usuario, 19/11/2026): mientras ningún método haya pasado la cuarentena, el dinero real sigue a este
+  //   (el n.º 1 de ese día). En cuanto uno la pase, el bot real deja el provisional y sigue a ese (hl-real.mjs → listaReal)
+  const provisionales = ["xlxypc"];   // q411nb = «Compresión Donchian + Z-Score + BTC Momentum», en uso con dinero real desde el 12/11/2026
   const mem = { probadas: M0.probadas || {}, pesos: M0.limpio466 ? M0.pesos || {} : {},   /* v466 · los pesos de familia se reinician una vez (venían de notas contaminadas) */ casi: (M0.casi || []).filter((x) => x && x.is && x.v >= 466),   /* v466 · se descartan las anteriores: su nota usaba tramos que tocaban los 90 días ocultos */   /* v465 · se descartan las «casi» antiguas (se eligieron viendo los 90 días ocultos) */ aprobadas: M0.aprobadas || [], rondas: (M0.rondas || 0) + 1, hist: M0.hist || [] };
   const ID = await ideas(M0.ideas); const recientes = ID.filter((x) => Date.now() - Date.parse(x.visto) < 30 * 864e5), menc = {}; for (const x of recientes) for (const f of x.fams) menc[f] = (menc[f] || 0) + 1;
   log(`🧠 Ronda ${mem.rondas} · memoria: ${Object.keys(mem.probadas).length} combinaciones ya probadas · ideas nuevas leídas: ${ID.length - (M0.ideas || []).length}`);
@@ -151,7 +154,7 @@ export async function lab(log = console.log) {
   // las aprobadas se vuelven a examinar cada ronda con los datos nuevos: si dejan de aprobar, salen del podio
   mem.aprobadas = mem.aprobadas.filter((x) => { const g2 = fixG(x.g); if (!g2 || !S[g2.a]) return false; x.g = g2; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2, is: { ret: r.is.ret, dd: r.is.dd, pf: r.is.pf, opsDia: r.is.opsDia } });
     try { const t0 = Date.parse(x.desde), i0 = T.findIndex((t) => t >= t0), dias = (Date.now() - t0) / 864e5, z = cuarZ(r.ops, M, i0, n, x.g.sl), min = minCuar(x.g, r.is, dias), ddMax = ddMaxCuar(r.is);
-      x.cuar = { dias: +dias.toFixed(1), n: z.n, ret: +(+z.ret || 0).toFixed(4), pf: +(+z.pf || 0).toFixed(2), dd: +(+z.dd || 0).toFixed(4), ddMax, min, exento: exentos.includes(x.k) || undefined, ok: cuarPasa(dias, z, min, ddMax) }; } catch (e) { x.cuar = { dias: 0, n: 0, ret: 0, min: 8, ok: false }; }
+      x.cuar = { dias: +dias.toFixed(1), n: z.n, ret: +(+z.ret || 0).toFixed(4), pf: +(+z.pf || 0).toFixed(2), dd: +(+z.dd || 0).toFixed(4), ddMax, min, exento: exentos.includes(x.k) || provisionales.includes(x.k) || undefined, provisional: provisionales.includes(x.k) || undefined, ok: cuarPasa(dias, z, min, ddMax) }; } catch (e) { x.cuar = { dias: 0, n: 0, ret: 0, min: 8, ok: false }; }
     if (r.okA && r.okB && r.okC) { try { x.vec = vecinosOk(x.g); } catch (e) { x.vec = { ok: true, res: [] }; } if (!x.vec.ok) log(`  🧭 Sale del podio por la prueba de vecinos: ${x.n.slice(0, 80)}`); }
     return r.okA && r.okB && r.okC && (!x.vec || x.vec.ok); }).sort((a, b) => Math.round(calidad(b) * 1000) - Math.round(calidad(a) * 1000) || (a.is ? a.is.dd : 1) - (b.is ? b.is.dd : 1));   /* v455 · ⚖️ por CALIDAD: ganancia al año − 0,8 × caída */   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
   for (const x of mem.aprobadas) x.nota = +calidad(x).toFixed(4);
@@ -169,7 +172,7 @@ export async function lab(log = console.log) {
   // v364 · 🔔 Telegram solo cuando un método ENTRA en el podio
   try { const ant = new Set((M0.podio || []).map((x) => x.k)), nuevos = out.podio.map((x, i) => ({ x, i })).filter(({ x }) => !ant.has(x.k));
     if (nuevos.length) { const AV = await import("./avisos.mjs"); await AV.tg(nuevos.map(({ x, i }) => `🏆 Laboratorio de cripto (muchas operaciones): nuevo método en el podio, puesto ${i + 1}.º\n${x.n}\nEn los últimos 6 meses: ${(x.b.ret * 100).toFixed(1).replace(".", ",")} % · ${x.b.opsDia.toFixed(1).replace(".", ",")} operaciones al día · caída máxima ${(x.b.dd * 100).toFixed(1).replace(".", ",")} %`).join("\n\n") + "\n\nNo mueve dinero: antes de meterlo en Hyperliquid te lo preguntaré."); } } catch (e) { log("aviso del podio no enviado"); }
-  out.podio.forEach((x, i) => log(`  🏆 ${i + 1}.º ${x.cuar ? (x.cuar.exento ? "[en uso, exento] " : x.cuar.ok ? "[listo para real] " : `[cuarentena día ${Math.floor(x.cuar.dias)} de 21, ${x.cuar.n} op.] `) : ""}${x.n} · últimos 6 meses ${(x.b.ret * 100).toFixed(1)} % (${x.b.opsDia.toFixed(1)} op/día, caída ${(x.b.dd * 100).toFixed(1)} %) · en el podio desde ${x.desde}`));
+  out.podio.forEach((x, i) => log(`  🏆 ${i + 1}.º ${x.cuar ? (x.cuar.provisional ? "[provisional: en uso hasta que otro pase la cuarentena] " : x.cuar.exento ? "[en uso, exento] " : x.cuar.ok ? "[listo para real] " : `[cuarentena día ${Math.floor(x.cuar.dias)} de 21, ${x.cuar.n} op.] `) : ""}${x.n} · últimos 6 meses ${(x.b.ret * 100).toFixed(1)} % (${x.b.opsDia.toFixed(1)} op/día, caída ${(x.b.dd * 100).toFixed(1)} %) · en el podio desde ${x.desde}`));
   mem.casi.slice(0, 3).forEach((x) => log(`  🟡 casi: ${x.n} · historia completa ${(x.a.ret * 100).toFixed(1)} % · últimos 6 meses ${(x.b.ret * 100).toFixed(1)} % · gana en ${x.t ? Math.round(x.t.g * 100) : "?"} % de los tramos`));
   Object.defineProperty(out, "__vistas", { value: VB, enumerable: false });
   return out;
