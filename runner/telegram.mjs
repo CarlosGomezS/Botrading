@@ -19,13 +19,19 @@ const api = async (m, body) => {
 const say = (chat, text) => api("sendMessage", { chat_id: chat, text, disable_web_page_preview: true }).catch(() => {});
 
 // v175 · orden de Memes con dinero real: se guarda en la rama «meme-ctl» (ctl.json, sin importes)
-async function memesCtl(o) {
+// v1.0 · G6-C3 · control del bot de memes: si esa rama NO EXISTE (bot de memes nunca usado, o la copia sin él) no hay nada que guardar → se da por hecho
+//   (antes /parar fallaba siempre y se quedaba repitiendo el aviso, bloqueando los demás botones). Si existe: 3 intentos y tiempo máximo.
+export async function memesCtl(o, F = fetch) {
+  const H0 = { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json" };
+  try { const rr = await F(`https://api.github.com/repos/${REPO}/git/ref/heads/meme-ctl`, { headers: H0, signal: AbortSignal.timeout(15000) }); if (rr.status === 404) return true; } catch (e) {}
+  for (let i = 0; i < 3; i++) { try { if (await memesCtl1(o, F)) return true; } catch (e) {} await new Promise((z) => setTimeout(z, 1500 * (i + 1))); } return false; }
+async function memesCtl1(o, fetch) {
   const u = `https://api.github.com/repos/${REPO}/contents/ctl.json`, H = { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "Content-Type": "application/json" };
-  const r = await fetch(u + "?ref=meme-ctl", { headers: H }); const cur = r.ok ? await r.json() : null; let c = { aprobado: null, parado: false };
+  const r = await fetch(u + "?ref=meme-ctl", { headers: H, signal: AbortSignal.timeout(15000) }); const cur = r.ok ? await r.json() : null; let c = { aprobado: null, parado: false };
   try { if (cur && cur.content) c = JSON.parse(Buffer.from(cur.content, "base64").toString("utf8")); } catch (e) {}
   if (o.accion === "aprobar") { c.aprobado = o.id; c.parado = false; } else if (o.accion === "no") c.rechazado = o.id; else if (o.accion === "parar") { c.parado = true; c.motivo = "lo has parado tú"; } else if (o.accion === "seguir") { c.parado = false; c.motivo = null; }
   c.t = new Date().toISOString();
-  const w = await fetch(u, { method: "PUT", headers: H, body: JSON.stringify({ message: "memes: orden desde Telegram", content: Buffer.from(JSON.stringify(c)).toString("base64"), branch: "meme-ctl", ...(cur && cur.sha ? { sha: cur.sha } : {}) }) });
+  const w = await fetch(u, { method: "PUT", headers: H, signal: AbortSignal.timeout(15000), body: JSON.stringify({ message: "memes: orden desde Telegram", content: Buffer.from(JSON.stringify(c)).toString("base64"), branch: "meme-ctl", ...(cur && cur.sha ? { sha: cur.sha } : {}) }) });
   return w.ok;
 }
 // v233 · /parar y /seguir también paran o reanudan Bitvavo con dinero real (rama «bitvavo-ctl», sin importes)
@@ -34,17 +40,17 @@ async function bvCtl(o) {   // v1.0 · G4-1.3 · hasta 3 intentos (cada uno rele
   for (let i = 0; i < 3; i++) { try { if (await bvCtl1(o)) return true; } catch (e) {} await new Promise((r) => setTimeout(r, 1500 * (i + 1))); } return false; }
 async function bvCtl1(o) {
   const u = `https://api.github.com/repos/${REPO}/contents/ctl.json`, H = { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "Content-Type": "application/json" };
-  const r = await fetch(u + "?ref=bitvavo-ctl", { headers: H }); const cur = r.ok ? await r.json() : null; let c = { copia: "mix", parado: false };
+  const r = await fetch(u + "?ref=bitvavo-ctl", { signal: AbortSignal.timeout(15000), headers: H }); const cur = r.ok ? await r.json() : null; let c = { copia: "mix", parado: false };
   try { if (cur && cur.content) c = JSON.parse(Buffer.from(cur.content, "base64").toString("utf8")); } catch (e) {}
   if (o.accion === "parar") { c.parado = true; c.motivo = "lo has parado tú"; } else { c.parado = false; c.motivo = null; for (const k of Object.values(c.cuentas || {})) if (k) { k.parado = false; k.motivo = null; } }   // v243: /seguir reanuda también la cuenta parada por el freno
   c.t = new Date().toISOString();
-  const w = await fetch(u, { method: "PUT", headers: H, body: JSON.stringify({ message: "bitvavo: orden desde Telegram", content: Buffer.from(JSON.stringify(c)).toString("base64"), branch: "bitvavo-ctl", ...(cur && cur.sha ? { sha: cur.sha } : {}) }) });
+  const w = await fetch(u, { signal: AbortSignal.timeout(15000), method: "PUT", headers: H, body: JSON.stringify({ message: "bitvavo: orden desde Telegram", content: Buffer.from(JSON.stringify(c)).toString("base64"), branch: "bitvavo-ctl", ...(cur && cur.sha ? { sha: cur.sha } : {}) }) });
   return w.ok;
 }
 // v1.0 · G4-1.3 · /parar también PARA Hyperliquid (guarda «parado» con su flujo de ajustes, que además lo cierra todo ya). /seguir no lo reanuda solo:
 //   Hyperliquid se reanuda desde la app (así un /seguir no rearma por sorpresa su freno).
 export async function hlParar(o, F = fetch) { if (o.accion !== "parar") return true;
-  for (let i = 0; i < 3; i++) { try { const r = await F(`https://api.github.com/repos/${REPO}/actions/workflows/hl-ctl.yml/dispatches`, { method: "POST", headers: { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" }, body: JSON.stringify({ ref: "main", inputs: { cambio: JSON.stringify({ estado: "parado" }) } }) }); if (r.status === 204) return true; if (r.status === 404) return true;   /* esta copia de la app no tiene Hyperliquid: nada que parar */ } catch (e) {} await new Promise((r) => setTimeout(r, 1500 * (i + 1))); }
+  for (let i = 0; i < 3; i++) { try { const r = await F(`https://api.github.com/repos/${REPO}/actions/workflows/hl-ctl.yml/dispatches`, { method: "POST", headers: { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" }, signal: AbortSignal.timeout(15000), body: JSON.stringify({ ref: "main", inputs: { cambio: JSON.stringify({ estado: "parado" }) } }) }); if (r.status === 204) return true; if (r.status === 404) return true;   /* esta copia de la app no tiene Hyperliquid: nada que parar */ } catch (e) {} await new Promise((r) => setTimeout(r, 1500 * (i + 1))); }
   return false; }
 // v1.0 · G4-1.3 · la orden solo se da por hecha si se ha guardado en TODOS los sitios que toca (antes bastaba con uno: «PARADO» sin estarlo)
 export const todoGuardado = (accion, ok0, okBv, okHl) => (accion === "parar" || accion === "seguir" ? ok0 && okBv && okHl : ok0);
@@ -127,6 +133,9 @@ export async function tgCandado(F = fetch, ahora = new Date()) { if (!GH || !REP
     const r = await F(`https://api.github.com/repos/${REPO}/git/refs`, { method: "POST", headers: H, body: JSON.stringify({ ref: `refs/tags/tg-lock-${k}`, sha }), signal: AbortSignal.timeout(15000) });
     if (r.status === 422) return { ok: false, ocupado: 1 };
     const suelta = async () => { try { await F(`https://api.github.com/repos/${REPO}/git/refs/tags/tg-lock-${k}`, { method: "DELETE", headers: H, signal: AbortSignal.timeout(15000) }); } catch (e) {} };
+    // v1.0 · G6-M3 · de paso, se borran los candados de más de un día (de procesos que murieron antes de soltarlo)
+    try { const lr = await F(`https://api.github.com/repos/${REPO}/git/matching-refs/tags/tg-lock-`, { headers: H, signal: AbortSignal.timeout(15000) }); const L = lr.ok ? await lr.json() : [];
+      const viejo = ahora.getTime() - 864e5; for (const x of (Array.isArray(L) ? L : []).slice(0, 50)) { const m = String(x.ref || "").match(/tg-lock-(\d{4})(\d{2})(\d{2})(\d{2})/); if (m && Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4]) < viejo) await F(`https://api.github.com/repos/${REPO}/git/${x.ref}`, { method: "DELETE", headers: H, signal: AbortSignal.timeout(15000) }).catch(() => {}); } } catch (e) {}
     return { ok: true, suelta }; } catch (e) { return { ok: true, sin: 1 }; } }   // si GitHub no responde, se lee igual (lo de siempre): mejor eso que no leer /parar
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop())) {
   (async () => {

@@ -10,6 +10,7 @@ const COST = 0.00045 + 0.0005, N_COINS = 24, H = 3600e3;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function post(body) { for (let i = 0; i < 5; i++) { try { const r = await fetch(INFO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) }); if (r.status === 429) { await sleep(5000 * (i + 1)); continue; } if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); } catch (e) { if (i === 4) throw e; await sleep(3000 * (i + 1)); } } }
 
+export const escalaK = (c) => /^k[A-Z]/.test(String(c || "")) ? 1000 : 1;   // v1.0 · G6-I5 · en Hyperliquid «kPEPE» = 1000 PEPE
 export async function datos(log) {
   const [meta, ctxs] = await post({ type: "metaAndAssetCtxs" });
   const U = meta.universe.map((u, i) => ({ c: u.name, v: +ctxs[i].dayNtlVlm || 0, d: !!u.isDelisted })).filter((x) => !x.d && x.v > 0).sort((a, b) => b.v - a.v).slice(0, N_COINS).map((x) => x.c);
@@ -18,7 +19,8 @@ export async function datos(log) {
     // v360 · Hyperliquid solo da las últimas 5.000 velas (~208 días): la historia larga de precios sale de OKX (mismo contrato perpetuo
     // contra USDT, precios casi idénticos) y la financiación, de Hyperliquid. Si OKX no la tiene, se usan las velas de Hyperliquid.
     const k = new Map(), inst = (c === "kPEPE" ? "PEPE" : c === "kBONK" ? "BONK" : c === "kSHIB" ? "SHIB" : c) + "-USDT-SWAP";
-    try { let after = "", esp429 = 0; for (let p = 0; p < 200; p++) { const r = await fetch(`https://www.okx.com/api/v5/market/history-candles?instId=${inst}&bar=1H&limit=100${after ? "&after=" + after : ""}`, { signal: AbortSignal.timeout(20000) }); if (r.status === 429) { if (++esp429 > 20) break; await sleep(3000); p--; continue; }   /* v1.0 · G5-1.5 · como mucho 20 esperas (antes, sin fin) */ const j = await r.json(), d = (j && j.data) || []; if (!d.length) break; for (const y of d) k.set(+y[0], [+y[4], +y[6] || 0, +y[2], +y[3], +y[1]]);   /* v1.0 · G5-1.5 · volumen en MONEDAS (volCcy), igual que el de Hyperliquid (antes, en dólares) */ after = Math.min(...d.map((y) => +y[0])); if (after < ini) break; await sleep(110); } } catch (e) {}
+    try { let after = "", esp429 = 0; for (let p = 0; p < 200; p++) { const r = await fetch(`https://www.okx.com/api/v5/market/history-candles?instId=${inst}&bar=1H&limit=100${after ? "&after=" + after : ""}`, { signal: AbortSignal.timeout(20000) }); if (r.status === 429) { if (++esp429 > 20) break; await sleep(3000); p--; continue; }   /* v1.0 · G5-1.5 · como mucho 20 esperas (antes, sin fin) */ const j = await r.json(), d = (j && j.data) || []; if (!d.length) break; const xk = escalaK(c); for (const y of d) k.set(+y[0], [+y[4] * xk, (+y[6] || 0) / xk, +y[2] * xk, +y[3] * xk, +y[1] * xk]);   /* v1.0 · G6-I5 · kPEPE/kBONK/kSHIB son 1000 monedas: precio ×1000 y volumen ÷1000 (antes, precios 1000 veces más bajos que en Hyperliquid) */   /* v1.0 · G5-1.5 · volumen en MONEDAS (volCcy), igual que el de Hyperliquid (antes, en dólares) */ after = Math.min(...d.map((y) => +y[0])); if (after < ini) break; await sleep(110); } } catch (e) {}
+    if (k.size < 24 * 300) k.clear();   // v1.0 · G6-I5 · si OKX no da bastante, se usa SOLO Hyperliquid (no se mezclan las dos fuentes)
     if (k.size < 24 * 300) for (let t = ini; t < fin; t += 4000 * H) { const r = await post({ type: "candleSnapshot", req: { coin: c, interval: "1h", startTime: t, endTime: Math.min(fin, t + 4000 * H) } }); for (const x of r || []) k.set(+x.t, [+x.c, +x.v || 0, +x.h, +x.l, +x.o]); await sleep(250); }
     const f = new Map(); let t = ini;
     for (let g = 0; g < 40 && t < fin; g++) { const r = await post({ type: "fundingHistory", coin: c, startTime: t }); if (!r || !r.length) break; for (const x of r) f.set(Math.floor(+x.time / H) * H, +x.fundingRate); const last = +r[r.length - 1].time; if (last <= t) break; t = last + 1; await sleep(250); }
@@ -62,14 +64,14 @@ export function salidaStop(d, i, p0, dir, sl) { const stopPx = dir > 0 ? p0 * (1
 export function caidaHoraria(ops, M, i0, i1, plazas, sl = 0, cm = 1) {
   const ev = ops.filter((o) => o[0] >= i0 && o[0] < i1).sort((a, b) => a[0] - b[0]); let k = 0, eq = 1, pico = 1, dd = 0; const ab = [];
   const fin = Math.min(i1, ...[...new Set(ev.map((o) => o[1]))].map((c) => M[c].C.length - 1)), finOps = ev.reduce((a, o) => Math.max(a, o[3]), i1);
-  for (let h = i0; h <= Math.min(fin, finOps); h++) {
+  for (let h = i0; h <= Math.min(fin, finOps, i1 - 1); h++) {   // v1.0 · G6-I5 · nunca mira más allá de i1 (antes, una posición abierta antes del corte seguía mirando los días del examen oculto)
     for (let j = ab.length - 1; j >= 0; j--) { const a = ab[j], d = M[a.c];
       if (!a.cerr && h > a.i) { a.fund += a.dir * (d.F[h - 1] || 0); let r = null;
         if (sl > 0) r = salidaStop(d, h, a.p0, a.dir, sl);
         if (r == null && h >= a.f) r = a.dir * (d.C[h] / a.p0 - 1);
         if (r != null) { r -= a.fund + 2 * COST * cm; eq += (r * a.e) / plazas; a.cerr = 1; } }
       if (h >= a.f) ab.splice(j, 1); }   // como en cartera(): una posición cerrada por stop ocupa su plaza hasta su hora de fin
-    while (k < ev.length && ev[k][0] <= h) { const o = ev[k++]; if (o[0] !== h) continue; const d = M[o[1]], p0 = d.C[o[0]]; if (!(p0 > 0)) continue; if (ab.length < plazas && !ab.some((a) => a.c === o[1])) ab.push({ c: o[1], dir: o[2], i: o[0], f: Math.min(o[3], d.C.length - 1), p0, e: eq, fund: 0 }); }
+    while (k < ev.length && ev[k][0] <= h) { const o = ev[k++]; if (o[0] !== h) continue; const d = M[o[1]], p0 = d.C[o[0]]; if (!(p0 > 0)) continue; if (ab.length < plazas && !ab.some((a) => a.c === o[1])) ab.push({ c: o[1], dir: o[2], i: o[0], f: Math.min(o[3], i1 - 1, d.C.length - 1), p0, e: eq, fund: 0 }); }
     let v = eq; for (const a of ab) { if (a.cerr) continue; const d = M[a.c]; v += ((a.dir * (d.C[h] / a.p0 - 1) - a.fund - COST * cm) * a.e) / plazas; }
     pico = Math.max(pico, v); dd = Math.max(dd, 1 - v / pico); }
   return dd;

@@ -42,6 +42,7 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
           REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}   # v1.0 · G6-C5
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACCION: ${{ github.event.inputs.accion }}
           FORZAR: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}

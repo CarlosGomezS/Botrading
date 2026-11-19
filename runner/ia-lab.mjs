@@ -13,6 +13,11 @@ import { leeFuentes } from "./fuentes-ideas.mjs";
 import { lectura } from "./ia-mercado.mjs";
 const env = (k) => (process.env[k] || "").trim(), REPO = env("GITHUB_REPOSITORY") || "CarlosGomezS/Botrading", TOKEN = env("GITHUB_TOKEN"), KEY = env("GEMINI_KEY");
 const RAMA = "ia-lab", sh = (c) => execSync(c, { stdio: "pipe", encoding: "utf8", maxBuffer: 1 << 28 });
+export async function rawSeguro(rama, f, F = (...a) => globalThis.fetch(...a)) { let motivo = "";
+  for (let i = 0; i < 3; i++) { try { const r = await F(`https://raw.githubusercontent.com/${REPO}/${rama}/${f}?t=${Date.now()}`, { signal: AbortSignal.timeout(60000) });
+      if (r.status === 404) return { ok: true, j: null }; if (r.ok) return { ok: true, j: await r.json() }; motivo = "HTTP " + r.status; } catch (e) { motivo = String((e && e.name) || "error"); }
+    await new Promise((z) => setTimeout(z, 3000 * (i + 1))); }
+  return { ok: false, motivo }; }
 const raw = async (rama, f) => { try { const r = await fetch(`https://raw.githubusercontent.com/${REPO}/${rama}/${f}?t=${Date.now()}`, { signal: AbortSignal.timeout(60000) }); if (r.ok) return await r.json(); } catch (e) {} return null; };
 const log = (...a) => console.log("🤖 IA ·", ...a);
 
@@ -274,13 +279,18 @@ async function ideasWeb() { const { items, porFuente } = await leeFuentes(); glo
   log(`🌐 ideas útiles de internet: ${out.length} · ` + Object.entries(porFuente).map(([f, v]) => `${f}: ${v.error || v.utiles + "/" + v.leidas}`).join(" · ")); return out; }
 async function main() {
   globalThis.__WEB = await ideasWeb().catch(() => []);
-  const prev = (await raw(RAMA, "ia-lab.json")) || {}; globalThis.__PREV = prev; const out = { v: 1, t: new Date().toISOString(), estado: "ok", cripto: prev.cripto || null, etf: prev.etf || null, tort: prev.tort || null, hist: prev.hist || [] };
+  // v1.0 · G6-C2 · si NO se ha podido leer lo guardado (y no es que no exista), se para: antes seguía con todo vacío y al guardar borraba las recetas
+  //   (también la que pudiera estar operando en Hyperliquid)
+  const prev0 = await rawSeguro(RAMA, "ia-lab.json"); if (!prev0.ok) throw new Error("no he podido leer ia-lab.json (" + prev0.motivo + "); no sigo para no borrar las recetas");
+  const prev = prev0.j || {}; globalThis.__PREV = prev; const out = { v: 1, t: new Date().toISOString(), estado: "ok", cripto: prev.cripto || null, etf: prev.etf || null, tort: prev.tort || null, hist: prev.hist || [] };
   /* v409 · 🧠 MEMORIA LARGA: todas las lecciones que ha escrito alguna vez (sin repetir, con fecha), aunque luego las quite del cuaderno corto */
   const MEM = { cripto: [], etf: [], tort: [], ...(prev.memoria || {}) }; MEM.tort = MEM.tort || []; globalThis.__MEM = MEM;
   // v467 · las lecciones de cripto escritas antes de cerrar la fuga del examen se borran UNA vez (podían venir de saber qué recetas aprobaron)
   if (!prev.limpio467) { MEM.cripto = []; if (prev.cripto) prev.cripto = { ...prev.cripto, lecciones: [] }; out.cripto = prev.cripto || null; log("cripto: cuaderno de lecciones reiniciado (v467, sin datos del examen oculto)"); } out.limpio467 = 1;
   // v468 · igual con las de ETF (podían venir de saber qué ideas aprobaron el examen oculto)
   if (!prev.limpio468) { MEM.etf = []; if (prev.etf) prev.etf = { ...prev.etf, lecciones: [] }; out.etf = prev.etf || null; log("ETF: cuaderno de lecciones reiniciado (v468, sin datos del examen oculto)"); } out.limpio468 = 1;
+  // v1.0 · G6-I5 · igual con las Tortugas: sus lecciones antiguas se escribieron viendo el 2.º año (el examen); se borran una vez
+  if (!prev.limpioTort1) { MEM.tort = []; if (prev.tort) prev.tort = { ...prev.tort, lecciones: [] }; out.tort = prev.tort || null; log("Tortugas: cuaderno de lecciones reiniciado (sin datos del examen)"); } out.limpioTort1 = 1;
   const guarda = (k, L) => { const ya = new Set(MEM[k].map((x) => x.l)); for (const l of L || []) if (l && !ya.has(l)) { MEM[k].unshift({ t: out.t, l }); ya.add(l); } MEM[k] = MEM[k].slice(0, 500); };
   guarda("cripto", prev.cripto && prev.cripto.lecciones); guarda("etf", prev.etf && prev.etf.lecciones); guarda("tort", prev.tort && prev.tort.lecciones);
   if (!KEY && !GROQ && !OR && !NV && !ZAI) { out.estado = "sin clave"; log("no hay clave GEMINI_KEY en los secretos de GitHub: los laboratorios siguen igual, sin ayudante"); }
@@ -311,4 +321,4 @@ async function main() {
   sh(`cd ${dir} && git init -q && git checkout -q -b ${RAMA} && git add ia-lab.json && git -c user.name=bot -c user.email=bot@users.noreply.github.com commit -qm "Ayudante IA del laboratorio" && git push -qf ${url} ${RAMA}`);
   log("ideas guardadas");
 }
-if (process.argv[1] && process.argv[1].endsWith("ia-lab.mjs")) main().catch((e) => { console.log("🤖 IA · error:", String(e.message).slice(0, 120)); process.exit(0); });
+if (process.argv[1] && process.argv[1].endsWith("ia-lab.mjs")) main().catch((e) => { console.log("🤖 IA · error:", String(e.message).slice(0, 120)); process.exit(1); });   // v1.0 · G6-M4 · un fallo sale en rojo (y avisa)

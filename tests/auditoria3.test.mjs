@@ -42,7 +42,7 @@ test("G5-1.5 · la volatilidad «normal» solo mira hacia ATRÁS (cambiar el fut
 
 test("G5-1.5 · el laboratorio lee el volumen de OKX en monedas (como Hyperliquid) y no reintenta sin fin si OKX dice «demasiadas peticiones»", () => {
   const H = readFileSync(new URL("../runner/caza-hl.mjs", import.meta.url), "utf8");
-  assert.match(H, /k\.set\(\+y\[0\], \[\+y\[4\], \+y\[6\] \|\| 0/); assert.match(H, /if \(\+\+esp429 > 20\) break;/);
+  assert.match(H, /k\.set\(\+y\[0\], \[\+y\[4\] \* xk, \(\+y\[6\] \|\| 0\) \/ xk/);   /* G6-I5 · ahora además escala kPEPE/kBONK/kSHIB */ assert.match(H, /if \(\+\+esp429 > 20\) break;/);
 });
 
 test("G5-2 · bitvavo.mjs: las señales de las Tortugas van al principio (tras el dinero real), un fallo general sale en rojo y sin contraseña no se publica el terminal", () => {

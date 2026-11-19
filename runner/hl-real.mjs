@@ -162,7 +162,7 @@ function pieza(S0, IA, RX, idx, iaId) {
 // v465 · distingue «no hay estado todavía» (ok, nuevo) de «hay estado pero no se ha podido leer o descifrar» (ok:false → no se abre nada)
 async function leeAnterior() { const pw = env("REAL_VIEW_PASS"); if (!pw) return { ok: false, motivo: "falta la clave del estado" };
   for (let i = 0; i < 3; i++) { try { const r = await F(`https://raw.githubusercontent.com/${REPO}/${RAMA}/${ARCH}?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) }); if (r.status === 404) return { ok: true, S: null, nuevo: 1 }; if (!r.ok) throw new Error("HTTP " + r.status);
-      const j = await r.json(), { decrypt } = await import("./real-cfg.mjs"), t = await decrypt(j, pw); return { ok: true, S: typeof t === "string" ? JSON.parse(t) : t }; } catch (e) { await deps.espera(1500 * (i + 1)); } }
+      const j = await r.json(), { openAny } = await import("./real-cfg.mjs"), o = await openAny(j, [pw, env("REAL_VIEW_PASS_OLD")]); if (o.error) throw new Error(o.error); return { ok: true, S: o.j }; }   /* v1.0 · G6-C5 · también con la contraseña ANTERIOR (tras cambiarla; al guardar ya queda con la nueva) */ catch (e) { await deps.espera(1500 * (i + 1)); } }
   return { ok: false, motivo: "no he podido leer el estado guardado de Hyperliquid" }; }
 // ---------- estado cifrado (para verlo en la app) ----------
 async function guarda(estado) { if (deps.guardar) { const r = await deps.guardar(estado); return r !== false; }   // v465 · devuelve si se ha guardado de verdad
@@ -398,6 +398,8 @@ async function ronda0() { PUESTOS.length = 0;
     const g = M0.x.g, SV = await (deps.senales || senalesVivas)(M0, idx);
     if (SV.err) { log(SV.err); if (SV.avisar) await aviso(SV.avisar); }
     else { const quiere = SV.quiere;
+        // v1.0 · G6-I4 · justo antes de abrir se vuelven a leer tus ajustes: si acabas de pulsar «Parar» (o pausar) durante esta ronda, no abre nada
+        { const c2 = await leeCtl().catch(() => null); if (c2 && c2.ok && c2.ctl && c2.ctl.estado && c2.ctl.estado !== "on" && quiere.length) { log("Acabas de cambiar Hyperliquid a «" + c2.ctl.estado + "»: esta ronda no abre nada."); quiere.splice(0); } }
         // plazas: como en el laboratorio, hasta 5 a partes iguales; con poco saldo, menos plazas (cada orden necesita ≥ 11 $). Sin apalancamiento.
         const uso = eq * CTL.uso / 100, plazas = Math.max(0, Math.min(CTL.plazas || 5, Math.floor(uso / MIN_ORDEN))), libres = plazas - pos.filter((p) => !estado.ops.some((o) => o.c === p.coin && o.x === "cierra")).length - enEspera.length;   /* v1.0 · G5-1.2 · las plazas en espera tras un stop siguen ocupadas */
         for (let z = quiere.length - 1; z >= 0; z--) if (enfria[quiere[z].c]) quiere.splice(z, 1);   // ni se vuelve a entrar en esa cripto hasta su hora

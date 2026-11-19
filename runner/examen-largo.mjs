@@ -4,7 +4,10 @@
 // el resultado lo lee el dinero real para NO seguir a un método cuya regla actual suspende este examen.
 // Se guarda en la rama «examen-largo» (examen-largo.json). La descarga se conserva entre ejecuciones (caché de GitHub) y solo se añade lo nuevo.
 import * as B from "./bitvavo.mjs";
-import { FEES as FEES_T } from "./tortugas.mjs";   // v1.0 · G4-2.3 · las mismas comisiones en todo el examen
+import { FEES as FEES_T } from "./tortugas.mjs";
+// v1.0 · G6-I5 · azar con semilla semanal (igual que el laboratorio de Hyperliquid): la misma semana, los mismos tramos
+export function azarSemana(sem = Math.floor(Date.now() / (7 * 864e5))) { let a = (sem * 2654435761) >>> 0 || 1; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+export const nCriptos = (t) => typeof (t && t.criptos) === "number" ? t.criptos : Array.isArray(t && t.criptos) ? t.criptos.length : 0;   // v1.0 · G4-2.3 · las mismas comisiones en todo el examen
 import { entrenarIA } from "./bitvavo-ia.mjs";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from "node:fs";
 
@@ -105,7 +108,7 @@ async function main() {
         const prevT = prev.tortugas && prev.tortugas[ex], perfiles = {}, hoyD = new Date().toISOString().slice(0, 10);
         // v365 · 🎲 TRAMOS AL AZAR (nuevos en cada examen) + regla estricta «hasta hoy»: 24 tramos de 3 a 12 meses, la mitad acaban HOY, y los últimos 6 meses
         const tsAll = [...new Set(Object.values(series).flatMap((d) => d.map((x) => x[0])))].sort((a, b) => a - b), t0s = tsAll[Math.min(tsAll.length - 1, 60)], t1s = tsAll[tsAll.length - 1] + 1, DD = 86400e3, BT = series["BTC-EUR"];
-        const TRW = []; for (let q = 0; q < 24; q++) { const len = (90 + Math.random() * 275) * DD, fin = q < 12 ? t1s : t0s + len + Math.random() * Math.max(0, t1s - t0s - len); TRW.push([Math.max(t0s, fin - len), fin]); }
+        const TRW = [], rndT = azarSemana(); for (let q = 0; q < 24; q++) { const len = (90 + rndT() * 275) * DD, fin = q < 12 ? t1s : t0s + len + rndT() * Math.max(0, t1s - t0s - len);   /* v1.0 · G6-I5 · tramos con semilla de la semana: no se repite el sorteo hasta que algo aprueba por suerte */ TRW.push([Math.max(t0s, fin - len), fin]); }
         const btcR = (d0, d1) => { if (!BT) return null; const a = BT.find((x) => x[0] >= d0), b = [...BT].reverse().find((x) => x[0] < d1); return a && b ? (b[4] / a[4] - 1) * 100 : null; };
         for (const rk of Object.keys(TT.PERFILES)) { const F = TT.PERFILES[rk], pv = (prevT && prevT.perfiles && prevT.perfiles[rk]) || (rk === "medio" ? prevT : null) || null;
           const iaR = ((IA_T && IA_T.reglas) || []).filter((x) => (x.ex === ex || x.ex === "ambos") && (!x.riesgo || x.riesgo === rk)).map((x) => x.P).slice(0, 15);   /* v413 · 🤖 las reglas que propone la IA compiten como madres */
@@ -161,7 +164,7 @@ async function main() {
   //   se guarda la fecha y hora en que cada uno entró en el podio (se conserva mientras siga en él)
   let podio = [];
   try { let prev = null; try { prev = await B.leer("examen-largo.json", "examen-largo"); } catch (e) {} const P0 = Object.fromEntries(((prev && prev.podio) || []).map((x) => [x.id, x.desde])), ahora = new Date().toISOString();
-    const L = []; for (const [ex, t] of Object.entries(tortugas)) for (const [rk, r] of Object.entries((t && t.perfiles) || {})) if (r && r.ok && r.ret != null && r.tramos && r.tramos.g >= 0.6 && (r.c2 && r.c2.ret > 0)   /* v1.0 · G4-2.3 · sin la prueba de costes dobles, NO entra (antes entraba) */ && !(r.tramos.rec < -10 || (r.tramos.rec < 0 && r.tramos.btcRec != null && r.tramos.rec < r.tramos.btcRec))) L.push({ id: ex + ":" + rk, ex, rk, tramos: r.tramos, ret: r.ret, dd: r.dd, n: r.n, pf: r.pf, aciertos: r.aciertos, semestres: r.semestres, P: r.P, sh: r.sh, c2: r.c2, criptos: (t.criptos || []).length });
+    const L = []; for (const [ex, t] of Object.entries(tortugas)) for (const [rk, r] of Object.entries((t && t.perfiles) || {})) if (r && r.ok && r.ret != null && r.tramos && r.tramos.g >= 0.6 && (r.c2 && r.c2.ret > 0)   /* v1.0 · G4-2.3 · sin la prueba de costes dobles, NO entra (antes entraba) */ && !(r.tramos.rec < -10 || (r.tramos.rec < 0 && r.tramos.btcRec != null && r.tramos.rec < r.tramos.btcRec))) L.push({ id: ex + ":" + rk, ex, rk, tramos: r.tramos, ret: r.ret, dd: r.dd, n: r.n, pf: r.pf, aciertos: r.aciertos, semestres: r.semestres, P: r.P, sh: r.sh, c2: r.c2, criptos: nCriptos(t) });   /* v1.0 · G6-M6 · t.criptos es un NÚMERO (antes, (número || []).length daba siempre undefined) */
     // v455 · ⚖️ orden por CALIDAD: lo ganado al año menos 0,8 × su peor caída (igual que el podio de ETF), para que no gane siempre el más arriesgado
     for (const x of L) { const an = (Math.pow(Math.max(0.0001, 1 + x.ret / 100), 1 / 2) - 1) * 100; x.nota = +(an - 0.8 * Math.abs(x.dd || 0)).toFixed(2);   /* v457 · 0,8 */ }
     L.sort((a, b) => Math.round(b.nota * 10) - Math.round(a.nota * 10) || a.dd - b.dd);   /* v365 · v368 · lo ganado en toda su historia (2 años hasta hoy) → a igual ganancia, menos caída; los tramos solo deciden quién entra (veto: pierde en los últimos 6 meses más que tener bitcoin, o más de un 10 %) */ /* v408 · un podio POR EXCHANGE (Bitvavo y OKX): las 3 mejores de cada uno, para que el de comisiones más bajas no tape al otro */ podio = ["bitvavo", "okx"].flatMap((ex) => L.filter((x) => x.ex === ex).slice(0, 3)).map((x) => ({ ...x, desde: P0[x.id] || ahora }));

@@ -93,15 +93,24 @@ const TOKEN = env("GITHUB_TOKEN");
 const STATE_FILE = path.join(process.cwd(), "state.json");
 function sh(cmd, opts = {}) { return execSync(cmd, { stdio: "pipe", encoding: "utf8", ...opts }); }
 
+// v1.0 · G6-C6 · el laboratorio (DATA_NO_PISAR=1) solo publica si la rama «data» sigue como la leyó (o como la dejó él). Si el cierre diario u otra tarea la
+//   ha guardado mientras tanto, el laboratorio NO la pisa (antes, su «push -f» tardío borraba el cierre diario de Trading 212).
+let BASE_SHA = null;
+export function puedePisar(base, remoto, cuidado) { if (!cuidado) return true; if (!remoto) return true; return !!base && base === remoto; }
 function fetchState() {
   try {
     if (!REPO || !TOKEN) throw new Error("sin repo/token (ejecución local)");
     sh(`git -C "${ROOT}" fetch --depth 1 https://x-access-token:${TOKEN}@github.com/${REPO}.git data`);
     writeFileSync(STATE_FILE, sh(`git -C "${ROOT}" show FETCH_HEAD:state.json`, { maxBuffer: 1 << 30 }));
+    try { BASE_SHA = sh(`git -C "${ROOT}" rev-parse FETCH_HEAD`).trim(); } catch (e) { BASE_SHA = null; }
     log("Estado anterior recuperado de la rama data");
     return JSON.parse(readFileSync(STATE_FILE, "utf8"));
   } catch (e) {
-    log("No hay estado anterior en la rama data todavía:", String(e.message).split("\n")[0].slice(0, 120));
+    // v1.0 · G6-C2 · SOLO se empieza de cero si la rama «data» no existe. Ante otro fallo (GitHub caído, red…) se para: si no, arrancaba vacío y al publicar
+    //   borraba el podio de ETF y los contadores de 30 días que sigue Trading 212.
+    const m = String((e && (e.stderr || e.message)) || e);
+    if (!/couldn't find remote ref|remote ref does not exist|sin repo\/token/i.test(m)) throw new Error("no he podido leer el estado anterior (rama data); no sigo para no borrarlo: " + m.split("\n")[0].slice(0, 100));
+    log("No hay estado anterior en la rama data todavía:", m.split("\n")[0].slice(0, 120));
     return null;
   }
 }
@@ -126,7 +135,11 @@ function publish(snap) {
   g("add state.json");
   try { g("add vista.json"); } catch (e) {}
   g(`commit -q -m "estado ${new Date().toISOString()}"`);
-  g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git data`);
+  if (process.env.DATA_NO_PISAR === "1") { let remoto = null; try { remoto = (sh(`git ls-remote https://x-access-token:${TOKEN}@github.com/${REPO}.git refs/heads/data`).split(/\s/)[0] || "").trim() || null; } catch (e) { remoto = "?"; }
+    if (!puedePisar(BASE_SHA, remoto, true)) { log("La rama data ha cambiado mientras trabajaba (otra tarea, p. ej. el cierre diario, la ha guardado): no la piso; esta ronda no se publica."); lastHash = h; return; } }
+  // v1.0 · G6-M2 · 3 intentos con espera (un fallo puntual de GitHub ya no tira una ronda de 2 horas)
+  for (let i = 0; ; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git data`); break; } catch (e) { if (i >= 2) throw e; sh(`sleep ${5 * (i + 1)}`); } }
+  try { BASE_SHA = sh(`git -C "${pub}" rev-parse HEAD`).trim(); } catch (e) {}
   lastHash = h;
   log(`Estado publicado (${(txt.length / 1e6).toFixed(2)} MB)`);
 }

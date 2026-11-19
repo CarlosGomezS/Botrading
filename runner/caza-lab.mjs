@@ -133,7 +133,7 @@ export async function lab(log = console.log) {
     // v453 · 🔒 FUERA DE MUESTRA: los últimos 90 días quedan «escondidos» para la búsqueda (la nota que guía qué probar y mutar sale solo de lo anterior)
     //   y sirven de examen final. 💸 COSTES DOBLES: además tiene que ganar pagando el doble de comisiones y deslizamiento.
     const cut = CORTE_OCULTO, ais = cartera(ops, M, 260, cut, 5, g.sl), oos = cartera(ops, M, cut, n - 1, 5, g.sl), c2 = cartera(ops, M, 260, n - 1, 5, g.sl, 2);
-    if (a.ret > 0 && a.opsDia >= minOpsB(g)) ais.dd = Math.max(ais.dd, caidaHoraria(ops, M, 260, cut, 5, g.sl));   // v475 · la caída de antes del examen, también hora a hora
+    if (ais.ret > 0 && ais.opsDia >= minOpsB(g)) ais.dd = Math.max(ais.dd, caidaHoraria(ops, M, 260, cut, 5, g.sl));   /* v1.0 · G6-I5 · decide con lo de ANTES del examen (antes miraba «a», que incluye los 90 días ocultos) */   // v475 · la caída de antes del examen, también hora a hora
     r.is = ais; r.o = { ret: oos.ret, pf: oos.pf, n: oos.n, dd: oos.dd }; r.c2 = { ret: c2.ret, pf: c2.pf };
     if (ais.ret > 0 && ais.opsDia >= minOpsB(g)) { const xs = []; for (const [i0, i1] of TRAMOS) { const z = cartera(ops, M, i0, i1, 5, g.sl); xs.push({ m: Math.pow(Math.max(0.01, 1 + z.ret), 720 / (i1 - i0)) - 1, dd: z.dd, ok: z.ret > 0 }); }
       const ms = xs.map((x) => x.m).sort((p, q) => p - q), dds = xs.map((x) => x.dd).sort((p, q) => q - p); r.t = { n: xs.length, g: xs.filter((x) => x.ok).length / xs.length, med: ms[Math.floor(ms.length / 2)], dd: dds[Math.floor(dds.length / 4)] }; }
@@ -153,7 +153,7 @@ export async function lab(log = console.log) {
       const g = z < IA.length ? { a, b: null, f: r.filtro, h: r.salida_h, sl: r.stop } : muta({ a, b: null, f: r.filtro, h: r.salida_h, sl: r.stop }); if (g.a !== a && !(S[g.a] && S[g.a].ia)) g.a = a; marcaIA(g); const k = hs(clave(g)); if (vistas.has(k)) continue; vistas.add(k); cand.push(g); } }
   for (let z = 0; z < PRUEBAS * 20 && cand.length < PRUEBAS; z++) { const b0 = mem.casi.length && Math.random() < 0.3 ? mem.casi[Math.floor(Math.random() * mem.casi.length)].g : null, base = fixG(b0); const g = marcaIA(base && S[base.a] ? muta(base) : sinEco(nuevo())); if (g.a == null || !S[g.a]) continue; const k = hs(clave(g)); if (vistas.has(k)) continue; vistas.add(k); cand.push(g); }
   cand.sort((x, y) => x.a - y.a); const famStat = {}; let nOk = 0;
-  for (const g of cand) { const r = evalua(g), k = hs(clave(g)), f = S[g.a].fam; mem.probadas[k] = +r.nota.toFixed(3); (famStat[f] = famStat[f] || []).push(r.nota);
+  for (const g of cand) { const r = evalua(g), k = hs(clave(g)), f = S[g.a].fam; mem.probadas[k] = +r.nota.toFixed(3); if (r.is && r.is.n >= 20) (famStat[f] = famStat[f] || []).push(r.nota);   /* v1.0 · G6-M5 · con menos de 20 operaciones la nota es suerte: no cambia los pesos de la familia */
     // v465 · 🔒 las «casi» (las madres de las mutaciones) se eligen SOLO con datos anteriores a los 90 días ocultos: así el examen final no se filtra a la búsqueda
     if (r.is.ret > 0 && r.is.pf >= 1.05 && r.is.opsDia >= minOpsB(g)) { mem.casi.push({ v: 466, g, n: nombre(g), nota: r.nota, is: { ret: r.is.ret, pf: r.is.pf, opsDia: r.is.opsDia, dd: r.is.dd }, a: r.a, b: r.b, t: r.t }); }
     if (r.okA && r.okB && r.okC && !mem.aprobadas.some((x) => x.k === k) && !vecinosOk(g).ok) continue;   /* v458 · sin vecinos que ganen: no aprueba */   /* v458 · sin vecinos que ganen: se queda en «casi» */

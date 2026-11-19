@@ -117,9 +117,15 @@ const SECRET_NAMES = ["T212_KEY", "T212_SECRET", "REAL_VIEW_PASS", "NTFY_TOPIC",
 // El repositorio es PÚBLICO y los registros de GitHub Actions también: aquí nunca se escriben importes, posiciones ni tickers.
 function secretsMeta() { const o = {}; for (const k of SECRET_NAMES) o[k] = !!env(k); return o; }
 
+export const ramaNoExiste = (m) => /couldn't find remote ref|remote ref does not exist|invalid object name|does not exist in 'FETCH_HEAD'|path '.*' does not exist|exists on disk, but not in/i.test(String(m || ""));
 async function loadReal() {
   let txt;
-  try { txt = gitShow("real", "real.json"); } catch (e) { log("Todavía no hay historial de la cartera real (rama real): se empieza de cero."); return freshReal(); }
+  // v1.0 · G6-C1 · SOLO se empieza de cero si la rama «real» NO EXISTE de verdad. Ante cualquier otro fallo (GitHub caído, red…) se reintenta y, si sigue
+  //   fallando, se PARA sin publicar nada (antes se empezaba de cero y se sobrescribía todo: lotes, órdenes dudosas, historial).
+  for (let i = 0; ; i++) { try { txt = gitShow("real", "real.json"); break; } catch (e) { const m = String((e && (e.stderr || e.message)) || e);
+      if (ramaNoExiste(m) || env("LOCAL_REAL") || !REPO || !TOKEN) {   /* en GitHub siempre hay repositorio y token: lo local (pruebas) empieza de cero como antes */ log("Todavía no hay historial de la cartera real (rama real): se empieza de cero."); return freshReal(); }
+      if (i >= 2) throw new Error("no he podido leer el estado de la cartera real (3 intentos); no hago nada para no pisarlo");
+      execSync(`sleep ${3 * (i + 1)}`); } }
   let j = JSON.parse(txt);
   if (j.enc) {
     const r = await openAny(j, [env("REAL_VIEW_PASS"), env("REAL_VIEW_PASS_OLD")]);
@@ -701,7 +707,7 @@ async function priceOf(t, map, positions, fx) {
     try {
       const r = await fetch(`${YH}/v1/finance/search?q=${encodeURIComponent(inst.isin)}&quotesCount=8&newsCount=0`, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(15000) });
       const j = await r.json();
-      for (const q of (j.quotes || []).slice(0, 6)) { try { const y = await yahoo(q.symbol); if (y.cur === cur) return { px: y.px, cur, src: "Yahoo " + q.symbol }; } catch {} }
+      for (const q of (j.quotes || []).slice(0, 6)) { try { const y = await yahoo(q.symbol), px = precioEnDivisa(y.px, y.cur, cur); if (px > 0) return { px, cur, src: "Yahoo " + q.symbol }; } catch {} }   /* v1.0 · G6-M7 · libras y peniques también por ISIN */
     } catch {}
   }
   // segunda fuente sin clave: Stooq (cotizaciones europeas con sufijo .de, .uk…)
@@ -1128,7 +1134,7 @@ async function main() {
           const L = R.ledger; if (L.retPend == null) L.retPend = retPendInicial(L);
           const cubierto = d < 0 ? r2(Math.min(-d, Math.max(0, +L.retPend || 0))) : 0; if (cubierto > 0) L.retPend = r2(L.retPend - cubierto);
           const dd = d < 0 ? Math.min(0, Math.max(r2(d + cubierto), -L.cap)) : R.deposits.full ? Math.min(d, Math.max(0, r2(net - L.limite))) : d;   /* v402: lo que ya estaba contado no se suma dos veces */
-          L.auto = r2((L.auto || 0) + dd); L.cap = r2(L.cap + dd); L.cash = r2(L.cash + dd); L.limite = r2(L.limite + dd - cubierto); R.applied = null;
+          L.auto = r2((L.auto || 0) + dd - cubierto); L.cap = r2(L.cap + dd); L.cash = r2(L.cash + dd); L.limite = r2(L.limite + dd - cubierto);   /* v1.0 · G6-C4 · «auto» baja igual que el límite (si no, al día siguiente se volvía a poner dinero tuyo) */ R.applied = null;
           if (cubierto > 0) notasL.push(`Has retirado ${eur(-d)} de tu cuenta de Trading 212: ${eur(cubierto)} ya estaban descontados del bot (participaciones que vendiste a mano o su efectivo), así que no se vuelven a restar.${dd < 0 ? "" : " El bot sigue con lo que tiene."}`);
           if (dd) hist(R, { tipo: dd > 0 ? "aportación" : "retirada", eur: dd, nota: dd > 0 ? `ingreso en Trading 212 sumado al bot (${eur(dd)})` : `retirada de Trading 212 descontada del bot (${eur(-dd)})` }); flowAdd(R, m.date, dd);
           if (dd !== 0 || !(cubierto > 0)) notasL.push(dd > 0 ? `Has ingresado ${eur(dd)} en tu cuenta de Trading 212: se suma al bot, que ahora trabaja con ${eur(L.limite)}. Lo invertirá según el método en esta misma revisión (cuenta como aportación, no como ganancia).` : `Has retirado ${eur(-dd)} de tu cuenta de Trading 212: se descuenta del bot, que ahora trabaja con ${eur(L.limite)}. Si no le llega el efectivo, venderá lo necesario.`);
@@ -1180,9 +1186,9 @@ async function main() {
     }
     // v455 · 📏 REAL FRENTE A PRUEBA: en los últimos 30 días (desde que sigue a su método actual), ¿tu dinero real va igual que ese mismo método en la ficticia?
     //   Si va más de 5 puntos por detrás, algo se ha estropeado (precios, ejecución, divisa…): aviso por Telegram, como mucho uno a la semana.
-    try { const ks = metodosDe(A, S); if (ks.length === 1) { const dv = desvio(R, S, ks[0], m.date); R.desvio = dv;
+    try { const b0 = getBot(), S = b0 && b0.S; if (S) { const ks = metodosDe(A, S);   /* v1.0 · G6-I1 · antes usaba una «S» que aquí no existía y el aviso nunca saltaba */ if (ks.length === 1) { const dv = desvio(R, S, ks[0], m.date); R.desvio = dv;
       if (dv && dv.dias >= 20 && dv.real - dv.sim < -5 && !aviso && (!R.avDesvio || now - Date.parse(R.avDesvio) >= 7 * 864e5)) { R.avDesvio = now.toISOString();
-        aviso = { title: "📏 Cartera real: va peor que su prueba", msg: `En los últimos ${dv.dias} días tu dinero real lleva ${pct(dv.real)} y el mismo método en la ficticia ${pct(dv.sim)}. Debería ir casi igual: revisa la pantalla «Real» (gráfica real frente a simulación). Si se repite, avísame.`, prio: 3 }; } } } catch (e) {}
+        aviso = { title: "📏 Cartera real: va peor que su prueba", msg: `En los últimos ${dv.dias} días tu dinero real lleva ${pct(dv.real)} y el mismo método en la ficticia ${pct(dv.sim)}. Debería ir casi igual: revisa la pantalla «Real» (gráfica real frente a simulación). Si se repite, avísame.`, prio: 3 }; } } } } catch (e) {}
 
     if (tipo === "foto") {
       titulo = "Foto diaria del valor"; rep.push(`Guardado para la gráfica: el bot vale ${eur(BE.eq)} y tu cuenta ${eur(total)}.`);

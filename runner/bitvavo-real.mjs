@@ -222,7 +222,8 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   RS.vistos = RS.vistos || {};
   // v460 · 🧯 VENDER TODO: cada venta por separado (un fallo no impide intentar las demás). Lo que no se pueda vender sigue apuntado y se
   //   reintenta en la vuelta siguiente (el bot se queda parado / en pausa mientras quede algo); se avisa de lo que no se ha podido vender.
-  const vendeTodo = async (por) => { const mal = []; for (const m of Object.keys(RS.pos)) { try { await cerrar(m, por); } catch (e) { mal.push(RS.pos[m] ? RS.pos[m].sym : m); L(RS, now, `⚠️ no pude vender ${RS.pos[m] ? RS.pos[m].sym : m} (${String((e && e.message) || e).replace(/[A-Za-z0-9+/=_-]{24,}/g, "…").slice(0, 80)}); se reintenta en la próxima vuelta`); } }
+  const vendeTodo = async (por) => { const mal = []; for (const m of Object.keys(RS.pos)) { if ((ctl.conservar || []).includes(RS.pos[m] && RS.pos[m].sym)) continue;   /* v1.0 · G6-I3 · lo que marcaste como tuyo no se vende ni con el freno */
+    try { await cerrar(m, por); } catch (e) { mal.push(RS.pos[m] ? RS.pos[m].sym : m); L(RS, now, `⚠️ no pude vender ${RS.pos[m] ? RS.pos[m].sym : m} (${String((e && e.message) || e).replace(/[A-Za-z0-9+/=_-]{24,}/g, "…").slice(0, 80)}); se reintenta en la próxima vuelta`); } }
     const quedan = Object.keys(RS.pos).filter((m) => !(ctl.conservar || []).includes(RS.pos[m] && RS.pos[m].sym)).length; RS.pendienteVenta = quedan || undefined;
     if (quedan) msgs.push(`💶 🚨 ${EX}: he intentado vender todo (${por}), pero quedan ${quedan} sin vender${mal.length ? " (" + mal.join(", ") + ")" : ""}. Lo reintento en cada vuelta; mientras tanto siguen con su stop.`); return quedan; };
   // v291 · 🛡️ pone (o renueva) el stop de emergencia −10 % en el propio exchange; si falla, el bot sigue vigilando con su stop −6 %
@@ -525,7 +526,8 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     if (e && e.pendUsdc > 0) { RS.usdcPendC = (RS.usdcPendC || 0) + e.pendUsdc; if (e.pendRef) (RS.usdcRef = RS.usdcRef || []).push({ ...e.pendRef, c: 1 });   /* v1.0 · G3-2 */ RS.cash -= e.costeEur || 0; L(RS, now, `💵 ${r2(e.pendUsdc)} USDC del bot quedan pendientes de pasar a euros (se reintenta cada minuto)`); }   // v298
     if ((X.errClave || errClave)(e)) { RS.estado = "clave"; if (!RS.avisoClave || now - Date.parse(RS.avisoClave) > 6 * 3600e3) { RS.avisoClave = now.toISOString(); msgs.push(`💶 ⚠️ ${EX} REAL: la clave no funciona (${RS.err}). Revisa que tenga permiso de OPERAR y que esté bien copiada en Ajustes.`); } }
   }
-  const e2 = valor(RS, tick); RS.eq.push([now.toISOString(), r2(e2), r2(RS.start)]);   // v266 · también lo aportado hasta entonces (para no contar ingresos como ganancia) if (RS.eq.length > 3000) RS.eq = RS.eq.filter((_, i) => i % 2 === 0 || i > RS.eq.length - 500);
+  const e2 = valor(RS, tick); RS.eq.push([now.toISOString(), r2(e2), r2(RS.start)]);   // v266 · también lo aportado hasta entonces (para no contar ingresos como ganancia)
+  if (RS.eq.length > 3000) RS.eq = RS.eq.filter((_, i) => i % 2 === 0 || i > RS.eq.length - 500);   // v1.0 · G6-C7 · este recorte estaba DENTRO del comentario y nunca se hacía: el estado crecía sin fin
   RS.lastEq = r2(e2); RS.last = now.toISOString();
   if (RS) RS.dudosas = await resuelveDudosas(); return { RS, msgs, ctl };
 }

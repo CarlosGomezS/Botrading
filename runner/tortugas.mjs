@@ -68,7 +68,8 @@ export function filtrosOk(d, i, P) { P = conP(P);
   if (P.cazar > 0) { if (i < 5) return false; if (d[i][4] / d[i - 5][4] - 1 > P.cazar) return false; }
   return true; }
 // la misma señal que senal(), pero leyendo lo guardado (idéntica para i ≥ 20)
-export function senalRapida(d, i, P) { if (i < Math.max(P.ent, T_N) + 2) return null; const c = d[i][4], N = pre(d).N[i]; return { c, N, entra: c > hiDe(d, P.ent)[i] && filtrosOk(d, i, P), sale: c < loDe(d, P.sale)[i], sobreF: c > meDe(d, P.mFil)[i] }; }
+export const fuerzaRuptura = (s) => s && s.hi20 > 0 ? s.c / s.hi20 : 0;   // v1.0 · G6-I5 · la misma medida que bitvavo-real.mjs
+export function senalRapida(d, i, P) { if (i < Math.max(P.ent, T_N) + 2) return null; const c = d[i][4], N = pre(d).N[i]; const hi20 = hiDe(d, P.ent)[i]; return { c, N, hi20, entra: c > hi20 && filtrosOk(d, i, P), sale: c < loDe(d, P.sale)[i], sobreF: c > meDe(d, P.mFil)[i] }; }
 
 // 🧪 SIMULACIÓN DE CARTERA con las reglas EXACTAS del real: dinero compartido, como mucho 4 a la vez, tamaño por volatilidad (10-25 %),
 // comisión del exchange y medio spread en cada orden, salida por mínimo de 10 días solo si cubre comisiones (si no, espera ≤ 7 días), stop 2N (≤ −8 %).
@@ -91,12 +92,15 @@ export function simula(series, fee, spread = 0.002, P = null, desde = 0, hasta =
     // v458 · 🧯 FRENO DIARIO (opcional, P.frenoDia): si el día cierra perdiendo más de un 10 % respecto al cierre anterior, vende todo y no compra hasta mañana (como el bot real)
     if (P.frenoDia && Vant > 0 && V < Vant * (1 - 0.10) && Object.keys(pos).length) { for (const [m, p] of Object.entries(pos)) { const got = p.q * p.ult * (1 - cs(m)); cash += got; if (got > p.coste) { gan++; gb += got - p.coste; } else pb += p.coste - got; delete pos[m]; } V = valor(t); frenos++; }
     else
-    for (const [m, d] of Object.entries(series)) { if (pos[m] || Object.keys(pos).length >= P.maxPos) continue; const i = idx[m].get(t); if (i == null || i < P.ent + 2) continue; const s = senalRapida(d, i, P);
+    { const cands = []; for (const [m, d] of Object.entries(series)) { if (pos[m]) continue; const i = idx[m].get(t); if (i == null || i < P.ent + 2) continue; const s = senalRapida(d, i, P);
       if (s && s.entra && P.filtro && BTC) { const ib = idx["BTC-EUR"].get(t); const sb = ib != null ? senalRapida(BTC, ib, P) : null; if (!sb || !sb.sobreF) continue; }
       if (s && s.entra && P.atrMax > 0 && s.N / s.c > P.atrMax) continue;   /* v317 · demasiado nerviosa */
-      if (!s || !s.entra || !(s.N > 0)) continue;
+      if (!s || !s.entra || !(s.N > 0)) continue; cands.push([m, s]); }
+    // v1.0 · G6-I5 · como el bot real: primero las de ruptura más fuerte (cierre / máximo de entrada). Antes, el orden de las claves (alfabético) decidía cuáles entraban
+    cands.sort((x, y) => fuerzaRuptura(y[1]) - fuerzaRuptura(x[1]));
+    for (const [m, s] of cands) { if (Object.keys(pos).length >= P.maxPos) break;
       const stopD = Math.min(P.kN * s.N, s.c * P.stopMax); let eur = tamano(V, stopD / s.c, P); eur = Math.min(eur, cash); if (eur < 0.05 * V) continue;
-      const px = s.c * (1 + spd(m) / 2); cash -= eur; pos[m] = { q: (eur * (1 - fee)) / px, px, coste: eur, stop: s.c - stopD, t0: t, ult: s.c }; n++; }
+      const px = s.c * (1 + spd(m) / 2); cash -= eur; pos[m] = { q: (eur * (1 - fee)) / px, px, coste: eur, stop: s.c - stopD, t0: t, ult: s.c }; n++; } }
     const V2 = valor(t); pico = Math.max(pico, V2); dd = Math.max(dd, 1 - V2 / pico); curva.push([t, V2]); Vant = V2; }
   const fin = curva.length ? curva[curva.length - 1][1] : 1, q = [0, 1, 2, 3].map((j) => { const a = Math.floor((curva.length * j) / 4), b = Math.floor((curva.length * (j + 1)) / 4) - 1; return curva.length ? Math.round((curva[b][1] / (j ? curva[a - 1][1] : 1) - 1) * 10000) / 100 : 0; });
   return { ret: Math.round((fin - 1) * 10000) / 100, dd: Math.round(dd * 10000) / 100, n, aciertos: n ? Math.round((gan / n) * 100) : 0, pf: pb > 0 ? Math.round((gb / pb) * 100) / 100 : gb > 0 ? 99 : 0, semestres: q, curva, frenos };
