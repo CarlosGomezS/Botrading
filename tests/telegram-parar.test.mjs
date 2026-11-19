@@ -25,3 +25,7 @@ test("G4-3 · candado de Telegram: si otro proceso ya está leyendo (etiqueta cr
   assert.equal(a.ok, true); assert.equal(b.ok, false, "el segundo no lee"); await a.suelta(); assert.equal((await TG.tgCandado(F)).ok, true, "suelto, el siguiente sí");
   assert.ok(vistas.some(([m, u]) => m === "POST" && /refs$/.test(u)));
 });
+
+test("G4-1.3 · en una copia de la app SIN Hyperliquid, /parar no se queda esperando por él", async () => {
+  assert.equal(await TG.hlParar({ accion: "parar" }, async () => ({ status: 404 })), true);
+});
