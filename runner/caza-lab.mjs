@@ -72,7 +72,13 @@ export function cuarPasa(dias, z, min, ddMax) { return !!(z && dias >= CUAR_DIAS
 // v478 · la caída de la cuarentena se mide también HORA A HORA (con lo abierto valorado a precio de cada hora), igual que en los exámenes:
 //   una operación que cae un 40 % y luego acaba ganando cuenta como caída del 40 %.
 export function cuarZ(ops, M, i0, n, sl, f = { cartera, caidaHoraria }) { if (!(i0 >= 0 && i0 < n - 1)) return { n: 0, ret: 0, pf: 0, dd: 0 }; const z = f.cartera(ops, M, i0, n - 1, 5, sl); let dh = 0; try { dh = f.caidaHoraria(ops, M, i0, n - 1, 5, sl) || 0; } catch (e) { dh = 1; } return { ...z, dd: Math.max(Math.abs(+z.dd || 0), Math.abs(+dh || 0)) }; }
-export function tramosAlAzar(corte) { const T = []; for (let q = 0; q < 16; q++) { const len = Math.max(24, Math.min(Math.round((30 + Math.random() * 150) * 24), corte - 260 - 24)), fin = q < 8 ? corte : 260 + len + Math.floor(Math.random() * Math.max(1, corte - 260 - len)); T.push([Math.max(260, fin - len), Math.min(fin, corte)]); } return T; }
+// v1.0 · G5-1.4 · los tramos se sortean UNA VEZ POR SEMANA (semilla de la semana), no en cada ronda: antes, cada 3 h un sorteo nuevo podía echar
+//   por pura mala suerte a un método bueno en plena cuarentena de 21 días (168 sorteos). Así, como mucho 3 sorteos en la cuarentena.
+export const semanaDe = (t = Date.now()) => Math.floor(t / (7 * 864e5));
+export function azarFijo(seed) { let a = (seed * 2654435761) >>> 0 || 1; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+export function tramosAlAzar(corte, rnd = azarFijo(semanaDe())) { const T = []; for (let q = 0; q < 16; q++) { const len = Math.max(24, Math.min(Math.round((30 + rnd() * 150) * 24), corte - 260 - 24)), fin = q < 8 ? corte : 260 + len + Math.floor(rnd() * Math.max(1, corte - 260 - len)); T.push([Math.max(260, fin - len), Math.min(fin, corte)]); } return T; }
+export const PESO_MAX = 5;
+export const iaEnUso = (M0) => [...((M0 && M0.aprobadas) || []), ...((M0 && M0.casi) || []), ...((M0 && M0.podio) || [])].some((x) => x && x.g && (x.g.ia || x.g.iab));
 export async function lab(log = console.log) {
   const M0 = (await memoria()) || {};
   // v456 · 🧊 CUARENTENA: un método que aprueba pasa 21 días en ficticio (precios reales, sin dinero) antes de poder usarse con dinero real.
@@ -87,19 +93,22 @@ export async function lab(log = console.log) {
   const D = await datos(() => {}), { T, M, U } = D, n = T.length, corte = Math.floor(n * 0.6), mitad = Math.floor((corte + n) / 2);
   // v466 · 🔒 los tramos al azar acaban como muy tarde en el CORTE (antes de los 90 días ocultos): así nada de la nota que guía la búsqueda los ve
   const CORTE_OCULTO = Math.max(300, n - 1 - 90 * 24);
-  const TRAMOS = tramosAlAzar(CORTE_OCULTO);   // v365 · nuevos en cada ronda
-  const X = { btcUp: null, up: {}, vol: {}, volMed: {} }; { const { ema, atr } = await import("./caza-hl2.mjs"); const e = ema(M.BTC.C, 200); X.btcUp = Uint8Array.from(M.BTC.C, (c, i) => (c > e[i] ? 1 : 0)); for (const c of U) { const e2 = ema(M[c].C, 100); X.up[c] = Uint8Array.from(M[c].C, (x, i) => (x > e2[i] ? 1 : 0)); X.vol[c] = atr(M[c], 24); const s = [...X.vol[c].slice(250, corte)].filter(Number.isFinite).sort((a, b) => a - b); X.volMed[c] = s[Math.floor(s.length / 2)]; } }
+  const TRAMOS = tramosAlAzar(CORTE_OCULTO);   // v1.0 · G5-1.4 · los de esta SEMANA (antes, nuevos en cada ronda)
+  const X = { btcUp: null, up: {}, vol: {}, volMed: {} }; { const { ema, atr, medianaMovil } = await import("./caza-hl2.mjs"); const e = ema(M.BTC.C, 200); X.btcUp = Uint8Array.from(M.BTC.C, (c, i) => (c > e[i] ? 1 : 0)); for (const c of U) { const e2 = ema(M[c].C, 100); X.up[c] = Uint8Array.from(M[c].C, (x, i) => (x > e2[i] ? 1 : 0)); X.vol[c] = atr(M[c], 24); X.volMed[c] = medianaMovil(X.vol[c]);   /* v1.0 · G5-1.5 · causal, igual que en el real */ } }
   const S = senales(D);
   // v366 · 🤖 recetas del ayudante IA (Gemini): se añaden como señales extra; tienen que aprobar el mismo examen que todas
-  let IA = []; try { const RX = await import("./ia-receta.mjs"); const j = await (await fetch(`https://raw.githubusercontent.com/${REPO}/ia-lab/ia-lab.json?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) })).json(); const FNk = Object.keys(FILTROS);
-    IA = (((j && j.cripto && j.cripto.recetas) || []).map((r) => RX.validaReceta(r, FNk)).filter(Boolean)).slice(0, 200); for (const r of IA) S.push({ fam: "🤖 IA", p: { ia: r.id, n: r.nombre }, fn: RX.senalReceta(r), ia: r }); } catch (e) { IA = []; }
+  let IA = [], iaLeida = false; try { const RX = await import("./ia-receta.mjs"); const j = await (await fetch(`https://raw.githubusercontent.com/${REPO}/ia-lab/ia-lab.json?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) })).json(); const FNk = Object.keys(FILTROS);
+    IA = (((j && j.cripto && j.cripto.recetas) || []).map((r) => RX.validaReceta(r, FNk)).filter(Boolean)).slice(0, 200); for (const r of IA) S.push({ fam: "🤖 IA", p: { ia: r.id, n: r.nombre }, fn: RX.senalReceta(r), ia: r }); iaLeida = true; } catch (e) { IA = []; }
+  // v1.0 · G5-1.1 · si NO se han podido leer las recetas de la IA y hay métodos suyos en la memoria, esta ronda no sigue: se habrían borrado del podio
+  //   y de la cuarentena (con su fecha) por un simple fallo de descarga
+  if (!iaLeida && iaEnUso(M0)) throw new Error("no he podido leer las recetas de la IA y hay métodos suyos aprobados: esta ronda no toca nada");
   if (IA.length) log(`🤖 Recetas del ayudante IA: ${IA.length}`);
   const iaIdx = new Map(S.map((x, j) => [x.ia ? x.ia.id : null, j]).filter(([k]) => k));
   const fixG = (g) => { if (!g) return null; const z = { ...g }; if (z.ia) { const j = iaIdx.get(z.ia); if (j == null) return null; z.a = j; } else if (S[z.a] && S[z.a].ia) return null; if (z.iab) { const j = iaIdx.get(z.iab); if (j == null) z.b = null; else z.b = j; } return z; };
   const marcaIA = (g) => { if (S[g.a] && S[g.a].ia) g.ia = S[g.a].ia.id; else delete g.ia; if (g.b != null && S[g.b] && S[g.b].ia) g.iab = S[g.b].ia.id; else delete g.iab; return g; };
   const FAM = [...new Set(S.map((s) => s.fam))], cache = new Map(), sig = (j) => { if (!cache.has(j)) { const o = {}; for (const c of U) { try { o[c] = S[j].fn(M[c], T, M.BTC); } catch (e) { o[c] = new Int8Array(n); } } cache.set(j, o); if (cache.size > 40) cache.delete(cache.keys().next().value); } return cache.get(j); };
   // peso de cada familia: lo cerca que se ha quedado de aprobar (mejor factor de beneficio en la prueba) + empujón por ideas recientes
-  const peso = (f) => Math.max(0.2, (mem.pesos[f] || 1));   // v459 · solo cuenta lo que funciona con NUESTROS datos (lo publicado en internet ya no sube el peso; las IAs sí lo leen para proponer recetas)
+  const peso = (f) => Math.min(PESO_MAX, Math.max(0.2, (mem.pesos[f] || 1)));   // v459 · solo cuenta lo que funciona con NUESTROS datos (lo publicado en internet ya no sube el peso; las IAs sí lo leen para proponer recetas)
   const elige = () => { const tot = FAM.reduce((a, f) => a + peso(f), 0); let r = Math.random() * tot; for (const f of FAM) { r -= peso(f); if (r <= 0) return f; } return FAM[0]; };
   const idxDe = (f) => { const js = S.map((s, j) => (s.fam === f ? j : -1)).filter((j) => j >= 0); return js[Math.floor(Math.random() * js.length)]; };
   const FN = Object.keys(FILTROS), SAL = [1, 2, 4, 8, 16, 24, 48, 72, 120, 168], STP = [0, 0.02, 0.03, 0.05, 0.08];
@@ -149,7 +158,7 @@ export async function lab(log = console.log) {
     if (r.is.ret > 0 && r.is.pf >= 1.05 && r.is.opsDia >= minOpsB(g)) { mem.casi.push({ v: 466, g, n: nombre(g), nota: r.nota, is: { ret: r.is.ret, pf: r.is.pf, opsDia: r.is.opsDia, dd: r.is.dd }, a: r.a, b: r.b, t: r.t }); }
     if (r.okA && r.okB && r.okC && !mem.aprobadas.some((x) => x.k === k) && !vecinosOk(g).ok) continue;   /* v458 · sin vecinos que ganen: no aprueba */   /* v458 · sin vecinos que ganen: se queda en «casi» */
     if (r.okA && r.okB && r.okC) { nOk++; if (!mem.aprobadas.some((x) => x.k === k)) mem.aprobadas.push({ k, g, n: nombre(g), a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2, is: { ret: r.is.ret, dd: r.is.dd, pf: r.is.pf, opsDia: r.is.opsDia }, desde: new Date().toISOString() }); } }
-  for (const [f, v] of Object.entries(famStat)) { const top = v.sort((a, b) => b - a).slice(0, 5), m = top.reduce((a, b) => a + b, 0) / top.length; mem.pesos[f] = +((mem.pesos[f] || 1) * 0.7 + 0.3 * Math.max(0.2, m)).toFixed(3); }
+  for (const [f, v] of Object.entries(famStat)) { const top = v.sort((a, b) => b - a).slice(0, 5), m = top.reduce((a, b) => a + b, 0) / top.length; mem.pesos[f] = +Math.min(PESO_MAX, (mem.pesos[f] || 1) * 0.7 + 0.3 * Math.max(0.2, m)).toFixed(3); }   /* v1.0 · G5-1.3 · con tope: una familia no puede acaparar el laboratorio */
   mem.casi = mem.casi.sort((a, b) => b.nota - a.nota).filter((x, i, A) => A.findIndex((y) => y.n === x.n) === i).slice(0, 60);
   // las aprobadas se vuelven a examinar cada ronda con los datos nuevos: si dejan de aprobar, salen del podio
   mem.aprobadas = mem.aprobadas.filter((x) => { const g2 = fixG(x.g); if (!g2 || !S[g2.a]) return false; x.g = g2; const r = evalua(x.g); Object.assign(x, { a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2, is: { ret: r.is.ret, dd: r.is.dd, pf: r.is.pf, opsDia: r.is.opsDia } });

@@ -28,13 +28,19 @@ export function senales(D) {
   for (const t of [0.00005, 0.0001, 0.0002]) add("Financiación extrema, contra", { t }, (d) => { const o = new Int8Array(d.C.length); for (let i = 8; i < d.C.length; i++) { let f = 0; for (let k = i - 8; k < i; k++) f += d.F[k]; f /= 8; o[i] = f > t ? -1 : f < -t ? 1 : 0; } return o; });
   return S;
 }
-export const FILTROS = { "sin filtro": () => true, "a favor de BTC (media 200 h)": (dir, i, X) => (dir > 0) === X.btcUp[i], "a favor de la propia cripto (media 100 h)": (dir, i, X, c) => (dir > 0) === X.up[c][i], "solo con poca volatilidad": (dir, i, X, c) => X.vol[c][i] <= X.volMed[c], "solo con mucha volatilidad": (dir, i, X, c) => X.vol[c][i] > X.volMed[c] };
+export const FILTROS = { "sin filtro": () => true, "a favor de BTC (media 200 h)": (dir, i, X) => (dir > 0) === X.btcUp[i], "a favor de la propia cripto (media 100 h)": (dir, i, X, c) => (dir > 0) === X.up[c][i], "solo con poca volatilidad": (dir, i, X, c) => X.vol[c][i] <= medEn(X.volMed[c], i), "solo con mucha volatilidad": (dir, i, X, c) => X.vol[c][i] > medEn(X.volMed[c], i) };
+// v1.0 · G5-1.5 · la volatilidad «normal» de cada momento = mediana de las 1.200 horas ANTERIORES (se recalcula cada 24 h). La misma cuenta en el
+//   laboratorio y en el real (antes: el laboratorio usaba casi un año, futuro incluido para las horas tempranas, y el real 50 días).
+export const VOL_VENT = 1200;
+export function medianaMovil(v, vent = VOL_VENT, paso = 24) { const n = v.length, out = new Float64Array(n).fill(NaN); let ult = NaN;
+  for (let i = 0; i < n; i++) { if (i % paso === 0 || Number.isNaN(ult)) { const s = []; for (let k = Math.max(0, i - vent); k < i; k++) if (Number.isFinite(v[k])) s.push(v[k]); if (s.length >= 48) { s.sort((a, b) => a - b); ult = s[Math.floor(s.length / 2)]; } } out[i] = ult; } return out; }
+export const medEn = (m, i) => (m && typeof m === "object" ? m[i] : m);
 
 export async function caza2(log = console.log) {
   log("Descargando velas de 1 h, volumen y financiación de Hyperliquid (últimos 540 días)…");
   const D = await datos(() => {}), { T, M, U } = D, n = T.length, corte = Math.floor(n * 0.6), mitad = Math.floor((corte + n) / 2);
   const X = { btcUp: (() => { const e = ema(M.BTC.C, 200); return Uint8Array.from(M.BTC.C, (c, i) => (c > e[i] ? 1 : 0)); })(), up: {}, vol: {}, volMed: {} };
-  for (const c of U) { const e = ema(M[c].C, 100); X.up[c] = Uint8Array.from(M[c].C, (x, i) => (x > e[i] ? 1 : 0)); X.vol[c] = atr(M[c], 24); const s = [...X.vol[c].slice(250, corte)].filter(Number.isFinite).sort((a, b) => a - b); X.volMed[c] = s[Math.floor(s.length / 2)]; }
+  for (const c of U) { const e = ema(M[c].C, 100); X.up[c] = Uint8Array.from(M[c].C, (x, i) => (x > e[i] ? 1 : 0)); X.vol[c] = atr(M[c], 24); X.volMed[c] = medianaMovil(X.vol[c]); }
   const S = senales(D); log(`Datos: ${U.length} criptos · ${Math.round(n / 24)} días · ${S.length} señales × ${Object.keys(FILTROS).length} filtros × 4 salidas × 2 stops = ${S.length * Object.keys(FILTROS).length * 8} combinaciones`);
   const R = [];
   for (const s of S) {

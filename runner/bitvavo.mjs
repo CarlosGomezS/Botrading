@@ -503,7 +503,7 @@ export async function leerEstado() {
 }
 export async function publicarEstado(S) {
   // v295 · sin contraseña NUNCA se publica nada privado: se quitan el dinero real y la conexión con los exchanges
-  if (!PW()) { const { real, conex, ...pub } = S; void real; void conex; publicar("bitvavo.json", pub, RAMA); return; }
+  if (!PW()) { const { real, conex, consola, termPend, ...pub } = S; void real; void conex; void consola; void termPend; publicar("bitvavo.json", pub, RAMA); return; }   // v1.0 · G5-2 · tampoco el terminal
   const enc = await encrypt(JSON.stringify(S), PW());
   const cx = S.conex ? Object.fromEntries(["bitvavo", "okx"].map((k) => [k, S.conex[k] ? S.conex[k].estado : null])) : null; if (cx && S.conex) cx.cod = Object.fromEntries(["bitvavo", "okx"].map((k) => { const t = String((S.conex[k] && S.conex[k].txt) || ""), m = t.match(/código (\w+)/) || t.match(/\b(\d{3,5})\b/); return [k, m ? m[1] : null]; })); if (cx && S.conex) cx.diag = Object.assign({}, ...["bitvavo", "okx"].map((k) => (S.conex[k] && S.conex[k].diag) || {})); if (cx && S.conex) cx.tiene = Object.assign({}, ...["bitvavo", "okx"].map((k) => (S.conex[k] && S.conex[k].tiene) || {}));   /* solo si hay clave y si funciona: nunca importes */
   publicar("bitvavo.json", { enc: 1, v: 1, ...enc, meta: { t: S.last, vivo: 1, seg: S.diag ? S.diag.seg : null, conex: cx } }, RAMA);
@@ -590,6 +590,27 @@ async function main() {
   //   vuelta tardaba ≥ 55 s, esa vez no se vigilaba; y si fallaba, se callaba. Usa las señales de las Tortugas ya calculadas (se recalculan más abajo para la siguiente).
   try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI, tickOkx: tickOkxReal }); }
   catch (e) { REAL_FALLO = String((e && e.message) || e).replace(/[A-Za-z0-9+/=_-]{24,}/g, "…").slice(0, 120); console.log("Real: error · " + REAL_FALLO); }
+  // v1.0 · G5-2 · 🐢 TORTUGAS PRONTO: sus señales diarias se calculan aquí, antes de los laboratorios ficticios (antes iban al final y, en una vuelta lenta,
+  //   su presupuesto de tiempo se agotaba). Su tope de tiempo es el mismo (35 s desde el inicio de la vuelta).
+  // v304 · 🐢 TORTUGAS: señales diarias de las 20 criptos más líquidas de CADA exchange (con sus velas); se recalculan al cerrar el día (o cada 6 h)
+  S.tort = S.tort || {}; const hoyT = new Date().toISOString().slice(0, 10);
+  // v318 · 🎚️ las reglas aprendidas de cada perfil de riesgo (se leen cada 30 min; si cambian, se recalculan las señales enseguida)
+  if (!S.tortELat || now - S.tortELat >= 30 * 60e3) try { const EL = await leer("examen-largo.json", "examen-largo"); S.tortELat = now.getTime(); if (EL && EL.tortugas) S.tortP = Object.fromEntries(["bitvavo", "okx"].map((ex) => { const T = EL.tortugas[ex] || {}; return [ex, Object.fromEntries(["bajo", "medio", "alto"].map((rk) => [rk, (T.perfiles && T.perfiles[rk] && T.perfiles[rk].P) || (rk === "medio" ? T.P : null) || null]))]; })); } catch (e) {}
+  // v320 · 🌍 TODAS las criptos líquidas (hasta 150 por exchange): las velas se piden POR TANDAS (unas 25 por minuto) y al terminar se cambian las señales
+  S.tortJob = S.tortJob || {};
+  for (const ex of ["bitvavo", "okx"]) { const T0 = S.tort[ex], PS = (S.tortP && S.tortP[ex]) || { medio: null }, clave = JSON.stringify(PS); if (Date.now() - t0 > 35e3) break;
+    let J = S.tortJob[ex]; const toca = !(T0 && T0.dia === hoyT && now - T0.t < 6 * 3600e3 && T0.clave === clave);
+    if (!J && !toca) continue;
+    try { const TT = await import("./tortugas.mjs");
+      if (!J || J.clave !== clave || now - J.t0 > 2 * 3600e3) { let lista = [];
+        if (ex === "bitvavo") lista = TT.universo(tick).map(([m, x]) => ({ m, vq: x.vq })); else if (tickOkxReal) lista = TT.universo(tickOkxReal).map(([m, x]) => ({ m, par: x.par, k: x.k, vq: x.vq }));
+        if (!lista.length) continue; const Ps = Object.fromEntries(Object.entries(PS).map(([rk, P]) => [rk, TT.conP(P)]));
+        J = S.tortJob[ex] = { t0: now.getTime(), clave, lista, i: 0, Ps, dias: Math.max(90, ...Object.values(Ps).map((P) => Math.max(P.ent + 30, (P.filtro ? P.mFil : 0) + 30))), per: Object.fromEntries(Object.keys(Ps).map((rk) => [rk, { P: Ps[rk], sen: {} }])) }; }
+      const fin = Date.now() + 15e3; while (J.i < J.lista.length && Date.now() < fin) { const { m, par, k, vq } = J.lista[J.i++]; try { const d = await TT.diarias(ex, m, J.dias, par, k || 1); for (const rk of Object.keys(J.Ps)) { const x = TT.senal(d, J.Ps[rk]); if (x && x.entra && !(vq >= TT.UNI_ENTRA)) { x.entra = false; x.pocaLiq = 1; }   /* v456 · con menos de 50.000 €/día solo se vigila para SALIR */ if (x) J.per[rk].sen[m] = x; } } catch (e) {} }
+      if (J.i >= J.lista.length) { delete S.tortJob[ex]; const per = J.per, M = per.medio || Object.values(per)[0];
+        if (M && Object.keys(M.sen).length >= 5) { S.tort[ex] = { t: now.getTime(), dia: hoyT, clave, sen: M.sen, P: M.P, perfiles: per };
+          console.log(`🐢 Tortugas ${ex}: ${Object.keys(M.sen).length} criptos vigiladas · ` + Object.entries(per).map(([rk, x]) => { const en = Object.entries(x.sen).filter(([, y]) => y.entra).map(([mm]) => mm.split("-")[0]); return `${TT.perfil(rk).nombre}: ${en.length} con señal de entrada`; }).join(" · ")); } } }   /* v478 · registro público: solo cuántas, nunca cuáles */
+    catch (e) { console.log(`🐢 Tortugas ${ex}: sin velas diarias (${String(e.message).slice(0, 40)})`); } }
   { if (soloTortugasRuido(now)) console.log(`Señales ahora (OKX: ${OKX ? OKX.size : "SIN LISTA"} criptos, ${Object.keys(FO).length} con datos):` + SUBS.map((k) => { const C = S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, FF = PERF[k].soloOkx ? FO : F; return ` ${k} ${Object.values(FF).filter((f) => f && entra(g, f)).length}${C.prueba ? "🧪" : "⭐"}`; }).join(",")); }
   for (const k of SUBS) paso(S.sub[k], PERF[k].soloOkx ? tickO : tick, PERF[k].soloOkx ? FO : F, now);
   // v224/v225 · cobrar financiación y rejilla: tres submodos cada uno, con sus propios 100 € ficticios
@@ -656,25 +677,7 @@ async function main() {
   if (!S.base || now - S.base.t > 60 * 60e3) try { const T = await tendenciaBase(S.base); if (T) S.base = T; } catch (e) { console.log("Cartera base: sin velas diarias (" + String(e.message).slice(0, 40) + ")"); }   // v301 · cada hora
   // v316 · 🧪🐋 HYPERLIQUID en directo con dinero FICTICIO: el método que aprobó la caza (cada 5 min y al empezar cada hora)
   if (Date.now() - t0 < 40e3 && (!S.hlp || now - S.hlp.t >= 5 * 60e3 || Math.floor(now / 3600e3) * 3600e3 !== S.hlp.ultHora)) try { const HP = await import("./hl-momento.mjs"); S.hlp = await HP.paso(S.hlp, now.getTime(), fetch, (x) => console.log(x)); const z = HP.resumen(S.hlp); if (z && (!S.hlpLogAt || now - S.hlpLogAt >= 3600e3)) { S.hlpLogAt = now.getTime(); console.log(`🧪🐋 Hyperliquid (ficticio): ${z.pc >= 0 ? "+" : ""}${z.pc} % en ${z.dias} días · ${z.ops} operaciones (${z.opsDia}/día) · ${z.aciertos} % aciertos · abiertas ${z.abiertas.length}`); } } catch (e) { console.log("🧪🐋 Hyperliquid (ficticio): " + String(e.message).slice(0, 60)); }
-  // v304 · 🐢 TORTUGAS: señales diarias de las 20 criptos más líquidas de CADA exchange (con sus velas); se recalculan al cerrar el día (o cada 6 h)
-  S.tort = S.tort || {}; const hoyT = new Date().toISOString().slice(0, 10);
-  // v318 · 🎚️ las reglas aprendidas de cada perfil de riesgo (se leen cada 30 min; si cambian, se recalculan las señales enseguida)
-  if (!S.tortELat || now - S.tortELat >= 30 * 60e3) try { const EL = await leer("examen-largo.json", "examen-largo"); S.tortELat = now.getTime(); if (EL && EL.tortugas) S.tortP = Object.fromEntries(["bitvavo", "okx"].map((ex) => { const T = EL.tortugas[ex] || {}; return [ex, Object.fromEntries(["bajo", "medio", "alto"].map((rk) => [rk, (T.perfiles && T.perfiles[rk] && T.perfiles[rk].P) || (rk === "medio" ? T.P : null) || null]))]; })); } catch (e) {}
-  // v320 · 🌍 TODAS las criptos líquidas (hasta 150 por exchange): las velas se piden POR TANDAS (unas 25 por minuto) y al terminar se cambian las señales
-  S.tortJob = S.tortJob || {};
-  for (const ex of ["bitvavo", "okx"]) { const T0 = S.tort[ex], PS = (S.tortP && S.tortP[ex]) || { medio: null }, clave = JSON.stringify(PS); if (Date.now() - t0 > 35e3) break;
-    let J = S.tortJob[ex]; const toca = !(T0 && T0.dia === hoyT && now - T0.t < 6 * 3600e3 && T0.clave === clave);
-    if (!J && !toca) continue;
-    try { const TT = await import("./tortugas.mjs");
-      if (!J || J.clave !== clave || now - J.t0 > 2 * 3600e3) { let lista = [];
-        if (ex === "bitvavo") lista = TT.universo(tick).map(([m, x]) => ({ m, vq: x.vq })); else if (tickOkxReal) lista = TT.universo(tickOkxReal).map(([m, x]) => ({ m, par: x.par, k: x.k, vq: x.vq }));
-        if (!lista.length) continue; const Ps = Object.fromEntries(Object.entries(PS).map(([rk, P]) => [rk, TT.conP(P)]));
-        J = S.tortJob[ex] = { t0: now.getTime(), clave, lista, i: 0, Ps, dias: Math.max(90, ...Object.values(Ps).map((P) => Math.max(P.ent + 30, (P.filtro ? P.mFil : 0) + 30))), per: Object.fromEntries(Object.keys(Ps).map((rk) => [rk, { P: Ps[rk], sen: {} }])) }; }
-      const fin = Date.now() + 15e3; while (J.i < J.lista.length && Date.now() < fin) { const { m, par, k, vq } = J.lista[J.i++]; try { const d = await TT.diarias(ex, m, J.dias, par, k || 1); for (const rk of Object.keys(J.Ps)) { const x = TT.senal(d, J.Ps[rk]); if (x && x.entra && !(vq >= TT.UNI_ENTRA)) { x.entra = false; x.pocaLiq = 1; }   /* v456 · con menos de 50.000 €/día solo se vigila para SALIR */ if (x) J.per[rk].sen[m] = x; } } catch (e) {} }
-      if (J.i >= J.lista.length) { delete S.tortJob[ex]; const per = J.per, M = per.medio || Object.values(per)[0];
-        if (M && Object.keys(M.sen).length >= 5) { S.tort[ex] = { t: now.getTime(), dia: hoyT, clave, sen: M.sen, P: M.P, perfiles: per };
-          console.log(`🐢 Tortugas ${ex}: ${Object.keys(M.sen).length} criptos vigiladas · ` + Object.entries(per).map(([rk, x]) => { const en = Object.entries(x.sen).filter(([, y]) => y.entra).map(([mm]) => mm.split("-")[0]); return `${TT.perfil(rk).nombre}: ${en.length} con señal de entrada`; }).join(" · ")); } } }   /* v478 · registro público: solo cuántas, nunca cuáles */
-    catch (e) { console.log(`🐢 Tortugas ${ex}: sin velas diarias (${String(e.message).slice(0, 40)})`); } }
+  // (v1.0 · G5-2 · las señales de las Tortugas se calculan ahora al principio, justo después del dinero real: ver «TORTUGAS PRONTO»)
   // v306 · 🐋 COPIA A LOS PROFESIONALES: los mejores traders de Hyperliquid (cuentas > 500.000 $ que ganan este mes y en total).
   // Si la mayoría de su dinero está COMPRADO en una cripto (≥ 60 %, al menos 4 de ellos) y además están metiendo más (sube en la última hora), es señal.
   if (hlFresco && S.hl && S.hl.snap) { const pv = HLm.hace(S.hl, S.hl.at || now.getTime(), 3600e3) || {}, m = {};
@@ -694,4 +697,4 @@ async function main() {
 }
 let REAL_FALLO = null;
 export { main };
-if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.log("Bitvavo: " + (e.message || e)); process.exit(0); });
+if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.log("Bitvavo: " + (e.message || e)); process.exit(1); });   // v1.0 · G5-2 · un fallo general sale en rojo (y cuenta para el aviso)

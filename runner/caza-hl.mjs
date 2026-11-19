@@ -18,7 +18,7 @@ export async function datos(log) {
     // v360 · Hyperliquid solo da las últimas 5.000 velas (~208 días): la historia larga de precios sale de OKX (mismo contrato perpetuo
     // contra USDT, precios casi idénticos) y la financiación, de Hyperliquid. Si OKX no la tiene, se usan las velas de Hyperliquid.
     const k = new Map(), inst = (c === "kPEPE" ? "PEPE" : c === "kBONK" ? "BONK" : c === "kSHIB" ? "SHIB" : c) + "-USDT-SWAP";
-    try { let after = ""; for (let p = 0; p < 200; p++) { const r = await fetch(`https://www.okx.com/api/v5/market/history-candles?instId=${inst}&bar=1H&limit=100${after ? "&after=" + after : ""}`, { signal: AbortSignal.timeout(20000) }); if (r.status === 429) { await sleep(3000); p--; continue; } const j = await r.json(), d = (j && j.data) || []; if (!d.length) break; for (const y of d) k.set(+y[0], [+y[4], +y[7] || 0, +y[2], +y[3], +y[1]]); after = Math.min(...d.map((y) => +y[0])); if (after < ini) break; await sleep(110); } } catch (e) {}
+    try { let after = "", esp429 = 0; for (let p = 0; p < 200; p++) { const r = await fetch(`https://www.okx.com/api/v5/market/history-candles?instId=${inst}&bar=1H&limit=100${after ? "&after=" + after : ""}`, { signal: AbortSignal.timeout(20000) }); if (r.status === 429) { if (++esp429 > 20) break; await sleep(3000); p--; continue; }   /* v1.0 · G5-1.5 · como mucho 20 esperas (antes, sin fin) */ const j = await r.json(), d = (j && j.data) || []; if (!d.length) break; for (const y of d) k.set(+y[0], [+y[4], +y[6] || 0, +y[2], +y[3], +y[1]]);   /* v1.0 · G5-1.5 · volumen en MONEDAS (volCcy), igual que el de Hyperliquid (antes, en dólares) */ after = Math.min(...d.map((y) => +y[0])); if (after < ini) break; await sleep(110); } } catch (e) {}
     if (k.size < 24 * 300) for (let t = ini; t < fin; t += 4000 * H) { const r = await post({ type: "candleSnapshot", req: { coin: c, interval: "1h", startTime: t, endTime: Math.min(fin, t + 4000 * H) } }); for (const x of r || []) k.set(+x.t, [+x.c, +x.v || 0, +x.h, +x.l, +x.o]); await sleep(250); }
     const f = new Map(); let t = ini;
     for (let g = 0; g < 40 && t < fin; g++) { const r = await post({ type: "fundingHistory", coin: c, startTime: t }); if (!r || !r.length) break; for (const x of r) f.set(Math.floor(+x.time / H) * H, +x.fundingRate); const last = +r[r.length - 1].time; if (last <= t) break; t = last + 1; await sleep(250); }
@@ -74,10 +74,11 @@ export function caidaHoraria(ops, M, i0, i1, plazas, sl = 0, cm = 1) {
     pico = Math.max(pico, v); dd = Math.max(dd, 1 - v / pico); }
   return dd;
 }
+export const PF_MAX = 5;
 export function cartera(ops, M, i0, i1, plazas, sl = 0, cm = 1) {   /* v453 · cm: multiplicador de costes (2 = comisiones y deslizamiento al doble) */
   const ev = ops.filter((o) => o[0] >= i0 && o[0] < i1).sort((a, b) => a[0] - b[0]);
   let eq = 1, pico = 1, dd = 0, n = 0, gan = 0, per = 0, libres = plazas; const abiertas = [], rs = [];
-  const cierra = (o) => { const d = M[o[1]], p0 = d.C[o[0]]; let fin = Math.min(o[3], d.C.length - 1), r = null; if (!(p0 > 0)) return 0; if (sl > 0) for (let i = o[0] + 1; i <= fin; i++) { const z = salidaStop(d, i, p0, o[2], sl); if (z != null) { r = z; fin = i; break; } } if (r == null) { const p1 = d.C[fin]; if (!(p1 > 0)) return 0; r = o[2] * (p1 / p0 - 1); } for (let i = o[0]; i < fin && i < d.F.length; i++) r -= o[2] * d.F[i]; return r - 2 * COST * cm; };
+  const cierra = (o) => { const d = M[o[1]], p0 = d.C[o[0]]; let fin = Math.min(o[3], i1 - 1, d.C.length - 1), r = null;   /* v1.0 · G5-1.3 · nunca más allá del final del tramo (antes, una abierta antes del corte veía hasta 7 días del examen oculto) */ if (!(p0 > 0)) return 0; if (sl > 0) for (let i = o[0] + 1; i <= fin; i++) { const z = salidaStop(d, i, p0, o[2], sl); if (z != null) { r = z; fin = i; break; } } if (r == null) { const p1 = d.C[fin]; if (!(p1 > 0)) return 0; r = o[2] * (p1 / p0 - 1); } for (let i = o[0]; i < fin && i < d.F.length; i++) r -= o[2] * d.F[i]; return r - 2 * COST * cm; };
   for (const o of ev) {
     for (let j = abiertas.length - 1; j >= 0; j--) if (abiertas[j][3] <= o[0]) { const r = cierra(abiertas[j]); rs.push(r); eq += r / plazas * eq0(abiertas[j]); r > 0 ? (gan += r) : (per -= r); n++; abiertas.splice(j, 1); libres++; pico = Math.max(pico, eq); dd = Math.max(dd, 1 - eq / pico); }
     if (libres > 0 && !abiertas.some((a) => a[1] === o[1])) { o.eqIn = eq; abiertas.push(o); libres--; }
@@ -86,7 +87,7 @@ export function cartera(ops, M, i0, i1, plazas, sl = 0, cm = 1) {   /* v453 · c
   function eq0(o) { return o.eqIn || 1; }
   const dias = (i1 - i0) / 24, mu = rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : 0, sd = rs.length > 1 ? Math.sqrt(rs.reduce((a, b) => a + (b - mu) ** 2, 0) / (rs.length - 1)) : 0;
   /* v453 · Sharpe anual aproximado por operaciones (rentabilidad media / variabilidad, escalado a las operaciones de un año) */
-  return { ret: eq - 1, dd, n, opsDia: n / dias, pf: per > 0 ? gan / per : gan > 0 ? 9 : 0, sh: sd > 0 && dias > 0 ? +((mu / sd) * Math.sqrt((n * 365) / dias)).toFixed(2) : 0 };
+  return { ret: eq - 1, dd, n, opsDia: n / dias, pf: per > 0 ? Math.min(PF_MAX, gan / per) : gan > 0 ? PF_MAX : 0,   /* v1.0 · G5-1.3 · con tope: 2 operaciones con una pérdida mínima no pueden sacar una nota disparatada */ sh: sd > 0 && dias > 0 ? +((mu / sd) * Math.sqrt((n * 365) / dias)).toFixed(2) : 0 };
 }
 
 const ret = (C, i, L) => C[i - L] > 0 ? C[i] / C[i - L] - 1 : null;

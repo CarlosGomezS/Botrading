@@ -10,7 +10,7 @@
 import { execSync } from "node:child_process";
 import { writeFileSync, rmSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import { senales, FILTROS, ema, atr } from "./caza-hl2.mjs";
+import { senales, FILTROS, ema, atr, medianaMovil } from "./caza-hl2.mjs";
 const env = (k) => (process.env[k] || "").trim(), REPO = env("GITHUB_REPOSITORY") || "CarlosGomezS/Botrading", TOKEN = env("GITHUB_TOKEN");
 const INFO = "https://api.hyperliquid.xyz/info", EXCH = "https://api.hyperliquid.xyz/exchange", H = 3600e3, VELAS = 1200, MIN_ORDEN = 11, SLIP = 0.02, SLIP_ABRE = 0.005;   // v459 · al ABRIR solo se acepta un 0,5 % peor que el precio (si se ha disparado, no entra); al CERRAR, 2 % para asegurar el cierre
 const RAMA = "hl-real", ARCH = "hl-real.json";
@@ -232,7 +232,7 @@ async function senalesVivas(M0, idx) { const g = M0.x.g, D = await datosVivos(M0
   if (!D.M.BTC) return { err: "Sin datos de BTC; no abro nada esta hora." };
   const S0 = senales(D), A = pieza(S0, M0.IA, M0.x.RX, g.a, g.ia), B = g.b != null ? pieza(S0, M0.IA, M0.x.RX, g.b, g.iab) : null, nomEsperado = `${A && A.nom}${B ? " + confirma " + B.nom : ""}`;
   if (!A || (g.b != null && !B) || !String(M0.x.n).startsWith(nomEsperado)) return { err: "El método del podio no coincide con las señales de este programa; no abro nada (aviso enviado).", avisar: "⚠️ Hyperliquid: no reconozco el método n.º 1 del podio; esta hora no abro nada." };
-  const n = D.T.length, i = n - 1, X = { btcUp: null, up: {}, vol: {}, volMed: {} }; { const e = ema(D.M.BTC.C, 200); X.btcUp = Uint8Array.from(D.M.BTC.C, (c, k) => (c > e[k] ? 1 : 0)); for (const c of D.U) { const e2 = ema(D.M[c].C, 100); X.up[c] = Uint8Array.from(D.M[c].C, (x, k) => (x > e2[k] ? 1 : 0)); X.vol[c] = atr(D.M[c], 24); const s = [...X.vol[c]].filter(Number.isFinite).sort((p, q) => p - q); X.volMed[c] = s[Math.floor(s.length / 2)]; } }
+  const n = D.T.length, i = n - 1, X = { btcUp: null, up: {}, vol: {}, volMed: {} }; { const e = ema(D.M.BTC.C, 200); X.btcUp = Uint8Array.from(D.M.BTC.C, (c, k) => (c > e[k] ? 1 : 0)); for (const c of D.U) { const e2 = ema(D.M[c].C, 100); X.up[c] = Uint8Array.from(D.M[c].C, (x, k) => (x > e2[k] ? 1 : 0)); X.vol[c] = atr(D.M[c], 24); X.volMed[c] = medianaMovil(X.vol[c]);   /* v1.0 · G5-1.5 · la misma cuenta que el laboratorio */ } }
   const filtro = FILTROS[g.f] || FILTROS["sin filtro"], quiere = [];
   for (const c of D.U) { if (!D.M[c].ultima) continue; let a, b = null; try { a = A.fn(D.M[c], D.T, D.M.BTC); if (B) b = B.fn(D.M[c], D.T, D.M.BTC); } catch (e) { continue; }
     const dir = a[i]; if (!dir) continue; if (b) { let ok = false; for (let k = 0; k < 6 && !ok; k++) if (b[i - k] === dir) ok = true; if (!ok) continue; } if (!filtro(dir, i, X, c)) continue; quiere.push({ c, dir, px0: +D.M[c].C[i] || 0 }); }
@@ -333,7 +333,12 @@ async function ronda0() { PUESTOS.length = 0;
   const piViejas = Object.entries(porIdent).filter(([, d]) => ahoraR - Date.parse(d) > 24 * H).map(([c]) => c);
   // v465 · cada posición guarda la HORA DE APERTURA confirmada; si falta, se toma del historial (solo si se ha podido leer)
   for (const p of pos) if (pm[p.coin] && !pm[p.coin].t0 && fillsOk) { const t = abierta(p.coin); if (t) pm[p.coin].t0 = t; }
-  for (const c of Object.keys(pm)) if (!pos.some((p) => p.coin === c)) delete pm[c];
+  // v1.0 · G5-1.2 · ESPERA TRAS UN STOP: una posición del bot que ha desaparecido sin que la cerrara él (saltó su stop en Hyperliquid, o la cerraste tú)
+  //   deja esa cripto y su plaza «en espera» hasta la hora en que habría cerrado. Así hace lo mismo que el laboratorio que lo examinó (allí la plaza
+  //   sigue ocupada hasta su hora de fin) y no vuelve a entrar enseguida en una cripto que se está desplomando.
+  const enfria = {}; for (const [c, t] of Object.entries((prev && prev.enfria) || {})) if (+t > ahoraR) enfria[c] = +t;
+  for (const c of Object.keys(pm)) if (!pos.some((p) => p.coin === c)) { const z = pm[c]; if (z && z.t0 && z.h && z.t0 + z.h * H > ahoraR) enfria[c] = Math.max(enfria[c] || 0, z.t0 + z.h * H); delete pm[c]; }
+  const enEspera = Object.keys(enfria).filter((c) => !pos.some((p) => p.coin === c));
   // v451 · 🔑 CADUCIDAD DE LA CLAVE DEL BOT: Hyperliquid dice hasta cuándo vale el agente; 30 días antes, aviso diario (a las 10 de la mañana)
   let agenteHasta = null; try { const ag = await info({ type: "extraAgents", user: yo }), a = (ag || []).find((x) => String(x.address).toLowerCase() === mia);
     if (a && a.validUntil) { agenteHasta = +a.validUntil; const dias = Math.floor((agenteHasta - Date.now()) / 864e5), hMad = +new Date().toLocaleString("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hour12: false });
@@ -341,7 +346,7 @@ async function ronda0() { PUESTOS.length = 0;
     else if (ag && !a) { log("⚠️ La clave del bot no aparece entre los agentes autorizados de tu cuenta."); if (new Date().getUTCMinutes() < 10) await aviso("🔑 Hyperliquid: la clave del bot ya no está autorizada en tu cuenta (caducada o borrada). El bot no puede operar: crea otra en app.hyperliquid.xyz/API y pégala en la app (HL_AGENT_KEY)."); } } catch (e) {}
   if (netoMal) { log("Lo ingresado neto en Hyperliquid no es positivo: el freno no tiene una base fiable y esta hora no abro nada."); if (!(prev && prev.netoMal)) await aviso("⚠️ Hyperliquid: según el historial, lo ingresado neto (ingresos − retiradas) no es positivo, así que el freno no puede calcularse. No abriré operaciones nuevas hasta que vuelva a serlo; lo abierto sigue con su stop."); }
   const FM = await marcasFreno(); if (!FM.ok) log("No he podido leer la marca del freno: esta hora no abro nada.");
-  const hechos = [], estado = { porIdent: Object.keys(porIdent).length ? porIdent : undefined, intentos, ajenasPos: Object.keys(ajenasPos).length ? ajenasPos : undefined, agenteHasta, slip: Array.isArray(prev && prev.slip) ? prev.slip.slice(-300) : [], misStops: Array.isArray(prev && prev.misStops) ? prev.misStops : undefined, reconciliar: recon || undefined, netoMal: netoMal ? 1 : undefined, w: yo, ctl: lc.ok ? CTL : prevCtl || CTL, ctlNoLeido: lc.ok ? undefined : 1, t: new Date().toISOString(), eq, neto, ledDiag: ledOk ? ledDiag(led, yo) : undefined, metodo: M0 && M0.x ? M0.x.n : null, ops: [], pm };
+  const hechos = [], estado = { enfria: Object.keys(enfria).length ? enfria : undefined, porIdent: Object.keys(porIdent).length ? porIdent : undefined, intentos, ajenasPos: Object.keys(ajenasPos).length ? ajenasPos : undefined, agenteHasta, slip: Array.isArray(prev && prev.slip) ? prev.slip.slice(-300) : [], misStops: Array.isArray(prev && prev.misStops) ? prev.misStops : undefined, reconciliar: recon || undefined, netoMal: netoMal ? 1 : undefined, w: yo, ctl: lc.ok ? CTL : prevCtl || CTL, ctlNoLeido: lc.ok ? undefined : 1, t: new Date().toISOString(), eq, neto, ledDiag: ledOk ? ledDiag(led, yo) : undefined, metodo: M0 && M0.x ? M0.x.n : null, ops: [], pm };
   { const nuevas = Object.keys(ajenasPos).filter((c) => !ajenasPrev[c]); if (Object.keys(ajenasPos).length) log(`Posiciones que el bot no tiene apuntadas: ${Object.keys(ajenasPos).length} (no las toco).`);
     if (nuevas.length) await aviso(`ℹ️ Hyperliquid: hay ${nuevas.length === 1 ? "una posición" : nuevas.length + " posiciones"} en la cuenta que el bot no ha abierto (${nuevas.join(", ")}). No ${nuevas.length === 1 ? "la" : "las"} toco: ni stop ni cierre por tiempo, y ocupa${nuevas.length === 1 ? "" : "n"} plaza. Si es del bot, vuelve a guardar los ajustes de Hyperliquid en la app y la gestionará.`); }
   log(`Hyperliquid real: ${pos.length} posiciones abiertas · ${CTL.estado === "on" ? "activo" : CTL.estado === "pausa" ? "en pausa (no abre nuevas)" : "parado (cierra todo)"} · método ${M0 && M0.x ? "n.º " + CTL.puesto + " del podio" : "no disponible"}`);
@@ -394,7 +399,8 @@ async function ronda0() { PUESTOS.length = 0;
     if (SV.err) { log(SV.err); if (SV.avisar) await aviso(SV.avisar); }
     else { const quiere = SV.quiere;
         // plazas: como en el laboratorio, hasta 5 a partes iguales; con poco saldo, menos plazas (cada orden necesita ≥ 11 $). Sin apalancamiento.
-        const uso = eq * CTL.uso / 100, plazas = Math.max(0, Math.min(CTL.plazas || 5, Math.floor(uso / MIN_ORDEN))), libres = plazas - pos.filter((p) => !estado.ops.some((o) => o.c === p.coin && o.x === "cierra")).length;
+        const uso = eq * CTL.uso / 100, plazas = Math.max(0, Math.min(CTL.plazas || 5, Math.floor(uso / MIN_ORDEN))), libres = plazas - pos.filter((p) => !estado.ops.some((o) => o.c === p.coin && o.x === "cierra")).length - enEspera.length;   /* v1.0 · G5-1.2 · las plazas en espera tras un stop siguen ocupadas */
+        for (let z = quiere.length - 1; z >= 0; z--) if (enfria[quiere[z].c]) quiere.splice(z, 1);   // ni se vuelve a entrar en esa cripto hasta su hora
         estado.plazas = plazas; estado.senales = quiere.length;
         log(`Señales esta hora: ${quiere.length} · plazas ${plazas} · libres ${Math.max(0, libres)}`);
         // v465 · antes de abrir, el estado se guarda (y se comprueba que se ha guardado): si no se puede, no se abre nada (no habría memoria de lo abierto)
