@@ -154,10 +154,13 @@ export function adaptador(api, I, tick = {}) {
     return { q: o.fill, got: u.quote - (u.feeCcy === "EUR" ? u.fee : 0), fee: u.fee + o.fee * u.px, px: (u.quote) / Math.max(1e-12, o.fill) };
   }
   // mínimo por orden en euros (aprox.: el mínimo de OKX en cripto × precio), y un suelo de 5 € para no hacer órdenes ridículas
-  // v291 · 🛡️ stop de emergencia en el propio OKX (orden condicional). Solo en criptos con par en EUR (las de USDC venderían a USDC).
-  async function ponStop(m, q, px) { const R = ruta(I, m); if (!R || R.tipo !== "eur") return null; const sz = abajo(q, R.par.lot); if (!(sz > 0) || sz < R.par.min) return null;
+  // v291 · 🛡️ stop de emergencia en el propio OKX (orden condicional).
+  // v1.0 · O-002 · también en las criptos que van POR USDC: el stop está en su par en USDC, con el precio pasado de euros a USDC; si salta, vende a USDC
+  //   y el bot pasa ese USDC a euros (como el que queda a medias). Antes esas posiciones dependían solo de que el bot llegase a tiempo.
+  const ueStop = () => { const u = tick["USDC-EUR"]; const v = u ? +u.bid || +u.ask || 0 : 0; return v > 0.5 && v < 1.5 ? v : 0; };   // euros por USDC (con un valor absurdo, no se pone)
+  async function ponStop(m, q, px) { const R = ruta(I, m); if (!R) return null; let pxP = px; if (R.tipo === "usdc") { const ue = ueStop(); if (!ue) return null; pxP = px / ue; } const sz = abajo(q, R.par.lot); if (!(sz > 0) || sz < R.par.min) return null;
     const algoClOrdId = "st" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);   // v295 · identificador propio: si se pierde la respuesta, se busca
-    try { const [o] = await api("POST", "/api/v5/trade/order-algo", { instId: R.par.instId, tdMode: "cash", side: "sell", ordType: "conditional", sz: sz.toFixed(R.par.lot), slTriggerPx: precioStop(R.par, px), slOrdPx: "-1", algoClOrdId }); if (o && o.algoId) return String(o.algoId); }
+    try { const [o] = await api("POST", "/api/v5/trade/order-algo", { instId: R.par.instId, tdMode: "cash", side: "sell", ordType: "conditional", sz: sz.toFixed(R.par.lot), slTriggerPx: precioStop(R.par, pxP), slOrdPx: "-1", algoClOrdId }); if (o && o.algoId) return String(o.algoId); }
     catch (e) { if (e && e.status && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code))) throw e; }
     await sleep(800); try { const [d] = await api("GET", `/api/v5/trade/order-algo?algoClOrdId=${algoClOrdId}`); if (d && d.algoId) return String(d.algoId); } catch (e) {} return null; }
   // v295 · USDC que quedó a medias (ruta EUR→USDC→cripto cortada) → a euros
@@ -166,7 +169,8 @@ export function adaptador(api, I, tick = {}) {
   // v299 · compras hechas POR EL BOT (las suyas llevan identificador «bt…»), para no apropiarse de compras tuyas
   async function comprasBot(sym, desde) { const R = ruta(I, sym + "-EUR"); if (!R) return null; let q = 0; const d = await api("GET", `/api/v5/trade/orders-history?instType=SPOT&instId=${R.par.instId}&begin=${Math.floor(desde)}&limit=100`);
     for (const o of d || []) if (o.side === "buy" && String(o.clOrdId || "").startsWith("bt") && +o.accFillSz > 0) q += +o.accFillSz - (o.feeCcy === sym ? Math.abs(+o.fee || 0) : 0); return q; }
-  async function estadoStop(m, id) { const [d] = await api("GET", `/api/v5/trade/order-algo?algoId=${id}`); return { activo: !!d && d.state === "live", q: d ? +d.sz || 0 : 0, lado: d && d.side ? String(d.side) : null, px: d ? +d.slTriggerPx || 0 : 0 }; }   /* v478 · también lado y precio de disparo */
+  async function estadoStop(m, id) { const [d] = await api("GET", `/api/v5/trade/order-algo?algoId=${id}`); const R = ruta(I, m), ue = R && R.tipo === "usdc" ? ueStop() : 1;   /* O-002 · en USDC, el precio se devuelve en euros (para compararlo con el que puso el bot) */
+    return { activo: !!d && d.state === "live", q: d ? +d.sz || 0 : 0, lado: d && d.side ? String(d.side) : null, px: d && ue ? (+d.slTriggerPx || 0) * ue : 0 }; }   /* v478 · también lado y precio de disparo */
   async function quitaStop(m, id) { const R = ruta(I, m); if (!R) return; try { await api("POST", "/api/v5/trade/cancel-algos", [{ algoId: id, instId: R.par.instId }]); } catch (e) { if (!/51000|5127|not exist|no existe|cancel/i.test(String(e.message))) throw e; } }
   async function mercado(m) { const R = ruta(I, m), px = (tick[m] && (tick[m].ask || tick[m].bid)) || 0; return { min: Math.max(5, R ? R.par.min * px * 1.05 : 5) }; }
   async function saldoEur() { const [d] = await api("GET", "/api/v5/account/balance?ccy=EUR"); const x = d && (d.details || []).find((y) => y.ccy === "EUR"); return x ? +(x.availBal || x.cashBal) || 0 : 0; }
@@ -181,7 +185,7 @@ export function adaptador(api, I, tick = {}) {
     for (let i = 0; i < 5; i++) { const d = await api("GET", "/api/v5/trade/fills-history?instType=SPOT&limit=100" + (after ? "&after=" + after : "")); if (!d.length) break;
       for (const x of d) { const [b, q] = String(x.instId).split("-"); if (b === "USDC" || b === "USDT" || b === "EURC") continue; const k = q === "EUR" ? 1 : q === "USDC" ? u : 0; if (!k) continue;
         const sz = +x.fillSz || 0, px = (+x.fillPx || 0) * k, fee = Math.abs(+x.fee || 0), feeE = x.feeCcy === b ? fee * px : x.feeCcy === "EUR" ? fee : fee * k;
-        out.push({ t: +x.ts, sym: b, side: x.side, q: sz - (x.side === "buy" && x.feeCcy === b ? fee : 0), eur: sz * px, fee: feeE }); }
+        out.push({ t: +x.ts, sym: b, side: x.side, q: sz - (x.side === "buy" && x.feeCcy === b ? fee : 0), eur: sz * px, fee: feeE, ...(q === "USDC" && x.side === "sell" ? { usdc: sz * (+x.fillPx || 0) - (x.feeCcy === "USDC" ? fee : 0) } : {}) }); }
       after = d[d.length - 1].billId; if (d.length < 100) break; }
     return out; }
   const estadoOrden = async (m, ref) => { const instId = ref.inst || (ruta(I, m) && ruta(I, m).par.instId); try { const [d] = await api("GET", `/api/v5/trade/order?instId=${instId}&clOrdId=${ref.id}`); return { final: !!d && ["filled", "canceled", "mmp_canceled"].includes(d.state), lleno: +(d && d.accFillSz) || 0 }; } catch (e) { if (/51603|does not exist|no existe/i.test(String(e.message))) return { noExiste: true }; throw e; } };

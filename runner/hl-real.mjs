@@ -47,6 +47,12 @@ export function ordenStop(a, lado, entrada, sz, szd, dist = STOP_EMERG) { const 
 export function saldoValido(st) { const v = st && st.marginSummary ? st.marginSummary.accountValue : undefined, n = v === null || v === undefined || (typeof v === "string" && !v.trim()) ? NaN : +v;
   if (!Number.isFinite(n) || n < 0) throw new Error("Hyperliquid ha devuelto el saldo incompleto o no válido. Esta hora no hago nada (ni abro, ni cierro, ni echo el freno); tus posiciones siguen con sus stops.");
   return n; }
+// v1.0 · H-004 · SALDO 0 SOSPECHOSO: la cuenta de futuros dice 0, no hay nada abierto y sí hay dinero ingresado. Sin posiciones no se puede perder
+//   todo, así que lo normal es que el dinero esté en otro sitio (p. ej. en Spot, con la cuenta en modo «Unified»). No se da por bueno: esta hora no se
+//   hace nada (ni se abre, ni se echa el freno) y se avisa de dónde está el dinero.
+export const saldoCeroSospechoso = (eq, pos, neto, ledOk) => eq === 0 && Array.isArray(pos) && pos.length === 0 && !!ledOk && neto > 0;
+export function msgSaldoCero(spot) { return spot > 0 ? "Futuros a 0 $ y tu dinero está en Spot (¿cuenta «Unified»?). En Hyperliquid: Account Type → Manual y pasa el USDC a Perps. No hago nada."
+  : "Futuros a 0 $ sin nada abierto y con dinero ingresado: no lo doy por bueno. Esta hora no hago nada (ni echo el freno)."; }
 // v1.0 · 💵 LO INGRESADO NETO = el dinero en dólares (USDC) que ENTRA en la cuenta desde fuera, menos el que SALE.
 //   Antes solo se contaban los «deposit» y «withdraw» del puente de Arbitrum. Un ingreso que llega por otro camino (p. ej. con la cuenta
 //   en modo «Unified»: envío o traspaso al saldo de la cuenta) no se contaba, y el freno quedaba calculado sobre menos dinero del ingresado.
@@ -250,6 +256,8 @@ export async function ronda() { PUESTOS.length = 0;
   const pos = (st.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0);
   let ledOk = true; const led = await info({ type: "userNonFundingLedgerUpdates", user: yo, startTime: 0 }).catch(() => { ledOk = false; return []; });   // v461 · sin el historial de ingresos no se puede calcular el freno → esta hora no se abre nada
   const neto = netoIngresado(led, yo);   // v1.0 · cuenta también los ingresos que no llegan como «deposit»
+  if (saldoCeroSospechoso(eq, pos, neto, ledOk)) { let spot = 0; try { const sp = await info({ type: "spotClearinghouseState", user: yo }); spot = ((sp && sp.balances) || []).filter((b) => /^USDC$/i.test(b.coin)).reduce((a, b) => a + (+b.total || 0), 0); } catch (e) {}
+    throw new Error(msgSaldoCero(spot)); }
   const netoMal = ledOk && !(neto > 0);   // v466 · lo ingresado neto no es positivo: el freno no tiene base fiable → no se abre nada
   let fillsOk = true; const fills = await info({ type: "userFills", user: yo }).catch(() => { fillsOk = false; return []; });   // v465 · si falla, NO se inventa la antigüedad de las posiciones
   const abierta = (c) => { const f = (fills || []).filter((z) => z.coin === c && /^Open/.test(z.dir)).sort((a, b) => b.time - a.time)[0]; return f ? +f.time : null; };

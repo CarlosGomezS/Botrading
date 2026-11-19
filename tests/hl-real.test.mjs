@@ -540,3 +540,15 @@ test("ingresado · un ingreso que llega como traspaso cuenta para el FRENO (ante
   assert.deepEqual(abiertas(W), [], "salta el freno y lo cierra todo"); assert.equal(aperturas(W).length, 0);
   const S = await estadoDe(W); assert.equal(S.neto, 112); assert.ok(Array.isArray(S.ledDiag) && S.ledDiag.some((x) => x.tipo === "send" && x.dir === "entra"));
 });
+
+test("v1.0 · H-004 · futuros a 0 sin nada abierto y con dinero ingresado (p. ej. cuenta «Unified»): no echa el freno, no hace nada y dice dónde está el dinero", async () => {
+  const led = [{ time: 1, delta: { type: "deposit", usdc: "112" } }];
+  const W = mundo({ led, quiere: [{ c: "ETH", dir: 1 }] }); conecta(W); W.saldoRaro = { accountValue: "0" }; W.spot = 115.82;
+  await assert.rejects(() => silencio(() => HL.ronda()), /tu dinero está en Spot.*Manual/);
+  assert.equal(W.ordenes.length, 0, "ni abre ni cierra"); assert.equal([...W.refs].filter((r) => r.includes("hl-freno-")).length, 0, "no echa el freno");
+  W.spot = null; for (const r of [...W.refs]) if (r.includes("hl-lock-")) W.refs.delete(r);
+  await assert.rejects(() => silencio(() => HL.ronda()), /no lo doy por bueno/);
+  assert.equal([...W.refs].filter((r) => r.includes("hl-freno-")).length, 0);
+  W.saldoRaro = undefined; W.eq = 115.82; await otraHora(W); assert.deepEqual(abiertas(W).map((x) => x.c), ["ETH"], "cuando el saldo vuelve a futuros, sigue normal");
+  assert.equal(HL.saldoCeroSospechoso(0, [], 0, true), false, "sin dinero ingresado, un 0 es un 0"); assert.ok(HL.msgSaldoCero(1).length <= 160 && HL.msgSaldoCero(0).length <= 160, "cabe entero en el aviso");
+});

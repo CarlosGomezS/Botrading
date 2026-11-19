@@ -293,9 +293,10 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     if (B0) for (const [m, p] of Object.entries(RS.pos)) {
       if ((ctl.conservar || []).includes(p.sym)) continue;
       const hay = +B0[p.sym] || 0, falta = p.q - hay; if (!(falta > p.q * 0.02)) { delete p.pendConc; continue; }
-      const desde = Math.max(Date.parse(p.t0), p.tVenta || 0) - 30e3; let got = 0, qv = 0, fee = 0, histFalla = false;
-      if (X.operaciones) try { for (const o of (await X.operaciones([p.sym])).filter((o) => o.side === "sell" && o.t > desde).sort((a, b) => a.t - b.t)) { if (qv >= falta * 1.01) break; qv += o.q; got += o.eur - o.fee; fee += o.fee; } } catch (e) { histFalla = true; }
+      const desde = Math.max(Date.parse(p.t0), p.tVenta || 0) - 30e3; let got = 0, qv = 0, fee = 0, usdcV = 0, histFalla = false;
+      if (X.operaciones) try { for (const o of (await X.operaciones([p.sym])).filter((o) => o.side === "sell" && o.t > desde).sort((a, b) => a.t - b.t)) { if (qv >= falta * 1.01) break; qv += o.q; got += o.eur - o.fee; fee += o.fee; usdcV += o.usdc > 0 ? o.usdc : 0; } } catch (e) { histFalla = true; }
       if (got > 0) { RS.cash += got; RS.st.fees += fee; p.cob = (p.cob || 0) + got; p.tVenta = Date.now(); delete p.pendConc;
+        if (usdcV > 0) { RS.usdcPend = (RS.usdcPend || 0) + usdcV; L(RS, now, `💵 ${p.sym}: la venta fue a USDC (${r2(usdcV)} USDC); se pasan a euros`); }   // v1.0 · O-002 · el stop de una cripto que va por USDC vende a USDC: ese USDC se pasa a euros
         if (hay * ((tick[m] && tick[m].bid) || p.px) >= 1) { p.q = hay; L(RS, now, `🧾 ${p.sym}: vendida una parte en ${EX} fuera del bot (+${r2(got)} € apuntados)`); continue; }
         const pnl = p.cob - p.cost; RS.st.pnl += pnl; if (pnl >= 0) RS.st.wins++; else RS.st.losses++;
         RS.closed.unshift({ m, sym: p.sym, t0: p.t0, t1: now.toISOString(), cost: r2(p.cost), got: r2(p.cob), pnl: r2(pnl), pc: r2((p.cob / p.cost - 1) * 100), why: "vendida en el exchange (stop de emergencia o a mano)", src: p.src || null }); RS.closed = RS.closed.slice(0, 300);

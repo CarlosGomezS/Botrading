@@ -600,3 +600,15 @@ test("v1.0 · B-003 · si pulsas «Parar» (o cambias un ajuste) mientras el bot
     assert.equal(c.cuentas.bitvavo.convertir.hecho, "c1", "y el cambio del bot (conversión hecha) también");
   } finally { globalThis.fetch = f0; for (const k of ["BITVAVO_KEY", "BITVAVO_SECRET", "REAL_VIEW_PASS"]) delete process.env[k]; }
 });
+
+test("Real v1.0 O-002: si el stop de una cripto que va POR USDC vende fuera del bot, ese USDC queda apuntado para pasarlo a euros", async () => {
+  const ex = exchange({ "A-EUR": 1 }), base = RL.bitvavoEx(ex.api, ex.mercado);
+  let usdcVenta = 0; const X = { ...base, operaciones: async (s) => (await base.operaciones(s)).map((o) => (o.side === "sell" ? { ...o, usdc: usdcVenta } : o)) }, deps = { api: ex.api, mercado: ex.mercado, ex: X };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 100 }, tk(ex.px), T(0), deps);
+  const sp = { sym: "A", px: 1, cost0: 15, cost: 15, q: 15, q0: 15, t0: T(1).toISOString() };
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100 }, tk(ex.px), T(1), deps));
+  const q = RS.pos["A-EUR"].q; ex.bal["A-EUR"] = 0; usdcVenta = q * 0.9 * 1.15;   // el stop vendió en el par en USDC
+  ex.trades = [{ timestamp: Date.parse(T(2)), market: "A-EUR", side: "sell", amount: String(q), price: "0.9", fee: String(q * 0.9 * 0.0025), feeCurrency: "EUR" }];
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100 }, tk(ex.px), T(3), deps));
+  assert.ok(!RS.pos["A-EUR"]); assert.ok(Math.abs((RS.usdcPend || 0) - usdcVenta) < 1e-9, `USDC pendiente ${RS.usdcPend}`);
+});
