@@ -592,3 +592,8 @@ test("G2-4 · si falla la lectura de Spot y sin ella saltaría el freno, no lo e
   assert.deepEqual(abiertas(W).map((x) => x.c), ["BTC"], "no cierra nada"); assert.equal([...W.refs].filter((r) => r.includes("hl-freno-")).length, 0, "no echa el freno");
   W.spotFallo = false; await silencio(() => HL.ronda()); assert.deepEqual(abiertas(W).map((x) => x.c), ["BTC"], "con Spot leído: 40 + 60 = 100, no salta");
 });
+
+test("G3 · una respuesta de Spot sin «balances» no se toma como 0: si sin ella saltaría el freno, esa hora no hace nada", async () => {
+  const W = mundo({ eq: 40, neto: 100, quiere: [], pos: [{ c: "BTC", szi: 0.1 }] }); conecta(W); W.spotVacio = true;
+  await assert.rejects(() => silencio(() => HL.ronda()), /saldo en Spot/); assert.deepEqual(abiertas(W).map((x) => x.c), ["BTC"]);
+});

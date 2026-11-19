@@ -186,9 +186,9 @@ export function adaptador(api, I, tick = {}) {
   async function precios() { const d = await api("GET", "/api/v5/market/tickers?instType=SPOT"), eur = {}, usdc = {}; for (const x of d) { const [b, q] = String(x.instId).split("-"), px = +x.bidPx || +x.last || 0; if (!(px > 0)) continue; if (q === "EUR") eur[b] = px; else if (q === "USDC") usdc[b] = px; }
     const u = eur.USDC || 0; for (const [b, px] of Object.entries(usdc)) if (!eur[b] && u > 0) eur[b] = px * u; eur.EUR = 1; return eur; }
   // v282 · operaciones REALES de la cuenta (lo mismo que sale en «historial de órdenes» de OKX, últimos 3 meses)
-  async function operaciones() { const out = [], P = await precios().catch(() => ({})), u = P.USDC || 1; let after = "";
+  async function operaciones(syms) { const out = [], P = await precios().catch(() => ({})), u = P.USDC || 1, solo = Array.isArray(syms) && syms.length ? new Set(syms) : null; let after = "";   // v1.0 · G3-3 · solo las criptos pedidas (antes devolvía todas)
     for (let i = 0; i < 5; i++) { const d = await api("GET", "/api/v5/trade/fills-history?instType=SPOT&limit=100" + (after ? "&after=" + after : "")); if (!d.length) break;
-      for (const x of d) { const [b, q] = String(x.instId).split("-"); if (b === "USDC" || b === "USDT" || b === "EURC") continue; const k = q === "EUR" ? 1 : q === "USDC" ? u : 0; if (!k) continue;
+      for (const x of d) { const [b, q] = String(x.instId).split("-"); if (b === "USDC" || b === "USDT" || b === "EURC" || (solo && !solo.has(b))) continue; const k = q === "EUR" ? 1 : q === "USDC" ? u : 0; if (!k) continue;
         const sz = +x.fillSz || 0, px = (+x.fillPx || 0) * k, fee = Math.abs(+x.fee || 0), feeE = x.feeCcy === b ? fee * px : x.feeCcy === "EUR" ? fee : fee * k;
         out.push({ t: +x.ts, sym: b, side: x.side, q: sz - (x.side === "buy" && x.feeCcy === b ? fee : 0), eur: sz * px, fee: feeE, ...(q === "USDC" && x.side === "sell" ? { usdc: sz * (+x.fillPx || 0) - (x.feeCcy === "USDC" ? fee : 0) } : {}) }); }
       after = d[d.length - 1].billId; if (d.length < 100) break; }

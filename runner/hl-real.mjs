@@ -262,7 +262,7 @@ async function ronda0() { PUESTOS.length = 0;
   let ledOk = true; const led = await info({ type: "userNonFundingLedgerUpdates", user: yo, startTime: 0 }).catch(() => { ledOk = false; return []; });   // v461 · sin el historial de ingresos no se puede calcular el freno → esta hora no se abre nada
   const neto = netoIngresado(led, yo);   // v1.0 · cuenta también los ingresos que no llegan como «deposit»
   // v1.0 · G-4.4 · el USDC que esté en Spot también es tuyo: cuenta para el freno (mover dinero de futuros a Spot ya no lo dispara). Si no se puede leer, 0.
-  let spotUsdc = 0, spotOk = true; try { const sp = await info({ type: "spotClearinghouseState", user: yo }); spotUsdc = ((sp && sp.balances) || []).filter((b) => /^USDC$/i.test(b.coin)).reduce((a, b) => a + (+b.total || 0), 0); if (!(spotUsdc >= 0)) { spotUsdc = 0; spotOk = false; } } catch (e) { spotUsdc = 0; spotOk = false; }
+  let spotUsdc = 0, spotOk = true; try { const sp = await info({ type: "spotClearinghouseState", user: yo }); if (!sp || !Array.isArray(sp.balances)) spotOk = false;   /* v1.0 · G3 · una respuesta sin «balances» no es un 0 */ spotUsdc = ((sp && sp.balances) || []).filter((b) => /^USDC$/i.test(b.coin)).reduce((a, b) => a + (+b.total || 0), 0); if (!(spotUsdc >= 0)) { spotUsdc = 0; spotOk = false; } } catch (e) { spotUsdc = 0; spotOk = false; }
   if (saldoCeroSospechoso(eq, pos, neto, ledOk)) throw new Error(msgSaldoCero(spotUsdc));
   const netoMal = ledOk && !(neto > 0);   // v466 · lo ingresado neto no es positivo: el freno no tiene base fiable → no se abre nada
   let fillsOk = true; const fills = await info({ type: "userFills", user: yo }).catch(() => { fillsOk = false; return []; });   // v465 · si falla, NO se inventa la antigüedad de las posiciones

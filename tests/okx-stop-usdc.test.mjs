@@ -61,3 +61,9 @@ test("G-2.1 · si el 2.º paso de una compra por USDC queda con resultado DESCON
   assert.ok(e, "falla"); assert.ok(e.clOrdId && e.instId === "BBB-USDC", "lleva su identificador para comprobarla luego"); assert.ok(e.costeEur > 19 && e.usdcDud > 20);
   assert.equal(env.filter((x) => x.met === "POST" && x.ruta === "/api/v5/trade/order" && x.body.instId === "USDC-EUR" && x.body.side === "sell").length, 0, "no vende USDC a ciegas");
 });
+
+test("G3-3 · el historial de OKX devuelve solo las criptos pedidas (antes, todas)", async () => {
+  const ops = await OK.adaptador(api0().api, I, {}).operaciones(["BBB"]);
+  assert.deepEqual([...new Set(ops.map((o) => o.sym))], ["BBB"]);
+  assert.equal(new Set((await OK.adaptador(api0().api, I, {}).operaciones()).map((o) => o.sym)).size, 2, "sin lista, todas (como antes)");
+});

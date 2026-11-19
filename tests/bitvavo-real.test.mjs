@@ -681,3 +681,28 @@ test("G2-5 · una compra dudosa de las Tortugas cuyo historial aún no aparece: 
   ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 1000 }, tk(ex.px), T(1), deps));
   assert.ok(!RS.pos["A-EUR"], "espera"); assert.ok(RS.compraDud["A-EUR"], "sigue apuntada");
 });
+
+test("G3-3 · si una cripto se vende fuera del bot, NO se le apunta la venta de OTRA (el historial puede traer de todas)", async () => {
+  const ex = exchange({ "A-EUR": 1, "B-EUR": 1 }), base = RL.bitvavoEx(ex.api, ex.mercado);
+  const X = { ...base, operaciones: async () => [{ t: Date.parse(T(2)), sym: "A", side: "sell", q: 20, eur: 20, fee: 0.05 }, { t: Date.parse(T(2)), sym: "B", side: "sell", q: 20, eur: 18, fee: 0.05 }] }, deps0 = { ex: X };
+  const { RS: R0, deps } = await conPos(ex, { "A-EUR": { src: "tortuga", q: 20, px: 1, stop: 0.5 }, "B-EUR": { src: "tortuga", q: 20, px: 1, stop: 0.5 } }); deps.ex = X;
+  const cash0 = R0.cash, start0 = R0.start; ex.bal["B-EUR"] = 0; ex.eur += 18 - 0.05;   // solo B se vendió fuera del bot (A sigue en la cuenta)
+  const { RS } = await RL.vuelta(R0, { mix: fuente() }, { copia: "mix", capital: 1000 }, tk(ex.px), T(3), deps);
+  assert.ok(RS.pos["A-EUR"], "A sigue"); assert.ok(!RS.pos["B-EUR"]); assert.ok(Math.abs(RS.cash - (cash0 + 18 - 0.05)) < 0.01, `solo entra lo de B: caja ${RS.cash}`); assert.equal(RS.start, start0, "y no se toma nada por una retirada tuya"); assert.equal(RS.closed[0].got, 17.95, "a B se le apunta solo su venta");
+});
+
+test("G3-1 · mientras se aclara una compra dudosa por USDC (ya cobrada de la caja), su USDC cuenta en el valor del bot (no es una pérdida)", () => {
+  const RS = { cash: 30, pos: {}, compraDud: { "A-EUR": { pagado: 1, usdc: 21 } } }, t = { "USDC-EUR": { bid: 0.95 } };
+  assert.ok(Math.abs(RL.valor(RS, t) - (30 + 21 * 0.95)) < 1e-9);
+  RS.pos["A-EUR"] = { q: 10, px: 2 }; assert.ok(RL.valor(RS, t) < 30 + 21 * 0.95 + 20, "si ya es una posición, no se cuenta dos veces");
+});
+
+test("G3-2 · la devolución a euros de una compra fallida que queda dudosa se apunta en la bolsa de COMPRAS", async () => {
+  const ex = exchange({ "A-EUR": 1 }), base = RL.bitvavoEx(ex.api, ex.mercado);
+  const X = { ...base, comprar: async () => { const e = new Error("OKX: compra por USDC cortada; la devolución a euros quedó sin confirmar"); e.pendUsdc = 21; e.pendRef = { inst: "USDC-EUR", id: "r1", t: T(1).toISOString() }; e.costeEur = 20; throw e; } };
+  const deps = { api: ex.api, mercado: ex.mercado, ex: X };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 1000 }, tk(ex.px), T(0), deps);
+  const sp = { sym: "A", px: 1, cost0: 20, cost: 20, q: 20, q0: 20, t0: T(1).toISOString() };
+  ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 1000 }, tk(ex.px), T(1), deps));
+  assert.ok((RS.usdcRef || []).some((r) => r.id === "r1" && r.c === 1), JSON.stringify(RS.usdcRef)); assert.equal(RS.usdcPendC, 21);
+});

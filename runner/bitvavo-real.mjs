@@ -90,7 +90,9 @@ const L = (RS, now, txt) => { RS.log.unshift({ t: now.toISOString(), txt }); RS.
 export const ueDe = (tick) => { const u = tick && tick["USDC-EUR"]; const v = u ? +u.bid || 0 : 0; return v > 0.5 && v < 1.5 ? v : 0.9; };
 // v1.0 · G2-2 · DOS BOLSAS DE USDC PENDIENTE: «usdcPend» (de VENTAS: su valor ya se sumó a la caja) y «usdcPendC» (de COMPRAS que no llegaron a hacerse: su
 //   valor se RESTÓ de la caja). La segunda cuenta en el valor del bot y, al pasarla a euros, se suma entera (antes solo la diferencia: se perdían esos euros).
-export const valor = (RS, tick) => RS.cash + (RS.usdcPendC || 0) * ueDe(tick) + Object.entries(RS.pos).reduce((s, [m, p]) => s + p.q * ((tick[m] && tick[m].bid) || p.last || p.px) * (1 - (RS.fee ?? FEE)), 0);
+// v1.0 · G3-1 · y el USDC de una compra dudosa ya cobrada de la caja que aún no está en una posición (si no, mientras se aclara, parecía una pérdida y podía saltar el freno)
+export const usdcDudoso = (RS) => Object.entries(RS.compraDud || {}).reduce((s, [k, x]) => s + (x && x.pagado && x.usdc > 0 && !RS.pos[k] ? x.usdc : 0), 0);
+export const valor = (RS, tick) => RS.cash + ((RS.usdcPendC || 0) + usdcDudoso(RS)) * ueDe(tick) + Object.entries(RS.pos).reduce((s, [m, p]) => s + p.q * ((tick[m] && tick[m].bid) || p.last || p.px) * (1 - (RS.fee ?? FEE)), 0);
 
 // ---- órdenes (el importe real lo dice la respuesta de Bitvavo, no lo que pedimos)
 // v291 · 🔐 ÓRDENES SEGURAS: cada orden lleva un identificador propio (clientOrderId). Si la respuesta se pierde (red, tiempo agotado),
@@ -305,7 +307,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
       if ((ctl.conservar || []).includes(p.sym)) continue;
       const hay = +B0[p.sym] || 0, falta = p.q - hay; if (!(falta > p.q * 0.02)) { delete p.pendConc; continue; }
       const desde = Math.max(Date.parse(p.t0), p.tVenta || 0) - 30e3; let got = 0, qv = 0, fee = 0, usdcV = 0, histFalla = false;
-      if (X.operaciones) try { for (const o of (await X.operaciones([p.sym])).filter((o) => o.side === "sell" && o.t > desde).sort((a, b) => a.t - b.t)) { if (qv >= falta * 1.01) break; qv += o.q; got += o.eur - o.fee; fee += o.fee; usdcV += o.usdc > 0 ? o.usdc : 0; } } catch (e) { histFalla = true; }
+      if (X.operaciones) try { for (const o of (await X.operaciones([p.sym])).filter((o) => o.sym === p.sym && o.side === "sell" && o.t > desde).sort((a, b) => a.t - b.t)) { if (qv >= falta * 1.01) break; qv += o.q; got += o.eur - o.fee; fee += o.fee; usdcV += o.usdc > 0 ? o.usdc : 0; } } catch (e) { histFalla = true; }
       if (got > 0) { RS.cash += got; RS.st.fees += fee; p.cob = (p.cob || 0) + got; p.tVenta = Date.now(); delete p.pendConc;
         if (usdcV > 0) { RS.usdcPend = (RS.usdcPend || 0) + usdcV; L(RS, now, `💵 ${p.sym}: la venta fue a USDC (${r2(usdcV)} USDC); se pasan a euros`); }   // v1.0 · O-002 · el stop de una cripto que va por USDC vende a USDC: ese USDC se pasa a euros
         if (hay * ((tick[m] && tick[m].bid) || p.px) >= 1) { p.q = hay; L(RS, now, `🧾 ${p.sym}: vendida una parte en ${EX} fuera del bot (+${r2(got)} € apuntados)`); continue; }
@@ -342,18 +344,18 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
           // (v299: primero por las órdenes que llevan la marca del bot; si el exchange no deja consultarlas, por el historial de compras)
           let qBot = q; if (dueno) { const t0 = Date.parse(dueno[1].pos[m].t0) - 60e3; let hecho = false;
             if (X.comprasBot) try { const qb = await X.comprasBot(sym, t0); if (qb != null) { qBot = Math.min(q, qb); hecho = true; } } catch (e) {}
-            if (!hecho && X.operaciones) try { qBot = Math.min(q, (await X.operaciones([sym])).filter((o) => o.side === "buy" && o.t >= t0).reduce((s2, o) => s2 + o.q, 0)); } catch (e) {} }
+            if (!hecho && X.operaciones) try { qBot = Math.min(q, (await X.operaciones([sym])).filter((o) => o.sym === sym && o.side === "buy" && o.t >= t0).reduce((s2, o) => s2 + o.q, 0)); } catch (e) {} }
           if (dueno && !(qBot * bid >= 2)) dueno = null;
           // v1.0 · G-1.3 · una compra de las Tortugas que quedó DUDOSA y luego aparece en la cuenta es suya: se apunta con SUS reglas (su stop), y los euros
           //   que costó se descuentan de la caja del bot (si no, el cuadre del efectivo lo tomaba por dinero que sacaste tú y rebajaba la base del freno)
           const cd = (RS.compraDud && RS.compraDud[m]) || (DUD[m] && DUD[m].compra ? { t: DUD[m].t, src: null } : null);
-          if (!dueno && cd && cd.src === "tortuga" && now - Date.parse(cd.t) < 24 * 3600e3) { let qT = q; if (X.comprasBot) try { const qb = await X.comprasBot(sym, Date.parse(cd.t) - 60e3); if (qb != null) qT = Math.min(q, qb); } catch (e) {}
+          if (!dueno && cd && cd.src === "tortuga" && (DUD[m] || now - Date.parse(cd.t) < 24 * 3600e3)) { let qT = q; if (X.comprasBot) try { const qb = await X.comprasBot(sym, Date.parse(cd.t) - 60e3); if (qb != null) qT = Math.min(q, qb); } catch (e) {}
             if (qT * bid >= 2) { const px0 = lb && lb.px > 0 ? lb.px : bid, cost = r2(lb ? lb.cost * Math.min(1, qT / lb.q) : qT * px0); RS.pos[m] = { src: "tortuga", sym, q: qT, q0: qT, px: px0, cost, cost0: cost, t0: cd.t, last: bid, stop: px0 - cd.stopD, N: cd.N };
               if (!cd.pagado) RS.cash = r2(Math.max(0, RS.cash - cost)); delete RS.compraDud[m]; L(RS, now, `🔍 🐢 ${sym}: la compra de las Tortugas que quedó sin confirmar SÍ se hizo; se apunta con su stop (${r2(cost)} €)`); await protege(m); continue; }
             continue; }   // v1.0 · G2-5 · si el historial aún no muestra la compra, se ESPERA (nunca se adopta todo como si fuera una cualquiera)
           if (dueno) { const sp = dueno[1].pos[m], q = qBot; RS.pos[m] = { src: dueno[0], sym, q, q0: q, px: lb && lb.px > 0 ? lb.px : bid, cost: r2(lb ? lb.cost * Math.min(1, q / lb.q) : q * bid), cost0: r2(lb ? lb.cost * Math.min(1, q / lb.q) : q * bid), t0: now.toISOString(), srcT0: sp.t0, last: bid }; RS.vistos[m + "|" + sp.t0] = now.toISOString(); RS.cash = r2(Math.max(0, RS.cash - RS.pos[m].cost)); L(RS, now, `🔍 ${sym}: compra del bot que no llegó a apuntarse (reinicio); queda apuntada con «${dueno[0]}»`); await protege(m); }
           // otra compra del bot que quedó dudosa (cartera base, copias…): se vigila como antes (stop −6 %, stop móvil, 72 h) y su coste sale de la caja del bot
-          else if (cd && now - Date.parse(cd.t) < 24 * 3600e3) { RS.pos[m] = { sym, q, q0: q, px: bid, cost: r2(v), cost0: r2(v), t0: now.toISOString(), last: bid, peak: bid, huerfana: 1, src: null }; if (!cd.pagado) RS.cash = r2(Math.max(0, RS.cash - v)); if (RS.compraDud) delete RS.compraDud[m]; L(RS, now, `🔍 ${sym}: una compra del bot que quedó sin confirmar SÍ se hizo (${r2(v)} €); la vigila (stop −6 %, stop móvil, 72 h máx.)`); await protege(m); }
+          else if (cd && (DUD[m] || now - Date.parse(cd.t) < 24 * 3600e3)) { RS.pos[m] = { sym, q, q0: q, px: bid, cost: r2(v), cost0: r2(v), t0: now.toISOString(), last: bid, peak: bid, huerfana: 1, src: null }; if (!cd.pagado) RS.cash = r2(Math.max(0, RS.cash - v)); if (RS.compraDud) delete RS.compraDud[m]; L(RS, now, `🔍 ${sym}: una compra del bot que quedó sin confirmar SÍ se hizo (${r2(v)} €); la vigila (stop −6 %, stop móvil, 72 h máx.)`); await protege(m); }
           // v1.0 · G-1.3 · una cripto que el bot NO compró (tuya, traspasada…) ya no se adopta ni se vende: no se toca y se avisa una vez
           else { RS.ajenas = RS.ajenas || {}; if (!RS.ajenas[sym]) { RS.ajenas[sym] = now.toISOString(); L(RS, now, `🔍 ${sym}: hay ${r2(v)} € en tu cuenta que el bot no ha comprado; no la toca`); msgs.push(`💶 ℹ️ ${EX}: hay ${sym} en tu cuenta que no ha comprado el bot. No la toco (ni la vendo ni le pongo stop).`); } } } }
 
@@ -477,7 +479,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
           L(RS, now, `🐢 compra ${m.split("-")[0]} por ${r2(r.coste)} €: cerró por encima de su máximo de ${TP.ent} días · stop ${r2((-stopD / r.px) * 100)} % · sale con su mínimo de ${TP.sale} días`); msgs.push(`🟢 COMPRA REAL · ${EX}\n🐢 ${m.split("-")[0]} por ${r2(r.coste)} € (precio ${r.px})\nPor qué: ha cerrado por encima de su máximo de ${TP.ent} días.\nProtección: stop ${r2((-stopD / r.px) * 100)} % (guardado en ${EX}); vende si cae por debajo de su mínimo de ${TP.sale} días.\nEuros libres que quedan: ${r2(RS.cash)} €`); await protege(m);
         } catch (e) { L(RS, now, `⚠️ 🐢 no pude comprar ${m.split("-")[0]}: ${String(e.message).slice(0, 60)}`);
           if (DUD[m]) { RS.compraDud = RS.compraDud || {}; RS.compraDud[m] = { ...(RS.compraDud[m] || {}), t: now.toISOString(), src: "tortuga", stopD, N: x.N }; }   // v1.0 · G-1.3 · compra de resultado desconocido: si aparece en la cuenta, es de las Tortugas
-          if (e && e.pendUsdc > 0) { RS.usdcPendC = (RS.usdcPendC || 0) + e.pendUsdc; if (e.pendRef) (RS.usdcRef = RS.usdcRef || []).push(e.pendRef); RS.cash -= e.costeEur || 0; L(RS, now, `💵 ${r2(e.pendUsdc)} USDC del bot quedan pendientes de pasar a euros`); } } } }   // (antes este USDC se perdía del apunte)
+          if (e && e.pendUsdc > 0) { RS.usdcPendC = (RS.usdcPendC || 0) + e.pendUsdc; if (e.pendRef) (RS.usdcRef = RS.usdcRef || []).push({ ...e.pendRef, c: 1 });   /* v1.0 · G3-2 */ RS.cash -= e.costeEur || 0; L(RS, now, `💵 ${r2(e.pendUsdc)} USDC del bot quedan pendientes de pasar a euros`); } } } }   // (antes este USDC se perdía del apunte)
     // v306 · 🐋 COPIA A LOS PROFESIONALES de Hyperliquid: como mucho 2 a la vez, 10 % de la cuenta cada una (máx. 20 % en total), solo criptos de este exchange
     if (!soloT() && ctl.ballenas && ctl.ballenas.m) { const V = valor(RS, tick); let nB = Object.values(RS.pos).filter((p) => p.src === "ballena").length;
       for (const [m, w] of Object.entries(ctl.ballenas.m).filter(([, w]) => w.entra).sort((a, b) => b[1].s - a[1].s)) { if (nB >= 2) break; const tk = tick[m]; if (RS.pos[m] || !tk || !(tk.ask > 0) || tk.sp > HUECO_MAX || (ctl.conservar || []).includes(m.split("-")[0])) continue;
@@ -520,7 +522,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
     RS.estado = "activo"; delete RS.err;
   } catch (e) {
     RS.err = String(e.message).slice(0, 120); L(RS, now, "⚠️ " + RS.err);
-    if (e && e.pendUsdc > 0) { RS.usdcPendC = (RS.usdcPendC || 0) + e.pendUsdc; if (e.pendRef) (RS.usdcRef = RS.usdcRef || []).push(e.pendRef); RS.cash -= e.costeEur || 0; L(RS, now, `💵 ${r2(e.pendUsdc)} USDC del bot quedan pendientes de pasar a euros (se reintenta cada minuto)`); }   // v298
+    if (e && e.pendUsdc > 0) { RS.usdcPendC = (RS.usdcPendC || 0) + e.pendUsdc; if (e.pendRef) (RS.usdcRef = RS.usdcRef || []).push({ ...e.pendRef, c: 1 });   /* v1.0 · G3-2 */ RS.cash -= e.costeEur || 0; L(RS, now, `💵 ${r2(e.pendUsdc)} USDC del bot quedan pendientes de pasar a euros (se reintenta cada minuto)`); }   // v298
     if ((X.errClave || errClave)(e)) { RS.estado = "clave"; if (!RS.avisoClave || now - Date.parse(RS.avisoClave) > 6 * 3600e3) { RS.avisoClave = now.toISOString(); msgs.push(`💶 ⚠️ ${EX} REAL: la clave no funciona (${RS.err}). Revisa que tenga permiso de OPERAR y que esté bien copiada en Ajustes.`); } }
   }
   const e2 = valor(RS, tick); RS.eq.push([now.toISOString(), r2(e2), r2(RS.start)]);   // v266 · también lo aportado hasta entonces (para no contar ingresos como ganancia) if (RS.eq.length > 3000) RS.eq = RS.eq.filter((_, i) => i % 2 === 0 || i > RS.eq.length - 500);

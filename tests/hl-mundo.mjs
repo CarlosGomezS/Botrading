@@ -33,7 +33,7 @@ export function mundo(o = {}) {
         case "meta": return j({ universe: coins.map((c) => ({ name: c, szDecimals: 3 })) });
         case "clearinghouseState": if (W.chRoto) return j({}, 500); if (W.saldoRaro !== undefined) return j({ marginSummary: W.saldoRaro, assetPositions: pos() });   /* v1.0 · H-001 · un 200 con el saldo mal */
           return j({ marginSummary: { accountValue: String(W.eq) }, assetPositions: pos() });
-        case "spotClearinghouseState": if (W.spotFallo) return j({}, 500); return j({ balances: W.spot != null ? [{ coin: "USDC", total: String(W.spot), hold: "0" }] : [] });
+        case "spotClearinghouseState": if (W.spotFallo) return j({}, 500); if (W.spotVacio) return j({}); return j({ balances: W.spot != null ? [{ coin: "USDC", total: String(W.spot), hold: "0" }] : [] });
         case "allMids": return j(Object.fromEntries(coins.map((c) => [c, String(W.px[c])])));
         case "userNonFundingLedgerUpdates": if (W.ledgerFallo) return j({}, 500); return j(W.led || [{ delta: { type: "deposit", usdc: String(W.neto) } }]);
         case "userFills": if (W.fillsRoto) return j({}, 500); return j(W.fills.filter((f) => !f.oculto || !W.retrasoFills));
