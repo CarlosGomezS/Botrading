@@ -1,7 +1,7 @@
 // v1.0 · auditoría 3 (Gemini) · laboratorio de Hyperliquid y bitvavo.mjs
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { cartera, PF_MAX } from "../runner/caza-hl.mjs";
 import { medianaMovil, medEn, FILTROS } from "../runner/caza-hl2.mjs";
 import { tramosAlAzar, azarFijo, semanaDe, iaEnUso, PESO_MAX } from "../runner/caza-lab.mjs";
@@ -37,7 +37,7 @@ test("G5-1.5 · la volatilidad «normal» solo mira hacia ATRÁS (cambiar el fut
   const a = medianaMovil(v), b = medianaMovil(v2); for (let i = 0; i <= 2000; i++) assert.ok(Object.is(a[i], b[i]), "hora " + i);
   assert.ok(b[2999] > a[2999], "más adelante sí cambia"); assert.equal(medEn(a, 100), a[100]); assert.equal(medEn(7, 3), 7, "compatible con un número");
   const X = { vol: { c: [0, 0, 9] }, volMed: { c: [1, 1, 1] } }; assert.equal(FILTROS["solo con mucha volatilidad"](1, 2, X, "c"), true);
-  for (const f of ["caza-lab.mjs", "hl-real.mjs", "caza-hl2.mjs"]) assert.match(readFileSync(new URL("../runner/" + f, import.meta.url), "utf8"), /X\.volMed\[c\] = medianaMovil\(X\.vol\[c\]\)/, f);
+  for (const f of ["caza-lab.mjs", "hl-real.mjs", "caza-hl2.mjs"]) { const u = new URL("../runner/" + f, import.meta.url); if (!existsSync(u)) continue; assert.match(readFileSync(u, "utf8"), /X\.volMed\[c\] = medianaMovil\(X\.vol\[c\]\)/, f); }   // (la copia sin Hyperliquid real no tiene hl-real.mjs)
 });
 
 test("G5-1.5 · el laboratorio lee el volumen de OKX en monedas (como Hyperliquid) y no reintenta sin fin si OKX dice «demasiadas peticiones»", () => {
