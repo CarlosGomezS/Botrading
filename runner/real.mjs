@@ -626,7 +626,8 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
 // v466 · estricta: fecha OBLIGATORIA y como mucho 5 s antes del envío (solo por desfase de relojes), mismo lado y la MISMA cantidad (solo redondeo).
 //   Si no cuadra todo, NO es nuestra: la orden queda dudosa y no se repite la compra.
 export const MARGEN_RELOJ = 5000;
-export function esNuestra(o, qq, tEnvio) { if (!o) return false; const q = +(o.quantity ?? o.filledQuantity ?? NaN), cr = Date.parse(o.createdAt || o.creationTime || ""); return Number.isFinite(q) && Number.isFinite(cr) && Number.isFinite(+tEnvio) && Math.sign(q) === Math.sign(qq) && Math.abs(Math.abs(q) - Math.abs(qq)) <= Math.abs(qq) * 1e-6 + 1e-9 && cr >= tEnvio - MARGEN_RELOJ && cr <= Date.now() + MARGEN_RELOJ; }
+export function esNuestra(o, qq, tEnvio) { if (!o) return false; const q0 = +(o.quantity ?? o.filledQuantity ?? NaN), lado = /SELL/i.test(String(o.side || "")) ? -1 : /BUY/i.test(String(o.side || "")) ? 1 : 0, q = lado && Number.isFinite(q0) ? lado * Math.abs(q0) : q0,   // v1.0 · G-3.3 · el historial puede dar la venta en positivo con «side: SELL»
+    cr = Date.parse(o.createdAt || o.creationTime || ""); return Number.isFinite(q) && Number.isFinite(cr) && Number.isFinite(+tEnvio) && Math.sign(q) === Math.sign(qq) && Math.abs(Math.abs(q) - Math.abs(qq)) <= Math.abs(qq) * 1e-6 + 1e-9 && cr >= tEnvio - MARGEN_RELOJ && cr <= Date.now() + MARGEN_RELOJ; }
 export async function placeMarket(T, t, qty, ext, rep, dec0) {   // (exportada para las pruebas)
   let q = qty, dec = dec0 != null ? dec0 : 4;
   const fmt = (x, d) => Math.floor(x * 10 ** d) / 10 ** d;
@@ -683,13 +684,19 @@ async function waitFill(T, o, maxS = 75) {
   return { status: "PENDIENTE", nota: "sigue pendiente (¿mercado cerrado?): se ejecutará cuando abra" };
 }
 let REAL_ORDERS = [];
+// v1.0 · G-3.1 · LIBRAS Y PENIQUES: Yahoo da «GBp» (peniques) o «GBP» (libras) y Trading 212 «GBX» (peniques) o «GBP». Antes la comprobación (sin distinguir mayúsculas) aceptaba «GBP» como
+//   si fueran peniques (precio 100 veces más bajo → orden 100 veces más grande). Ahora se convierte bien, y una divisa desconocida en Londres no se acepta.
+export function precioEnDivisa(px, desde, cur) { if (!(px > 0)) return null; const d = desde || null, c = cur || "EUR";
+  if (c === "GBX") return d === "GBp" || d === "GBX" ? px : d === "GBP" ? px * 100 : null;
+  if (c === "GBP") return d === "GBP" ? px : d === "GBp" || d === "GBX" ? px / 100 : null;
+  return !d || d === c ? px : null; }
 async function priceOf(t, map, positions, fx) {
   const pos = positions.find((p) => p.instrument && p.instrument.ticker === t);
   const inst = Object.values(map).find((x) => x.t === t) || {};
   const cur = inst.cur || (pos && pos.instrument.currency) || "EUR";
   if (pos && pos.currentPrice > 0) return { px: +pos.currentPrice, cur, src: "Trading 212 (posición)" };
   const ys = yahooSym(t);
-  if (ys) { try { const y = await yahoo(ys); if (!y.cur || y.cur === cur || (cur === "GBX" && /GBp/i.test(y.cur))) return { px: y.px, cur, src: "Yahoo " + ys }; } catch (e) { log("Precio: Yahoo no respondió; pruebo otra fuente"); } }
+  if (ys) { try { const y = await yahoo(ys), px = precioEnDivisa(y.px, y.cur, cur); if (px > 0) return { px, cur, src: "Yahoo " + ys + (px !== y.px ? ` (${y.cur} → ${cur})` : "") }; } catch (e) { log("Precio: Yahoo no respondió; pruebo otra fuente"); } }
   if (inst.isin) {
     try {
       const r = await fetch(`${YH}/v1/finance/search?q=${encodeURIComponent(inst.isin)}&quotesCount=8&newsCount=0`, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(15000) });
@@ -698,12 +705,12 @@ async function priceOf(t, map, positions, fx) {
     } catch {}
   }
   // segunda fuente sin clave: Stooq (cotizaciones europeas con sufijo .de, .uk…)
-  if (ys) {
+  if (ys && !(/\.L$/i.test(ys) && /^GB[PX]$/.test(cur))) {   // v1.0 · G-3.1 · en Londres Stooq no dice si es en libras o peniques: no se usa
     const st = ys.replace(/\.DE$/i, ".de").replace(/\.L$/i, ".uk").replace(/\.(AS|PA|MI|SW|MC|BR)$/i, (x) => x.toLowerCase());
     try {
       const r = await fetch(`${env("REAL_TEST") === "1" && /^http:\/\/127\.0\.0\.1/.test(env("STOOQ_BASE")) ? env("STOOQ_BASE") : "https://stooq.com"}/q/l/?s=${encodeURIComponent(st.toLowerCase())}&f=sd2t2c&h&e=csv`, { signal: AbortSignal.timeout(15000) });
       const row = (await r.text()).trim().split("\n")[1] || "", c = +row.split(",")[4];
-      if (r.ok && c > 0 && !(cur === "GBX" && /\.uk$/.test(st) && c < 5)) return { px: c, cur, src: "Stooq " + st };
+      if (r.ok && c > 0) return { px: c, cur, src: "Stooq " + st };
     } catch (e) { log("Precio: Stooq no respondió"); }
   }
   // último recurso: el precio de la última orden ejecutada de ese ETF (máx. 10 días); se compra un 3% menos por si ha subido
@@ -1061,21 +1068,21 @@ async function main() {
 
     // subcuenta del bot: primero se miran las órdenes que quedaron pendientes, después el capital y las participaciones
     const notasL = [];
+    // v1.0 · G-3.3 · primero se aclaran las órdenes pendientes (su dinero y sus participaciones) y DESPUÉS se calcula el capital: al revés, una venta
+    //   hecha de noche no salía ni en las posiciones ni en el efectivo, el bot se creía con menos dinero, se lo «reponía» y luego le sumaba la venta otra vez
+    const aclaraPend = async () => { if ((R.pendBot || []).length) { rep.push("## Órdenes que estaban pendientes", ""); const avR = await reconcile(T, R, rep); if (avR.length) await avisa("⚠️ Trading 212: orden sin aclarar", avR.map((x) => x.txt).join("\n") + "\n\nEse activo sigue bloqueado para no duplicar la orden. Revísalo en la app de Trading 212. Cuando lo tengas claro (la orden NO se hizo, o ya la has apuntado tú), pulsa el botón para liberarlo.", { prio: 4, kb: avR.slice(0, 6).map((x) => [{ text: `✅ ${x.t}: la he revisado, liberar`, callback_data: "lb:" + x.ref }]) }); rep.push(""); try { positions = (await T.call("GET", "/equity/positions")) || positions; } catch {} } };
+    const habiaLibro = !!R.ledger; if (habiaLibro) await aclaraPend();
     ensureLedger(R, A, positions, m, notasL);
-    if ((R.pendBot || []).length) { rep.push("## Órdenes que estaban pendientes", ""); const avR = await reconcile(T, R, rep); if (avR.length) await avisa("⚠️ Trading 212: orden sin aclarar", avR.map((x) => x.txt).join("\n") + "\n\nEse activo sigue bloqueado para no duplicar la orden. Revísalo en la app de Trading 212. Cuando lo tengas claro (la orden NO se hizo, o ya la has apuntado tú), pulsa el botón para liberarlo.", { prio: 4, kb: avR.slice(0, 6).map((x) => [{ text: `✅ ${x.t}: la he revisado, liberar`, callback_data: "lb:" + x.ref }]) }); rep.push(""); try { positions = (await T.call("GET", "/equity/positions")) || positions; } catch {} }
+    if (!habiaLibro) await aclaraPend();
     syncLots(R, positions, m, notasL);
     // v449 · 💶 CUADRE DEL EFECTIVO: el efectivo del bot nunca puede ser mayor que el de la cuenta. Si lo es y en la cuenta hay participaciones
     // de SUS fondos sin apuntar (una compra suya que no llegó a anotarse: respuesta perdida, orden que se ejecutó más tarde…), son del bot.
     try { const accCash = +((account && account.cash && account.cash.availableToTrade) || 0), L = R.ledger; let resto = r2(L.cash - accCash);
       console.log(`Cuadre del efectivo: ${resto > 0.5 ? ((R.pendBot || []).length || (pending || []).length ? `hay que cuadrar, pero espera: órdenes pendientes (del bot ${(R.pendBot || []).length}, en la cuenta ${(pending || []).length})` : "hay que cuadrar: se cuadra ahora") : "cuadra, nada que hacer"}`);
       if (resto > 0.5 && !(R.pendBot || []).length && !(pending || []).length) {
-        for (const p of positions) { const t = p.instrument && p.instrument.ticker; if (!t || !((R.botTickers || []).includes(t) || L.lots[t])) continue;
-          const tq = +p.quantity || 0, lot = L.lots[t] || { q: 0, cost: 0 }, extra = tq - lot.q, avg = tq > 0 ? +((p.walletImpact && p.walletImpact.totalCost) || 0) / tq : 0; if (!(extra > 1e-6) || !(avg > 0)) continue;
-          const qAd = +Math.min(extra, resto / avg).toFixed(8), coste = r2(qAd * avg); if (!(qAd > 0)) continue;
-          const lt = L.lots[t] || (L.lots[t] = { q: 0, cost: 0, d: m.date }); lt.q = +(lt.q + qAd).toFixed(8); lt.cost = r2(lt.cost + coste); L.cash = r2(L.cash - coste); resto = r2(resto - coste);
-          hist(R, { tipo: "ajuste", t, q: qAd, eur: -coste, nota: `cuadre: el efectivo del bot era mayor que el de la cuenta y había ${r2(extra)} participaciones de ${t} sin apuntar. Eran del bot (una compra suya que no llegó a anotarse): se le apuntan por ${eur(coste)}.` });
-          notasL.push(`${t}: ${eur(coste)} en participaciones eran del bot y salían como tuyas (una compra suya sin anotar). Corregido: ahora cuentan como del bot.`);
-          if (resto <= 0.5) break; }
+        // v1.0 · G-3.2 · YA NO se apropia de participaciones: antes, si sobraba efectivo apuntado y había más participaciones de un fondo del bot que las suyas,
+        //   se las quedaba (y podían ser TUYAS, p. ej. si el historial de Trading 212 tarda en mostrar una retirada). Las compras del bot sin anotar ya se
+        //   aclaran por su orden (pendientes y dudosas); lo que sobra aquí se trata siempre como dinero que has movido tú (no es pérdida) y se avisa.
         // si aun así sobra, ese efectivo lo has usado TÚ (compras tuyas o una retirada): sale del dinero del bot, como una retirada (no es pérdida)
         if (resto > 0.5) { L.cash = r2(L.cash - resto); L.cap = r2(L.cap - resto); flowAdd(R, m.date, -resto); L.retPend = r2((+L.retPend || 0) + resto);
           hist(R, { tipo: "ajuste", t: "efectivo", q: 0, eur: -resto, nota: `cuadre: el efectivo del bot (${eur(L.cash + resto)}) era mayor que el de la cuenta (${eur(accCash)}). Esos ${eur(resto)} los has usado tú (compras tuyas o una retirada): salen del dinero del bot como una retirada, no como pérdida.` });

@@ -13,6 +13,7 @@ function exchange(px, opts = {}) {
     const R = (st, j) => ({ ok: st < 400, status: st, json: async () => j });
     if (!ok || o.headers["Bitvavo-Access-Key"] !== "CLAVE") return R(403, { errorCode: 105, error: "firma" });
     if (ex.fallo) return R(ex.fallo.status, ex.fallo.j);
+    if (ex.falloVentaDe && u.pathname === "/v2/order" && o.method === "POST" && JSON.parse(o.body).side === "sell" && JSON.parse(o.body).market === ex.falloVentaDe) return R(500, { errorCode: 999, error: "error interno (prueba)" });
     if (ex.falloBalance && u.pathname === "/v2/balance") return R(500, { errorCode: 999, error: "saldo no disponible (prueba)" });
     if (ex.falloQuita && u.pathname === "/v2/order" && o.method === "DELETE") return R(500, { errorCode: 999, error: "error interno (prueba)" });
     if (ex.dudosaCompra && u.pathname === "/v2/order" && o.method === "POST" && JSON.parse(o.body).side === "buy" && JSON.parse(o.body).orderType === "market") { ex.intentos = (ex.intentos || 0) + 1; return R(504, { errorCode: 999, error: "tiempo agotado (prueba)" }); }
@@ -284,10 +285,11 @@ test("Real v278: 🔍 cuadra con la cuenta real: incorpora lo que hay sin apunta
   const ex = exchange({ "Z-EUR": 2, "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
   ex.bal["Z-EUR"] = 5;   // 10 € de Z en la cuenta que el bot no tenía apuntados
   let o = await RL.vuelta(null, { eq: fuente() }, { copia: "eq" }, tk(ex.px), T(0), deps);
-  assert.ok(o.RS.pos["Z-EUR"] && o.RS.pos["Z-EUR"].huerfana, "la incorpora");
+  // v1.0 · G-1.3 · lo que el bot NO compró ya no se incorpora ni se vende (antes se adoptaba y se vendía a las 72 h o con −6 %): se avisa una vez
+  assert.ok(!o.RS.pos["Z-EUR"], "no se la apropia"); assert.ok(o.msgs.some((t) => /hay Z en tu cuenta que no ha comprado el bot/.test(t)));
   assert.equal(o.RS.cuenta.activos[0].sym, "Z"); assert.ok(Math.abs(o.RS.cuenta.total - (1000 + 5 * ex.px["Z-EUR"] * 0.999)) < 0.05, "foto exacta");
-  ex.px["Z-EUR"] = 1.8; o = await RL.vuelta(o.RS, { eq: fuente() }, { copia: "eq" }, tk(ex.px), T(1), deps);
-  assert.ok(!o.RS.pos["Z-EUR"], "stop −6 % de lo incorporado"); assert.equal(ex.orders.at(-1).side, "sell");
+  const n0 = ex.orders.length; ex.px["Z-EUR"] = 1.8; o = await RL.vuelta(o.RS, { eq: fuente() }, { copia: "eq" }, tk(ex.px), T(1), deps);
+  assert.ok(!o.RS.pos["Z-EUR"]); assert.equal(ex.orders.filter((x, i) => i >= n0 && /Z-EUR/.test(JSON.stringify(x))).length, 0, "ni la vende aunque caiga"); assert.ok(!o.msgs.some((t) => /hay Z en tu cuenta/.test(t)), "el aviso, una sola vez");
 });
 
 test("Real v282: 📒 el libro casa compras y ventas del historial real del exchange (FIFO, comisiones incluidas)", async () => {
@@ -611,4 +613,56 @@ test("Real v1.0 O-002: si el stop de una cripto que va POR USDC vende fuera del 
   ex.trades = [{ timestamp: Date.parse(T(2)), market: "A-EUR", side: "sell", amount: String(q), price: "0.9", fee: String(q * 0.9 * 0.0025), feeCurrency: "EUR" }];
   ({ RS } = await RL.vuelta(RS, { mix: fuente({ "A-EUR": sp }) }, { copia: "mix", capital: 100 }, tk(ex.px), T(3), deps));
   assert.ok(!RS.pos["A-EUR"]); assert.ok(Math.abs((RS.usdcPend || 0) - usdcVenta) < 1e-9, `USDC pendiente ${RS.usdcPend}`);
+});
+
+// ---------- v1.0 · auditoría (Gemini): Bitvavo / OKX ----------
+const conPos = async (ex, pos, ctl = {}) => { const deps = { api: ex.api, mercado: ex.mercado }; let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 1000, ...ctl }, tk(ex.px), T(0), deps);
+  for (const [m, p] of Object.entries(pos)) { RS.pos[m] = { sym: m.split("-")[0], q0: p.q, cost: p.q * p.px, cost0: p.q * p.px, t0: T(0).toISOString(), last: p.px, ...p }; ex.bal[m] = p.q; RS.cash -= p.q * p.px; ex.eur -= p.q * p.px; }
+  return { RS, deps }; };
+
+test("G-1.2 · si vender UNA cripto falla, las demás se siguen revisando en la misma vuelta (antes se abortaba el bucle)", async () => {
+  const ex = exchange({ "A-EUR": 1, "B-EUR": 1 }); const { RS: R0, deps } = await conPos(ex, { "A-EUR": { src: "tortuga", q: 20, px: 1, stop: 0.9 }, "B-EUR": { src: "tortuga", q: 20, px: 1, stop: 0.9 } });
+  ex.px["A-EUR"] = 0.8; ex.px["B-EUR"] = 0.8; ex.falloVentaDe = "A-EUR";   // las dos rompen su stop; la venta de A falla
+  const { RS } = await RL.vuelta(R0, { mix: fuente() }, { copia: "mix", capital: 1000 }, tk(ex.px), T(1), deps);
+  assert.ok(RS.pos["A-EUR"], "A sigue (su venta falló)"); assert.ok(!RS.pos["B-EUR"], "B se ha vendido igualmente"); assert.ok(ex.orders.some((o) => o.side === "sell" && o.market === "B-EUR"));
+});
+
+test("G-1.1 · con precio de venta 0 (dato roto) no se compra «polvo» en bucle ni se dispara el stop", async () => {
+  const ex = exchange({ "A-EUR": 1 }); const { RS: R0, deps } = await conPos(ex, { "A-EUR": { src: "tortuga", q: 20, px: 1, stop: 0.9 } });
+  const n0 = ex.orders.length, t0 = tk(ex.px); t0["A-EUR"].bid = 0;
+  const { RS } = await RL.vuelta(R0, { mix: fuente() }, { copia: "mix", capital: 1000 }, t0, T(1), deps);
+  assert.equal(ex.orders.slice(n0).filter((o) => o.market === "A-EUR").length, 0, "ni compra ni vende"); assert.ok(RS.pos["A-EUR"]);
+});
+
+test("G-1.1 · el «polvo» se completa como mucho UNA vez por venta", async () => {
+  const ex = exchange({ "A-EUR": 1 }); const { RS: R0, deps } = await conPos(ex, { "A-EUR": { src: "tortuga", q: 2, px: 1, stop: 0.9 } });
+  ex.px["A-EUR"] = 0.5; const t1 = tk(ex.px); t1["A-EUR"] = { bid: 0.5, ask: 50, sp: 0 };   // comprar al «ask» disparatado no llega nunca al mínimo
+  const n0 = ex.orders.length; await RL.vuelta(R0, { mix: fuente() }, { copia: "mix", capital: 1000 }, t1, T(1), deps);
+  assert.ok(ex.orders.slice(n0).filter((o) => o.side === "buy").length <= 1, "como mucho una compra");
+});
+
+test("G-1.3 · marcar como tuya una cripto de las Tortugas le quita también el stop del exchange", async () => {
+  const ex = exchange({ "A-EUR": 1 }); const { RS: R0, deps } = await conPos(ex, { "A-EUR": { src: "tortuga", q: 20, px: 1, stop: 0.9, stopId: "S1" } });
+  ex.stops = { S1: { status: "awaitingTrigger" } };
+  const { RS } = await RL.vuelta(R0, { mix: fuente() }, { copia: "mix", capital: 1000, conservar: ["A"] }, tk(ex.px), T(1), deps);
+  assert.ok(!RS.pos["A-EUR"]); assert.ok(!ex.stops.S1, "stop quitado");
+});
+
+test("G-1.3 · una compra de las Tortugas que quedó dudosa y SÍ se hizo se apunta con sus reglas, y no rebaja la base del freno", async () => {
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 1000 }, tk(ex.px), T(0), deps); const start0 = RS.start, cash0 = RS.cash;
+  RS.compraDud = { "A-EUR": { t: T(0).toISOString(), src: "tortuga", stopD: 0.08, N: 0.04 } }; ex.bal["A-EUR"] = 20; ex.eur -= 20;   // la compra se hizo en el exchange
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 1000 }, tk(ex.px), T(1), deps));
+  const p = RS.pos["A-EUR"]; assert.ok(p && p.src === "tortuga", "es de las Tortugas"); assert.ok(Math.abs(p.stop - (p.px - 0.08)) < 1e-9, "con su stop");
+  assert.equal(RS.start, start0, "la base del freno no baja"); assert.ok(Math.abs(RS.cash - (cash0 - 20)) < 0.5, `caja ${RS.cash}`); assert.ok(!RS.compraDud || !RS.compraDud["A-EUR"]);
+});
+
+test("G-2.1 · una compra por USDC con el 2.º paso dudoso: sus euros salen de la caja una vez; si la cripto aparece, se apunta sin descontarla otra vez", async () => {
+  const ex = exchange({ "A-EUR": 1 }), deps = { api: ex.api, mercado: ex.mercado };
+  let { RS } = await RL.vuelta(null, { mix: fuente() }, { copia: "mix", capital: 1000 }, tk(ex.px), T(0), deps); const start0 = RS.start, cash0 = RS.cash;
+  RS.dudosas = { "A-EUR": { t: T(0).toISOString(), id: "x", inst: "A-USDC", compra: 1, costeEur: 20, usdc: 21, porCobrar: 1 } }; ex.eur -= 20;
+  ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 1000 }, tk(ex.px), T(1), deps));
+  assert.ok(Math.abs(RS.cash - (cash0 - 20)) < 0.01, `caja ${RS.cash}`); assert.equal(RS.start, start0, "no es dinero que sacaste tú"); assert.equal(RS.compraDud["A-EUR"].pagado, 1);
+  ex.bal["A-EUR"] = 20; ({ RS } = await RL.vuelta(RS, { mix: fuente() }, { copia: "mix", capital: 1000 }, tk(ex.px), T(2), deps));
+  assert.ok(RS.pos["A-EUR"], "la compra sí se hizo: es del bot"); assert.ok(Math.abs(RS.cash - (cash0 - 20)) < 0.01, "sin descontarla dos veces"); assert.equal(RS.start, start0);
 });

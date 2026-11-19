@@ -138,7 +138,8 @@ export function adaptador(api, I, tick = {}) {
     if (R.tipo === "eur") { const o = await orden(R.par.instId, "buy", eur.toFixed(2), true); const feeB = o.feeCcy === o.base ? o.fee : 0, feeE = o.feeCcy === "EUR" ? o.fee : o.fee * o.px; if (!(o.fill > 0)) throw new Error("la compra no se ejecutó"); return { q: o.fill - feeB, coste: o.quote + (o.feeCcy === "EUR" ? o.fee : 0), fee: feeE, px: o.px }; }
     const u = await orden(R.puente.instId, "buy", eur.toFixed(2), true), usdc = abajo(u.fill - (u.feeCcy === "USDC" ? u.fee : 0), 4);
     let o; try { o = await orden(R.par.instId, "buy", usdc.toFixed(4), true); }
-    catch (e) { const v = await sinDuplicar(R.puente.instId, "sell", abajo(usdc, R.puente.lot).toFixed(R.puente.lot));
+    catch (e) { if (!seguroNoHecha(e)) { if (e && typeof e === "object") { e.costeEur = u.quote + (u.feeCcy === "EUR" ? u.fee : 0); e.usdcDud = usdc; } throw e; }   // v1.0 · G-2.1 · resultado DESCONOCIDO (pudo hacerse): NO se vende el USDC al momento (podría ser tuyo); queda dudosa con su identificador y se aclara después
+      const v = await sinDuplicar(R.puente.instId, "sell", abajo(usdc, R.puente.lot).toFixed(R.puente.lot));
       if (!v.o) { const e3 = new Error(v.ref ? "OKX: compra por USDC cortada; la devolución a euros quedó sin confirmar (se comprobará esa orden antes de nada)" : "OKX: compra por USDC cortada; el USDC queda pendiente de pasar a euros"); e3.pendUsdc = usdc; e3.pendRef = v.ref || null; e3.costeEur = u.quote + (u.feeCcy === "EUR" ? u.fee : 0); throw e3; } throw e; }   /* v297 · si falla el 2.º paso, el USDC vuelve a euros */ const feeB = o.feeCcy === o.base ? o.fee : 0;
     return { q: o.fill - feeB, coste: u.quote + (u.feeCcy === "EUR" ? u.fee : 0), fee: (u.feeCcy === "EUR" ? u.fee : u.fee * u.px) + o.fee * (o.feeCcy === o.base ? o.px : 1) * u.px, px: (u.quote) / Math.max(1e-12, o.fill) };
   }
@@ -162,7 +163,11 @@ export function adaptador(api, I, tick = {}) {
     const algoClOrdId = "st" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);   // v295 · identificador propio: si se pierde la respuesta, se busca
     try { const [o] = await api("POST", "/api/v5/trade/order-algo", { instId: R.par.instId, tdMode: "cash", side: "sell", ordType: "conditional", sz: sz.toFixed(R.par.lot), slTriggerPx: precioStop(R.par, pxP), slOrdPx: "-1", algoClOrdId }); if (o && o.algoId) return String(o.algoId); }
     catch (e) { if (e && e.status && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code))) throw e; }
-    await sleep(800); try { const [d] = await api("GET", `/api/v5/trade/order-algo?algoClOrdId=${algoClOrdId}`); if (d && d.algoId) return String(d.algoId); } catch (e) {} return null; }
+    for (let i = 0; i < 4; i++) { await sleep(800 + i * 500); try { const [d] = await api("GET", `/api/v5/trade/order-algo?algoClOrdId=${algoClOrdId}`); if (d && d.algoId) return String(d.algoId); } catch (e) {} }   // v1.0 · G-2.2 · hasta 4 veces
+    throw new Error("OKX: el stop de emergencia quedó sin confirmar"); }   // (antes devolvía «no disponible» y un stop fantasma podía bloquear la venta)
+  // v1.0 · G-2.2 · quita los stops que puso el BOT en esa cripto y que no tiene apuntados (fantasmas): bloquean las criptos y la venta fallaría
+  async function quitaStopsBot(m) { const R = ruta(I, m); if (!R) return 0; const d = await api("GET", `/api/v5/trade/orders-algo-pending?ordType=conditional&instId=${R.par.instId}`); let n = 0;
+    for (const o of d || []) if (String(o.algoClOrdId || "").startsWith("st") && o.algoId) { try { await api("POST", "/api/v5/trade/cancel-algos", [{ algoId: o.algoId, instId: R.par.instId }]); n++; } catch (e) {} } return n; }
   // v295 · USDC que quedó a medias (ruta EUR→USDC→cripto cortada) → a euros
   async function usdcAEur(q) { if (!I.USDC || !I.USDC.EUR) return null; const sz = abajo(q, I.USDC.EUR.lot); if (!(sz >= I.USDC.EUR.min) || sz < 5) return null; const ue = (tick["USDC-EUR"] && tick["USDC-EUR"].bid) || 0.9; const v = await sinDuplicar(I.USDC.EUR.instId, "sell", sz.toFixed(I.USDC.EUR.lot)); if (v.ref) { const er = new Error("OKX: venta de USDC sin resultado conocido; se comprobará esa orden"); er.pendRef = v.ref; throw er; } if (!v.o) return null; const u = v.o; return { got: u.quote - (u.feeCcy === "EUR" ? u.fee : 0), est: sz * ue * 0.998 }; }
   // v297 · ¿sigue activo el stop de emergencia y cuánto cubre?
@@ -176,7 +181,7 @@ export function adaptador(api, I, tick = {}) {
   async function saldoEur() { const [d] = await api("GET", "/api/v5/account/balance?ccy=EUR"); const x = d && (d.details || []).find((y) => y.ccy === "EUR"); return x ? +(x.availBal || x.cashBal) || 0 : 0; }
   // v278 · saldo REAL de todas las monedas de la cuenta (para reflejar exactamente lo que hay y vender lo que de verdad queda)
   async function saldos() { const [d] = await api("GET", "/api/v5/account/balance"); const o = {}; for (const x of (d && d.details) || []) { const q = +(x.cashBal || x.availBal || 0); if (q > 0) o[x.ccy] = q; } return o; }
-  async function saldo(sym) { const o = await saldos(); return o[sym] || 0; }
+  async function saldo(sym) { const [d] = await api("GET", "/api/v5/account/balance?ccy=" + sym); const x = d && (d.details || []).find((y) => y.ccy === sym); return x ? +(x.availBal != null ? x.availBal : x.cashBal) || 0 : 0; }   // v1.0 · G-2.2 · lo disponible para vender
   // v282 · precios de OKX (no de Bitvavo) en euros para valorar la cuenta igual que la app de OKX: par en EUR, o en USDC × USDC-EUR
   async function precios() { const d = await api("GET", "/api/v5/market/tickers?instType=SPOT"), eur = {}, usdc = {}; for (const x of d) { const [b, q] = String(x.instId).split("-"), px = +x.bidPx || +x.last || 0; if (!(px > 0)) continue; if (q === "EUR") eur[b] = px; else if (q === "USDC") usdc[b] = px; }
     const u = eur.USDC || 0; for (const [b, px] of Object.entries(usdc)) if (!eur[b] && u > 0) eur[b] = px * u; eur.EUR = 1; return eur; }
@@ -190,5 +195,5 @@ export function adaptador(api, I, tick = {}) {
     return out; }
   const estadoOrden = async (m, ref) => { const instId = ref.inst || (ruta(I, m) && ruta(I, m).par.instId); try { const [d] = await api("GET", `/api/v5/trade/order?instId=${instId}&clOrdId=${ref.id}`); return { final: !!d && ["filled", "canceled", "mmp_canceled"].includes(d.state), lleno: +(d && d.accFillSz) || 0 }; } catch (e) { if (/51603|does not exist|no existe/i.test(String(e.message))) return { noExiste: true }; throw e; } };
   const abiertas = async (m, ref) => { const instId = (ref && ref.inst) || (ruta(I, m) && ruta(I, m).par.instId); const d = await api("GET", `/api/v5/trade/orders-pending?instType=SPOT&instId=${instId}`); return (d || []).filter((o) => o.ordType === "market").length; };
-  return { nombre: "OKX", fee: FEE, estadoOrden, abiertas, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, saldos, saldo, precios, operaciones, ponStop, quitaStop, usdcAEur, estadoStop, comprasBot, errClave };
+  return { nombre: "OKX", fee: FEE, estadoOrden, abiertas, tiene: (m) => !!ruta(I, m), comprar, vender, mercado, saldoEur, saldos, saldo, precios, operaciones, ponStop, quitaStop, quitaStopsBot, usdcAEur, estadoStop, comprasBot, errClave };
 }

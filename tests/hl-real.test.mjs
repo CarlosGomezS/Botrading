@@ -392,8 +392,8 @@ test("v477 · H-06: un cierre que solo se ejecuta EN PARTE no cuenta como cerrad
 });
 
 test("v477 · H-10: se apunta cuánto se movió el precio desde el cierre de la vela de la señal hasta la compra", async () => {
-  const W = mundo({ quiere: [{ c: "ETH", dir: 1, px0: 9.9 }] }); conecta(W); await silencio(() => HL.ronda());
-  const S = await estadoDe(W), s = S.slip.find((x) => x.x === "señal"); assert.ok(s, JSON.stringify(S.slip)); assert.ok(Math.abs(s.d - (10 / 9.9 - 1) * 100) < 1e-3, "≈ 1,01 % peor");
+  const W = mundo({ quiere: [{ c: "ETH", dir: 1, px0: 9.95 }] }); conecta(W); await silencio(() => HL.ronda());   // (v1.0 · G-4.2: con más de un 1 % ya no entra)
+  const S = await estadoDe(W), s = S.slip.find((x) => x.x === "señal"); assert.ok(s, JSON.stringify(S.slip)); assert.ok(Math.abs(s.d - (10 / 9.95 - 1) * 100) < 1e-3, "≈ 0,5 % peor");
 });
 
 // ---------- v479 · seguridad y fiabilidad operativa ----------
@@ -551,4 +551,37 @@ test("v1.0 · H-004 · futuros a 0 sin nada abierto y con dinero ingresado (p. e
   assert.equal([...W.refs].filter((r) => r.includes("hl-freno-")).length, 0);
   W.saldoRaro = undefined; W.eq = 115.82; await otraHora(W); assert.deepEqual(abiertas(W).map((x) => x.c), ["ETH"], "cuando el saldo vuelve a futuros, sigue normal");
   assert.equal(HL.saldoCeroSospechoso(0, [], 0, true), false, "sin dinero ingresado, un 0 es un 0"); assert.ok(HL.msgSaldoCero(1).length <= 160 && HL.msgSaldoCero(0).length <= 160, "cabe entero en el aviso");
+});
+
+// ---------- v1.0 · auditoría (Gemini): Hyperliquid ----------
+test("G-4.4 · el USDC que pasas a Spot cuenta para el freno: mover dinero de futuros a Spot no lo dispara", async () => {
+  const W = mundo({ eq: 40, neto: 100, quiere: [], pos: [{ c: "BTC", szi: 0.1 }] }); conecta(W); W.spot = 60; await silencio(() => HL.ronda());
+  assert.deepEqual(abiertas(W).map((x) => x.c), ["BTC"], "40 en futuros + 60 en Spot = 100: no salta"); assert.equal([...W.refs].filter((r) => r.includes("hl-freno-")).length, 0);
+  const W2 = mundo({ eq: 40, neto: 100, quiere: [], pos: [{ c: "BTC", szi: 0.1 }] }); conecta(W2); await silencio(() => HL.ronda());
+  assert.deepEqual(abiertas(W2), [], "sin nada en Spot, 40 de 100 sí es una caída: salta como siempre");
+});
+
+test("G-4.4 · el freno por deslizamiento se rearma al guardar los ajustes y solo mira los últimos 14 días", async () => {
+  const viejo = new Date(Date.now() - 20 * 864e5).toISOString(), malos = Array.from({ length: 25 }, () => ({ t: viejo, x: "abre", d: 1 }));
+  const W = mundo({ quiere: [{ c: "ETH", dir: 1 }] }); conecta(W); W.estadoIni = { pm: {}, slip: malos }; await silencio(() => HL.ronda());
+  assert.equal(aperturas(W).length, 1, "deslizamientos de hace 20 días ya no frenan");
+  const reciente = new Date(Date.now() - 864e5).toISOString(), W2 = mundo({ quiere: [{ c: "ETH", dir: 1 }] }); conecta(W2); W2.estadoIni = { pm: {}, slip: malos.map((x) => ({ ...x, t: reciente })) }; await silencio(() => HL.ronda());
+  assert.equal(aperturas(W2).length, 0, "recientes y malos: frena");
+  const W3 = mundo({ quiere: [{ c: "ETH", dir: 1 }], ctl: { estado: "on", uso: 100, plazas: 5, freno: 0.35, puesto: 1, t: new Date().toISOString() } }); conecta(W3); W3.estadoIni = { pm: {}, slip: malos.map((x) => ({ ...x, t: reciente })) }; await silencio(() => HL.ronda());
+  assert.equal(aperturas(W3).length, 1, "al volver a guardar los ajustes, se rearma");
+});
+
+test("G-4.2 · no persigue una señal que ya se ha movido más de un 1 % desde el cierre de la vela", async () => {
+  const W = mundo({ quiere: [{ c: "ETH", dir: 1, px0: 10 / 1.03 }] }); conecta(W); await silencio(() => HL.ronda());
+  assert.equal(aperturas(W).length, 0, "ya subió un 3 %: no entra");
+  const W3 = mundo({ quiere: [{ c: "ETH", dir: -1, px0: 10 * 1.03 }] }); conecta(W3); await silencio(() => HL.ronda()); assert.equal(aperturas(W3).length, 0, "corto: ya bajó un 3 %");
+  const W2 = mundo({ quiere: [{ c: "ETH", dir: 1, px0: 10 / 1.005 }] }); conecta(W2); await silencio(() => HL.ronda());
+  assert.equal(aperturas(W2).length, 1, "un 0,5 %: entra");
+});
+
+test("G-4.3 · si la ronda falla ANTES de mandar nada, suelta el candado de la hora (el respaldo puede reintentarla)", async () => {
+  const W = mundo({ quiere: [{ c: "ETH", dir: 1 }] }); conecta(W); W.chRoto = true;
+  await assert.rejects(() => silencio(() => HL.ronda()));
+  assert.equal([...W.refs].filter((r) => r.includes("hl-lock-")).length, 0, "candado suelto");
+  W.chRoto = false; await silencio(() => HL.ronda()); assert.equal(aperturas(W).length, 1, "el reintento de esa misma hora opera");
 });

@@ -32,3 +32,32 @@ test("OKX · el historial dice cuánto USDC entró en las ventas por USDC", asyn
   const b = ops.find((o) => o.sym === "BBB"), a = ops.find((o) => o.sym === "AAA");
   assert.ok(Math.abs(b.usdc - 19.96) < 1e-9); assert.equal(a.usdc, undefined);
 });
+
+// ---------- v1.0 · auditoría (Gemini): OKX ----------
+test("G-2.2 · un stop cuya respuesta se pierde se busca hasta 4 veces; si no aparece es un ERROR (no «no disponible»)", async () => {
+  let gets = 0; const api = async (met, ruta) => { if (met === "POST" && ruta === "/api/v5/trade/order-algo") { const e = new Error("fetch failed"); throw e; } if (met === "GET" && ruta.startsWith("/api/v5/trade/order-algo?algoClOrdId")) { gets++; return []; } return []; };
+  await assert.rejects(() => OK.adaptador(api, I, {}).ponStop("AAA-EUR", 1, 5), /sin confirmar/); assert.equal(gets, 4);
+  let n = 0; const api2 = async (met, ruta) => { if (met === "POST" && ruta === "/api/v5/trade/order-algo") throw new Error("fetch failed"); if (met === "GET" && ruta.startsWith("/api/v5/trade/order-algo?algoClOrdId")) return ++n >= 3 ? [{ algoId: "A9" }] : []; return []; };
+  assert.equal(await OK.adaptador(api2, I, {}).ponStop("AAA-EUR", 1, 5), "A9", "si aparece a la 3.ª, vale");
+});
+
+test("G-2.2 · quitaStopsBot quita solo los stops del bot (los suyos empiezan por «st») de esa cripto", async () => {
+  const cancel = []; const api = async (met, ruta, body) => { if (ruta.startsWith("/api/v5/trade/orders-algo-pending")) { assert.match(ruta, /instId=AAA-EUR/); return [{ algoId: "1", algoClOrdId: "stabc" }, { algoId: "2", algoClOrdId: "mio" }, { algoId: "3" }]; } if (ruta === "/api/v5/trade/cancel-algos") cancel.push(body[0].algoId); return []; };
+  assert.equal(await OK.adaptador(api, I, {}).quitaStopsBot("AAA-EUR"), 1); assert.deepEqual(cancel, ["1"]);
+});
+
+test("G-2.2 · el saldo de una cripto para VENDER es lo disponible (no lo retenido por una orden)", async () => {
+  const api = async (met, ruta) => (ruta.startsWith("/api/v5/account/balance?ccy=AAA") ? [{ details: [{ ccy: "AAA", availBal: "0", cashBal: "10" }] }] : []);
+  assert.equal(await OK.adaptador(api, I, {}).saldo("AAA"), 0);
+});
+
+test("G-2.1 · si el 2.º paso de una compra por USDC queda con resultado DESCONOCIDO, no se vende el USDC al momento: el error lleva su identificador y lo gastado", async () => {
+  const env = []; let n = 0;
+  const api = async (met, ruta, body) => { env.push({ met, ruta, body });
+    if (met === "POST" && ruta === "/api/v5/trade/order") { n++; if (n === 2) throw new Error("fetch failed"); return [{}]; }
+    if (met === "GET" && ruta.startsWith("/api/v5/trade/order?")) { if (/BBB-USDC/.test(ruta)) return [{ state: "live", accFillSz: "0" }]; return [{ state: "filled", accFillSz: "21", avgPx: "0.95", fee: "0", feeCcy: "USDC" }]; }
+    return []; };
+  const e = await OK.adaptador(api, I, { "USDC-EUR": { bid: 0.95 } }).comprar("BBB-EUR", 20).then(() => null, (x) => x);
+  assert.ok(e, "falla"); assert.ok(e.clOrdId && e.instId === "BBB-USDC", "lleva su identificador para comprobarla luego"); assert.ok(e.costeEur > 19 && e.usdcDud > 20);
+  assert.equal(env.filter((x) => x.met === "POST" && x.ruta === "/api/v5/trade/order" && x.body.instId === "USDC-EUR" && x.body.side === "sell").length, 0, "no vende USDC a ciegas");
+});
