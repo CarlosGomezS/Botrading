@@ -21,7 +21,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # v1.0 · G4-1.5 · GitHub solo deja UNA ejecución esperando por grupo: si «Cartera real» (aprobar, liberar, foto…) está esperando o en marcha,
+  #   un pulso que se pusiera a la cola la CANCELARÍA. Por eso, si hay una de «Cartera real» pendiente o en marcha, este pulso se salta (la cadena sigue).
+  libre:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      ok: ${{ steps.mira.outputs.ok }}
+    steps:
+      - id: mira
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          n=0; for st in queued in_progress waiting pending requested; do
+            c=$(timeout 30 gh api "repos/${{ github.repository }}/actions/workflows/real.yml/runs?status=$st&per_page=1" -q .total_count 2>/dev/null || echo 1); n=$(( n + ${c:-1} ))
+          done
+          if [ "$n" -eq 0 ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; echo "«Cartera real» está en marcha o esperando: este pulso se salta para no quitarle su turno."; fi
   pulso:
+    needs: libre
+    if: needs.libre.outputs.ok == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     # mismo grupo que «Cartera real»: nunca escriben a la vez (la espera de la cadena va aparte, para no bloquearla)
@@ -90,6 +108,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          TELEGRAM_USER: ${{ secrets.TELEGRAM_USER }}   # v1.0 · G4-3
         run: |
           R="repos/${{ github.repository }}/actions/workflows/real-pulso.yml"
           # primero se pide la siguiente vuelta (queda en cola): aunque algo fallara después, la cadena no se corta

@@ -422,13 +422,19 @@ async function leer(f, rama) {
   const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${f}?ref=${rama}`, { headers: { Authorization: "Bearer " + TOKEN, Accept: "application/vnd.github.raw+json" } });
   if (r.status === 404) return null; if (!r.ok) throw new Error("no pude leer " + f + " (HTTP " + r.status + ")"); return await r.json();
 }
-function publicar(f, obj, rama) {
+export function publicar(f, obj, rama) {
   const out = JSON.stringify(obj); if (LOCAL) { writeFileSync(path.join(LOCAL, rama + "__" + f), out); return; } if (!REPO || !TOKEN) { writeFileSync(f, out); return; }
   const pub = path.join(process.cwd(), ".pub-" + rama); rmSync(pub, { recursive: true, force: true }); mkdirSync(pub); writeFileSync(path.join(pub, f), out);
   const g = (c) => execSync(`git -C "${pub}" ${c}`, { stdio: "pipe" });
   g("init -q -b x"); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"'); g("add -A"); g(`commit -q -m "${rama} ${new Date().toISOString()}"`);
-  for (let i = 0; i < 3; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git HEAD:${rama}`); return; } catch (e) { if (i === 2) console.log("Bitvavo: no pude guardar " + f); } }
+  // v1.0 · G4-1.4 · 3 intentos CON espera (2 s y 5 s) y, en lo que toca dinero real (estado cifrado de Bitvavo/OKX y tus ajustes), si no se puede
+  //   guardar se LANZA el error (antes se tragaba: el flujo salía en verde con el estado o tu «Parar» sin guardar)
+  for (let i = 0; i < 3; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git HEAD:${rama}`); return; } catch (e) { if (i < 2) espera(i ? 5000 : 2000); } }
+  if (RAMAS_CRITICAS.has(rama)) throw new Error("no he podido guardar " + f + " en " + rama + " (3 intentos)");
+  console.log("Bitvavo: no pude guardar " + f);
 }
+export const RAMAS_CRITICAS = new Set(["bitvavo-real", "okx-real", "bitvavo-ctl"]);
+const espera = (ms) => { try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); } catch (e) {} };
 
 // v227 · historial de velas de 5 min + rasgos (igual en el bot de cada minuto y en el laboratorio dedicado). paginas × 1.000 velas
 // v245 · 📚 DATOS: descarga (con freno para no pasarse del límite de Bitvavo), relleno de huecos y rasgos por separado,
@@ -487,7 +493,7 @@ export async function universo() {
   for (const x of T) { if (!/-EUR$/.test(x.market) || NO.test(x.market)) continue; const bid = +x.bid, ask = +x.ask, vq = +x.volumeQuote || 0; if (!(bid > 0 && ask > 0)) continue; tick[x.market] = { bid, ask, last: +x.last, vq, ch24: +x.open > 0 ? +x.last / +x.open - 1 : 0, sp: (ask - bid) / ((ask + bid) / 2) }; if (vq >= MIN_VOL && tick[x.market].sp < 0.01) uni.push(x.market); }
   uni.sort((a, b) => tick[b].vq - tick[a].vq); return { T, tick, U: uni.slice(0, MAX_MKT) };
 }
-export { leer, publicar, J };
+export { leer, J };
 // v238 · 🔒 el estado de Cripto va CIFRADO con tu clave (REAL_VIEW_PASS): en GitHub (público) solo se ve la hora y si el bot está vivo
 const PW = () => (process.env.REAL_VIEW_PASS || "").trim(), PWS = () => [PW(), (process.env.REAL_VIEW_PASS_OLD || "").trim()].filter(Boolean);
 export async function leerEstado() {
@@ -580,6 +586,10 @@ async function main() {
       for (const v of cands) { const g = { ...BASE, ...v.g }; let c = 0; for (const m of ms) { for (const f of HX[m]) if (f && entra(g, f)) { c++; if (c > 300) break; } } if (c > bn) { bn = c; best = v; } }
       if (best) { C.practG = best.g; C.practAt = now.toISOString(); C.practN = bn; } }
     console.log(`Señales en 24 h (fg ${TMx && TMx.fg ? TMx.fg[TMx.fg.length - 1][1] : "?"}, fund ${TMx && TMx.fund ? TMx.fund[TMx.fund.length - 1][1] : "?"}):` + SUBS.concat(["eq"]).map((k) => { const C = k === "eq" ? S : S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, ms = Object.keys(HF).filter((m) => !PERF[k] || !PERF[k].soloOkx || enOkx(OKX, m)); let n = 0; for (const m of ms) for (const f of HF[m]) if (f && entra(g, f)) n++; return ` ${k} ${n}`; }).join(",")); }
+  // v1.0 · G4-1.4 · 💶 DINERO REAL PRIMERO: en cuanto están los precios (Bitvavo y OKX), antes de los laboratorios ficticios. Antes iba el último y, si la
+  //   vuelta tardaba ≥ 55 s, esa vez no se vigilaba; y si fallaba, se callaba. Usa las señales de las Tortugas ya calculadas (se recalculan más abajo para la siguiente).
+  try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI, tickOkx: tickOkxReal }); }
+  catch (e) { REAL_FALLO = String((e && e.message) || e).replace(/[A-Za-z0-9+/=_-]{24,}/g, "…").slice(0, 120); console.log("Real: error · " + REAL_FALLO); }
   { if (soloTortugasRuido(now)) console.log(`Señales ahora (OKX: ${OKX ? OKX.size : "SIN LISTA"} criptos, ${Object.keys(FO).length} con datos):` + SUBS.map((k) => { const C = S.sub[k], g = { ...BASE, ...C.genome, ...((C.prueba && reglaPractica(C)) || {}) }, FF = PERF[k].soloOkx ? FO : F; return ` ${k} ${Object.values(FF).filter((f) => f && entra(g, f)).length}${C.prueba ? "🧪" : "⭐"}`; }).join(",")); }
   for (const k of SUBS) paso(S.sub[k], PERF[k].soloOkx ? tickO : tick, PERF[k].soloOkx ? FO : F, now);
   // v224/v225 · cobrar financiación y rejilla: tres submodos cada uno, con sus propios 100 € ficticios
@@ -672,7 +682,7 @@ async function main() {
     S.ballenas = { t: now.getTime(), m }; const en = Object.entries(m).filter(([, x]) => x.entra).map(([k]) => k.split("-")[0]);
     console.log(`🐋 Profesionales de Hyperliquid: ${Object.keys(m).length} criptos seguidas · están comprando fuerte: ${en.length}`); }   /* v478 · solo cuántas */
   if (S.base) { const bm = Object.values(S.base.m); console.log(`Cartera base: ${bm.filter((T) => T.up).length} de ${bm.length} por encima de su media de 50 días`); }   /* v478 · registro público: sin nombres */
-  if (Date.now() - t0 < 55e3) try { const RL = await import("./bitvavo-real.mjs"), AV = await import("./avisos.mjs"); await RL.paso(S, tick, now, { leer, publicar, tg: AV.tg, okxI, tickOkx: tickOkxReal }); } catch (e) { console.log("Real: error"); } else console.log("Real: vuelta larga, espera a la siguiente");
+  // (v1.0 · G4-1.4 · el dinero real ya no va aquí al final: va al principio de la vuelta, ver «DINERO REAL PRIMERO»)
   if (soloTortugasRuido(now)) console.log(`Submodos IA: ${SUBS.map((k) => k + " " + S.sub[k].lastEq + " € (" + S.sub[k].st.trades + " op, " + Object.keys(S.sub[k].pos).length + " abiertas, " + (S.sub[k].prueba ? "sin ventaja" : "gana") + ")").join(" · ")}`);
   if (soloTortugasRuido(now)) console.log(`Bitvavo: ${U.length} mercados · saldo ${S.lastEq} € · abiertas ${Object.keys(S.pos).length} · operaciones ${S.st.trades} · gen ${S.lab.gen} · ${S.diag.seg} s`);
   // v302 · 🖥️ terminal: una línea que se repite igual (mismo texto) no se duplica: se actualiza su hora y cuántas veces lleva así
@@ -680,6 +690,8 @@ async function main() {
   // v341 · 🖥️ TERMINAL LARGO: cada 5 min, lo nuevo se añade (cifrado) a terminal.json en su propia rama, con las últimas 48 h; la app lo lee en la pestaña Terminal
   if (PW() && S.termPend.length && (!S.termAt || now - S.termAt >= 5 * 60e3) && Date.now() - t0 < 75e3) try { S.termPend = await guardaTerminal(S.termPend, now.getTime()); S.termAt = now.getTime(); } catch (e) { console.log("Terminal: no se pudo guardar el histórico (" + String(e.message || e).slice(0, 60) + ")"); }
   await publicarEstado(S);
+  if (REAL_FALLO) process.exitCode = 1;   // v1.0 · G4-1.4 · que el flujo cuente el fallo (y avise si se repite)
 }
+let REAL_FALLO = null;
 export { main };
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.log("Bitvavo: " + (e.message || e)); process.exit(0); });

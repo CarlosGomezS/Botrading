@@ -597,3 +597,15 @@ test("G3 · una respuesta de Spot sin «balances» no se toma como 0: si sin ell
   const W = mundo({ eq: 40, neto: 100, quiere: [], pos: [{ c: "BTC", szi: 0.1 }] }); conecta(W); W.spotVacio = true;
   await assert.rejects(() => silencio(() => HL.ronda()), /saldo en Spot/); assert.deepEqual(abiertas(W).map((x) => x.c), ["BTC"]);
 });
+
+// ---------- v1.0 · auditoría 2 (Gemini) ----------
+test("G4-1.1 · «Parar» desde la app con la ronda de la hora ya hecha: CIERRA igualmente (antes salía sin hacer nada)", async () => {
+  const W = mundo({ pos: [{ c: "BTC", szi: 0.1 }, { c: "ETH", szi: 1 }] }); conecta(W);
+  await silencio(() => HL.ronda());   // la ronda normal de esta hora (deja el candado puesto)
+  assert.ok([...W.refs].some((r) => r.includes("hl-lock-")), "candado de la hora puesto");
+  W.ctl = { ...W.ctl, estado: "parado", t: new Date().toISOString() }; process.env.FORZAR = "1";
+  try { await silencio(() => HL.ronda()); } finally { delete process.env.FORZAR; }
+  assert.deepEqual(abiertas(W), [], "lo ha cerrado todo"); assert.equal(aperturas(W).filter((o) => o.t > 0).length >= 0, true);
+  const W2 = mundo({ pos: [{ c: "BTC", szi: 0.1 }] }); conecta(W2); await silencio(() => HL.ronda()); W2.ctl = { ...W2.ctl, estado: "parado", t: new Date().toISOString() };
+  await silencio(() => HL.ronda()); assert.deepEqual(abiertas(W2).map((x) => x.c), ["BTC"], "sin FORZAR (bot de cada minuto), el candado manda como siempre");
+});

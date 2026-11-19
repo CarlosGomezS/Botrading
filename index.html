@@ -2008,7 +2008,9 @@ function labJudge(b,trials){const L=labS(),d=T0();let born=0;const keepRow=new S
   if(!esVec&&!e.sinIS&&g&&!g.bl&&!g.base&&e.sc!=null){L.hist=Array.isArray(L.hist)?L.hist:[];L.hist.push([labVec(g),+e.sc.toFixed(3)]);if(L.hist.length>6000)L.hist=L.hist.slice(-6000);
    if(pr!=null){const er=Math.abs(pr-e.sc);L.ai=L.ai||{n:0,mae:null,base:null};L.ai.n++;L.ai.mae=L.ai.mae==null?er:0.95*L.ai.mae+0.05*er}}
   for(const pk of (vecDe||(esVec?[why.slice(7)]:[]))){const P=L.pend[pk];if(P){P.nb=P.nb||[];P.nb.push(e.beat?1:0)}}
-  if(e.ok&&g&&(g.bl||g.base)){L.pop[k]={g,born:d,an:e.an};keepRow.add(k);born++;L.log.unshift({d,k,n:labName(g),ev:"nace",why:`mezcla de dos métodos ya estables que aprueba el examen y el examen oculto (${P(e.an*100)}/año): entra en la liga`})}
+  /* v1.0 · G4-2.2 · una mezcla solo entra directa si sus DOS madres ya están en la liga (estables); si no, no entra (antes entraba sin prueba de estabilidad) */
+  if(e.ok&&g&&g.bl&&!g.bl.every(p=>p&&(p.base||L.pop[labKey(p)]))){L.log.unshift({d,k,n:labName(g),ev:"descarta",why:"mezcla que aprueba, pero sus madres aún no han pasado la prueba de estabilidad: no entra"})}
+  else if(e.ok&&g&&(g.bl||g.base)){L.pop[k]={g,born:d,an:e.an};keepRow.add(k);born++;L.log.unshift({d,k,n:labName(g),ev:"nace",why:`mezcla de dos métodos ya estables que aprueba el examen y el examen oculto (${P(e.an*100)}/año): entra en la liga`})}
   else if(e.ok&&!esVec){L.pend[k]={g,born:d,an:e.an,nb:[]};born++;keepRow.add(k);L.log.unshift({d,k,n:labName(g),ev:"aprueba",why:`examen aprobado (${P(e.an*100)}/año): mañana prueba de estabilidad`})}
   else{if(!L.pend[k]&&!L.pop[k]&&!L.keep[k]){delete BTX[k];delete b.rows[k];}}}
  // prueba de estabilidad: al menos 1 de sus 2 variantes cercanas gana al SPY
@@ -2037,7 +2039,7 @@ function labValTxt(pc,v){if(pc==="u")return LABU[v]?LABU[v].n:v;if(pc==="l")retu
 /* v104 · «INVENCIBLE»: tan claramente mejor que se propone para tu dinero real sin esperar los 30 días de ficticia.
    Tiene que cumplir TODO: ≥5 puntos al año más que el SPY después de impuestos, ganarle en los 3 tramos, caída no peor del −30 %,
    y en el examen oculto (2 años que no vio) ganarle por ≥10 puntos. */
-function labInv(b,k,v){try{const c=(v||btmVerd(b,k)||{}).ck||{},H=b.hold&&b.hold.v;if(!(v||{}).c==="ok")return false;
+function labInv(b,k,v){try{const c=(v||btmVerd(b,k)||{}).ck||{},H=b.hold&&b.hold.v;if(!((v||{}).c==="ok"))return false;   /* v1.0 · G4-2.2 · (antes, por la precedencia del «!», esta comprobación no hacía nada) */
  const hm=H&&H[k]&&H.spy?H[k].ht-H.spy.ht:null;return (v||{}).c==="ok"&&c.gap>=0.05&&c.beat===3&&c.n===3&&c.ddm>=-0.30&&hm!=null&&hm>=0.10&&labHoldOk(k)}catch(e){return false}}
 /* v105 · aviso solo cuando aparece uno MEJOR QUE EL 3.º del top (entra en el podio desde fuera) */
 function labTop3Check(){try{if(!S.btm||!S.btm.hold||!S.btm.c2)return;   /* v465 · si esta prueba no trae el examen oculto o el de costes dobles, NO se toca el podio que sigue la cuenta real (se espera a una prueba completa) */const L=labS(),T=diversoLab(top5List(winAll(),200).T,labKof,x=>x.sc,3).slice(0,3).map(x=>({k:x.h?x.h.k:x.lv.k,sc:+x.sc.toFixed(5),an:x.an!=null?+x.an.toFixed(5):null}));const old=Array.isArray(L.top3)?L.top3:null;L.topEv=[];
@@ -2050,7 +2052,10 @@ function labTop3Check(){try{if(!S.btm||!S.btm.hold||!S.btm.c2)return;   /* v465 
  L.top3etf=diversoLab(LE,labKof,x=>x.sc,3).slice(0,3).map(x=>({k:x.h?x.h.k:x.lv.k,sc:+x.sc.toFixed(5),an:x.an!=null?+x.an.toFixed(5):null}));
  /* v471 · ⏳ 30 DÍAS SEGUIDOS APROBADO: cada ETF aprobado guarda desde cuándo aprueba sin interrupción (si un día deja de aprobar, vuelve a empezar).
     La cartera real de Trading 212 solo sigue a los que llevan ≥ 30 días (ver primero() en runner/real.mjs). Empieza a contar el 12/11/2026 para todos. */
- {const AP=L.aprobDesde&&typeof L.aprobDesde==="object"?L.aprobDesde:{},ahora=new Date().toISOString(),N={};for(const x of LE){const k=x.h?x.h.k:x.lv.k;N[k]=AP[k]||ahora}L.aprobDesde=N;
+ {const AP=L.aprobDesde&&typeof L.aprobDesde==="object"?L.aprobDesde:{},AF=L.aprobFuera&&typeof L.aprobFuera==="object"?L.aprobFuera:{},ahora=new Date().toISOString(),N={},F={};for(const x of LE){const k=x.h?x.h.k:x.lv.k;N[k]=AP[k]||ahora}
+   /* v1.0 · G4-2.2 · cada ronda sortea tramos nuevos: un método bueno puede quedarse fuera UNA ronda por azar. Si vuelve en menos de 3 días, conserva su fecha
+      (antes empezaba de cero y casi ninguno llegaba a los 30 días seguidos). Fuera más de 3 días, sí se pierde. */
+   for(const [k,t] of Object.entries(AP)){if(N[k])continue;const f=AF[k]||ahora;if(Date.now()-Date.parse(f)<3*864e5){F[k]=f;N[k]=t}}L.aprobDesde=N;L.aprobFuera=F;
   L.etfLiga=LE.slice(0,40).map(x=>{const k=x.h?x.h.k:x.lv.k;return{k,sc:+x.sc.toFixed(5),an:x.an!=null?+x.an.toFixed(5):null,dias:Math.floor((Date.now()-Date.parse(N[k]))/864e5)}})}}catch(e){}}
 function labConfUpdate(){try{const b=S.btm,L=labS();if(!b||!b.rows||!b.rows.spy)return;const tx=!!(b.rows.spy[0]&&b.rows.spy[0].atax!=null),AN=r=>tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts);
  const H=hG(),spyRows=H.SPY&&H.SPY.r||[],spyAt=d=>{const n=dayN(d);let v=null;for(const x of spyRows){if(x[0]<=n)v=x[4];else break}return v},spyNow=spyRows.length?spyRows[spyRows.length-1][4]:null,today=T0();

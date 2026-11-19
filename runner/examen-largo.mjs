@@ -4,6 +4,7 @@
 // el resultado lo lee el dinero real para NO seguir a un método cuya regla actual suspende este examen.
 // Se guarda en la rama «examen-largo» (examen-largo.json). La descarga se conserva entre ejecuciones (caché de GitHub) y solo se añade lo nuevo.
 import * as B from "./bitvavo.mjs";
+import { FEES as FEES_T } from "./tortugas.mjs";   // v1.0 · G4-2.3 · las mismas comisiones en todo el examen
 import { entrenarIA } from "./bitvavo-ia.mjs";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from "node:fs";
 
@@ -142,7 +143,7 @@ async function main() {
   // v308 · 🔁 REJILLA RÁPIDA: el año de velas de 5 min, con la comisión de cada exchange (en OKX, con estas mismas criptos)
   const rejilla = {};
   try { const RJ = await import("./rejilla2.mjs"), series = Object.fromEntries(Object.entries(H.m).map(([m, x]) => [m, x.c.filter((v) => v[0] >= ini)]));
-    for (const [ex, fee] of [["bitvavo", 0.0025], ["okx", 0.001]]) { const r = RJ.simula(series, fee), v = RJ.veredicto(r); rejilla[ex] = { v: VEX, ...r, ...v };
+    for (const [ex, fee] of [["bitvavo", FEES_T.bitvavo], ["okx", FEES_T.okx]]) { const r = RJ.simula(series, fee), v = RJ.veredicto(r); rejilla[ex] = { v: VEX, ...r, ...v };
       console.log(`Examen largo · 🔁 Rejilla rápida ${ex} (escalón ${r.paso} %): ${v.ok ? "✅" : "❌"} ${v.motivo} · año ${r.ret} % · trimestres ${r.trimestres.join(" / ")} % · peor caída ${r.dd} % · ${r.ops} operaciones (${r.opsDia} al día) · ventas con ganancia ${r.ventasGanadoras} %`); }
   } catch (e) { console.log("Examen largo · Rejilla: " + String(e.message).slice(0, 80)); }
   // v311 · 🐸 MEMECOINS RÁPIDO: un año de velas de las memecoins de Bitvavo (en horas), con varias combinaciones y la comisión de cada exchange
@@ -151,7 +152,7 @@ async function main() {
     try { rm = JSON.parse(readFileSync(MF, "utf8")); } catch (e) {} if (!rm || lista.some((m) => !rm.m[m])) rm = await B.descargar(lista, PAG, 2, 150); else rm = await B.ponerAlDia(rm, lista, 2, 150);
     writeFileSync(MF, JSON.stringify(rm)); const series = {}; for (const m of lista) if (rm.m[m] && rm.m[m].length > 20000) series[m] = MZ.aHoras(rm.m[m]);
     const combos = [{}, { ent: 12 }, { ent: 48 }, { trail: 0.05, stop: 0.06, maxH: 24 }, { vol: 3 }, { ent: 12, trail: 0.02, stop: 0.03, maxH: 6 }];
-    for (const [ex, fee] of [["bitvavo", 0.0025], ["okx", 0.001]]) { let mejor = null;
+    for (const [ex, fee] of [["bitvavo", FEES_T.bitvavo], ["okx", FEES_T.okx]]) { let mejor = null;
       for (const c of combos) { const P = { ent: 24, vol: 2, trail: 0.03, stop: 0.04, maxH: 12, maxPos: 3, tam: 0.25, ...c }, r = MZ.simula(series, fee, 0.002, P); if (!mejor || r.ret > mejor.ret) mejor = { ...r, P }; }
       const v = MZ.veredicto(mejor); memes[ex] = { v: VEX, ...mejor, ...v, criptos: Object.keys(series) };
       console.log(`Examen largo · 🐸 Memecoins rápido ${ex} (${Object.keys(series).join(", ")}): ${v.ok ? "✅" : "❌"} ${v.motivo} · mejor combinación ${JSON.stringify(mejor.P)} · año ${mejor.ret} % · trimestres ${mejor.trimestres.join(" / ")} % · peor caída ${mejor.dd} % · ${mejor.ops} operaciones (${mejor.opsDia} al día) · ${mejor.aciertos} % aciertos`); }
@@ -160,7 +161,7 @@ async function main() {
   //   se guarda la fecha y hora en que cada uno entró en el podio (se conserva mientras siga en él)
   let podio = [];
   try { let prev = null; try { prev = await B.leer("examen-largo.json", "examen-largo"); } catch (e) {} const P0 = Object.fromEntries(((prev && prev.podio) || []).map((x) => [x.id, x.desde])), ahora = new Date().toISOString();
-    const L = []; for (const [ex, t] of Object.entries(tortugas)) for (const [rk, r] of Object.entries((t && t.perfiles) || {})) if (r && r.ok && r.ret != null && r.tramos && r.tramos.g >= 0.6 && !(r.c2 && r.c2.ret <= 0) && !(r.tramos.rec < -10 || (r.tramos.rec < 0 && r.tramos.btcRec != null && r.tramos.rec < r.tramos.btcRec))) L.push({ id: ex + ":" + rk, ex, rk, tramos: r.tramos, ret: r.ret, dd: r.dd, n: r.n, pf: r.pf, aciertos: r.aciertos, semestres: r.semestres, P: r.P, sh: r.sh, c2: r.c2, criptos: (t.criptos || []).length });
+    const L = []; for (const [ex, t] of Object.entries(tortugas)) for (const [rk, r] of Object.entries((t && t.perfiles) || {})) if (r && r.ok && r.ret != null && r.tramos && r.tramos.g >= 0.6 && (r.c2 && r.c2.ret > 0)   /* v1.0 · G4-2.3 · sin la prueba de costes dobles, NO entra (antes entraba) */ && !(r.tramos.rec < -10 || (r.tramos.rec < 0 && r.tramos.btcRec != null && r.tramos.rec < r.tramos.btcRec))) L.push({ id: ex + ":" + rk, ex, rk, tramos: r.tramos, ret: r.ret, dd: r.dd, n: r.n, pf: r.pf, aciertos: r.aciertos, semestres: r.semestres, P: r.P, sh: r.sh, c2: r.c2, criptos: (t.criptos || []).length });
     // v455 · ⚖️ orden por CALIDAD: lo ganado al año menos 0,8 × su peor caída (igual que el podio de ETF), para que no gane siempre el más arriesgado
     for (const x of L) { const an = (Math.pow(Math.max(0.0001, 1 + x.ret / 100), 1 / 2) - 1) * 100; x.nota = +(an - 0.8 * Math.abs(x.dd || 0)).toFixed(2);   /* v457 · 0,8 */ }
     L.sort((a, b) => Math.round(b.nota * 10) - Math.round(a.nota * 10) || a.dd - b.dd);   /* v365 · v368 · lo ganado en toda su historia (2 años hasta hoy) → a igual ganancia, menos caída; los tramos solo deciden quién entra (veto: pierde en los últimos 6 meses más que tener bitcoin, o más de un 10 %) */ /* v408 · un podio POR EXCHANGE (Bitvavo y OKX): las 3 mejores de cada uno, para que el de comisiones más bajas no tape al otro */ podio = ["bitvavo", "okx"].flatMap((ex) => L.filter((x) => x.ex === ex).slice(0, 3)).map((x) => ({ ...x, desde: P0[x.id] || ahora }));

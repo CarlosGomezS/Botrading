@@ -47,6 +47,8 @@ async function geminiSolo(prompt, MS) {
 export const LIM_RECETAS = 200;
 export function fusiona(nuevas, viejas, cl) {
   const todas = [...(nuevas || []), ...(viejas || [])].filter((r, i, A) => r && r.id && A.findIndex((z) => z.id === r.id) === i);
+  // v1.0 · G4-2.3 · sin el estado del laboratorio (descarga fallida) no se sabe cuáles están en uso: no se recorta NINGUNA (podría ser la que opera con dinero real)
+  if (!cl) return todas;
   const usadas = JSON.stringify([(cl && cl.aprobadas) || [], (cl && cl.casi) || [], (cl && cl.podio) || [], (cl && cl.mejoresCasi) || []]), fija = (r) => usadas.includes(r.id);
   const fijas = todas.filter(fija), resto = todas.filter((r) => !fija(r));
   return [...resto.slice(0, Math.max(0, LIM_RECETAS - fijas.length)), ...fijas];
@@ -140,6 +142,9 @@ function valoresETF() {
   const V = Function("LABU", "LABLB", "return " + Vtxt)(Object.fromEntries(ukeys.map(([k]) => [k, 1])), LB), N = Function("return " + PN)();
   return { V, N, U: Object.fromEntries(ukeys), LB };
 }
+// v1.0 · G4-2.3 · a la IA de las Tortugas solo se le cuenta el PRIMER año (el de aprender). El 2.º año y los últimos 6 meses son el examen:
+//   si la IA los viera, diseñaría reglas a medida del examen (antes recibía «aprueba», la ganancia de 2 años, los 4 semestres y los tramos).
+export const soloIStort = (r) => ({ regla: r.P, semestres_1er_ano: Array.isArray(r.semestres) ? r.semestres.slice(0, 2) : null, mejores_madres: (r.pob || []).slice(0, 3).map((q) => (q && q.P ? q.P : q)) });
 export const soloISetf = (x) => ({ gen: x.g, rentab_antes_del_examen: x.ais != null ? +(x.ais * 100).toFixed(1) : null, gana_al_sp500_antes_del_examen: x.okis == null ? null : !!x.okis });
 async function etf(MS, prev) {
   const VV = valoresETF(); if (!VV.V.u || !VV.V.u.length) throw new Error("no se pudieron leer los valores del laboratorio");
@@ -239,9 +244,9 @@ async function buscaWeb(MS) { if (!KEY || globalThis.__GEMINI_KO) return "";   /
   log("🌐 no se pudo buscar en internet esta vez (se sigue igual)"); return ""; }
 async function tortugas(MS, prev) {
   const TT = await import("./tortugas.mjs"), GEN = TT.GENES, el = await raw("examen-largo", "examen-largo.json");
-  const est = {}; for (const [ex, t] of Object.entries((el && el.tortugas) || {})) for (const [rk, r] of Object.entries((t && t.perfiles) || {})) if (r && r.P) (est[ex] = est[ex] || {})[rk] = { regla: r.P, aprueba: r.ok, gana_2_anos: r.ret, peor_caida: r.dd, operaciones: r.n, semestres: r.semestres, tramos: r.tramos ? { no_pierde_en: r.tramos.g, ult6m: r.tramos.rec, btc6m: r.tramos.btcRec } : null, mejores_madres: (r.pob || []).slice(0, 3) };
+  const est = {}; for (const [ex, t] of Object.entries((el && el.tortugas) || {})) for (const [rk, r] of Object.entries((t && t.perfiles) || {})) if (r && r.P) (est[ex] = est[ex] || {})[rk] = soloIStort(r);
   const web = await buscaWeb(MS);
-  const P = `Eres un gestor cuantitativo experto en cripto. Diseña REGLAS NUEVAS para un bot de «Tortugas» que opera en spot (solo compras) en Bitvavo (comisión 0,25 %) y OKX (0,10 %), con velas DIARIAS de todas las criptos líquidas.
+  const P = `Eres un gestor cuantitativo experto en cripto. Diseña REGLAS NUEVAS para un bot de «Tortugas» que opera en spot (solo compras) en Bitvavo (comisión 0,25 %) y OKX (0,20 % por orden; 0,40 % si pasa por USDC), con velas DIARIAS de todas las criptos líquidas.
 Cómo funciona: compra una cripto cuando su cierre supera el máximo de «ent» días y la vende cuando cierra bajo el mínimo de «sale» días; stop «kN» veces la volatilidad (ATR 20) con tope «stopMax»; como mucho «maxPos» a la vez; «filtro»: solo compra si BTC está sobre su media de «mFil» días; «atrMax»: evita las que se mueven más de ese % al día; «tp»/«tpFrac»: recoge ganancias; filtros de entrada nuevos: «vol» (volumen de hoy ≥ vol × media de 20 días), «rsiMax» (no compra si RSI14 > rsiMax), «comp» (solo tras calma: volatilidad 10 días < comp × la de 60), «momD» (solo si sube en momD días), «cazar» (no compra si subió más de cazar en 5 días). 0 = apagado.
 Valores permitidos (USA SOLO ESTOS): ${JSON.stringify(GEN)}
 Riesgos: «bajo» (maxPos ≥ 4, caída máx. 30 %), «medio» (maxPos ≥ 2, caída máx. 50 %), «alto» (maxPos ≥ 1, caída máx. 70 %). Siempre sale < ent.

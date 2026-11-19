@@ -93,7 +93,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           R="repos/${{ github.repository }}"
-          for wf in diario.yml historico.yml laboratorio.yml real.yml telegram.yml; do
+          for wf in diario.yml historico.yml laboratorio.yml real.yml telegram.yml meme.yml real-pulso.yml hl-real.yml examen-largo.yml caza-lab.yml ia-lab.yml; do
             st=$(gh api "$R/actions/workflows/$wf" -q .state 2>/dev/null || echo "?")
             if [ "$st" != "active" ] && [ "$st" != "?" ]; then gh api -X PUT "$R/actions/workflows/$wf/enable" && echo "Reactivado: $wf"; fi
           done
@@ -114,6 +114,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          TELEGRAM_USER: ${{ secrets.TELEGRAM_USER }}   # v1.0 · G4-3
         run: |
           if [ "${{ steps.hueco.outputs.go }}" != "true" ]; then echo "Fuera de horario: la cadena sigue mañana."; exit 0; fi
           R="repos/${{ github.repository }}/actions/workflows/laboratorio.yml"

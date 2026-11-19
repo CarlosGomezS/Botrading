@@ -117,8 +117,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   (async () => {
     const file = process.argv[2] || "real-ajustes.json", pw = (process.env.REAL_VIEW_PASS || "").trim(), old = (process.env.REAL_VIEW_PASS_OLD || "").trim();
     if (!pw) { console.error("Falta el secreto REAL_VIEW_PASS (contraseña de la cartera real): por privacidad no se guarda nada sin cifrar."); process.exit(1); }
-    let prev = {};
-    try { const raw = JSON.parse(readFileSync(file, "utf8")); const r = await openAny(raw, [pw, old]); if (!r.error) prev = r.j || {}; } catch {}
+    // v1.0 · G4-2.1 · si YA hay ajustes guardados y no se pueden leer (contraseña cambiada, archivo roto…), NO se guarda nada: antes se partía de cero
+    //   y todo lo que no venía en el cambio volvía a los valores de fábrica (límite, método…). Solo si no existen todavía se parte de cero.
+    let prev = {}, texto = null;
+    try { texto = readFileSync(file, "utf8"); } catch (e) { texto = null; }
+    if (texto != null && texto.trim()) { let raw = null; try { raw = JSON.parse(texto); } catch (e) { console.error("Tus ajustes guardados están dañados: no guardo nada para no pisarlos."); process.exit(1); }
+      if (raw && raw.enc) { const r = await openAny(raw, [pw, old]); if (r.error) { console.error("No puedo leer tus ajustes guardados con la contraseña actual: no guardo nada para no pisarlos con los de fábrica."); process.exit(1); } prev = r.j || {}; }
+      else prev = raw || {}; }
     let inp;
     try { inp = JSON.parse(process.env.REAL_JSON || "{}"); } catch { console.error("Lo recibido no es JSON válido"); process.exit(1); }
     if (inp && inp.enc) { const r = await openAny(inp, [pw, old]); if (r.error) { console.error("No puedo descifrar los ajustes enviados: la contraseña de la web no coincide con REAL_VIEW_PASS."); process.exit(1); } inp = r.j; }

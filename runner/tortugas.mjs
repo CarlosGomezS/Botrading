@@ -6,7 +6,9 @@ import { BASE as OKX_API } from "./okx.mjs";
 
 const BV = "https://api.bitvavo.com/v2";
 export const T_ENTRA = 20, T_SALE = 10, T_N = 20, T_RIESGO = 0.015, T_MAXPOS = 4, T_STOPMAX = 0.08, T_ESPERA_D = 7;
-export const FEES = { bitvavo: 0.0025, okx: 0.001 };
+// v1.0 · G4-2.3 · OKX cobra 0,20 % por orden (no 0,10 %) y las criptos que van por USDC pagan dos órdenes por lado (≈ 0,40 %): se usa 0,30 % de media.
+//   Antes los resultados de OKX salían inflados. (La prueba de «costes dobles» usa el doble: 0,60 %.)
+export const FEES = { bitvavo: 0.0025, okx: 0.003 };
 // v320 · 🌍 TODAS las criptos que se pueden operar con un mínimo de liquidez (volumen de 24 h ≥ 50.000 € y diferencia compra/venta < 0,8 %), hasta 150
 export const UNI_VOL = 1000, UNI_SP = 0.015, UNI_MAX = 2000, UNI_ENTRA = 50000, SP_MIN = 0.0015;   // v456 · 💧 solo se ENTRA en criptos con ≥ 50.000 €/día (las de menos se siguen vigilando para poder salir de lo ya comprado); deslizamiento por cripto con suelo del 0,15 %   // v352 · 🌍 TODAS las criptos del exchange con algo de mercado (≥1.000 €/día y diferencia compra-venta ≤1,5 %, la misma que se exige al comprar)
 export const universo = (tick, extra = () => true, minVol = UNI_VOL) => Object.entries(tick).filter(([m, x]) => x && x.vq >= minVol && x.sp < UNI_SP && !/^(USDC|EURC|USDT|EUROC|DAI|PYUSD)-/.test(m) && m !== "USDC-EUR" && extra(m, x)).sort((a, b) => b[1].vq - a[1].vq).slice(0, UNI_MAX);

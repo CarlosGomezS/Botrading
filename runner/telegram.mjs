@@ -29,8 +29,10 @@ async function memesCtl(o) {
   return w.ok;
 }
 // v233 · /parar y /seguir también paran o reanudan Bitvavo con dinero real (rama «bitvavo-ctl», sin importes)
-async function bvCtl(o) {
+async function bvCtl(o) {   // v1.0 · G4-1.3 · hasta 3 intentos (cada uno relee el archivo y su sha: un choque con otro guardado no lo deja sin hacer)
   if (o.accion !== "parar" && o.accion !== "seguir") return true;
+  for (let i = 0; i < 3; i++) { try { if (await bvCtl1(o)) return true; } catch (e) {} await new Promise((r) => setTimeout(r, 1500 * (i + 1))); } return false; }
+async function bvCtl1(o) {
   const u = `https://api.github.com/repos/${REPO}/contents/ctl.json`, H = { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "Content-Type": "application/json" };
   const r = await fetch(u + "?ref=bitvavo-ctl", { headers: H }); const cur = r.ok ? await r.json() : null; let c = { copia: "mix", parado: false };
   try { if (cur && cur.content) c = JSON.parse(Buffer.from(cur.content, "base64").toString("utf8")); } catch (e) {}
@@ -39,6 +41,13 @@ async function bvCtl(o) {
   const w = await fetch(u, { method: "PUT", headers: H, body: JSON.stringify({ message: "bitvavo: orden desde Telegram", content: Buffer.from(JSON.stringify(c)).toString("base64"), branch: "bitvavo-ctl", ...(cur && cur.sha ? { sha: cur.sha } : {}) }) });
   return w.ok;
 }
+// v1.0 · G4-1.3 · /parar también PARA Hyperliquid (guarda «parado» con su flujo de ajustes, que además lo cierra todo ya). /seguir no lo reanuda solo:
+//   Hyperliquid se reanuda desde la app (así un /seguir no rearma por sorpresa su freno).
+export async function hlParar(o, F = fetch) { if (o.accion !== "parar") return true;
+  for (let i = 0; i < 3; i++) { try { const r = await F(`https://api.github.com/repos/${REPO}/actions/workflows/hl-ctl.yml/dispatches`, { method: "POST", headers: { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" }, body: JSON.stringify({ ref: "main", inputs: { cambio: JSON.stringify({ estado: "parado" }) } }) }); if (r.status === 204) return true; } catch (e) {} await new Promise((r) => setTimeout(r, 1500 * (i + 1))); }
+  return false; }
+// v1.0 · G4-1.3 · la orden solo se da por hecha si se ha guardado en TODOS los sitios que toca (antes bastaba con uno: «PARADO» sin estarlo)
+export const todoGuardado = (accion, ok0, okBv, okHl) => (accion === "parar" || accion === "seguir" ? ok0 && okBv && okHl : ok0);
 async function dispatch(accion, plan) {
   const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/real.yml/dispatches`, {
     method: "POST", headers: { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" },
@@ -92,9 +101,9 @@ export async function procesa(ups, { api, say, dispatch, memesCtl, bvCtl, CHAT, 
     if (hechas.has(it.clave)) { await api("getUpdates", { offset: it.id + 1, timeout: 0 }).catch(() => {}); continue; }
     if (it.memes) { const memes = it.memes;
       if (memes.msg) await api("editMessageReplyMarkup", { chat_id: memes.msg.chat, message_id: memes.msg.id, reply_markup: { inline_keyboard: [] } }).catch(() => {});
-      const ok0 = await memesCtl(memes).catch(() => false), okBv = await bvCtl(memes).catch(() => false), ok = ok0 || okBv;
+      const ok0 = await memesCtl(memes).catch(() => false), okBv = await bvCtl(memes).catch(() => false), okHl = await hlParar(memes).catch(() => false), ok = todoGuardado(memes.accion, ok0, okBv, okHl);
       if (!ok) { corte = it; await say(CHAT, "✖ No pude guardar la orden de Cripto en GitHub. Lo reintento en unos minutos."); break; }
-      await say(CHAT, { aprobar: "💶 Hecho: Cripto empieza a copiar al terminal con tu cartera del bot en la próxima vuelta (1-2 min).", no: "Vale: Cripto sigue en ficticio. Te volveré a preguntar si sigue ganando.", parar: "🛑 Cripto real PARADO: en la próxima vuelta vende lo que tenga abierto y no compra más. Para volver: /seguir", seguir: "▶️ Cripto real reanudado." }[memes.accion]);
+      await say(CHAT, { aprobar: "💶 Hecho: Cripto empieza a copiar al terminal con tu cartera del bot en la próxima vuelta (1-2 min).", no: "Vale: Cripto sigue en ficticio. Te volveré a preguntar si sigue ganando.", parar: "🛑 Cripto real PARADO (Bitvavo, OKX e Hyperliquid): venden lo que tengan abierto y no compran más. Para volver: /seguir (Hyperliquid se reanuda desde la app)", seguir: "▶️ Bitvavo y OKX reanudados. Hyperliquid se reanuda desde la app (💧 Hyperliquid → Activo)." }[memes.accion]);
       console.log("Orden de Memes procesada"); }
     if (it.act) { const act = it.act;
       if (act.msg) await api("editMessageReplyMarkup", { chat_id: act.msg.chat, message_id: act.msg.id, reply_markup: { inline_keyboard: [] } }).catch(() => {});
@@ -109,11 +118,22 @@ export async function procesa(ups, { api, say, dispatch, memesCtl, bvCtl, CHAT, 
   return { items: items.length };
 }
 
+// v1.0 · G4-3 · 🔐 CANDADO: tres flujos leen Telegram (el suyo, el pulso de la cartera y el laboratorio). Para que nunca lo hagan dos a la vez
+//   (pulsaciones procesadas dos veces), el que lee crea una etiqueta «tg-lock-…» (solo uno puede crearla) y la borra al terminar.
+export async function tgCandado(F = fetch, ahora = new Date()) { if (!GH || !REPO) return { ok: true, sin: 1 };
+  const H = { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "Content-Type": "application/json" }, k = ahora.toISOString().replace(/\D/g, "").slice(0, 10) + String(Math.floor(ahora.getUTCMinutes() / 3)).padStart(2, "0");
+  try { let sha = env("GITHUB_SHA"); if (!/^[0-9a-f]{40}$/.test(sha)) { const r0 = await F(`https://api.github.com/repos/${REPO}/git/ref/heads/main`, { headers: H, signal: AbortSignal.timeout(15000) }); sha = r0.ok ? (await r0.json()).object.sha : ""; }
+    if (!sha) return { ok: true, sin: 1 };
+    const r = await F(`https://api.github.com/repos/${REPO}/git/refs`, { method: "POST", headers: H, body: JSON.stringify({ ref: `refs/tags/tg-lock-${k}`, sha }), signal: AbortSignal.timeout(15000) });
+    if (r.status === 422) return { ok: false, ocupado: 1 };
+    const suelta = async () => { try { await F(`https://api.github.com/repos/${REPO}/git/refs/tags/tg-lock-${k}`, { method: "DELETE", headers: H, signal: AbortSignal.timeout(15000) }); } catch (e) {} };
+    return { ok: true, suelta }; } catch (e) { return { ok: true, sin: 1 }; } }   // si GitHub no responde, se lee igual (lo de siempre): mejor eso que no leer /parar
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop())) {
   (async () => {
     if (!TOK) { console.log("Telegram sin configurar (falta TELEGRAM_TOKEN): no hago nada."); return; }
-    const ups = await api("getUpdates", { timeout: 0, allowed_updates: ["message", "callback_query"] });
-    if (!ups.length) { console.log("Sin novedades en Telegram."); return; }
-    await procesa(ups, { api, say, dispatch, memesCtl, bvCtl, CHAT, USER });
+    const cand = await tgCandado(); if (!cand.ok) { console.log("Otro proceso está leyendo Telegram ahora mismo: no hago nada."); return; }
+    try { const ups = await api("getUpdates", { timeout: 0, allowed_updates: ["message", "callback_query"] });
+      if (!ups.length) { console.log("Sin novedades en Telegram."); return; }
+      await procesa(ups, { api, say, dispatch, memesCtl, bvCtl, CHAT, USER }); } finally { if (cand.suelta) await cand.suelta(); }
   })().catch((e) => { console.log("Error con Telegram: " + String(e.message).slice(0, 120)); process.exit(1); });
 }

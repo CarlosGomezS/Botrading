@@ -20,7 +20,7 @@ concurrency:
 jobs:
   memes:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45   # v1.0 · G4-1.2 · margen para esperar a la ronda de Hyperliquid (máx. 5 min)
     steps:
       - name: ¿Ya hay otra cadena esperando?
         id: dup
@@ -80,6 +80,8 @@ jobs:
             if [ "${fb:-0}" -eq 5 ] && [ -n "$TELEGRAM_TOKEN" ]; then curl -s -m 20 -o /dev/null --data-urlencode "chat_id=$TELEGRAM_CHAT" --data-urlencode "text=🚨 Bot Trading: el bot de cripto (Bitvavo/OKX) lleva 5 minutos fallando en cada vuelta. Sigue reintentando; si no se arregla solo, avísame." "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" || true; fi
             w=$(( 60 - ($(date +%s) - s) )); if [ "$w" -gt 0 ]; then sleep "$w"; fi
           done
+          # v1.0 · G4-1.2 · si la ronda de Hyperliquid sigue en marcha, se ESPERA a que termine (si no, GitHub la mataría a mitad de abrir o poner stops)
+          if [ -n "$hlP" ]; then wait "$hlP" 2>/dev/null || true; fi
           cat /tmp/vivo.log 2>/dev/null || true
       - name: Diario para el terminal (cifrado)
         if: always()

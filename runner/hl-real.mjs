@@ -249,7 +249,10 @@ async function ronda0() { PUESTOS.length = 0;
     if (r.ok) { const j = await r.json(), h0 = Math.floor(Date.now() / H) * H; if (j && j.t && Date.parse(j.t) >= h0) { log("Hyperliquid real: la ronda de esta hora ya está hecha."); return; } } } catch (e) {} }
   // v460 · 🔐 candado: si otro proceso ya tiene la ronda de esta hora, este no hace nada; si no se puede comprobar, este no ABRE nada (solo cierra y protege)
   const hora = new Date().toISOString().replace(/\D/g, "").slice(0, 10), cand = await candado(hora); if (cand.ok) CAND_ACT = hora;   // v461 · también las lanzadas a mano o por el vigilante usan el candado de la hora: nunca dos rondas en la misma hora
-  if (!cand.ok && cand.ocupado) { log("Hyperliquid real: otro proceso ya está haciendo la ronda de esta hora (candado ocupado). No hago nada."); return; }
+  // v1.0 · G4-1.1 · lanzada A MANO o por el botón «Parar» (FORZAR=1) con el candado ya ocupado: NO se sale; se hace la ronda sin abrir nada
+  //   (cierra lo que toque, el freno y «parado», y protege). Antes salía «sin hacer nada» y «Parar» no cerraba hasta la hora siguiente.
+  if (!cand.ok && cand.ocupado && !forzar) { log("Hyperliquid real: otro proceso ya está haciendo la ronda de esta hora (candado ocupado). No hago nada."); return; }
+  if (!cand.ok && cand.ocupado && forzar) log("Hyperliquid real: la ronda de esta hora ya se hizo; como es una orden tuya (p. ej. «Parar»), cierro y protejo, pero no abro nada.");
   const sinCandado = !cand.ok; if (sinCandado) log(`Hyperliquid real: no he podido comprobar el candado (${cand.err}). Por seguridad esta hora NO abro nada; solo cierro y protejo.`);
   const pk = env("HL_AGENT_KEY"), yo = env("HL_WALLET").toLowerCase();
   if (!pk || !/^0x[0-9a-f]{40}$/.test(yo)) { log("Hyperliquid real: faltan las claves (HL_AGENT_KEY y HL_WALLET). No opero."); return; }

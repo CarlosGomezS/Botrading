@@ -56,7 +56,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           R="repos/${{ github.repository }}"
-          for wf in diario.yml historico.yml laboratorio.yml real.yml telegram.yml; do
+          for wf in diario.yml historico.yml laboratorio.yml real.yml telegram.yml meme.yml real-pulso.yml hl-real.yml examen-largo.yml caza-lab.yml ia-lab.yml; do
             st=$(gh api "$R/actions/workflows/$wf" -q .state 2>/dev/null || echo "?")
             if [ "$st" != "active" ] && [ "$st" != "?" ]; then gh api -X PUT "$R/actions/workflows/$wf/enable" && echo "Reactivado: $wf"; fi
           done
