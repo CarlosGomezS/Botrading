@@ -471,3 +471,19 @@ test("retirada tras vender a mano: el dinero que el bot ya había descontado no 
     const d = await W.step("normal", "2026-10-27T08:20:00Z"); assert.equal(ventasBot(d), v0, "y no vende nada para «cubrir» un negativo inventado");
   } finally { W.close(); }
 });
+
+// ---------- v1.0 · G7-1 · las órdenes se guardan ANTES de enviarlas: si el guardado final falla, la revisión siguiente NO repite ninguna compra ----------
+test("G7-1 · guardado final fallido tras comprar: la revisión siguiente no repite ninguna compra y apunta todo lo comprado", { timeout: 900000 }, async () => {
+  const W = await world(), K = W.mk.K;
+  K.txs.push({ ref: "d1", type: "DEPOSIT", amount: 120, at: "2026-10-21T08:00:00Z" });
+  const compras = () => W.mk.calls.filter((c) => { if (c.m !== "POST" || !/orders\/market/.test(c.p)) return false; const b = JSON.parse(c.body || "{}"); return +b.quantity > 0 && !(String(b.quantity).split(".")[1]?.length > K.precision); }).length;
+  try {
+    const a = await W.step("normal", "2026-10-22T08:20:00Z", { REAL_TEST_FALLA_FINAL: "1" });
+    assert.notEqual(a.code, 0, "la ejecución sale en rojo"); const n1 = compras(); assert.equal(n1, 3, "se enviaron las 3 compras");
+    assert.ok(a.R && a.R.pendBot.some((o) => o.pre), "quedó guardada (antes de enviarla) al menos la última orden");
+    const b = await W.step("normal", "2026-10-22T10:20:00Z");
+    assert.equal(b.code, 0, b.so); assert.equal(compras(), n1, "NO repite ninguna compra");
+    assert.equal(Object.keys(b.R.ledger.lots).filter((t) => b.R.ledger.lots[t].q > 0).length, 3, "las 3 compras quedan apuntadas en la cartera del bot");
+    assert.ok(!b.R.pendBot.some((o) => o.pre), "y ya no queda nada por aclarar");
+  } finally { W.close(); }
+});

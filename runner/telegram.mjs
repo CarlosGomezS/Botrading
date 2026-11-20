@@ -35,10 +35,10 @@ async function memesCtl1(o, fetch) {
   return w.ok;
 }
 // v233 · /parar y /seguir también paran o reanudan Bitvavo con dinero real (rama «bitvavo-ctl», sin importes)
-async function bvCtl(o) {   // v1.0 · G4-1.3 · hasta 3 intentos (cada uno relee el archivo y su sha: un choque con otro guardado no lo deja sin hacer)
+export async function bvCtl(o, F = fetch) {   // v1.0 · G4-1.3 · hasta 3 intentos (cada uno relee el archivo y su sha: un choque con otro guardado no lo deja sin hacer)
   if (o.accion !== "parar" && o.accion !== "seguir") return true;
-  for (let i = 0; i < 3; i++) { try { if (await bvCtl1(o)) return true; } catch (e) {} await new Promise((r) => setTimeout(r, 1500 * (i + 1))); } return false; }
-async function bvCtl1(o) {
+  for (let i = 0; i < 3; i++) { try { if (await bvCtl1(o, F)) return true; } catch (e) {} await new Promise((r) => setTimeout(r, 1500 * (i + 1))); } return false; }
+async function bvCtl1(o, fetch) {
   const u = `https://api.github.com/repos/${REPO}/contents/ctl.json`, H = { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "Content-Type": "application/json" };
   const r = await fetch(u + "?ref=bitvavo-ctl", { signal: AbortSignal.timeout(15000), headers: H }); const cur = r.ok ? await r.json() : null; let c = { copia: "mix", parado: false };
   try { if (cur && cur.content) c = JSON.parse(Buffer.from(cur.content, "base64").toString("utf8")); } catch (e) {}

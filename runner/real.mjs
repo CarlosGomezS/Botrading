@@ -136,7 +136,9 @@ async function loadReal() {
 }
 function freshReal() { return { v: 2, created: new Date().toISOString(), days: [], orders: [], reports: [], plan: null, planHist: [], map: {}, inst: null, paused: null, botTickers: [], last: null, lastNormal: null, account: null, positions: [], deposits: null, cfg: null, ledger: null, pendBot: [], approved: null, flows: {}, cuenta: [] }; }
 
-async function publishReal(R) {
+async function publishReal(R, { intentos = 6, fase = "final" } = {}) {
+  // v1.0 · G7-1 · solo en las pruebas (sin repositorio): simula que GitHub no deja guardar el resultado final
+  if (fase === "final" && env("REAL_TEST") && !REPO && env("REAL_TEST_FALLA_FINAL")) throw new Error("fallo de guardado simulado (prueba)");
   R.savedAt = Date.now();
   // se guarda todo: los informes más antiguos (a partir del 500) conservan los primeros 6.000 caracteres; todos te llegaron completos por correo
   R.reports = R.reports.sort((a, b) => (a.ts < b.ts ? 1 : -1)).slice(0, 5000).map((x, i) => (i >= 500 && x.md && x.md.length > 6000 ? { ...x, md: x.md.slice(0, 6000) + "\n\n[… recortado por antigüedad: el informe completo te llegó por correo]\n" } : x));
@@ -156,7 +158,7 @@ async function publishReal(R) {
   const g = (c) => sh(`git -C "${pub}" ${c}`);
   g("init -q -b real"); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"');
   g("add real.json"); g(`commit -q -m "cartera real ${new Date().toISOString()}"`);
-  for (let i = 0; i < 6; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git real`); break; } catch (e) { if (i === 5) throw new Error("no pude guardar el historial en GitHub tras 6 intentos"); await sleep(5000 * (i + 1)); } }
+  for (let i = 0; i < intentos; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git real`); break; } catch (e) { if (i === intentos - 1) throw new Error(`no pude guardar el historial en GitHub tras ${intentos} intentos`); await sleep(5000 * (i + 1)); } }
   log("Cartera real publicada (cifrada).");
 }
 
@@ -431,8 +433,8 @@ export async function reconcile(T, R, rep, { ahora = Date.now() } = {}) {
   };
   for (const o of R.pendBot || []) {
     // v476 · orden de resultado desconocido (sin id): se busca en el historial una NUESTRA (mismo activo, lado, cantidad, creada tras enviarla)
-    if (!o.id) { let cands = null; try { cands = (await historial(T, o.t)).filter((x) => x.order && esNuestra(x.order, o.qq, Date.parse(o.ts))).map((x) => x.order);
-        const act = await T.call("GET", "/equity/orders"); for (const a2 of act || []) if ((a2.ticker || (a2.instrument && a2.instrument.ticker)) === o.t && esNuestra(a2, o.qq, Date.parse(o.ts)) && !cands.some((c) => String(c.id) === String(a2.id))) cands.push(a2); }
+    if (!o.id) { let cands = null; try { cands = (await historial(T, o.t)).filter((x) => x.order && esNuestra(x.order, o.qq, Date.parse(o.ts), o.pre ? 0.1 : 0)).map((x) => x.order);
+        const act = await T.call("GET", "/equity/orders"); for (const a2 of act || []) if ((a2.ticker || (a2.instrument && a2.instrument.ticker)) === o.t && esNuestra(a2, o.qq, Date.parse(o.ts), o.pre ? 0.1 : 0) && !cands.some((c) => String(c.id) === String(a2.id))) cands.push(a2); }
       catch { atasco(o, "no he podido consultar Trading 212 para aclararla"); continue; }
       if (cands.length > 1) { atasco(o, `hay ${cands.length} órdenes que encajan (alguna podría ser tuya): no me atribuyo ninguna`); continue; }
       const f = cands.length ? { order: cands[0] } : null;
@@ -632,8 +634,8 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
 // v466 · estricta: fecha OBLIGATORIA y como mucho 5 s antes del envío (solo por desfase de relojes), mismo lado y la MISMA cantidad (solo redondeo).
 //   Si no cuadra todo, NO es nuestra: la orden queda dudosa y no se repite la compra.
 export const MARGEN_RELOJ = 5000;
-export function esNuestra(o, qq, tEnvio) { if (!o) return false; const q0 = +(o.quantity ?? o.filledQuantity ?? NaN), lado = /SELL/i.test(String(o.side || "")) ? -1 : /BUY/i.test(String(o.side || "")) ? 1 : 0, q = lado && Number.isFinite(q0) ? lado * Math.abs(q0) : q0,   // v1.0 · G-3.3 · el historial puede dar la venta en positivo con «side: SELL»
-    cr = Date.parse(o.createdAt || o.creationTime || ""); return Number.isFinite(q) && Number.isFinite(cr) && Number.isFinite(+tEnvio) && Math.sign(q) === Math.sign(qq) && Math.abs(Math.abs(q) - Math.abs(qq)) <= Math.abs(qq) * 1e-6 + 1e-9 && cr >= tEnvio - MARGEN_RELOJ && cr <= Date.now() + MARGEN_RELOJ; }
+export function esNuestra(o, qq, tEnvio, tol = 0) {   /* tol · G7-1: con la orden apuntada ANTES de enviarla se admite hasta un 10 % MENOS (Trading 212 puede pedir menos decimales) */ if (!o) return false; const q0 = +(o.quantity ?? o.filledQuantity ?? NaN), lado = /SELL/i.test(String(o.side || "")) ? -1 : /BUY/i.test(String(o.side || "")) ? 1 : 0, q = lado && Number.isFinite(q0) ? lado * Math.abs(q0) : q0,   // v1.0 · G-3.3 · el historial puede dar la venta en positivo con «side: SELL»
+    cr = Date.parse(o.createdAt || o.creationTime || ""); return Number.isFinite(q) && Number.isFinite(cr) && Number.isFinite(+tEnvio) && Math.sign(q) === Math.sign(qq) && (tol > 0 ? Math.abs(q) <= Math.abs(qq) * (1 + 1e-6) + 1e-9 && Math.abs(q) >= Math.abs(qq) * (1 - tol) : Math.abs(Math.abs(q) - Math.abs(qq)) <= Math.abs(qq) * 1e-6 + 1e-9) && cr >= tEnvio - MARGEN_RELOJ && cr <= Date.now() + MARGEN_RELOJ; }
 export async function placeMarket(T, t, qty, ext, rep, dec0) {   // (exportada para las pruebas)
   let q = qty, dec = dec0 != null ? dec0 : 4;
   const fmt = (x, d) => Math.floor(x * 10 ** d) / 10 ** d;
@@ -778,7 +780,15 @@ async function execute(T, A, R, plan, ctx, rep) {
     }
     rep.push(`- ${new Date().toISOString().slice(11, 19)} UTC · enviando ${o.side} ${o.t} · ${qtyTxt(Math.floor(Math.abs(qty) * 1e4) / 1e4)} participaciones${o.side === "COMPRA" ? ` (~${eur(o.eur)} a ${o.pxEst} ${inst.cur || ""}, precio de ${o.pxSrc})` : ""}`);
     R.prec = R.prec || {};
+    // v1.0 · G7-1 · 📝 GUARDAR ANTES DE ENVIAR: la orden se apunta como «resultado por confirmar» y se guarda en GitHub ANTES de mandarla.
+    //   Si después falla el guardado final, la siguiente revisión la encuentra apuntada: bloquea ese activo y la busca en Trading 212 para apuntarla
+    //   (antes, el estado se quedaba como si no se hubiera enviado y la revisión siguiente podía repetir la compra). Si no se puede guardar, NO se envía.
+    const pre = { id: null, dudosa: 1, pre: 1, ref: "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), qq: (o.side === "VENTA" ? -1 : 1) * Math.abs(qty), t: o.t, side: o.side, qty: Math.abs(qty), eur: o.eur, ts: new Date().toISOString(), plan: plan.id };
+    R.pendBot.push(pre);
+    try { await publishReal(R, { intentos: 2, fase: "antes" }); }
+    catch (e) { R.pendBot = R.pendBot.filter((x) => x !== pre); res.push({ ...o, estado: "error", err: "no he podido guardar en GitHub antes de enviarla: no se envía (así nunca se repite si luego fallara el guardado)" }); rep.push(`  ✖ no se envía: no he podido guardar antes (GitHub)`); continue; }
     const p = await placeMarket(T, o.t, qty, false, rep, R.prec[o.t]);
+    R.pendBot = R.pendBot.filter((x) => x !== pre);   // ya hay respuesta: a partir de aquí se apunta como siempre
     if (p.ok && p.dec != null) R.prec[o.t] = p.dec;
     if (!p.ok) { res.push({ ...o, estado: p.dudosa ? "dudosa" : "error", err: p.err }); rep.push("  ✖ " + p.err);
       // v476 · 🔒 resultado DESCONOCIDO (sin respuesta o error 5xx y la orden no aparece): se apunta como pendiente SIN id y ese activo queda BLOQUEADO

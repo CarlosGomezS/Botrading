@@ -4056,12 +4056,15 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
  /* ---- el visor se mantiene al día solo: cada 5 min mira si el bot publicó datos nuevos ---- */
  (function(){var ri=repoInfo(),SHA0=null,idleAt=Date.now(),dead=0;if(!ri)return;
   ["pointerdown","keydown","touchstart","scroll"].forEach(function(ev){document.addEventListener(ev,function(){idleAt=Date.now()},true)});
+  /* v1.0 · G7-3 · si has desplegado algo para leerlo, no se recarga sola mientras siga abierto (antes se cerraba al recargar) */
+  var leyendo=[];document.addEventListener("click",function(e){var su=e.target&&e.target.closest&&e.target.closest("summary"),d=su&&su.parentElement;if(d&&d.tagName==="DETAILS")setTimeout(function(){if(d.open&&leyendo.indexOf(d)<0)leyendo.push(d)},0)},true);
+  function sigueLeyendo(){leyendo=leyendo.filter(function(d){return d.isConnected&&d.open});return leyendo.length>0}
   async function sha(){try{var r=await fetch("https://api.github.com/repos/"+ri.o+"/"+ri.r+"/commits/data",{headers:{Accept:"application/vnd.github.sha"},cache:"no-store"});return r.ok?(await r.text()).trim():null}catch(e){return null}}
   async function tick(){var s=await sha();if(!s)return;if(!SHA0){SHA0=s;return}
    if(s!==SHA0){window.__NEWDATA=true;paint();
     var busy=!!TOK||/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||"");
     var last=+sessionStorage.getItem("vw_last")||0;
-    if(!busy&&Date.now()-idleAt>10000&&Date.now()-last>60000){try{sessionStorage.setItem("vw_last",String(Date.now()));sessionStorage.setItem("vw_scroll",String(scrollY))}catch(e){}location.reload()}}}
+    if(!busy&&!sigueLeyendo()&&Date.now()-idleAt>10000&&Date.now()-last>60000){try{sessionStorage.setItem("vw_last",String(Date.now()));sessionStorage.setItem("vw_scroll",String(scrollY))}catch(e){}location.reload()}}}
   /* v199 · cada minuto (antes cada 5): si hay datos nuevos y no estás tocando la pantalla, se recarga sola y vuelve al mismo sitio */
   try{var y0=+sessionStorage.getItem("vw_scroll");if(y0>0){sessionStorage.removeItem("vw_scroll");setTimeout(function(){scrollTo(0,y0)},1500)}}catch(e){}
   tick();setInterval(tick,60000);

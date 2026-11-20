@@ -172,7 +172,17 @@ export function desvioTort(eq, cv, now) {
   return { dias: Math.round((b - a) / 864e5), real: +((idx - 1) * 100).toFixed(2), sim: +((c1 / c0 - 1) * 100).toFixed(2) };
 }
 // v460/v461 · envuelve comprar/vender del exchange: una orden de resultado desconocido bloquea ESE activo (se guarda en el estado cifrado, 2 h)
-export const esDudosa = (e) => !!e && ((+e.status >= 500 || +e.status === 408) || /sin estado final|no se completó|no llegó|timeout|tiempo agotado|aborted|fetch failed|ECONN|ETIMEDOUT|socket|network/i.test(String(e.message || e)));   // v462 · un 5xx o un tiempo de espera también es «resultado desconocido»
+// v1.0 · G7-2 · AL REVÉS QUE ANTES: cualquier fallo es «resultado desconocido» (bloquea ese activo hasta aclararlo) SALVO los rechazos claros:
+//   una respuesta del exchange con su código de error (Bitvavo 4xx; OKX con código propio que no sea de «sistema ocupado») o un aviso nuestro de que
+//   no se llegó a ejecutar. Antes era al revés: un error raro que no estuviera en la lista (p. ej. una respuesta mal formada tras aceptarse la orden)
+//   no bloqueaba y la vuelta siguiente podía repetir la compra.
+const OKX_OCUPADO = ["50001", "50004", "50013", "50026"], RECHAZO_NUESTRO = /no está en|no se ejecutó|la compra no se ejecutó|mínimo|minimo|insuficiente|no disponible|demasiado pequeñ/i;
+export const esDudosa = (e) => { if (!e) return false; const st = +e.status || 0, msg = String((e && e.message) || e);
+  if (st >= 500 || st === 408 || st === 429) return true;
+  if (e.code != null && String(e.code) !== "" && String(e.code) !== "0") return OKX_OCUPADO.includes(String(e.code));   // respuesta con código del exchange
+  if (st >= 400) return false;   // Bitvavo (u otro) ha respondido con un rechazo
+  if (/sin estado final|no se completó|no llegó|timeout|tiempo agotado|aborted|fetch failed|ECONN|ETIMEDOUT|socket|network/i.test(msg)) return true;
+  return !RECHAZO_NUESTRO.test(msg); };
 export function conDudosas(X0, DUD, now) {
   const envuelve = (fn, compra) => async (m, ...a) => { if (DUD[m]) throw new Error("hay una orden anterior de este activo sin resultado confirmado; se espera a reconciliarla"); try { return await fn(m, ...a); } catch (e) { if (esDudosa(e)) DUD[m] = { t: new Date(now).toISOString(), id: (e && (e.clientOrderId || e.clOrdId)) || null, inst: (e && e.instId) || null, ...(compra ? { compra: 1 } : {}), ...(compra && e && e.costeEur > 0 ? { costeEur: e.costeEur, usdc: e.usdcDud || 0, porCobrar: 1 } : {}) }; throw e; } };   // v1.0 · G-1.3 · se apunta si era una COMPRA
   return { ...X0, comprar: X0.comprar && envuelve(X0.comprar.bind(X0), true), vender: X0.vender && envuelve(X0.vender.bind(X0)) };
