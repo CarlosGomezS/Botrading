@@ -31,7 +31,9 @@ export async function firma(accion, nonce, pk) {
   const s = ETH.Signature.from(sig); return { r: s.r, s: s.s, v: s.v };
 }
 let CAND_ACT = null, ENVIADO = false;   // v1.0 · G-4.3 · candado de esta ronda y si ya se ha mandado algo a Hyperliquid
-async function exchange(accion, pk) { ENVIADO = true; const nonce = Date.now(), signature = await (deps.firma || firma)(accion, nonce, pk);
+// v1.0 · G8-1 · número de orden (nonce) SIEMPRE creciente: aunque dos firmas cayeran en el mismo milisegundo (o el reloj retrocediera), nunca se repite
+let ULT_NONCE = 0; export const siguienteNonce = (ahora = Date.now()) => (ULT_NONCE = Math.max(ahora, ULT_NONCE + 1));
+async function exchange(accion, pk) { ENVIADO = true; const nonce = siguienteNonce(), signature = await (deps.firma || firma)(accion, nonce, pk);
   const r = await F(EXCH, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: accion, nonce, signature, vaultAddress: null }), signal: AbortSignal.timeout(20000) });
   const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) {} return { http: r.status, j, t }; }
 // precio y tamaño en el formato que acepta Hyperliquid (perpetuos: 5 cifras significativas y como mucho 6 − szDecimals decimales)
@@ -514,7 +516,7 @@ async function ronda0() { PUESTOS.length = 0;
   await limpiaCandados();
   log(`Hyperliquid real: ${hechos.length} movimientos esta hora.`);
   if (hechos.length) await aviso("💧 Hyperliquid (dinero real)\n" + hechos.join("\n") + `\n\nCuenta: ${D2(estado.eq)} $ · ingresado ${D2(neto)} $`);
-  if (!(await guarda(estado))) { log("⚠️ No he podido guardar el estado de esta ronda."); await aviso("⚠️ Hyperliquid: no he podido guardar el estado de esta ronda. Lo reintento en la próxima; tus posiciones siguen con su stop."); }
+  if (!(await guarda(estado))) { log("⚠️ No he podido guardar el estado de esta ronda."); await aviso("⚠️ Hyperliquid: no he podido guardar el estado de esta ronda. Lo reintento en la próxima; tus posiciones siguen con su stop."); process.exitCode = 1; }   /* v1.0 · G8-3 · en rojo también en GitHub */
 }
 
 // prueba de firma SIN dinero: manda una orden imposible (cantidad 0) firmada; Hyperliquid responde con la dirección que ha leído de la firma.
