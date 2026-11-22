@@ -1779,7 +1779,7 @@ function applySimx(){try{labReg();const L=Array.isArray(S&&S.simx)?S.simx:[];
  if(bm&&bm.rows&&bm.rows.spy){const keepRM=new Set([...(window.__REALMET||[]),S.main].filter(k=>k&&k!=="sect")),old=S.promo.slice(),d=T0();
   const TT=top5List(winAll(),200).T,nLive=TT.slice(0,LABFIC).filter(x=>x.lv).length;
   const ranked=TT.filter(x=>x.h&&BTX[x.h.k]).map(x=>({k:x.h.k,sc:x.sc+(old.includes(x.h.k)?0.0025:0)})).sort((a,b)=>b.sc-a.sc);
-  const want=ranked.slice(0,LABFIC-nLive).map(x=>x.k);
+  const want=ranked.slice(0,LABFIC-nLive).map(x=>x.k);/* v1.0 · 📈 y siempre los 3 mejores de Acciones/Mixtos (la cuenta real puede seguir a uno como acompañante) */for(const x of TT.filter(x=>x.h&&BTX[x.h.k]&&labCatK(x.h.k)!=="etf").slice(0,3))if(!want.includes(x.h.k))want.push(x.h.k);
   S.promo=[...new Set([...want,...[...keepRM].filter(k=>BTX[k]||STR[k])])];   /* v118: los de tu cartera real entran siempre, aunque no estuvieran en la ficticia */
   for(const k of keepRM)if(!old.includes(k)&&BTX[k]&&BTX[k].lab&&!LB.keep[k])LB.keep[k]=BTX[k].lab;
   for(const k of want)if(!old.includes(k)&&BTX[k].lab){LB.keep[k]=BTX[k].lab;LB.log.unshift({d,k,n:BTX[k].n,ev:"a la ficticia",why:"entre los "+LABFIC+" más rentables: entra a probarse con precios de hoy"})}
@@ -2071,11 +2071,15 @@ function labTop3Check(){try{if(!S.btm||!S.btm.hold||!S.btm.c2)return;   /* v465 
  L.top3etf=diversoLab(LE,labKof,x=>x.sc,3).slice(0,3).map(x=>({k:x.h?x.h.k:x.lv.k,sc:+x.sc.toFixed(5),an:x.an!=null?+x.an.toFixed(5):null}));
  /* v471 · ⏳ 30 DÍAS SEGUIDOS APROBADO: cada ETF aprobado guarda desde cuándo aprueba sin interrupción (si un día deja de aprobar, vuelve a empezar).
     La cartera real de Trading 212 solo sigue a los que llevan ≥ 30 días (ver primero() en runner/real.mjs). Empieza a contar el 12/11/2026 para todos. */
- {const AP=L.aprobDesde&&typeof L.aprobDesde==="object"?L.aprobDesde:{},AF=L.aprobFuera&&typeof L.aprobFuera==="object"?L.aprobFuera:{},ahora=new Date().toISOString(),N={},F={};for(const x of LE){const k=x.h?x.h.k:x.lv.k;N[k]=AP[k]||ahora}
-   /* v1.0 · G4-2.2 · cada ronda sortea tramos nuevos: un método bueno puede quedarse fuera UNA ronda por azar. Si vuelve en menos de 3 días, conserva su fecha
-      (antes empezaba de cero y casi ninguno llegaba a los 30 días seguidos). Fuera más de 3 días, sí se pierde. */
-   for(const [k,t] of Object.entries(AP)){if(N[k])continue;const f=AF[k]||ahora;if(Date.now()-Date.parse(f)<3*864e5){F[k]=f;N[k]=t}}L.aprobDesde=N;L.aprobFuera=F;
-  L.etfLiga=LE.slice(0,40).map(x=>{const k=x.h?x.h.k:x.lv.k;return{k,sc:+x.sc.toFixed(5),an:x.an!=null?+x.an.toFixed(5):null,dias:Math.floor((Date.now()-Date.parse(N[k]))/864e5)}})}}catch(e){}}
+ {const r=labLiga(LE,L.aprobDesde,L.aprobFuera);L.aprobDesde=r.N;L.aprobFuera=r.F;L.etfLiga=r.liga}
+ /* v1.0 · 📈 ACCIONES Y MIXTOS para la cuenta real (como ACOMPAÑANTE, como mucho 1/3 del dinero; ver candidatoAM en runner/real.mjs):
+    los aprobados con prueba histórica (no los «en vivo»), con sus días seguidos aprobado, igual que los ETF (con sus propias fechas) */
+ {const LA=top5List(winAll(),200).T.filter(x=>x.h&&labCatK(x.h.k)!=="etf"),r=labLiga(LA,L.aprobDesdeAM,L.aprobFueraAM);L.aprobDesdeAM=r.N;L.aprobFueraAM=r.F;L.accLiga=r.liga}}catch(e){}}
+/* v471 + v1.0 · liga con los DÍAS SEGUIDOS aprobado de cada uno: guarda desde cuándo aprueba sin interrupción (si deja de aprobar, vuelve a empezar).
+   G4-2.2 · cada ronda sortea tramos nuevos: un método bueno puede quedarse fuera UNA ronda por azar; si vuelve en menos de 3 días, conserva su fecha. */
+function labLiga(LE,AP0,AF0){const AP=AP0&&typeof AP0==="object"?AP0:{},AF=AF0&&typeof AF0==="object"?AF0:{},ahora=new Date().toISOString(),N={},F={};for(const x of LE){const k=x.h?x.h.k:x.lv.k;N[k]=AP[k]||ahora}
+ for(const [k,t] of Object.entries(AP)){if(N[k])continue;const f=AF[k]||ahora;if(Date.now()-Date.parse(f)<3*864e5){F[k]=f;N[k]=t}}
+ return{N,F,liga:LE.slice(0,40).map(x=>{const k=x.h?x.h.k:x.lv.k;return{k,sc:+x.sc.toFixed(5),an:x.an!=null?+x.an.toFixed(5):null,dias:Math.floor((Date.now()-Date.parse(N[k]))/864e5)}})}}
 function labConfUpdate(){try{const b=S.btm,L=labS();if(!b||!b.rows||!b.rows.spy)return;const tx=!!(b.rows.spy[0]&&b.rows.spy[0].atax!=null),AN=r=>tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts);
  const H=hG(),spyRows=H.SPY&&H.SPY.r||[],spyAt=d=>{const n=dayN(d);let v=null;for(const x of spyRows){if(x[0]<=n)v=x[4];else break}return v},spyNow=spyRows.length?spyRows[spyRows.length-1][4]:null,today=T0();
  S.labAn={};for(const k of Object.keys(b.rows))if(k!=="spy"&&MX(k)){const a=AN(b.rows[k]);if(a!=null)S.labAn[k]=+a.toFixed(5)}

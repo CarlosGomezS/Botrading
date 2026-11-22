@@ -38,5 +38,6 @@ test("G4-2.2 · laboratorio de ETF: labInv ya no deja pasar un veredicto que no 
 test("G4-2.2 · una mezcla solo entra en la liga si sus dos madres ya son estables; y un método que cae fuera UNA ronda conserva sus días", () => {
   const J = declaracion("labJudge").txt, T = declaracion("labTop3Check").txt;
   assert.match(J, /g\.bl&&!g\.bl\.every\(p=>p&&\(p\.base\|\|L\.pop\[labKey\(p\)\]\)\)/);
-  assert.match(T, /Date\.now\(\)-Date\.parse\(f\)<3\*864e5/); assert.match(T, /L\.aprobFuera=F/);
+  const LG = declaracion("labLiga").txt;   // v1.0 · la regla vive en labLiga (la misma para ETF y para Acciones/Mixtos)
+  assert.match(LG, /Date\.now\(\)-Date\.parse\(f\)<3\*864e5/); assert.match(T, /L\.aprobFuera=r\.F/); assert.match(T, /labLiga\(LE,L\.aprobDesde,L\.aprobFuera\)/);
 });

@@ -546,7 +546,7 @@ export function conRefugio(S, k) {
   const r = (x) => !!(x && (x.r || (Array.isArray(x.bl) && x.bl.length && x.bl.every(r))));
   return r(g);
 }
-export function objetivoDe(S, ks) {
+export function objetivoDe(S, ks, pesos = null) {
   const books = (S && S.books) || {};
   for (const k of ks) {
     if (!books[k]) return { block: `el método «${nombreDe(S, k)}» todavía no tiene cartera en el bot: entra en la ficticia en la próxima actualización diaria y desde entonces se sigue solo (mientras tanto no se compra ni se vende nada)` };
@@ -555,17 +555,69 @@ export function objetivoDe(S, ks) {
     if (conRefugio(S, k) && !Object.values(books[k].tgt.w).some((x) => +x > 0)) return { block: `la cartera objetivo de «${nombreDe(S, k)}» ha salido vacía, y eso no puede pasar en un método con refugio: faltan datos (algún precio llegó tarde). No vendo nada; se arregla solo en la próxima actualización.` };
   }
   if (ks.length === 1) { const t = books[ks[0]].tgt; return { key: ks[0], name: nombreDe(S, ks[0]), tgt: { ...t, sig: t.d || null } }; }
-  const w = {}, why = {}, n = ks.length; let d = "", bull = false;
+  const w = {}, why = {}, n = ks.length, P = Array.isArray(pesos) && pesos.length === n && pesos.every((x) => x >= 0) ? pesos : ks.map(() => 1 / n); let d = "", bull = false;
   ks.forEach((k, j) => { const t = books[k].tgt; if ((t.d || "") > d) d = t.d || ""; if (t.bull !== false) bull = true;
     const sw = Object.values(t.w).reduce((a, x) => a + (+x > 0 ? +x : 0), 0), f = sw > 1 ? 1 / sw : 1;
-    for (const [s, x] of Object.entries(t.w)) { if (!(+x > 0)) continue; w[s] = (w[s] || 0) + (+x * f) / n; why[s] = (why[s] ? why[s] + " · " : "") + `método ${j + 1} (${Math.round(100 / n)} %): ${(t.why && t.why[s]) || ""}`; } });
-  return { key: "mix:" + ks.join("+"), name: "Reparto a partes iguales: " + ks.map((k) => nombreDe(S, k)).join(" + "), tgt: { d: d || null, w, why, bull, sig: ks.map((k) => k + "@" + (books[k].tgt.d || "")).join(",") } };
+    for (const [s, x] of Object.entries(t.w)) { if (!(+x > 0)) continue; w[s] = (w[s] || 0) + +x * f * P[j]; why[s] = (why[s] ? why[s] + " · " : "") + `método ${j + 1} (${Math.round(100 * P[j])} %): ${(t.why && t.why[s]) || ""}`; } });
+  const igual = P.every((x) => Math.abs(x - 1 / n) < 1e-9);
+  return { key: "mix:" + ks.join("+"), name: (igual ? "Reparto a partes iguales: " : "Reparto: ") + ks.map((k, j) => nombreDe(S, k) + (igual ? "" : ` (${Math.round(100 * P[j])} %)`)).join(" + "), tgt: { d: d || null, w, why, bull, sig: ks.map((k) => k + "@" + (books[k].tgt.d || "")).join(",") + (igual ? "" : "|p" + P.map((x) => x.toFixed(3)).join("/")) } };
+}
+
+// ---------- v1.0 · 📈 ACOMPAÑANTE DE ACCIONES O MIXTOS ----------
+// La cuenta real sigue al n.º 1 de ETF (primero) y, ADEMÁS, puede llevar como mucho 1/3 del dinero en el mejor método de Acciones o Mixtos si:
+//   · lleva ≥ 15 días seguidos aprobado (S.lab.accLiga, que publica el laboratorio) y tiene su cartera calculada;
+//   · gana al MEJOR ETF aprobado por ≥ 2 puntos al año (con la misma medida del laboratorio): compensa la prueba inflada y el coste de cambiar;
+//   · se puede comprar en tu cuenta (si tienes las acciones o los dólares desactivados, NO se activa solo: se avisa una vez).
+// Entra en 3 tramos (1/9 del dinero el 1.er mes, 2/9 el 2.º y 1/3 desde el 3.º); lo que tenga en común con el ETF no se vende.
+// Una vez dentro se queda al menos 90 días; solo sale antes si deja de aprobar (más de 3 días fuera). Todo queda en R.am (estado CIFRADO).
+export const AM_DIAS = 15, AM_MARGEN = 0.02, AM_PESO = 1 / 3, AM_PERM = 90, AM_FUERA = 3;
+export function comprable(S, k, map) { if (!map || !Object.keys(map).length) return true; const B = ((S && S.books) || {})[k], sy = Object.keys((B && B.tgt && B.tgt.w) || {}).concat(Object.keys((B && B.pos) || {})), bad = sy.filter((s) => map[s] && !map[s].t); return !bad.length ? true : bad.every((s) => /acciones desactivadas|Divisa: solo euros/.test(map[s].why || "")) ? "acc" : false; }
+const conCartera = (S, k) => { const B = ((S && S.books) || {})[k]; return !!(B && B.tgt && B.tgt.w); };
+export function candidatoAM(S, map) {
+  const LA = S && S.lab && Array.isArray(S.lab.accLiga) ? S.lab.accLiga : null, LE = S && S.lab && Array.isArray(S.lab.etfLiga) ? S.lab.etfLiga : null;
+  if (!LA || !LE) return null;   // sin las dos listas no se decide nada (web antigua o prueba incompleta)
+  const anE = LE.map((x) => x && x.an).filter((x) => typeof x === "number"); if (!anE.length) return null;
+  const mejorE = Math.max(...anE);
+  for (const x of LA) {
+    if (!x || typeof x.k !== "string" || typeof x.dias !== "number" || x.dias < AM_DIAS || typeof x.an !== "number" || x.an < mejorE + AM_MARGEN || !conCartera(S, x.k)) continue;
+    const bu = comprable(S, x.k, map); if (bu === false) continue;
+    return { k: x.k, an: x.an, anE: mejorE, dias: x.dias, needAcc: bu === "acc", n: nombreDe(S, x.k) };
+  }
+  return null;
+}
+export function amPeso(R, now) { const a = R && R.am; if (!a || !a.k || !a.desde) return 0; const meses = Math.max(0, Math.floor((+now - Date.parse(a.desde)) / (30 * 864e5))); return AM_PESO * Math.min(1, (meses + 1) / 3); }
+// decide y CAMBIA R.am; devuelve qué ha pasado (para el informe y el aviso). manual = no cambia nada solo (A.metAuto === false).
+export function decideAM(R, S, map, now, { manual = false } = {}) {
+  const cur = R.am && R.am.k ? R.am : null, LA = S && S.lab && Array.isArray(S.lab.accLiga) ? S.lab.accLiga : null, ts = new Date(+now).toISOString();
+  if (!LA) return { accion: "nada" };
+  if (cur) {
+    const sigue = LA.find((x) => x && x.k === cur.k);
+    if (!sigue) { if (!cur.fuera) cur.fuera = ts; if (+now - Date.parse(cur.fuera) > AM_FUERA * 864e5) { R.am = null; R.amHist = [...(R.amHist || []), { k: cur.k, n: cur.n, desde: cur.desde, hasta: ts, por: "deja de aprobar" }].slice(-10); return { accion: "sale", de: cur }; } return { accion: "espera", de: cur }; }
+    if (cur.fuera) delete cur.fuera;
+    const c = candidatoAM(S, map);
+    if (c && c.k !== cur.k && !c.needAcc && !manual && +now - Date.parse(cur.ts || cur.desde) >= AM_PERM * 864e5 && c.an >= (sigue.an ?? -9) + 0.01) {
+      R.am = { k: c.k, n: c.n, desde: cur.desde, ts, an: c.an }; R.amHist = [...(R.amHist || []), { k: cur.k, n: cur.n, desde: cur.desde, hasta: ts, por: "hay uno mejor" }].slice(-10); return { accion: "cambia", de: cur, a: c };
+    }
+    return { accion: "igual", de: cur };
+  }
+  if (!map || !Object.keys(map).length) return { accion: "nada" };   // sin la lista de instrumentos de tu cuenta no se activa nada nuevo
+  const c = candidatoAM(S, map); if (!c) return { accion: "nada" };
+  if (c.needAcc) { if (R.amPide === c.k) return { accion: "nada" }; R.amPide = c.k; return { accion: "pide", a: c }; }
+  if (manual) { if (R.amPide === c.k) return { accion: "nada" }; R.amPide = c.k; return { accion: "manual", a: c }; }
+  R.am = { k: c.k, n: c.n, desde: ts, ts, an: c.an }; return { accion: "entra", a: c };
+}
+// lo que sigue de verdad la cuenta: los métodos de ETF (repartidos como siempre) + el acompañante con su peso de este mes
+export function metodosRealDe(A, S, R) { const ks = metodosDe(A, S), a = R && R.am && R.am.k; return a && !ks.includes(a) && conCartera(S, a) ? [...ks, a] : ks; }
+export function objetivoReal(S, A, R, now) {
+  const ks = metodosDe(A, S), a = R && R.am && R.am.k, p = a && !ks.includes(a) && conCartera(S, a) ? amPeso(R, now) : 0;
+  if (!(p > 0)) return objetivoDe(S, ks);
+  return objetivoDe(S, [...ks, a], [...ks.map(() => (1 - p) / ks.length), p]);
 }
 
 // ---------- plan: qué comprar y vender para parecerse al método ----------
 export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
   const notas = [], orders = [], m = madrid(now);
-  const S = bot.S, OB = objetivoDe(S, metodosDe(A, S));
+  const S = bot.S, OB = objetivoReal(S, A, R, now);   // v1.0 · 📈 con el acompañante de Acciones/Mixtos, si lo hay
   if (OB.block) return { block: OB.block };
   const key = OB.key, tgt = OB.tgt;
   const age = S.lastDate ? (now - Date.parse(S.lastDate + "T22:00:00Z")) / 864e5 : 99;
@@ -955,7 +1007,7 @@ export function resumen(R, S, A) {
   if (!last) return null;
   let pk = -Infinity, dd = 0; for (const x of T) { pk = Math.max(pk, x.i); dd = Math.min(dd, x.i / pk - 1); }
   const prev = D.length > 1 ? D[D.length - 2] : null, O = R.orders || [];
-  const ksR = A ? metodosDe(A, S) : [], key = ksR.length === 1 ? ksR[0] : (A && A.metodo) || (S && S.main) || "sect", sim = S && ksR.length <= 1 ? simCompare(R, S, key) : null, L = R.ledger || {};
+  const ksR = A ? metodosRealDe(A, S, R) : [], key = ksR.length === 1 ? ksR[0] : (A && A.metodo) || (S && S.main) || "sect", sim = S && ksR.length <= 1 ? simCompare(R, S, key) : null, L = R.ledger || {};
   return { d0: D[0].d, cap: last.bc, be: last.be, res: r2(last.be - last.bc), pct: T.length ? (T[T.length - 1].i - 1) * 100 : 0, dia: prev ? r2(last.be - prev.be - flowsOfR(D)[D.length - 1]) : null,
     dd: dd * 100, real: L.real || 0, nOrd: O.filter((o) => o.estado === "ejecutada").length, nBad: O.filter((o) => /error|rechazada/.test(o.estado)).length, key, sim,
     cashBot: last.bcash, invBot: r2(last.be - (last.bcash || 0)), v: acc ? acc.v : null, ap: acc ? acc.ap : null, cash: acc ? acc.cash : null };
@@ -1216,7 +1268,7 @@ async function main() {
     }
     // v455 · 📏 REAL FRENTE A PRUEBA: en los últimos 30 días (desde que sigue a su método actual), ¿tu dinero real va igual que ese mismo método en la ficticia?
     //   Si va más de 5 puntos por detrás, algo se ha estropeado (precios, ejecución, divisa…): aviso por Telegram, como mucho uno a la semana.
-    try { const b0 = getBot(), S = b0 && b0.S; if (S) { const ks = metodosDe(A, S);   /* v1.0 · G6-I1 · antes usaba una «S» que aquí no existía y el aviso nunca saltaba */ if (ks.length === 1) { const dv = desvio(R, S, ks[0], m.date); R.desvio = dv;
+    try { const b0 = getBot(), S = b0 && b0.S; if (S) { const ks = metodosRealDe(A, S, R);   /* v1.0 · G6-I1 · antes usaba una «S» que aquí no existía y el aviso nunca saltaba */ if (ks.length === 1) { const dv = desvio(R, S, ks[0], m.date); R.desvio = dv;
       if (dv && dv.dias >= 20 && dv.real - dv.sim < -5 && !aviso && (!R.avDesvio || now - Date.parse(R.avDesvio) >= 7 * 864e5)) { R.avDesvio = now.toISOString();
         aviso = { title: "📏 Cartera real: va peor que su prueba", msg: `En los últimos ${dv.dias} días tu dinero real lleva ${pct(dv.real)} y el mismo método en la ficticia ${pct(dv.sim)}. Debería ir casi igual: revisa la pantalla «Real» (gráfica real frente a simulación). Si se repite, avísame.`, prio: 3 }; } } } } catch (e) {}
 
@@ -1344,6 +1396,26 @@ async function main() {
         }
       }
     } catch (e) { log("No pude revisar si hay un método mejor:", String(e.message).slice(0, 120)); }
+    // v1.0 · 📈 ACOMPAÑANTE de Acciones o Mixtos (como mucho 1/3 del dinero, en 3 tramos; ver decideAM)
+    try {
+      if ((tipo === "normal" || tipo === "foto") && estado !== "error" && A.on) {
+        const b = getBot();
+        if (b && b.S) {
+          const r = decideAM(R, b.S, R.map, now, { manual: A.metAuto === 0 || A.metAuto === false }), pc = (x) => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1).replace(".", ",") + " %";
+          const cond = (c) => `gana un ${pc(c.an)} al año en la prueba del laboratorio, frente al ${pc(c.anE)} del mejor de ETF, y lleva ${c.dias} días seguidos aprobado`;
+          const txt = r.accion === "entra" ? `Además del método de ETF, tu cartera real empieza a seguir 📈 «${r.a.n}» (#${r.a.k}): ${cond(r.a)}. Entra poco a poco: 1/9 del dinero este mes, 2/9 el siguiente y 1/3 desde el tercero. Lo que tenga en común con el de ETF no se vende. Se queda al menos 90 días, salvo que deje de aprobar.`
+            : r.accion === "cambia" ? `El acompañante de Acciones/Mixtos cambia: deja «${r.de.n}» y pasa a 📈 «${r.a.n}» (#${r.a.k}), que ${cond(r.a)} y le saca al actual al menos 1 punto al año. Han pasado más de 90 días desde el último cambio.`
+            : r.accion === "sale" ? `«${r.de.n}» ha dejado de aprobar el examen del laboratorio (más de ${AM_FUERA} días fuera): esa parte vuelve al método de ETF en la próxima revisión.`
+            : r.accion === "pide" ? `Hay un método de Acciones/Mixtos que cumple las condiciones para llevarse hasta 1/3 de tu cartera real: 📈 «${r.a.n}» (#${r.a.k}), que ${cond(r.a)}. No lo activo solo porque compra acciones o productos en dólares y en tus ajustes de «Real» están desactivados. Si quieres seguirlo, activa las acciones y «Divisa: cualquiera» (cuesta un 0,15 % de cambio por operación); en la siguiente revisión entrará solo.`
+            : r.accion === "manual" ? `Hay un método de Acciones/Mixtos que cumple las condiciones para llevarse hasta 1/3 de tu cartera real: 📈 «${r.a.n}» (#${r.a.k}), que ${cond(r.a)}. Tienes desactivado «seguir solo al ganador», así que no lo activo.`
+            : r.accion === "espera" ? `«${r.de.n}» no aparece hoy entre los aprobados; si sigue fuera más de ${AM_FUERA} días, esa parte vuelve al ETF.`
+            : r.accion === "igual" ? `Acompañante de Acciones/Mixtos: «${r.de.n}» (${Math.round(amPeso(R, now) * 100)} % del dinero este mes).` : "";
+          if (txt) rep.push("", "## 📈 Acciones y Mixtos", "", txt);
+          if (["entra", "cambia", "sale"].includes(r.accion)) R.lastNormal = null;
+          if (["entra", "cambia", "sale", "pide", "manual"].includes(r.accion)) await avisa(r.accion === "sale" ? "📈 Cartera real: sale el método de acciones" : "📈 Cartera real: método de Acciones/Mixtos", txt, { prio: 3 });
+        }
+      }
+    } catch (e) { log("No pude revisar Acciones y Mixtos:", String(e.message).slice(0, 120)); }
     let resu = "";
     try { const b = R.days.length ? getBot() : {}; resu = resumenMd(R, b.S, A); } catch {}
     const md = [...head, "", `## ${titulo}`, "", ...rep].join("\n") + "\n" + (resu ? resu + "\n" : "");
