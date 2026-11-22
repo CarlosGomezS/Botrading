@@ -89,7 +89,7 @@ export function cartera(ops, M, i0, i1, plazas, sl = 0, cm = 1) {   /* v453 · c
   function eq0(o) { return o.eqIn || 1; }
   const dias = (i1 - i0) / 24, mu = rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : 0, sd = rs.length > 1 ? Math.sqrt(rs.reduce((a, b) => a + (b - mu) ** 2, 0) / (rs.length - 1)) : 0;
   /* v453 · Sharpe anual aproximado por operaciones (rentabilidad media / variabilidad, escalado a las operaciones de un año) */
-  return { ret: eq - 1, dd, n, opsDia: n / dias, pf: per > 0 ? Math.min(PF_MAX, gan / per) : gan > 0 ? PF_MAX : 0,   /* v1.0 · G5-1.3 · con tope: 2 operaciones con una pérdida mínima no pueden sacar una nota disparatada */ sh: sd > 0 && dias > 0 ? +((mu / sd) * Math.sqrt((n * 365) / dias)).toFixed(2) : 0 };
+  return { ret: eq - 1, dd, n, t: rs.length > 1 && sd > 0 ? +((mu / sd) * Math.sqrt(rs.length)).toFixed(3) : 0,   /* v1.0 · R6-5 · t de las operaciones: cuánto se aleja su media de 0 frente a lo que da el azar */ opsDia: n / dias, pf: per > 0 ? Math.min(PF_MAX, gan / per) : gan > 0 ? PF_MAX : 0,   /* v1.0 · G5-1.3 · con tope: 2 operaciones con una pérdida mínima no pueden sacar una nota disparatada */ sh: sd > 0 && dias > 0 ? +((mu / sd) * Math.sqrt((n * 365) / dias)).toFixed(2) : 0 };
 }
 
 const ret = (C, i, L) => C[i - L] > 0 ? C[i] / C[i - L] - 1 : null;

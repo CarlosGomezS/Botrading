@@ -66,7 +66,10 @@ export function calidadIS(x, corte) { const z = x && x.is; if (!z || !Number.isF
 //   · ganar más de lo que pierde: factor de beneficio ≥ 1,1
 //   · no caer más que en su peor caída histórica (con un suelo del 10 %)
 export const CUAR_DIAS = 21, CUAR_RITMO = 0.4, CUAR_PF = 1.1;
-export function minCuar(g, is, dias) { const base = g && g.h >= 48 ? 4 : 8, od = is && Number.isFinite(+is.opsDia) ? +is.opsDia : 0; return Math.max(base, Math.round(CUAR_RITMO * od * Math.max(CUAR_DIAS, dias || 0))); }
+// v1.0 · R6-5 · umbrales contra el azar (comprobados con datos de puro azar: no aprueba nada)
+export const OOS_N = 30, OOS_T = 2, IS_T = 3;
+export const significativo = (is, oos) => !!(is && oos && +oos.n >= OOS_N && +oos.t >= OOS_T && +is.t >= IS_T);
+export function minCuar(g, is, dias) { const base = g && g.h >= 48 ? 15 : 20,   /* v1.0 · R6-5 · antes 4 y 8: con tan pocas, 21 días de suerte bastaban */ od = is && Number.isFinite(+is.opsDia) ? +is.opsDia : 0; return Math.max(base, Math.round(CUAR_RITMO * od * Math.max(CUAR_DIAS, dias || 0))); }
 export function ddMaxCuar(is) { return +Math.max(0.1, Math.abs(+(is && is.dd) || 0)).toFixed(4); }
 export function cuarPasa(dias, z, min, ddMax) { return !!(z && dias >= CUAR_DIAS && z.n >= min && z.ret > 0 && +z.pf >= CUAR_PF && Math.abs(+z.dd || 0) <= ddMax); }
 // v478 · la caída de la cuarentena se mide también HORA A HORA (con lo abierto valorado a precio de cada hora), igual que en los exámenes:
@@ -139,6 +142,10 @@ export async function lab(log = console.log) {
       const ms = xs.map((x) => x.m).sort((p, q) => p - q), dds = xs.map((x) => x.dd).sort((p, q) => q - p); r.t = { n: xs.length, g: xs.filter((x) => x.ok).length / xs.length, med: ms[Math.floor(ms.length / 2)], dd: dds[Math.floor(dds.length / 4)] }; }
     r.okA = a.opsDia >= minOps(g) && a.ret > 0 && a.pf >= 1.15 && a.dd < 0.3; r.okB = !!r.t && r.t.g >= 0.6 && rec.ret > 0 && rec.opsDia >= minOpsB(g);
     r.okC = oos.ret > 0 && oos.pf >= 1 && c2.ret > 0;   /* v453 · aprueba también fuera de muestra y con costes dobles */
+    // v1.0 · R6-5 · 🎲 NO VALE GANAR POR SUERTE: con datos de puro azar el laboratorio aprobaba decenas de métodos (lentos, con 10-20 operaciones en el examen).
+    //   Ahora además: en el examen oculto al menos OOS_N operaciones y un resultado que el azar casi nunca da (t ≥ OOS_T), y antes del examen
+    //   un t ≥ IS_T (más alto, porque se prueban miles de combinaciones con esos datos y alguna sale bien por casualidad).
+    r.okS = significativo(ais, oos); r.okC = r.okC && r.okS; r.o.t = oos.t; r.is.t = ais.t;
     r.nota = ais.pf * (r.t ? 0.5 + r.t.g : 0.5) * (ais.opsDia >= minOps(g) ? 1 : 0.5); r.lento = lento(g); r.ops = ops; return r; };
   // v458 · 🧭 PRUEBA DE VECINOS (como en los ETF): una variante con la duración vecina y otra con el stop vecino; al menos una tiene que ganar
   //   también en toda la historia, en los 90 días ocultos y con costes dobles. Así no aprueban «islas» que solo funcionan con ese número exacto.

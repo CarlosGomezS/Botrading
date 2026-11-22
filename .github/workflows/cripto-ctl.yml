@@ -29,7 +29,9 @@ jobs:
       - name: Guardar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CAMBIO: ${{ inputs.cambio }}
+          CAMBIO: ${{ inputs.cambio }}   # v1.0 · R6-10 · el capital y tus criptos llegan cifrados (cambio.enc): en el registro no se ven
+          REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
+          REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
         run: node runner/cripto-ctl.mjs
       - name: 🚨 Avisar por Telegram si algo ha fallado
         if: failure()

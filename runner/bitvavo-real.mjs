@@ -13,6 +13,7 @@ import { T_ESPERA_D, conP as tortP, describe as tortDesc, tamano as tortTam, per
 // lo que ya estaba abierto de esos se sigue vigilando y se vende con sus reglas, pero ya no se compra nada nuevo con ellos.
 export const soloT = () => process.env.SOLO_TORT !== "0";   // (las pruebas antiguas del copiado de métodos lo apagan con SOLO_TORT=0)
 import { createHmac } from "node:crypto";
+import { abreCtl, cierraCtl } from "./ctl-priv.mjs";
 import { encrypt, openAny } from "./real-cfg.mjs";
 
 export const FRENO_DIA = 0.10;   // v458 · solo se usa si el examen de las Tortugas dice que ayuda (se simula con y sin)
@@ -176,7 +177,7 @@ export function desvioTort(eq, cv, now) {
 //   una respuesta del exchange con su código de error (Bitvavo 4xx; OKX con código propio que no sea de «sistema ocupado») o un aviso nuestro de que
 //   no se llegó a ejecutar. Antes era al revés: un error raro que no estuviera en la lista (p. ej. una respuesta mal formada tras aceptarse la orden)
 //   no bloqueaba y la vuelta siguiente podía repetir la compra.
-const OKX_OCUPADO = ["50001", "50004", "50013", "50026"], RECHAZO_NUESTRO = /no está en|no se ejecutó|la compra no se ejecutó|mínimo|minimo|insuficiente|no disponible|demasiado pequeñ/i;
+const OKX_OCUPADO = ["50001", "50004", "50013", "50026"], RECHAZO_NUESTRO = /no he podido guardar el estado antes|no está en|no se ejecutó|la compra no se ejecutó|mínimo|minimo|insuficiente|no disponible|demasiado pequeñ/i;
 export const esDudosa = (e) => { if (!e) return false; const st = +e.status || 0, msg = String((e && e.message) || e);
   if (st >= 500 || st === 408 || st === 429) return true;
   if (e.code != null && String(e.code) !== "" && String(e.code) !== "0") return OKX_OCUPADO.includes(String(e.code));   // respuesta con código del exchange
@@ -196,6 +197,19 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   //   (lo que se compró de verdad queda apuntado y lo vendido, descontado). Si en 24 h no se ha podido cuadrar, sigue bloqueado y se avisa.
   const DUD = (RS && RS.dudosas) || {}; let cuadreOk = false;
   const X = conDudosas(X0, DUD, now);
+  // v1.0 · R6-3 · 📝 GUARDAR ANTES DE COMPRAR (como Trading 212 e Hyperliquid): antes de mandar una compra, el activo se apunta como «compra de resultado
+  //   desconocido» y se guarda el estado cifrado. Si el proceso muere o no se puede guardar después, la vuelta siguiente encuentra ese apunte: no la vuelve a
+  //   comprar (activo bloqueado) y, si la cripto aparece en la cuenta, la adopta como del bot con su stop (antes quedaba como «tuya» y se compraba otra vez).
+  //   Si no se puede guardar antes, la compra NO se manda.
+  if (deps.guardaAntes && X.comprar) { const c0 = X.comprar; X.comprar = async (m, ...a) => {
+    if (DUD[m]) return c0(m, ...a);   // ya bloqueada: el envoltorio lo rechaza como siempre
+    const t = new Date(now).toISOString(), cdPrev = RS.compraDud && RS.compraDud[m];
+    DUD[m] = { t, id: null, compra: 1, pre: 1 }; RS.dudosas = DUD; RS.compraDud = RS.compraDud || {}; RS.compraDud[m] = { src: null, ...(cdPrev || {}), t, pre: 1 };
+    const deshaz = () => { if (cdPrev) RS.compraDud[m] = cdPrev; else delete RS.compraDud[m]; if (RS.compraDud && !Object.keys(RS.compraDud).length) delete RS.compraDud; };
+    try { await deps.guardaAntes(RS); } catch (e) { delete DUD[m]; deshaz(); throw new Error("no he podido guardar el estado antes de comprar: la compra no se envía"); }
+    delete DUD[m];   // apuntada y guardada: ahora sí se manda (si queda dudosa, el envoltorio la vuelve a bloquear con su identificador)
+    try { return await c0(m, ...a); } finally { if (RS.compraDud && RS.compraDud[m] && RS.compraDud[m].pre) deshaz(); }
+  }; }
   // v463 · una orden dudosa solo se desbloquea si se demuestra qué pasó con ELLA: su estado en el exchange es FINAL (o el exchange dice que no existe
   //   tras 30 min), no queda ninguna orden a mercado abierta en ese par y el cuadre con el saldo real de esta vuelta ha terminado bien (lo ejecutado
   //   queda apuntado). Si algo no se puede comprobar, sigue bloqueada. A las 24 h sin resolver, aviso.
@@ -384,6 +398,12 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         try { const r = await X.usdcAEur(q); if (r && r.got > 0) { RS.cash += compra ? r.got : r.got - (r.est || r.got); RS[campo] = Math.max(0, RS[campo] - q); B.USDC = +B.USDC - q; B.EUR = (+B.EUR || 0) + r.got;   // v1.0 · G2-1 · la foto del saldo se actualiza (si no, el cuadre de abajo lo tomaba por una retirada tuya)
           L(RS, now, `💵 ${r2(q)} USDC del bot se pasan a euros (${r2(r.got)} €)`); } } catch (e) { if (e && e.pendRef) (RS.usdcRef = RS.usdcRef || []).push(compra ? { ...e.pendRef, c: 1 } : e.pendRef); } };
       if (X.usdcAEur && !usdcEspera) { await conv("usdcPendC", true); await conv("usdcPend", false); }
+      // v1.0 · R6-9 · este cuadre va ANTES de la revisión de stops: la foto de saldos «B» es de antes de cualquier venta de esa revisión
+      //   (antes se hacía después y lo cobrado al cerrar una posición sin stop se tomaba por dinero que habías sacado tú)
+      // v449 · 💸 si en la cuenta hay menos euros de los que el bot tenía apuntados, es dinero que has sacado o usado TÚ: no es una pérdida del bot,
+      // así que la base de los frenos (el saldo inicial y el del principio del día) baja lo mismo y los frenos no saltan por eso
+      const eurEnUsdc = r2((RS.usdcPend || 0) * ueDe(tick));   // v1.0 · G2-1 · ventas a USDC aún sin pasar a euros: ese dinero ya está en la caja del bot
+      if (B.EUR != null && RS.cash > +B.EUR + eurEnUsdc + 0.01) { const d = r2(RS.cash - (+B.EUR + eurEnUsdc)); RS.cash = r2(+B.EUR + eurEnUsdc); if (d >= 0.5) { RS.start = Math.max(0.01, r2(RS.start - d)); if (RS.dia) RS.dia.eq0 = Math.max(0.01, r2(RS.dia.eq0 - d)); L(RS, now, `💸 has sacado o usado ${r2(d)} € de la cuenta (no cuenta como pérdida del bot)`); } }
       // v295 · 🛡️ revisión cada 30 min: toda posición sin stop de emergencia confirmado lo vuelve a intentar
       // (v297: también se COMPRUEBA que los stops puestos siguen activos y cubren lo que hay; si no, se vuelven a poner)
       if (!RS.stopRev || now - Date.parse(RS.stopRev) > 30 * 60e3) { RS.stopRev = now.toISOString(); for (const m of Object.keys(RS.pos)) { const p = RS.pos[m]; let vale = !!p.stopId;
@@ -395,10 +415,6 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
           catch (e) { p.stopEst = "sin comprobar"; p.stopSinComprobar = (p.stopSinComprobar || 0) + 1; RS.stopRev = null;   // v463 · si no se puede comprobar, NO se da por bueno: se vuelve a mirar en la vuelta siguiente y, a la 3.ª vez, aviso
             if (p.stopSinComprobar === 3) msgs.push(`💶 ⚠️ ${EX}: no consigo comprobar que el stop de emergencia de ${p.sym} siga activo. Lo sigo intentando (el bot la vigila con su stop); si puedes, míralo en ${EX}.`); }
         if (!vale) await protege(m); } }
-      // v449 · 💸 si en la cuenta hay menos euros de los que el bot tenía apuntados, es dinero que has sacado o usado TÚ: no es una pérdida del bot,
-      // así que la base de los frenos (el saldo inicial y el del principio del día) baja lo mismo y los frenos no saltan por eso
-      const eurEnUsdc = r2((RS.usdcPend || 0) * ueDe(tick));   // v1.0 · G2-1 · ventas a USDC aún sin pasar a euros: ese dinero ya está en la caja del bot
-      if (B.EUR != null && RS.cash > +B.EUR + eurEnUsdc + 0.01) { const d = r2(RS.cash - (+B.EUR + eurEnUsdc)); RS.cash = r2(+B.EUR + eurEnUsdc); if (d >= 0.5) { RS.start = Math.max(0.01, r2(RS.start - d)); if (RS.dia) RS.dia.eq0 = Math.max(0.01, r2(RS.dia.eq0 - d)); L(RS, now, `💸 has sacado o usado ${r2(d)} € de la cuenta (no cuenta como pérdida del bot)`); } }
       RS.cuenta = { t: now.toISOString(), eur: r2(+(B.EUR || 0)), total: r2(tot), activos: act.sort((a, b) => b.eur - a.eur) };
       // v309 · 📈 gráfica de la cuenta: un punto cada 30 min (unas 3 semanas)
       RS.curva = RS.curva || []; if (!RS.curva.length || now - RS.curva[RS.curva.length - 1][0] >= 30 * 60e3) { RS.curva.push([now.getTime(), r2(tot)]); RS.curva = RS.curva.slice(-1000); }
@@ -612,7 +628,10 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
   try { const c = await probar(S, tick, now, io); console.log(`Conexión: Bitvavo ${c.bitvavo.estado} · OKX ${c.okx.estado}`); } catch (e) {}
   if (!(env("BITVAVO_KEY") && env("BITVAVO_SECRET")) && !(env("OKX_KEY") && env("OKX_SECRET") && env("OKX_PASSPHRASE"))) { S.real = { estado: "sin clave" }; return; }
   let EL = null; try { EL = await io.leer("examen-largo.json", "examen-largo"); } catch (e) {}   // v293
-  let ctl = await io.leer("ctl.json", "bitvavo-ctl"); if (!ctl) { ctl = { copia: "mix", parado: false, capital: CAPITAL, ex: "bitvavo", t: now.toISOString() }; io.publicar("ctl.json", ctl, "bitvavo-ctl"); }
+  // v1.0 · R6-10 · ctl.json lleva lo privado (capital, criptos tuyas) CIFRADO: se abre con tu contraseña; si no se puede, esta vez no se opera con dinero real
+  let ctl = await abreCtl(await io.leer("ctl.json", "bitvavo-ctl"), pw);
+  if (!ctl) { ctl = { copia: "mix", parado: false, capital: CAPITAL, ex: "bitvavo", t: now.toISOString() }; io.publicar("ctl.json", await cierraCtl(ctl, pw), "bitvavo-ctl"); }
+  if (ctl.privOk === false) { S.real = { estado: "error", err: "no puedo descifrar tus ajustes de dinero real (¿ha cambiado la contraseña?)" }; console.log("Real: no puedo descifrar los ajustes de dinero real; esta vez no opero."); return; }
   const CU = cuentas(ctl); let ctlMod = false; const parches = [];   // v1.0 · B-003 · lo que el bot cambia en ctl, para volver a aplicarlo sobre la versión MÁS RECIENTE al guardar
   const fuentes = { eq: S, ...Object.fromEntries(SUBS_OK.filter((k) => k !== "eq").map((k) => [k, S.sub && S.sub[k]])) };
   S.real = { estado: EXS.some((e) => CU[e].on) ? "activo" : "apagado", parado: !!ctl.parado, cuentas: {} };
@@ -673,7 +692,9 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
     const BW = S.ballenas && now - S.ballenas.t < 30 * 60e3 ? S.ballenas : null; R0.ballenas = BW ? "activa" : "sin datos recientes de Hyperliquid";
     const c2 = { frenoDia: !(soloT() && TE && TE.frenoDia && TE.frenoDia.ayuda === false), copia, extra, noCompra, ballenas: BW, tort: tortOk && TS ? TS : null, base: baseOk && T ? T : null, conservar: Array.isArray(cfg.conservar) ? cfg.conservar.map((x) => String(x).toUpperCase()) : [], capital: cfg.capital, adoptarAt: cfg.adoptarAt || null, liquidar: cfg.liquidar || null, espejo: !!cfg.espejo, avisoSinSaldo: cfg.avisoSinSaldo,
       parado: !cfg.on || !!ctl.parado || cfg.parado, motivo: !cfg.on ? `has apagado ${N}` : ctl.parado ? ctl.motivo || "lo has parado tú" : cfg.motivo };
-    const out = await vuelta(RS, fuentes, c2, tick, now, { ex: X });
+    // v1.0 · R6-3 · guardado del estado cifrado ANTES de cada compra (si falla, lanza: la compra no se manda)
+    const guardaAntes = async (rs) => { if (!pw) throw new Error("sin contraseña"); const enc = await encrypt(JSON.stringify({ ...rs, ex, savedAt: Date.now() }), pw); io.publicar("real.json", { enc: 1, v: 1, ...enc, meta: { estado: rs.estado || "activo", copia: rs.copia, ex, t: now.toISOString() } }, RAMAS[ex]); };
+    const out = await vuelta(RS, fuentes, c2, tick, now, { ex: X, guardaAntes });
     const msgs = out.msgs.map((m) => (m.includes(N) ? m : m.replace(/^💶 /, `💶 ${N} · `)));
     if (out.ctlCambia && cfg.on) {   // lo que cambia solo (freno grande, aviso de falta de saldo) se guarda en ESA cuenta
       const exC = ex, cambio = { avisoSinSaldo: out.ctl.avisoSinSaldo || 0, ...(out.ctl.parado && !c2.parado ? { parado: true, motivo: out.ctl.motivo } : {}) };
@@ -698,8 +719,8 @@ export async function paso(S, tick, now, io) { const tick0 = tick;
       console.log(`Real (${ex}): ${out.RS.estado}${out.RS.err ? " (con avisos: " + String(out.RS.err).replace(/[A-Z0-9]{2,10}-EUR|\d+[.,]?\d*\s*€/g, "·").slice(0, 80) + ")" : ""} · ${soloT() ? "sigue a las Tortugas" : `copia ${out.RS.copia} (el método tiene ${abiertasM} abiertas)`} · abiertas reales ${pos}${Object.keys(cat).length ? " · " + Object.entries(cat).map(([k, v]) => k + " ×" + v).join(", ") : ""}`); }
   }
   // v1.0 · B-003 · se relee el control JUSTO antes de guardar y solo se aplican los cambios del bot: así no se pisa un «Parar» (o cualquier ajuste) que hayas guardado durante la ronda
-  if (ctlMod) { let base = ctl; try { const f = await io.leer("ctl.json", "bitvavo-ctl"); if (f && typeof f === "object") { base = JSON.parse(JSON.stringify(f)); for (const pc of parches) pc(base); } } catch (e) {}
-    base.t = now.toISOString(); delete base.avisoSinSaldo; io.publicar("ctl.json", base, "bitvavo-ctl"); }
+  if (ctlMod) { let base = ctl, privAnt = null; try { const f = await io.leer("ctl.json", "bitvavo-ctl"); if (f && typeof f === "object") { privAnt = f.priv || null; base = await abreCtl(f, pw); for (const pc of parches) pc(base); } } catch (e) {}
+    base.t = now.toISOString(); delete base.avisoSinSaldo; io.publicar("ctl.json", await cierraCtl(base, pw, privAnt), "bitvavo-ctl"); }   /* v1.0 · R6-10 · sin nada privado en claro */
   // compatibilidad: el estado «principal» es el de la primera cuenta encendida
   const pri = EXS.find((e) => CU[e].on); if (pri) Object.assign(S.real, { estado: S.real.cuentas[pri].estado, ex: pri, copia: S.real.cuentas[pri].copia });
 }

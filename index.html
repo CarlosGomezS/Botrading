@@ -3003,17 +3003,23 @@ async function bvVivoSaldo(){const t=document.getElementById("t-memes");if(!t||!
 setInterval(bvVivoSaldo,20000);   /* v456 · el bot lo lee cada minuto: aquí basta cada 20 s */
 async function bvRealLoad(){if(MM.bvBusy)return;if(MM.bvAt&&Date.now()-MM.bvAt<30000)return;MM.bvBusy=true;const cb=!MM.bvAt;if(cb)cargaIni("cuentas");
  /* v243 · las dos cuentas (cada una con su estado cifrado) */
- try{const c=await memeGet("bitvavo-ctl","ctl.json");MM.bvCtl=c&&!c.nada?c:null;MM.bvX=MM.bvX||{};const pw=(typeof pwGet==="function"&&pwGet())||"";
+ try{const c=await memeGet("bitvavo-ctl","ctl.json");MM.bvCtl=c&&!c.nada?c:null;MM.bvX=MM.bvX||{};const pw=(typeof pwGet==="function"&&pwGet())||"";if(MM.bvCtl)MM.bvCtl=await bvAbreCtl(MM.bvCtl,pw);
   for(const [ex,rama] of [["bitvavo","bitvavo-real"],["okx","okx-real"]]){const j=await memeGet(rama,"real.json"),o={meta:j&&!j.nada?(j.meta||null):null,R:null,err:null};
    if(j&&!j.nada&&j.enc){if(pw){try{o.R=JSON.parse(await decrypt(j,pw))}catch(e){o.err="clave"}}else o.err="sinclave"}MM.bvX[ex]=o}
   /* v433 · 💧 Hyperliquid real (estado cifrado en la rama hl-real) */
   try{const j=await memeGet("hl-real","hl-real.json"),o={t:j&&!j.nada?j.t:null,R:null,err:null};if(j&&!j.nada&&j.enc){if(pw){try{o.R=JSON.parse(await decrypt(j,pw))}catch(e){o.err="clave"}}else o.err="sinclave"}else o.err="nada";MM.hlX=o}catch(e){}
   try{if(!MM.hlCtlT||Date.now()>MM.hlCtlT){const c=await memeGet("hl-ctl","ctl.json");MM.hlCtl=c&&!c.nada?c:null}}catch(e){}
   MM.bvAt=Date.now()}finally{MM.bvBusy=false;if(!MM.bvAt)MM.bvAt=Date.now();cargaFin("cuentas");/* v1.0 · el saldo en vivo de Hyperliquid se pide nada más cargar (no a los 10 s), para no enseñar un rato la cifra antigua */setTimeout(()=>{try{hlVivo()}catch(e){}},400)}}
+/* v1.0 · R6-10 · 🔒 el capital y tus criptos van CIFRADOS en ctl.json (campo «priv») y se mandan cifrados al guardar: el repositorio es público */
+async function bvAbreCtl(c,pw){if(!c||!c.priv||!c.priv.c)return c;const o=JSON.parse(JSON.stringify(c));delete o.priv;if(!pw)return o;
+ try{const p=JSON.parse(await decrypt(c.priv,pw));if("capital" in p)o.capital=p.capital;for(const [ex,k] of Object.entries(p.cuentas||{})){o.cuentas=o.cuentas||{};o.cuentas[ex]=Object.assign({},o.cuentas[ex]||{},k)}}catch(e){}return o}
+async function bvCambioCifrado(cambio){const priv={};for(const k of ["capital","conservar","convertir"])if(cambio[k]!=null)priv[k]=cambio[k];if(!Object.keys(priv).length)return cambio;
+ const pw=(typeof pwGet==="function"&&pwGet())||"";if(!pw)throw new Error("para cambiar el dinero o tus criptos desbloquea primero con tu contraseña");
+ const o=Object.assign({},cambio);for(const k in priv)delete o[k];o.enc=await encrypt(JSON.stringify(priv),pw);return o}
 async function bvCtlSet(cambio){const c=window.__CLOUD;if(c&&c.tok&&!c.tok()&&window.abrirNube)await window.abrirNube();if(!c||!c.tok||!c.tok()){alert("Para cambiar esto desde aquí desbloquea primero con tu clave en ⚙️ Ajustes. Para parar también puedes escribir /parar a tu bot de Telegram.");return}
  /* v240 · se guarda lanzando un flujo (tu token puede lanzar flujos; no hace falta permiso de escritura en el repositorio) */
  const r=c.ri(),u=`https://api.github.com/repos/${r.o}/${r.r}/actions/workflows/cripto-ctl.yml/dispatches`;
- try{const w=await fetch(u,{method:"POST",headers:{Authorization:"Bearer "+c.tok(),Accept:"application/vnd.github+json","Content-Type":"application/json"},body:JSON.stringify({ref:"main",inputs:{cambio:JSON.stringify(cambio)}})});
+ try{const w=await fetch(u,{method:"POST",headers:{Authorization:"Bearer "+c.tok(),Accept:"application/vnd.github+json","Content-Type":"application/json"},body:JSON.stringify({ref:"main",inputs:{cambio:JSON.stringify(await bvCambioCifrado(cambio))}})});
   if(w.status!==204)throw new Error("HTTP "+w.status+(w.status===403||w.status===401?" (tu token necesita el permiso Actions: Read and write)":""));
   if(cambio.cuenta){const C=bvCuentas(MM.bvCtl||{}),k=C[cambio.cuenta];["on","copia","capital","espejo","riesgo","liquidar"].forEach(x=>{if(cambio[x]!=null)k[x]=cambio[x]});if(cambio.conservar!=null)k.conservar=String(cambio.conservar).split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(x=>/^[A-Z0-9]{2,10}$/.test(x)&&x!=="EUR");if(cambio.on===true||cambio.parado===false){k.parado=false;k.motivo=null}else if(cambio.parado===true){k.parado=true;k.motivo="lo has parado tú"}MM.bvCtl=Object.assign({},MM.bvCtl||{},{cuentas:C,t:new Date().toISOString()})}else
   MM.bvCtl=Object.assign({},MM.bvCtl||{},cambio,{t:new Date().toISOString()});if(cambio.parado===true)MM.bvCtl.motivo="lo has parado tú";if(cambio.parado===false)MM.bvCtl.motivo=null;MM.bvAt=Date.now()+60000;

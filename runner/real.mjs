@@ -202,10 +202,13 @@ function t212(which) {
       if (r.status >= 500 && method === "GET" && a < 3) { await sleep(5000 * (a + 1)); continue; }
       const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch {}
       if (!r.ok) { const er = new Error(`Trading 212 respondió HTTP ${r.status} en ${method} ${p}: ${txt.slice(0, 300)}`); er.st = r.status; er.body = txt; throw er; }
+      // v1.0 · R6-1 · una lectura que llega «bien» (200) pero vacía o incompleta NO es un dato: se reintenta y, si sigue, se para todo.
+      //   Antes, un historial vacío se leía como «lo has retirado todo» (vendía todo y luego invertía todo tu saldo) y unas posiciones vacías borraban las del bot.
+      if (method === "GET" && !respuestaValida(p, j)) { if (a < 3) { await sleep(3000 * (a + 1)); continue; } const er = new Error(`Trading 212 devolvió una respuesta vacía o incompleta en GET ${String(p).split("?")[0]}: no toco nada esta vez`); er.st = "vacia"; throw er; }
       return j;
     }
   }
-  async function pages(p, max = 10) {
+  async function pages(p, max = 10) {   /* cada página tiene que traer su lista «items» (lo comprueba respuestaValida) */
     const out = []; let next = p;
     for (let i = 0; i < max && next; i++) {
       const j = await call("GET", next);
@@ -215,6 +218,20 @@ function t212(which) {
     return out;
   }
   return { call, pages, base, get calls() { return calls; } };
+}
+// v1.0 · R6-1 · forma mínima que tiene que tener cada lectura de Trading 212 para darla por buena
+export function respuestaValida(p, j) {
+  const base = String(p || "").split("?")[0];
+  if (j == null || typeof j !== "object") return false;
+  if (base === "/equity/account/summary") { const c = j.cash && j.cash.availableToTrade; return c !== null && c !== "" && c !== undefined && Number.isFinite(+c); }
+  if (base === "/equity/positions" || base === "/equity/orders") return Array.isArray(j);
+  if (base.startsWith("/equity/history/")) return Array.isArray(j.items);
+  return true;
+}
+// v1.0 · R6-1 · si la cuenta dice que tienes inversiones pero la lista de posiciones llega vacía, algo falla: no se cuadra nada con eso
+export function posicionesCoherentes(account, positions) {
+  const inv = +((account && account.investments && account.investments.currentValue) || 0);
+  return !(Array.isArray(positions) && positions.length === 0 && inv > 1);
 }
 function explainT212(e) {
   const s = e && e.st;
@@ -1011,8 +1028,8 @@ async function main() {
     if (!env("T212_KEY") || !R.ledger || R.ledger.limite == null) { log("Pulso: todavía no hay cartera real que seguir."); return; }
     const T = t212(A.env);
     let account, positions;
-    try { account = await T.call("GET", "/equity/account/summary"); positions = (await T.call("GET", "/equity/positions")) || []; }
-    catch (e) { log("Pulso: Trading 212 no responde ahora; se intenta en el siguiente."); return; }
+    try { account = await T.call("GET", "/equity/account/summary"); positions = (await T.call("GET", "/equity/positions")) || []; if (!posicionesCoherentes(account, positions)) throw new Error("posiciones incoherentes"); }
+    catch (e) { log("Pulso: Trading 212 no responde bien ahora; se intenta en el siguiente."); return; }
     const { id: _id, ...acc } = account || {};
     R.account = { ...acc, at: now.toISOString() }; R.positions = mapPos(positions, R);
     const cash = +((acc.cash && acc.cash.availableToTrade) || 0), inv = +((acc.investments && acc.investments.currentValue) || 0), resv = +((acc.cash && acc.cash.reservedForOrders) || 0) + +((acc.cash && acc.cash.inPies) || 0);
@@ -1075,6 +1092,7 @@ async function main() {
       account = await T.call("GET", "/equity/account/summary");
       positions = (await T.call("GET", "/equity/positions")) || [];
       pending = (await T.call("GET", "/equity/orders")) || [];
+      if (!posicionesCoherentes(account, positions)) { const er = new Error("Trading 212 dice que tienes inversiones pero no devuelve ninguna posición: no toco nada esta vez"); er.st = "vacia"; throw er; }
     } catch (e) { log("Trading 212 rechazó la conexión: " + (e.st ? "HTTP " + e.st : "sin respuesta (" + String((e.cause && e.cause.code) || "red").slice(0, 40) + ")")); estado = "error"; titulo = "No pude conectar con Trading 212"; rep.push(explainT212(e)); aviso = { title: "✖ Cartera real: sin conexión con Trading 212", msg: explainT212(e), prio: 4 }; return; }
     const { id: _id, ...acc } = account || {};   // el número de cuenta no se guarda
     R.account = { ...acc, at: now.toISOString() };

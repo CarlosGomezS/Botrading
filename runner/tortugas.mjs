@@ -157,7 +157,10 @@ export function hijas(padres, n, rnd = Math.random, riesgo = "medio") { const pi
     P = conP({ ...P, riesgo }); const key = JSON.stringify(P); if (!valido(P) || vistos.has(key)) continue; vistos.add(key); out.push(P); }
   return out; }
 export function aprende(series, fee, actual, opts = {}) {
-  const { otra = null, feeOtra = fee, pob = [], n = 200, rnd = Math.random, riesgo = "medio" } = opts, F = perfil(riesgo);
+  const { otra = null, feeOtra = fee, pob = [], n = 200, rnd = Math.random, riesgo = "medio", susp = [], ahora = Date.now() } = opts, F = perfil(riesgo);
+  // v1.0 · R6-12 · las reglas que ya suspendieron el examen en los últimos 7 días no se vuelven a examinar (antes la misma regla suspendida
+  //   ocupaba siempre el primer puesto y tapaba a las nuevas: el aprendizaje se atascaba)
+  const SUSP_D = 7 * 864e5, suspV = (Array.isArray(susp) ? susp : []).filter((x) => x && x.k && ahora - (+x.t || 0) < SUSP_D), yaSusp = new Set(suspV.map((x) => x.k)), suspN = [];
   const ts = [...new Set(Object.values(series).flatMap((d) => d.map((x) => x[0])))].sort((a, b) => a - b), corte = ts[Math.floor(ts.length / 2)], reciente = ts[ts.length - 1] - 120 * 864e5;
   const inc = conP({ ...(actual || {}), riesgo }), incTr = simula(series, fee, 0.002, inc, 0, corte), incTe = simula(series, fee, 0.002, inc, corte), incRe = simula(series, fee, 0.002, inc, reciente);
   const padres = [inc, ...pob.map((q) => conP({ ...q, riesgo }))].filter(valido), nuevas = hijas(padres, n, rnd, riesgo);
@@ -165,13 +168,14 @@ export function aprende(series, fee, actual, opts = {}) {
   const cands = todas.map((P) => ({ P, tr: simula(series, fee, 0.002, P, 0, corte) })).filter((x) => x.tr.n >= 10).sort((a, b) => nota(b.tr, F.peso) - nota(a.tr, F.peso));
   const nuevaPob = cands.length ? cands.slice(0, 20).map((x) => x.P) : [inc];   // las 20 mejores del 1.er año son las madres del próximo examen
   const base = { probadas: cands.length, nuevas: nuevas.length, pob: nuevaPob, enUso: { ano1: incTr.ret, ano2: incTe.ret, dd2: incTe.dd, reciente: incRe.ret } };
+  Object.defineProperty(base, "susp", { enumerable: true, get: () => [...suspV, ...suspN].slice(-300) });
   // se revisan las 5 mejores del 1.er año, en orden: la primera que cumple todo, sustituye
   let motivo = "la que está en uso sigue siendo la mejor", mejorInfo = null;
-  for (const c of cands.slice(0, 5)) { const igual = JSON.stringify(c.P) === JSON.stringify(inc); if (igual) { motivo = "la que está en uso sigue siendo la mejor"; break; }
+  for (const c of cands.filter((c) => !yaSusp.has(JSON.stringify(c.P))).slice(0, 5)) { const igual = JSON.stringify(c.P) === JSON.stringify(inc); if (igual) { motivo = "la que está en uso sigue siendo la mejor"; break; }
     const te = simula(series, fee, 0.002, c.P, corte), full = simula(series, fee, 0.002, c.P), v = veredicto(full, F.ddMax), re = simula(series, fee, 0.002, c.P, reciente), ot = otra ? simula(otra, feeOtra, 0.002, c.P) : null;
     const info = { P: c.P, ano1: c.tr.ret, ano2: te.ret, dd2: te.dd, reciente: re.ret, otra: ot ? ot.ret : null }; if (!mejorInfo) mejorInfo = info;
     const fallo = !(te.ret >= incTe.ret + 3 && te.dd <= Math.max(incTe.dd, 10) + (riesgo === "alto" ? 15 : 5)) ? "no gana claramente en el año que no vio" : !v.ok ? "no aprueba los 2 años" : ot && !(ot.ret > 0) ? "pierde con las criptos del otro exchange" : !(re.ret >= incRe.ret - 2) ? "va peor en los últimos 4 meses" : null;
     if (!fallo) return { ...base, P: c.P, cambia: true, nueva: info, motivo: "la nueva gana en el año que no vio, aprueba los 2 años, también gana con las criptos del otro exchange y va bien en el mercado actual" };
-    motivo = "la mejor nueva " + fallo; }
+    motivo = "la mejor nueva " + fallo; suspN.push({ k: JSON.stringify(c.P), t: ahora }); }
   return { ...base, P: inc, cambia: false, nueva: mejorInfo, motivo }; }
 export const describe = (P) => { P = conP(P); return `entra con máximo de ${P.ent} días · sale con mínimo de ${P.sale} · stop ${P.kN}N (≤ −${Math.round(P.stopMax * 100)} %)${P.maxPos !== 4 ? ` · hasta ${P.maxPos} a la vez` : ""}${P.filtro ? ` · solo si BTC está sobre su media de ${P.mFil} días` : ""}${P.atrMax > 0 ? ` · evita las que se mueven más de un ${Math.round(P.atrMax * 100)} % al día` : ""}${P.tp > 0 ? ` · recoge ${P.tpFrac >= 1 ? "toda la" : "la mitad de la"} ganancia al +${Math.round(P.tp * 100)} %` : ""}${P.vol > 0 ? ` · solo con volumen ≥ ${P.vol}× lo normal` : ""}${P.rsiMax > 0 ? ` · no si está estirada (RSI > ${P.rsiMax})` : ""}${P.comp > 0 ? " · solo tras una calma (compresión)" : ""}${P.momD > 0 ? ` · solo si sube en ${P.momD} días` : ""}${P.cazar > 0 ? ` · no la persigue si subió > ${Math.round(P.cazar * 100)} % en 5 días` : ""}`; };

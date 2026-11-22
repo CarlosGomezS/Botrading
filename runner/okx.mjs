@@ -15,7 +15,7 @@ export function cliente(key, secret, pass, fx = fetch) {
     const r = await fx(BASE + ruta, { method, headers: { "OK-ACCESS-KEY": key, "OK-ACCESS-SIGN": firma(secret, ts, method, ruta, body), "OK-ACCESS-TIMESTAMP": ts, "OK-ACCESS-PASSPHRASE": pass, "Content-Type": "application/json" }, body: body || undefined, signal: AbortSignal.timeout(15000) });
     const j = await r.json().catch(() => ({}));
     const d0 = j && Array.isArray(j.data) ? j.data[0] : null, sc = d0 && d0.sCode && d0.sCode !== "0" ? d0.sCode : null;
-    if (!r.ok || (j && j.code && j.code !== "0") || sc) { const code = sc || (j && j.code) || r.status, msg = (d0 && d0.sMsg) || (j && j.msg) || ""; const e = new Error(`OKX ${r.status} · código ${code}${msg ? " · " + String(msg).slice(0, 80) : ""}`); e.status = r.status; e.code = code; throw e; }
+    if (!r.ok || (j && j.code && j.code !== "0") || sc) { const code = sc || (j && j.code && j.code !== "0" ? j.code : null), msg = (d0 && d0.sMsg) || (j && j.msg) || ""; const e = new Error(`OKX ${r.status} · código ${code || "sin código"}${msg ? " · " + String(msg).slice(0, 80) : ""}`); e.status = r.status; if (code) e.code = String(code); throw e; }   /* v1.0 · R6-4 · e.code SOLO si es un código del propio OKX (antes, un 502/504 sin cuerpo llevaba su HTTP como «código» y se tomaba por rechazo seguro) */
     return j.data || [];
   };
 }
@@ -102,6 +102,9 @@ export async function instrumentos(fx = fetch) {
 export function precioStop(par, px) { const t = par && par.tick; if (!(t > 0)) return String(+px.toPrecision(5)); const n = Math.floor(px / t + 1e-9); return (Math.max(1, n) * t).toFixed(par.tdec || 0); }
 export function ruta(I, m) { const b = String(m).replace(/-EUR$/, ""), x = I && I[b]; if (!x) return null; if (x.EUR) return { tipo: "eur", par: x.EUR }; if (x.USDC && I.USDC && I.USDC.EUR) return { tipo: "usdc", par: x.USDC, puente: I.USDC.EUR }; return null; }
 
+// v1.0 · R6-4 · «seguro que NO se hizo» = OKX respondió (HTTP < 500) con SU código de error y no es de «sistema ocupado».
+//   Un 5xx, o una respuesta sin código de OKX (pasarela 502/504, cuerpo vacío), es resultado DESCONOCIDO: se consulta la orden por su clOrdId.
+export const rechazoOkx = (e) => !!e && !!e.status && e.status < 500 && !!e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code));
 // adaptador para el módulo de dinero real (misma forma que el de Bitvavo)
 export function adaptador(api, I, tick = {}) {
   // v291 · 🔐 cada orden lleva su identificador (clOrdId): si la respuesta se pierde, se consulta ESA orden en vez de darla por fallida
@@ -109,7 +112,7 @@ export function adaptador(api, I, tick = {}) {
   const orden = async (instId, side, sz, quote) => { const clOrdId = "bt" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); try { return await orden0(instId, side, sz, quote, clOrdId); } catch (e) { if (e && typeof e === "object") { e.clOrdId = e.clOrdId || clOrdId; e.instId = e.instId || instId; } throw e; } };
   const orden0 = async (instId, side, sz, quote, clOrdId) => {
     try { await api("POST", "/api/v5/trade/order", { instId, tdMode: "cash", side, ordType: "market", sz: String(sz), tgtCcy: quote ? "quote_ccy" : "base_ccy", clOrdId }); }
-    catch (e) { if (e && e.status && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code))) throw e; }   // error del propio OKX (con respuesta) → se lanza; red/tiempo/sin respuesta → SIEMPRE se consulta por su clOrdId (v460: antes un tiempo de espera se tomaba por rechazo)
+    catch (e) { if (rechazoOkx(e)) throw e; }   // error del propio OKX (con respuesta) → se lanza; red/tiempo/sin respuesta → SIEMPRE se consulta por su clOrdId (v460: antes un tiempo de espera se tomaba por rechazo)
     let ult = null;
     for (let i = 0; i < 10; i++) { await sleep(i ? 500 : 150); let d = null; try { [d] = await api("GET", `/api/v5/trade/order?instId=${instId}&clOrdId=${clOrdId}`); } catch (e) { if (i >= 6 && /51603|no existe|does not exist/i.test(String(e.message))) throw new Error("OKX: la orden no llegó"); continue; }   /* v460 · ~3,5 s preguntando antes de darla por no llegada */ ult = d; if (d && (d.state === "filled" || (+d.accFillSz > 0 && d.state !== "live" && d.state !== "partially_filled"))) {
       const fill = +d.accFillSz || 0, px = +d.avgPx || 0, fee = Math.abs(+d.fee || 0), base = instId.split("-")[0];
@@ -130,7 +133,7 @@ export function adaptador(api, I, tick = {}) {
   //   para comprobar ESA orden más tarde (nunca se manda otra encima: podría vender dos veces).
   // v478 · solo un RECHAZO EXPLÍCITO de OKX cuenta como «seguro que no se hizo». Un «no existe» a los pocos segundos podría ser un retraso de OKX:
   //   cuenta como resultado desconocido (se apunta y se vuelve a comprobar más tarde, nunca se reenvía en el acto).
-  const seguroNoHecha = (e) => !!e && !!(e.status && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code)));
+  const seguroNoHecha = rechazoOkx;
   async function sinDuplicar(instId, side, sz) { for (let i = 0; i < 3; i++) { try { return { o: await orden(instId, side, sz, false) }; } catch (e) { if (!seguroNoHecha(e)) return { ref: { inst: (e && e.instId) || instId, id: e && e.clOrdId, t: new Date().toISOString() } }; if (i < 2) await sleep(1500); } } return { no: true }; }
   // compra con «eur» euros → { q (cripto neta), coste (€), fee (€ aprox.), px }
   async function comprar(m, eur) {
@@ -162,7 +165,7 @@ export function adaptador(api, I, tick = {}) {
   async function ponStop(m, q, px) { const R = ruta(I, m); if (!R) return null; let pxP = px; if (R.tipo === "usdc") { const ue = ueStop(); if (!ue) return null; pxP = px / ue; } const sz = abajo(q, R.par.lot); if (!(sz > 0) || sz < R.par.min) return null;
     const algoClOrdId = "st" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);   // v295 · identificador propio: si se pierde la respuesta, se busca
     try { const [o] = await api("POST", "/api/v5/trade/order-algo", { instId: R.par.instId, tdMode: "cash", side: "sell", ordType: "conditional", sz: sz.toFixed(R.par.lot), slTriggerPx: precioStop(R.par, pxP), slOrdPx: "-1", algoClOrdId }); if (o && o.algoId) return String(o.algoId); }
-    catch (e) { if (e && e.status && e.code && !["50001", "50004", "50013", "50026"].includes(String(e.code))) throw e; }
+    catch (e) { if (rechazoOkx(e)) throw e; }
     for (let i = 0; i < 4; i++) { await sleep(800 + i * 500); try { const [d] = await api("GET", `/api/v5/trade/order-algo?algoClOrdId=${algoClOrdId}`); if (d && d.algoId) return String(d.algoId); } catch (e) {} }   // v1.0 · G-2.2 · hasta 4 veces
     throw new Error("OKX: el stop de emergencia quedó sin confirmar"); }   // (antes devolvía «no disponible» y un stop fantasma podía bloquear la venta)
   // v1.0 · G-2.2 · quita los stops que puso el BOT en esa cripto y que no tiene apuntados (fantasmas): bloquean las criptos y la venta fallaría

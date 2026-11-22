@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
-      - run: cd runner && npm i --no-save --no-audit --no-fund libsodium-wrappers@0.7.15 >/dev/null 2>&1 && node copiar-claves.mjs
+      - run: cd runner && npm i --no-save --no-audit --no-fund --ignore-scripts --before=2026-06-01 libsodium-wrappers@0.7.15 >/dev/null 2>&1 && node copiar-claves.mjs
         env:
           DESTINO: ${{ inputs.destino }}
           CHAT: ${{ inputs.chat }}

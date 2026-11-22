@@ -139,6 +139,8 @@ export async function guardaAjustes() { let c = {}; try { c = JSON.parse(env("CA
   for (let i = 0; i < 4; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git hl-ctl`); log(`Ajustes guardados: ${o.estado} · usa ${o.uso} % · posiciones ${o.plazas || "auto"} · freno −${o.freno * 100} % · método n.º ${o.puesto}`); return; } catch (e) { await sleep(3000); } }
   throw new Error("no he podido guardar los ajustes (4 intentos)"); }   // v467 · que GitHub marque la ejecución como fallida y llegue el aviso: nunca un «guardado» (ni un rearme del freno) que no lo es
 // v467 · 🧊 cuarentena ESTRICTA: solo la pasa un método con cuar.ok === true o cuar.exento === true; sin datos de cuarentena = NO (y nunca se tira del podio antiguo)
+// v1.0 · R6-11 · valor (a precio de compra, en USDC) de lo que tengas en Spot que NO sea USDC: si cambias USDC por otra cripto, sigue siendo tu dinero
+export const valorSpotOtros = (bal) => (Array.isArray(bal) ? bal : []).filter((b) => b && !/^USDC$/i.test(b.coin) && +b.total > 0).reduce((a, b) => a + (+b.entryNtl > 0 ? +b.entryNtl : 0), 0);
 export const cuarentenaOk = (z) => !!(z && z.cuar && typeof z.cuar === "object" && (z.cuar.ok === true || z.cuar.exento === true));
 // v1.0 · un método PROVISIONAL solo vale mientras ninguno haya pasado de verdad la cuarentena: en cuanto uno la pasa, se deja el provisional
 export function listaReal(aprobadas) {
@@ -265,7 +267,10 @@ async function ronda0() { PUESTOS.length = 0;
   let ledOk = true; const led = await info({ type: "userNonFundingLedgerUpdates", user: yo, startTime: 0 }).catch(() => { ledOk = false; return []; });   // v461 · sin el historial de ingresos no se puede calcular el freno → esta hora no se abre nada
   const neto = netoIngresado(led, yo);   // v1.0 · cuenta también los ingresos que no llegan como «deposit»
   // v1.0 · G-4.4 · el USDC que esté en Spot también es tuyo: cuenta para el freno (mover dinero de futuros a Spot ya no lo dispara). Si no se puede leer, 0.
-  let spotUsdc = 0, spotOk = true; try { const sp = await info({ type: "spotClearinghouseState", user: yo }); if (!sp || !Array.isArray(sp.balances)) spotOk = false;   /* v1.0 · G3 · una respuesta sin «balances» no es un 0 */ spotUsdc = ((sp && sp.balances) || []).filter((b) => /^USDC$/i.test(b.coin)).reduce((a, b) => a + (+b.total || 0), 0); if (!(spotUsdc >= 0)) { spotUsdc = 0; spotOk = false; } } catch (e) { spotUsdc = 0; spotOk = false; }
+  let spotUsdc = 0, spotOk = true, spotOtros = 0; try { const sp = await info({ type: "spotClearinghouseState", user: yo }); if (!sp || !Array.isArray(sp.balances)) spotOk = false;   /* v1.0 · G3 · una respuesta sin «balances» no es un 0 */ spotUsdc = ((sp && sp.balances) || []).filter((b) => /^USDC$/i.test(b.coin)).reduce((a, b) => a + (+b.total || 0), 0); if (!(spotUsdc >= 0)) { spotUsdc = 0; spotOk = false; }
+    spotOtros = valorSpotOtros(sp && sp.balances); } catch (e) { spotUsdc = 0; spotOk = false; }
+  // v1.0 · R6-11 · el dinero que tengas en un vault (p. ej. HLP) sigue siendo tuyo: cuenta para el freno (si no se puede leer, 0, como antes)
+  try { const v = await info({ type: "userVaultEquities", user: yo }); if (Array.isArray(v)) spotOtros += v.reduce((a, x) => a + (+(x && x.equity) > 0 ? +x.equity : 0), 0); } catch (e) {}
   if (saldoCeroSospechoso(eq, pos, neto, ledOk)) throw new Error(msgSaldoCero(spotUsdc));
   const netoMal = ledOk && !(neto > 0);   // v466 · lo ingresado neto no es positivo: el freno no tiene base fiable → no se abre nada
   let fillsOk = true; const fills = await info({ type: "userFills", user: yo }).catch(() => { fillsOk = false; return []; });   // v465 · si falla, NO se inventa la antigüedad de las posiciones
@@ -363,7 +368,7 @@ async function ronda0() { PUESTOS.length = 0;
   if (!frenoSlip && prev && prev.frenoSlip) await aviso("✅ Hyperliquid: el deslizamiento medio ha vuelto a lo normal; vuelvo a poder abrir operaciones.");
   SLIPS = estado.slip;   // v476 · aquí se van apuntando los deslizamientos de esta ronda
   const frenoMarca = FM.ok && FM.t && !reArm(new Date(FM.t).toISOString()) ? new Date(FM.t).toISOString() : null;   // v466 · la segunda vía
-  const frenoAhora = neto > 0 && eq + spotUsdc < neto * (1 - CTL.freno), frenoEst = prev && prev.frenoDesde && !reArm(prev.frenoDesde) ? prev.frenoDesde : null, frenoPrev = frenoEst || frenoMarca;
+  const frenoAhora = neto > 0 && eq + spotUsdc + spotOtros < neto * (1 - CTL.freno),   /* v1.0 · R6-11 · también las otras criptos de Spot y los vaults: cambiar USDC por otra cosa no es una pérdida */ frenoEst = prev && prev.frenoDesde && !reArm(prev.frenoDesde) ? prev.frenoDesde : null, frenoPrev = frenoEst || frenoMarca;
   // v1.0 · G2-4 · si NO se ha podido leer Spot y sin él saltaría el freno (y no estaba ya echado), no se sabe si es una caída de verdad: esta hora no se hace nada
   if (frenoAhora && !spotOk && !frenoPrev) throw new Error("No he podido leer tu saldo en Spot y sin él saltaría el freno. Esta hora no hago nada (ni echo el freno); lo reintento.");
   const freno = frenoAhora || !!frenoPrev, parar = CTL.estado === "parado", todo = freno || parar;
@@ -409,10 +414,11 @@ async function ronda0() { PUESTOS.length = 0;
         // v478 · antes de abrir: qué stops hay ya (para saber después cuáles pone el bot) y las intenciones de esta hora. Sin esa lectura no se abre.
         let antes = null; if (quiere.length && libres > 0) { try { antes = ((await info({ type: "frontendOpenOrders", user: yo })) || []).map((o) => ({ c: o.coin, oid: o.oid })); } catch (e) { antes = null; }
           if (!antes) { log("No he podido leer las órdenes abiertas antes de abrir: esta hora no abro nada."); quiere.length = 0; }
-          else { const tI = Date.now(); for (const q of quiere.slice(0, Math.max(0, libres) + 3)) if (!pos.some((p) => p.coin === q.c) || estado.ops.some((o) => o.c === q.c && o.x === "cierra")) {   /* v1.0 · G-4.1 · también la que se cerró esta hora y se reabre */ const I = idx.get(q.c), mid = +mids[q.c], szE = I && mid > 0 ? tamOk((Math.min(uso / plazas, eq) * 0.98) / mid, I.szd) : 0;   /* v479 · el tamaño que mandará (misma cuenta que al abrir) */
+          else { const tI = Date.now(); for (const q of quiere.filter((q) => !pos.some((p) => p.coin === q.c) || estado.ops.some((o) => o.c === q.c && o.x === "cierra")).slice(0, Math.max(0, libres) + 3)) {   /* v1.0 · R6-6 · se filtra ANTES de cortar: antes, las señales de criptos ya abiertas ocupaban el corte y una nueva se mandaba sin intención apuntada */   /* v1.0 · G-4.1 · también la que se cerró esta hora y se reabre */ const I = idx.get(q.c), mid = +mids[q.c], szE = I && mid > 0 ? tamOk((Math.min(uso / plazas, eq) * 0.98) / mid, I.szd) : 0;   /* v479 · el tamaño que mandará (misma cuenta que al abrir) */
             estado.intentos.push({ c: q.c, dir: q.dir, t: tI, sz: szE || undefined, g: { h: g.h, sl: g.sl || 0, k: M0.x.k }, antes: antes.filter((o) => o.c === q.c).map((o) => o.oid) }); } } }
         if (quiere.length && libres > 0 && !(await guarda({ ...estado, preApertura: 1 }))) { log("No he podido guardar el estado antes de abrir: esta hora no abro nada."); await aviso("⚠️ Hyperliquid: no he podido guardar el estado antes de abrir operaciones; esta hora no abro nada."); quiere.length = 0; }
         const enviadas = new Set(), marcaDudosa = (c) => { for (const i of estado.intentos) if (i.c === c && i.t >= ahoraR) i.dudosa = 1; }; let usadas = 0; for (const q of quiere) { if (usadas >= libres) break; if (pos.some((p) => p.coin === q.c) && !estado.ops.some((o) => o.c === q.c && o.x === "cierra")) continue;
+          if (!(estado.intentos || []).some((i) => i.c === q.c && i.t >= ahoraR)) { log("Una señal sin intención guardada antes de abrir: no se manda (nunca se abre nada que luego no se pueda reconocer)."); continue; }   // v1.0 · R6-6
           try {
           const I = idx.get(q.c), mid = +mids[q.c]; if (!I || !(mid > 0)) continue;
           if (q.px0 > 0 && (q.dir > 0 ? mid > q.px0 * (1 + PERSIGUE_MAX) : mid < q.px0 * (1 - PERSIGUE_MAX))) { log(`Una señal ya se ha movido más de un ${PERSIGUE_MAX * 100} % desde el cierre de la vela: no la persigo.`); continue; }   // v1.0 · G-4.2

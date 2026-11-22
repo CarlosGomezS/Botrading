@@ -27,7 +27,7 @@ jobs:
           node-version: 22
       - name: Librerías de firma
         run: |
-          mkdir -p /tmp/hl && cd /tmp/hl && npm init -y >/dev/null && npm i --no-audit --no-fund ethers@6.13.4 @msgpack/msgpack@2.8.0 >/dev/null
+          mkdir -p /tmp/hl && cd /tmp/hl && npm init -y >/dev/null && npm i --no-audit --no-fund --ignore-scripts --before=2026-06-01 ethers@6.13.4 @msgpack/msgpack@2.8.0 >/dev/null
           ln -s /tmp/hl/node_modules "$GITHUB_WORKSPACE/runner/node_modules"
       - name: Esperar al cierre de la vela
         if: github.event_name == 'schedule'

@@ -59,6 +59,9 @@ jobs:
             [ -n "$solo" ] && ! echo " $solo " | grep -q " $b " && continue
             [ "$que" = "datos" ] && [ "$b" = "main" ] && continue
             [ "$que" = "codigo" ] && [ "$b" != "main" ] && continue
+            # v1.0 · R6-2 · las ramas de CONTROL y los ESTADOS del dinero real nunca vuelven atrás solas: una copia antigua deshacía un /parar
+            #   (bitvavo-ctl, hl-ctl…) y devolvía al bot unas posiciones y una caja que ya no son las de verdad. Solo si las escribes tú en «ramas».
+            if echo "$b" | grep -Eq '^(real|bitvavo-real|okx-real|hl-real|[a-z0-9-]+-ctl)$' && ! echo " $solo " | grep -q " $b "; then echo "🔒 $b no se restaura (dinero real); si de verdad la quieres, escríbela en «ramas»"; continue; fi
             if ! git show-ref -q "refs/remotes/origin/$b"; then git push -q origin "$t^{commit}:refs/heads/$b"; echo "♻️ $b recreada desde la copia"; continue; fi
             git checkout -q -B "r-$b" "refs/remotes/origin/$b"
             git read-tree -u --reset "$t"
@@ -75,4 +78,5 @@ jobs:
           sleep 45
           # v1.0 · G6-C8 · al terminar solo se vuelve a encender lo de siempre: los bots de dinero real (Trading 212, Hyperliquid) y los laboratorios arrancan
           #   solos en su siguiente turno, nunca lanzados a la fuerza sobre datos recién restaurados
-          for w in meme.yml cripto-lab.yml examen-largo.yml; do n=$(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?per_page=5" -q '[.workflow_runs[]|select(.status=="in_progress" or .status=="queued")]|length'); [ "$n" != "0" ] && { echo "$w ya está en marcha"; continue; }; gh api -X POST "repos/${{ github.repository }}/actions/workflows/$w/dispatches" -f ref=main && echo "encendido $w" || true; done
+          # v1.0 · R6-2 · meme.yml NO se relanza aquí: es el bucle de los bots de dinero real (Bitvavo, OKX, Hyperliquid); el vigilante lo arranca en su turno
+          for w in cripto-lab.yml examen-largo.yml; do n=$(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?per_page=5" -q '[.workflow_runs[]|select(.status=="in_progress" or .status=="queued")]|length'); [ "$n" != "0" ] && { echo "$w ya está en marcha"; continue; }; gh api -X POST "repos/${{ github.repository }}/actions/workflows/$w/dispatches" -f ref=main && echo "encendido $w" || true; done

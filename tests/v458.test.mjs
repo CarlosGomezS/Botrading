@@ -248,7 +248,7 @@ test("v477 · H-02: una orden de Trading 212 de resultado desconocido NUNCA se d
 test("v477 · H-09: la cuarentena de Hyperliquid exige ritmo de operaciones, factor de beneficio y caída máxima (no solo 21 días ganando)", async () => {
   const { minCuar, ddMaxCuar, cuarPasa } = await import("../runner/caza-lab.mjs");
   assert.equal(minCuar({ h: 16 }, { opsDia: 4 }, 21), 34, "rápido de 4 op./día: al menos 34 en 21 días (antes bastaban 8)");
-  assert.equal(minCuar({ h: 72 }, { opsDia: 0.3 }, 21), 4, "lento: mínimo 4"); assert.equal(minCuar({ h: 16 }, null, 21), 8);
+  assert.equal(minCuar({ h: 72 }, { opsDia: 0.3 }, 21), 15, "lento: mínimo 15 (R6-5; antes 4)"); assert.equal(minCuar({ h: 16 }, null, 21), 20);
   assert.equal(ddMaxCuar({ dd: -0.27 }), 0.27); assert.equal(ddMaxCuar({ dd: 0.05 }), 0.1, "suelo del 10 %");
   const ok = { n: 40, ret: 0.02, pf: 1.3, dd: 0.05 };
   assert.equal(cuarPasa(22, ok, 34, 0.27), true);

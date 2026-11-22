@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import * as RL from "../runner/bitvavo-real.mjs";
+import { abreCtl } from "../runner/ctl-priv.mjs";   // v1.0 · R6-10 · lo privado de ctl.json va cifrado
 
 // Bitvavo falso: comprueba la firma de cada petición y ejecuta órdenes de mercado al precio que le digamos (comisión 0,25 % en EUR)
 function exchange(px, opts = {}) {
@@ -249,7 +250,7 @@ test("Real v260: 💱 convertir a euros: vende TODO el saldo de esa cripto una s
     store["bitvavo-ctl/ctl.json"] = { copia: "eq", cuentas: { bitvavo: { on: true, copia: "eq", capital: 50, convertir: { sym: "BTC", at: "c1" } }, okx: { on: false } } };
     await RL.paso(S, tk(ex.px), new Date(), io);
     assert.equal(ex.orders.length, 1); assert.equal(ex.orders[0].side, "sell"); assert.equal(ex.orders[0].market, "BTC-EUR");
-    assert.ok(msgs.some((m) => /vendido tu BTC/.test(m))); assert.equal(store["bitvavo-ctl/ctl.json"].cuentas.bitvavo.convertir.hecho, "c1");
+    assert.ok(msgs.some((m) => /vendido tu BTC/.test(m))); assert.equal((await abreCtl(store["bitvavo-ctl/ctl.json"], "pw-de-prueba-123")).cuentas.bitvavo.convertir.hecho, "c1"); assert.ok(!JSON.stringify(store["bitvavo-ctl/ctl.json"]).includes("BTC"), "R6-10 · y en claro no aparece");
     delete S.conex; await RL.paso(S, tk(ex.px), new Date(), io); assert.equal(ex.orders.length, 1, "no lo repite");
   } finally { globalThis.fetch = f0; for (const k of ["BITVAVO_KEY", "BITVAVO_SECRET", "REAL_VIEW_PASS"]) delete process.env[k]; }
 });
@@ -597,7 +598,7 @@ test("v1.0 · B-003 · si pulsas «Parar» (o cambias un ajuste) mientras el bot
   try {
     store["bitvavo-ctl/ctl.json"] = { copia: "eq", cuentas: { bitvavo: { on: true, copia: "eq", capital: 50, convertir: { sym: "BTC", at: "c1" } }, okx: { on: false } } };
     await RL.paso(S, tk(ex.px), new Date(), io);
-    const c = store["bitvavo-ctl/ctl.json"];
+    const c = await abreCtl(store["bitvavo-ctl/ctl.json"], "pw-de-prueba-123");
     assert.equal(c.parado, true, "tu «Parar» sigue ahí"); assert.equal(c.motivo, "lo has parado tú");
     assert.equal(c.cuentas.bitvavo.convertir.hecho, "c1", "y el cambio del bot (conversión hecha) también");
   } finally { globalThis.fetch = f0; for (const k of ["BITVAVO_KEY", "BITVAVO_SECRET", "REAL_VIEW_PASS"]) delete process.env[k]; }

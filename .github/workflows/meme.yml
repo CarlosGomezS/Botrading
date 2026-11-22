@@ -43,7 +43,7 @@ jobs:
         if: steps.dup.outputs.go == 'true'
         continue-on-error: true
         run: |
-          mkdir -p /tmp/hl && cd /tmp/hl && npm init -y >/dev/null && npm i --no-audit --no-fund ethers@6.13.4 @msgpack/msgpack@2.8.0 >/dev/null && ln -sfn /tmp/hl/node_modules "$GITHUB_WORKSPACE/runner/node_modules" && echo ok
+          mkdir -p /tmp/hl && cd /tmp/hl && npm init -y >/dev/null && npm i --no-audit --no-fund --ignore-scripts --before=2026-06-01 ethers@6.13.4 @msgpack/msgpack@2.8.0 >/dev/null && ln -sfn /tmp/hl/node_modules "$GITHUB_WORKSPACE/runner/node_modules" && echo ok
       - name: Vueltas (una por minuto, ~28 min)
         if: steps.dup.outputs.go == 'true'
         env:
