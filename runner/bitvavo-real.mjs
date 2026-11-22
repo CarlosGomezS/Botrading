@@ -196,6 +196,9 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   // v462 · el bloqueo NO caduca por tiempo: solo se levanta cuando un cuadre con el saldo real del exchange termina bien al menos 10 min después
   //   (lo que se compró de verdad queda apuntado y lo vendido, descontado). Si en 24 h no se ha podido cuadrar, sigue bloqueado y se avisa.
   const DUD = (RS && RS.dudosas) || {}; let cuadreOk = false;
+  // v1.0 · A1 · un bloqueo puesto ANTES de comprar (sin identificador de orden) se levanta en cuanto la compra aparece en la cuenta y no queda ninguna orden abierta
+  //   de ese par (antes duraba 24 h: el bot no podía vender esa cripto ni por sus reglas mientras tanto; solo protegía el stop del exchange)
+  const sueltaPre = async (m) => { const d = DUD[m]; if (!d || !d.pre || d.id) return; try { if ((X0.abiertas ? await X0.abiertas(m, d) : 0) === 0) delete DUD[m]; } catch (e) {} };
   const X = conDudosas(X0, DUD, now);
   // v1.0 · R6-3 · 📝 GUARDAR ANTES DE COMPRAR (como Trading 212 e Hyperliquid): antes de mandar una compra, el activo se apunta como «compra de resultado
   //   desconocido» y se guarda el estado cifrado. Si el proceso muere o no se puede guardar después, la vuelta siguiente encuentra ese apunte: no la vuelve a
@@ -203,8 +206,9 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
   //   Si no se puede guardar antes, la compra NO se manda.
   if (deps.guardaAntes && X.comprar) { const c0 = X.comprar; X.comprar = async (m, ...a) => {
     if (DUD[m]) return c0(m, ...a);   // ya bloqueada: el envoltorio lo rechaza como siempre
-    const t = new Date(now).toISOString(), cdPrev = RS.compraDud && RS.compraDud[m];
-    DUD[m] = { t, id: null, compra: 1, pre: 1 }; RS.dudosas = DUD; RS.compraDud = RS.compraDud || {}; RS.compraDud[m] = { src: null, ...(cdPrev || {}), t, pre: 1 };
+    const t = new Date(now).toISOString(), cdPrev = RS.compraDud && RS.compraDud[m], meta = a[1] && typeof a[1] === "object" ? a[1] : {};
+    // v1.0 · A1 · el apunte lleva de quién es la compra (Tortugas: su stop y su N): si hay que recuperarla, se adopta como de las Tortugas, con sus reglas
+    DUD[m] = { t, id: null, compra: 1, pre: 1 }; RS.dudosas = DUD; RS.compraDud = RS.compraDud || {}; RS.compraDud[m] = { src: null, ...(cdPrev || {}), ...(meta.src ? { src: meta.src } : {}), ...(meta.stopD > 0 ? { stopD: meta.stopD } : {}), ...(meta.N > 0 ? { N: meta.N } : {}), t, pre: 1 };
     const deshaz = () => { if (cdPrev) RS.compraDud[m] = cdPrev; else delete RS.compraDud[m]; if (RS.compraDud && !Object.keys(RS.compraDud).length) delete RS.compraDud; };
     try { await deps.guardaAntes(RS); } catch (e) { delete DUD[m]; deshaz(); throw new Error("no he podido guardar el estado antes de comprar: la compra no se envía"); }
     delete DUD[m];   // apuntada y guardada: ahora sí se manda (si queda dudosa, el envoltorio la vuelve a bloquear con su identificador)
@@ -376,11 +380,11 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
           const cd = (RS.compraDud && RS.compraDud[m]) || (DUD[m] && DUD[m].compra ? { t: DUD[m].t, src: null } : null);
           if (!dueno && cd && cd.src === "tortuga" && (DUD[m] || now - Date.parse(cd.t) < 24 * 3600e3)) { let qT = q; if (X.comprasBot) try { const qb = await X.comprasBot(sym, Date.parse(cd.t) - 60e3); if (qb != null) qT = Math.min(q, qb); } catch (e) {}
             if (qT * bid >= 2) { const px0 = lb && lb.px > 0 ? lb.px : bid, cost = r2(lb ? lb.cost * Math.min(1, qT / lb.q) : qT * px0); RS.pos[m] = { src: "tortuga", sym, q: qT, q0: qT, px: px0, cost, cost0: cost, t0: cd.t, last: bid, stop: px0 - cd.stopD, N: cd.N };
-              if (!cd.pagado) RS.cash = r2(Math.max(0, RS.cash - cost)); delete RS.compraDud[m]; L(RS, now, `🔍 🐢 ${sym}: la compra de las Tortugas que quedó sin confirmar SÍ se hizo; se apunta con su stop (${r2(cost)} €)`); await protege(m); continue; }
+              if (!cd.pagado) RS.cash = r2(Math.max(0, RS.cash - cost)); delete RS.compraDud[m]; await sueltaPre(m); L(RS, now, `🔍 🐢 ${sym}: la compra de las Tortugas que quedó sin confirmar SÍ se hizo; se apunta con su stop (${r2(cost)} €)`); await protege(m); continue; }
             continue; }   // v1.0 · G2-5 · si el historial aún no muestra la compra, se ESPERA (nunca se adopta todo como si fuera una cualquiera)
           if (dueno) { const sp = dueno[1].pos[m], q = qBot; RS.pos[m] = { src: dueno[0], sym, q, q0: q, px: lb && lb.px > 0 ? lb.px : bid, cost: r2(lb ? lb.cost * Math.min(1, q / lb.q) : q * bid), cost0: r2(lb ? lb.cost * Math.min(1, q / lb.q) : q * bid), t0: now.toISOString(), srcT0: sp.t0, last: bid }; RS.vistos[m + "|" + sp.t0] = now.toISOString(); RS.cash = r2(Math.max(0, RS.cash - RS.pos[m].cost)); L(RS, now, `🔍 ${sym}: compra del bot que no llegó a apuntarse (reinicio); queda apuntada con «${dueno[0]}»`); await protege(m); }
           // otra compra del bot que quedó dudosa (cartera base, copias…): se vigila como antes (stop −6 %, stop móvil, 72 h) y su coste sale de la caja del bot
-          else if (cd && (DUD[m] || now - Date.parse(cd.t) < 24 * 3600e3)) { RS.pos[m] = { sym, q, q0: q, px: bid, cost: r2(v), cost0: r2(v), t0: now.toISOString(), last: bid, peak: bid, huerfana: 1, src: null }; if (!cd.pagado) RS.cash = r2(Math.max(0, RS.cash - v)); if (RS.compraDud) delete RS.compraDud[m]; L(RS, now, `🔍 ${sym}: una compra del bot que quedó sin confirmar SÍ se hizo (${r2(v)} €); la vigila (stop −6 %, stop móvil, 72 h máx.)`); await protege(m); }
+          else if (cd && (DUD[m] || now - Date.parse(cd.t) < 24 * 3600e3)) { RS.pos[m] = { sym, q, q0: q, px: bid, cost: r2(v), cost0: r2(v), t0: now.toISOString(), last: bid, peak: bid, huerfana: 1, src: null }; if (!cd.pagado) RS.cash = r2(Math.max(0, RS.cash - v)); if (RS.compraDud) delete RS.compraDud[m]; await sueltaPre(m); L(RS, now, `🔍 ${sym}: una compra del bot que quedó sin confirmar SÍ se hizo (${r2(v)} €); la vigila (stop −6 %, stop móvil, 72 h máx.)`); await protege(m); }
           // v1.0 · G-1.3 · una cripto que el bot NO compró (tuya, traspasada…) ya no se adopta ni se vende: no se toca y se avisa una vez
           else { RS.ajenas = RS.ajenas || {}; if (!RS.ajenas[sym]) { RS.ajenas[sym] = now.toISOString(); L(RS, now, `🔍 ${sym}: hay ${r2(v)} € en tu cuenta que el bot no ha comprado; no la toca`); msgs.push(`💶 ℹ️ ${EX}: hay ${sym} en tu cuenta que no ha comprado el bot. No la toco (ni la vendo ni le pongo stop).`); } } } }
 
@@ -501,7 +505,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         if (tk.ask > x.c * 1.03) { RS.vistos[clave] = now.toISOString(); L(RS, now, `⏭️ 🐢 ${m.split("-")[0]}: rompió su máximo, pero ya ha subido un ${r2((tk.ask / x.c - 1) * 100)} % desde el cierre; no la persigue`); continue; }
         const stopD = Math.min(TP.kN * x.N, tk.ask * TP.stopMax), hueco = soloT() ? RS.cash : Math.max(0, V * TOPE_INV - (V - RS.cash - enBase())), mk = await mercado(m);
         const eur = Math.min(tortTam(V, stopD / tk.ask, TP), hueco, RS.cash, Math.max(0, (await libre()) - 0.5)); if (eur < Math.max(mk.min, 5) * 1.02) { L(RS, now, `⏭️ 🐢 ${m.split("-")[0]}: rompe su máximo, pero no quedan euros libres para comprarla (lo demás está invertido)`); continue; }
-        try { RS.vistos[clave] = now.toISOString(); const r = await X.comprar(m, eur); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nT++;   /* v324 · «vista» solo al comprar o si ya se escapó: si faltaba dinero, lo vuelve a intentar cuando lo haya */
+        try { RS.vistos[clave] = now.toISOString(); const r = await X.comprar(m, eur, { src: "tortuga", stopD, N: x.N }); RS.cash -= r.coste; RS.st.fees += r.fee; RS.st.trades++; nT++;   /* v324 · «vista» solo al comprar o si ya se escapó: si faltaba dinero, lo vuelve a intentar cuando lo haya */
           RS.pos[m] = { src: "tortuga", sym: m.split("-")[0], q: r.q, q0: r.q, px: r.px, cost: r.coste, cost0: r.coste, t0: now.toISOString(), last: tk.bid, stop: r.px - stopD, N: x.N };
           L(RS, now, `🐢 compra ${m.split("-")[0]} por ${r2(r.coste)} €: cerró por encima de su máximo de ${TP.ent} días · stop ${r2((-stopD / r.px) * 100)} % · sale con su mínimo de ${TP.sale} días`); msgs.push(`🟢 COMPRA REAL · ${EX}\n🐢 ${m.split("-")[0]} por ${r2(r.coste)} € (precio ${r.px})\nPor qué: ha cerrado por encima de su máximo de ${TP.ent} días.\nProtección: stop ${r2((-stopD / r.px) * 100)} % (guardado en ${EX}); vende si cae por debajo de su mínimo de ${TP.sale} días.\nEuros libres que quedan: ${r2(RS.cash)} €`); await protege(m);
         } catch (e) { L(RS, now, `⚠️ 🐢 no pude comprar ${m.split("-")[0]}: ${String(e.message).slice(0, 60)}`);

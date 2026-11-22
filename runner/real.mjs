@@ -1284,7 +1284,10 @@ async function main() {
     plan.estado = bad.length ? "con-errores" : "ejecutada"; plan.res = res.map((x) => ({ t: x.t, side: x.side, estado: x.estado, err: x.err || "" }));
     R.planHist.unshift({ ...plan, fin: new Date().toISOString() });
     if (!later.length) R.lastNormal = m.date;
-    if (!bad.length && !later.length && !omit.length) R.applied = { metodo: plan.metodo, tgtD: plan.tgtSig || plan.tgtD, d: m.date };
+    // v1.0 · A2 · una orden «esperando» (otra orden anterior de ese activo sin aclarar) tampoco da la revisión por terminada: si no, una venta de
+    //   reducción que tuvo que esperar ya no se volvía a intentar hasta la siguiente revisión del método (a veces un mes después)
+    const espera = res.filter((x) => x.estado === "esperando");
+    if (!bad.length && !later.length && !omit.length && !espera.length) R.applied = { metodo: plan.metodo, tgtD: plan.tgtSig || plan.tgtD, d: m.date };
     if (bad.length) estado = "error";
     titulo = `${ok.length} ${ok.length === 1 ? "orden ejecutada" : "órdenes ejecutadas"}${bad.length ? ` · ${bad.length} con error` : ""}${pendQ.length ? ` · ${pendQ.length} pendientes en Trading 212` : ""}${later.length ? ` · ${later.length} aplazadas (bolsa cerrada)` : ""}${omit.length ? ` · ${omit.length} omitidas` : ""}`;
     aviso = { title: `${bad.length ? "✖" : later.length && !ok.length ? "⏳" : "💶"} Cartera real: ${titulo}`, msg: res.map((x) => `${x.side === "COMPRA" ? "🟢" : "🔴"} ${x.side} ${x.t}${x.sym ? " (" + x.sym + ")" : ""} · ${x.estado}${x.eurReal != null ? " · " + eur(x.eurReal) : x.eur ? " · ≈" + eur(x.eur) : ""}${x.pnl != null ? ` · resultado ${seur(x.pnl)}` : ""}${x.err ? " · " + x.err : ""}\n   ${String(x.why || "").slice(0, 120)}`).join("\n") + `\n\nMétodo: ${plan.metodoNombre} · ${A.env === "demo" ? "DEMO" : "dinero real"}`, prio: bad.length ? 5 : 4 };

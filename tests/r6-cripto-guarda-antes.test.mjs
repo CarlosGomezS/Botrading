@@ -18,6 +18,10 @@ test("R6-3 · compra hecha + estado final sin guardar → no vuelve a comprar y 
   assert.equal(S.compras.length, 1, "NO vuelve a comprar A");
   assert.ok(!(guardado.ajenas && guardado.ajenas.A), "la compra del bot no queda como «ajena»");
   assert.ok(guardado.pos["A-EUR"] && guardado.pos["A-EUR"].q > 0, "la compra queda como posición del bot");
+  // v1.0 · A1 · y se adopta como de las TORTUGAS (con su stop), y el bloqueo se levanta: luego la puede vender por sus reglas
+  assert.equal(guardado.pos["A-EUR"].src, "tortuga", "se adopta como de las Tortugas (antes, como una compra cualquiera: stop −6 % y 72 h)");
+  assert.ok(guardado.pos["A-EUR"].stop > 0, "con su stop de las Tortugas");
+  assert.ok(!(guardado.dudosas && guardado.dudosas["A-EUR"]), "el bloqueo puesto antes de comprar se levanta al verla en la cuenta (antes duraba 24 h)");
 });
 
 test("R6-3 · si no se puede guardar antes, la compra NO se manda", async () => {
