@@ -5,6 +5,10 @@ on:
   schedule:
     - cron: "23 */3 * * *"
   workflow_dispatch:
+  # v1.0 · R7 · en cuanto cambia el código del laboratorio (examen, señales, datos), se vuelve a examinar sin esperar a su turno
+  push:
+    branches: [main]
+    paths: ["runner/caza-lab.mjs", "runner/caza-hl.mjs", "runner/caza-hl2.mjs"]
 permissions:
   contents: write
 concurrency:

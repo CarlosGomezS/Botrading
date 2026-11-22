@@ -60,6 +60,17 @@ export function podioDiverso(L, k = 3, maxIgual = 2) {
   return out;
 }
 export const resumenIdeas = (L) => { const c = {}; for (const x of L || []) c[ideaDe(x)] = (c[ideaDe(x)] || 0) + 1; return { distintas: Object.keys(c).length, total: (L || []).length, porIdea: c }; };
+// v1.0 · R7 · PROVISIONAL (decisión del usuario): mientras NINGÚN método haya pasado la cuarentena, el dinero real sigue al n.º 1 del podio.
+//   · se mantiene el provisional anterior mientras siga aprobado; si deja de aprobar, pasa a serlo el n.º 1 actual
+//   · en cuanto uno pase de verdad la cuarentena, no hay provisional (hl-real.mjs → listaReal sigue a ese)
+//   · sin aprobados, no hay provisional (no se opera)
+//   Marca en cada aprobado cuar.provisional/cuar.exento y devuelve la clave elegida (o null).
+export function eligeProvisional(aprobadas, anterior, exentos = []) {
+  const A = Array.isArray(aprobadas) ? aprobadas : [], hayReal = A.some((x) => x && x.cuar && x.cuar.ok === true);
+  let k = null; if (!hayReal && A.length) k = anterior && A.some((x) => x.k === anterior) ? anterior : (podioDiverso(A, 3)[0] || A[0]).k;
+  for (const x of A) { if (!x || !x.cuar) continue; delete x.cuar.provisional; if (!exentos.includes(x.k)) delete x.cuar.exento; if (x.k === k) { x.cuar.provisional = true; x.cuar.exento = true; } }
+  return k;
+}
 export function calidadIS(x, corte) { const z = x && x.is; if (!z || !Number.isFinite(+z.ret)) return -9; const an = Math.pow(Math.max(0.0001, 1 + z.ret), 365 / Math.max(30, (corte - 260) / 24)) - 1; return an - 0.8 * Math.abs(z.dd || 0); }
 // v477 · 🧊 CUARENTENA CON EXIGENCIA PROPIA (no solo un reloj de 21 días): además de ganar, tiene que
 //   · operar a un ritmo parecido al suyo: al menos el 40 % de las operaciones que haría a su ritmo histórico (mínimo 8, o 4 si es de los lentos)
@@ -89,7 +100,9 @@ export async function lab(log = console.log) {
   const exentos = Array.isArray(M0.exentos) ? M0.exentos : ["q411nb"];
   // v1.0 · PROVISIONAL (decisión del usuario, 19/11/2026): mientras ningún método haya pasado la cuarentena, el dinero real sigue a este
   //   (el n.º 1 de ese día). En cuanto uno la pase, el bot real deja el provisional y sigue a ese (hl-real.mjs → listaReal)
-  const provisionales = ["xlxypc"];   // q411nb = «Compresión Donchian + Z-Score + BTC Momentum», en uso con dinero real desde el 12/11/2026
+  // v1.0 · R7 · el provisional ya NO es un método fijo (antes «xlxypc»: al dejar de aprobar, Hyperliquid se quedó sin método): es el n.º 1 del podio,
+  //   y se mantiene mientras siga aprobado (no cambia cada 3 h por pequeñas diferencias de orden). Se elige más abajo (eligeProvisional).
+  const provisionales = [];
   const mem = { probadas: M0.probadas || {}, pesos: M0.limpio466 ? M0.pesos || {} : {},   /* v466 · los pesos de familia se reinician una vez (venían de notas contaminadas) */ casi: (M0.casi || []).filter((x) => x && x.is && x.v >= 466),   /* v466 · se descartan las anteriores: su nota usaba tramos que tocaban los 90 días ocultos */   /* v465 · se descartan las «casi» antiguas (se eligieron viendo los 90 días ocultos) */ aprobadas: M0.aprobadas || [], rondas: (M0.rondas || 0) + 1, hist: M0.hist || [] };
   const ID = await ideas(M0.ideas); const recientes = ID.filter((x) => Date.now() - Date.parse(x.visto) < 30 * 864e5), menc = {}; for (const x of recientes) for (const f of x.fams) menc[f] = (menc[f] || 0) + 1;
   log(`🧠 Ronda ${mem.rondas} · memoria: ${Object.keys(mem.probadas).length} combinaciones ya probadas · ideas nuevas leídas: ${ID.length - (M0.ideas || []).length}`);
@@ -174,6 +187,7 @@ export async function lab(log = console.log) {
     if (r.okA && r.okB && r.okC) { try { x.vec = vecinosOk(x.g); } catch (e) { x.vec = { ok: true, res: [] }; } if (!x.vec.ok) log(`  🧭 Sale del podio por la prueba de vecinos: ${x.n.slice(0, 80)}`); }
     return r.okA && r.okB && r.okC && (!x.vec || x.vec.ok); }).sort((a, b) => Math.round(calidad(b) * 1000) - Math.round(calidad(a) * 1000) || (a.is ? a.is.dd : 1) - (b.is ? b.is.dd : 1));   /* v455 · ⚖️ por CALIDAD: ganancia al año − 0,8 × caída */   /* v365 · rentabilidad típica en los tramos → mejor en los últimos 6 meses → menos caída */
   for (const x of mem.aprobadas) x.nota = +calidad(x).toFixed(4);
+  const provisional = eligeProvisional(mem.aprobadas, M0.provisional, exentos);   // v1.0 · R7
   const ks = Object.keys(mem.probadas); if (ks.length > 40000) for (const k of ks.slice(0, ks.length - 40000)) delete mem.probadas[k];
   const totalVistas = (M0.totalVistas || Object.keys(M0.probadas || {}).length) + cand.length;
   mem.hist.unshift({ t: new Date().toISOString(), probadas: cand.length, aprobadas: nOk, total: totalVistas }); mem.hist = mem.hist.slice(0, 120);
@@ -183,7 +197,7 @@ export async function lab(log = console.log) {
   for (const z of Object.values(iaRes)) delete z.aprobada;   // v467 · la IA NO sabe qué recetas aprobaron (el aprobado usa los 90 días ocultos)
   const iaN = cand.filter((g) => g.ia).length, iaCasi = mem.casi.filter((x) => x.g && x.g.ia).length, iaOk = mem.aprobadas.filter((x) => x.g && x.g.ia).length;
   if (IA.length) log(`🤖 IA: ${IA.length} recetas · ${iaN} combinaciones probadas en esta ronda · ${iaCasi} entre las «casi» · ${iaOk} aprobadas`);
-  const out = { v: 1, limpio466: 1, totalVistas, exentos, t: new Date().toISOString(), ia: iaRes, iaVista: { recetas: IA.length, probadas: iaN, casi: iaCasi, aprobadas: iaOk }, dias: Math.round(n / 24), criptos: U, ...mem, ideas: ID, fuentesIdeas: globalThis.__CAZA_FUENTES || null, podio: podioDiverso(mem.aprobadas, 3), ideasAprobadas: resumenIdeas(mem.aprobadas), mejoresCasi: mem.casi.slice(0, 5).map((x) => ({ n: x.n, is: x.is, a: x.a, b: x.b, t: x.t })), pesosVista: Object.fromEntries(FAM.map((f) => [f, +peso(f).toFixed(2)])) };
+  const out = { v: 1, limpio466: 1, totalVistas, exentos, provisional, t: new Date().toISOString(), ia: iaRes, iaVista: { recetas: IA.length, probadas: iaN, casi: iaCasi, aprobadas: iaOk }, dias: Math.round(n / 24), criptos: U, ...mem, ideas: ID, fuentesIdeas: globalThis.__CAZA_FUENTES || null, podio: podioDiverso(mem.aprobadas, 3), ideasAprobadas: resumenIdeas(mem.aprobadas), mejoresCasi: mem.casi.slice(0, 5).map((x) => ({ n: x.n, is: x.is, a: x.a, b: x.b, t: x.t })), pesosVista: Object.fromEntries(FAM.map((f) => [f, +peso(f).toFixed(2)])) };
   log(`🧠 Probadas ahora ${cand.length} (en total ${totalVistas}) · aprueban ${nOk} · en el podio ${out.podio.length} · familias con más peso: ${Object.entries(out.pesosVista).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([f, w]) => f + " " + w).join(", ")}`);
   // v364 · 🔔 Telegram solo cuando un método ENTRA en el podio
   try { const ant = new Set((M0.podio || []).map((x) => x.k)), nuevos = out.podio.map((x, i) => ({ x, i })).filter(({ x }) => !ant.has(x.k));
