@@ -19,7 +19,7 @@ App personal (web publicada en GitHub Pages, envuelta en un APK para Android) qu
 - 💶 Real: la cuenta de Trading 212 (valor, ingresado, invertido, efectivo, gráfica con marcas de cambio de método, órdenes, método que sigue).
 - 🤖 Laboratorio: podio de ETF/acciones/mixtos (top 3), podio de cripto (Tortugas por exchange y riesgo), laboratorio de muchas operaciones (Hyperliquid, solo datos), ayudante IA (Gemini), y en «⋯ Más» la cartera ficticia, observación y detalles.
 - 🪙 Cripto: cuentas reales de Bitvavo y OKX (lo que vale, comprado, ventas, gráfica), solo con el método de las Tortugas.
-- 🖥️ Terminal: todo lo que pasa (cripto, laboratorio, real, procesos de GitHub, cambios de método, errores) con filtros, comprobaciones de salud (🩺) y exportar por día.
+- 📋 Informes (antes «Terminal»): General (comprobaciones 🩺 y resumen), Real (dónde está el dinero, valor por día, órdenes), Cripto, Laboratorios (probados, aprobados y podios), Errores (todos los fallos de la app y de los procesos) y Por día (tabla y detalle); se descarga en TXT, JSON o CSV.
 - ⚙️ Ajustes: ☁️ ajustes protegidos con clave (claves de exchanges, de precios, Gemini, costes de la simulación), 💶 Real (ajustes de la cartera real y sus claves), 🤖 Laboratorio (prueba), 🪙 Cripto (riesgo, dinero, criptos a no tocar), 🔑 Cuenta (cerrar sesión, Telegram), ❓ Ayuda (guía paso a paso de claves).
 - Botón 🤖 (abajo a la derecha): este asistente. Botón 🔒 (arriba a la derecha): cerrar sesión.
 

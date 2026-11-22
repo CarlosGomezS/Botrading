@@ -26,7 +26,7 @@ test("Hyperliquid · con Bitvavo u OKX en pantalla se refresca solo la cifra de 
 });
 
 test("Hyperliquid · al cargar los datos se pide ya el saldo en vivo (sin esperar 10 s)", () => {
-  assert.match(declaracion("bvRealLoad").txt || "", /finally\{MM\.bvBusy=false;[\s\S]*setTimeout\(\(\)=>\{try\{hlVivo\(\)\}catch\(e\)\{\}\},400\)/);
+  assert.match(declaracion("bvRealLoad").txt || "", /finally\{MM\.bvBusy=false;[\s\S]*setTimeout\(\(\)=>\{try\{hlVivo\(\)\}catch\(e\)\{(globalThis\.__errC&&__errC\(e\))?\}\},400\)/);
 });
 
 const HAY_BOT = existsSync(new URL("../runner/hl-real.mjs", import.meta.url));   // (la copia sin bot de Hyperliquid no lo tiene)
