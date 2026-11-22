@@ -651,8 +651,10 @@ export function makePlan({ A, R, bot, account, positions, pending, map, now }) {
 // v466 · estricta: fecha OBLIGATORIA y como mucho 5 s antes del envío (solo por desfase de relojes), mismo lado y la MISMA cantidad (solo redondeo).
 //   Si no cuadra todo, NO es nuestra: la orden queda dudosa y no se repite la compra.
 export const MARGEN_RELOJ = 5000;
+// v1.0 · G9-2 · ¿es «q» la cantidad «qq» con menos decimales (como hace placeMarket si Trading 212 no admite tantos)? Solo esas, exactas (1,9 → 1,9 · 1 · …), nunca una cualquiera
+export const truncada = (qq, q) => { for (let d = 0; d <= 6; d++) { const t = Math.floor(qq * 10 ** d + 1e-9) / 10 ** d; if (t > 0 && Math.abs(t - q) <= 1e-9 + t * 1e-9) return true; } return false; };
 export function esNuestra(o, qq, tEnvio, tol = 0) {   /* tol · G7-1: con la orden apuntada ANTES de enviarla se admite hasta un 10 % MENOS (Trading 212 puede pedir menos decimales) */ if (!o) return false; const q0 = +(o.quantity ?? o.filledQuantity ?? NaN), lado = /SELL/i.test(String(o.side || "")) ? -1 : /BUY/i.test(String(o.side || "")) ? 1 : 0, q = lado && Number.isFinite(q0) ? lado * Math.abs(q0) : q0,   // v1.0 · G-3.3 · el historial puede dar la venta en positivo con «side: SELL»
-    cr = Date.parse(o.createdAt || o.creationTime || ""); return Number.isFinite(q) && Number.isFinite(cr) && Number.isFinite(+tEnvio) && Math.sign(q) === Math.sign(qq) && (tol > 0 ? Math.abs(q) <= Math.abs(qq) * (1 + 1e-6) + 1e-9 && Math.abs(q) >= Math.abs(qq) * (1 - tol) : Math.abs(Math.abs(q) - Math.abs(qq)) <= Math.abs(qq) * 1e-6 + 1e-9) && cr >= tEnvio - MARGEN_RELOJ && cr <= Date.now() + MARGEN_RELOJ; }
+    cr = Date.parse(o.createdAt || o.creationTime || ""); return Number.isFinite(q) && Number.isFinite(cr) && Number.isFinite(+tEnvio) && Math.sign(q) === Math.sign(qq) && (tol > 0 ? Math.abs(q) <= Math.abs(qq) * (1 + 1e-6) + 1e-9 && (Math.abs(q) >= Math.abs(qq) * (1 - tol) || truncada(Math.abs(qq), Math.abs(q))) : Math.abs(Math.abs(q) - Math.abs(qq)) <= Math.abs(qq) * 1e-6 + 1e-9) && cr >= tEnvio - MARGEN_RELOJ && cr <= Date.now() + MARGEN_RELOJ; }
 export async function placeMarket(T, t, qty, ext, rep, dec0) {   // (exportada para las pruebas)
   let q = qty, dec = dec0 != null ? dec0 : 4;
   const fmt = (x, d) => Math.floor(x * 10 ** d) / 10 ** d;
