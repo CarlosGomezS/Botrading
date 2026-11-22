@@ -49,7 +49,7 @@ test("📋 la pestaña Terminal ya no existe: Informes con General, Real, Cripto
   assert.equal(script("terminal-app"), null); assert.doesNotMatch(html, /b\.innerHTML="<span>🖥️<\/span>Terminal"/);
   const s = script("informes-app"); assert.ok(s);
   assert.match(s, /b\.dataset\.t="informes";b\.innerHTML="<span>📋<\/span>Informes"/);
-  for (const k of ['"gen"', '"real"', '"cripto"', '"lab"', '"err"', '"dia"']) assert.ok(s.includes("[" + k), "apartado " + k);
+  for (const k of ['"parte"', '"graf"', '"real"', '"cripto"', '"lab"', '"err"', '"dia"']) assert.ok(s.includes("[" + k), "apartado " + k);
   for (const k of ['k==="txt"', 'k==="json"', 'k==="csv"', 'k==="errtxt"', 'k==="diatxt"']) assert.ok(s.includes(k), "descarga " + k);
   assert.doesNotMatch(html, /go\(\\'terminal\\'\)/);
   assert.match(html, /window\.__terminal=\{T,recoge,pinta\}/, "el asistente IA sigue leyendo el estado");
@@ -59,4 +59,13 @@ test("✂️ las explicaciones largas se ocultan (con interruptor en Ajustes), p
   const s = script("sin-textos-largos"); assert.ok(s);
   assert.match(s, /LIM=200/); assert.match(s, /⚠️\|❌\|🛑/); assert.match(s, /📖 Mostrar explicaciones largas/);
   assert.match(s, /#t-informes,#iaP/);
+});
+
+test("📰 Informes se abre con el PARTE DEL DÍA (frases de qué ha pasado, día a día) y tiene GRÁFICAS", () => {
+  const s = script("informes-app");
+  assert.match(s, /sec:LS\.get\("infSec2","parte"\)/, "se abre en el parte");
+  assert.ok(s.includes('["parte","📰 Parte del día"]') && s.includes('["graf","📈 Gráficas"]'));
+  for (const k of ["function parteDe(d)", "function vParte()", "function vGraf()", "function graf(tit,series"]) assert.ok(s.includes(k), k);
+  assert.match(s, /data-ifp="-1"/, "se puede ir a días anteriores");
+  for (const k of ["Valor de tu cartera real", "Valor de la cripto", "Métodos probados cada día", "Errores por día"]) assert.ok(s.includes(k), "gráfica: " + k);
 });

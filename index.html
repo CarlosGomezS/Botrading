@@ -677,7 +677,7 @@ function SKN(big){return '<span class="sk'+(big?" big":"")+'" aria-label="Cargan
  setTimeout(function(){clearInterval(mira);quita()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Versión estable v1.0 «Ancla» · compilación 482 · domingo 22 de noviembre de 2026">✦ v1.0 «Ancla» <small>#482</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>Bot Trading<span class="tag vtag" title="Versión estable v1.0 «Ancla» · compilación 483 · domingo 22 de noviembre de 2026">✦ v1.0 «Ancla» <small>#483</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -5147,7 +5147,7 @@ const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:v}catch(
 const SRC={cripto:["🪙","Cripto"],lab:["🤖","Laboratorio"],real:["💶","Real"],proc:["⚙️","Procesos"],chk:["🩺","Comprobación"]};
 const ERR=/⚠️|❌|🔴 Falla|error|Error|ERROR|falla|fallo|no pude|no se pudo|no puedo|sin precios|HTTP [45]\d\d|agotad|caído|caida del servicio|rechaz/;
 const NOERR=/✅|proveedores con fallos|proveedores no respondieron|bolsa europea está cerrada|se hará en la próxima revisión|no aprueba|no gana|cae demasiado/;
-const T={ev:new Map(),db:null,dirty:new Map(),sec:LS.get("infSec","gen"),q:"",dia:null,at:0,srvAt:0,srvN:0,ghAt:0,criAt:0,ok:{cripto:0,real:0,lab:0,proc:0},runs:[]};
+const T={ev:new Map(),db:null,dirty:new Map(),sec:LS.get("infSec2","parte"),q:"",dia:null,at:0,srvAt:0,srvN:0,ghAt:0,criAt:0,ok:{cripto:0,real:0,lab:0,proc:0},runs:[]};
 const dk=t=>{const d=new Date(t);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 const hh=t=>new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});
 const fdia=d=>d===dk(Date.now())?"Hoy":new Date(d+"T12:00").toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"short"});
@@ -5243,7 +5243,7 @@ function datosDias(){const M=new Map();for(const e of todo()){const d=dk(e.t);le
  return[...M.values()].sort((a,b)=>a.d<b.d?1:-1).slice(0,60)}
 
 /* ================== PANTALLA ================== */
-const SECS=[["gen","📊 General"],["real","💶 Real"],["cripto","🪙 Cripto"],["lab","🤖 Laboratorios"],["err","⚠️ Errores"],["dia","📅 Por día"]];
+const SECS=[["parte","📰 Parte del día"],["graf","📈 Gráficas"],["err","⚠️ Errores"],["real","💶 Real"],["cripto","🪙 Cripto"],["lab","🤖 Laboratorios"],["dia","📅 Por día"]];
 const tabla=(cab,filas,an)=>filas.length?`<div class="if-tw"><table class="if-t${an?" if-fix":""}">${an?`<colgroup>${an.map(w=>`<col${w?` style="width:${w}"`:""}>`).join("")}</colgroup>`:""}<thead><tr>${cab.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${filas.map(f=>`<tr>${f.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`:`<div class="if-v">Sin datos todavía.</div>`;
 const caja=(t,h)=>`<div class="if-c"><div class="if-ct">${t}</div>${h}</div>`;
 const kv=L=>`<div class="if-kv">${L.filter(Boolean).map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>`;
@@ -5253,12 +5253,12 @@ function vGen(){const ch=estadoChecks(),r=datosReal(),c=datosCripto()||[],l=dato
  return caja("Estado ahora",ch.length?`<div class="if-chk">${ch.map(e=>`<div class="${col(e.txt)}">${esc(e.txt)}</div>`).join("")}</div>`:`<div class="if-v">Comprobando…</div>`)
  +caja("Resumen",kv([r?["💶 Real",eu(r.tot)]:null,...c.filter(x=>x.valor!=null).map(x=>["🪙 "+x.ex[0].toUpperCase()+x.ex.slice(1),eu(x.valor)]),l.etf?["🤖 Métodos probados",(l.etf.total||0).toLocaleString("es-ES")]:null,l.etf&&l.etf.podio[0]?["🏆 N.º 1 del laboratorio",esc(l.etf.podio[0].n)]:null,["⚠️ Errores (24 h)",E.length]])+bloqueo())
  +caja("Descargar informe completo",`<div class="if-acc"><button data-if="txt">⬇️ TXT</button><button data-if="json">⬇️ JSON</button><button data-if="csv">⬇️ Tabla por día (CSV)</button></div>`)}
-function vReal(){const r=datosReal();if(!r)return bloqueo()||`<div class="if-v">Cargando la cartera real…</div>`;
+function vReal(){const r=datosReal();if(!r)return bloqueo()||skel(3);
  return caja("Ahora",kv([["Valor total",eu(r.tot)],["Invertido",eu(r.inv)],["Efectivo",eu(r.cash)],["Método de ETF",esc(r.met.join(" + ")||"—")],r.am?["📈 Acompañante",esc(r.am)]:null,r.pausa?["⏸️ En pausa",esc(r.pausa)]:null,r.ultima?["Última revisión",new Date(r.ultima.ts).toLocaleString("es-ES",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" · "+esc(r.ultima.estado||"")]:null]))
  +caja("Dónde está el dinero",tabla(["Activo","Valor","%","Ganancia"],[...r.pos.map(p=>[esc(p.n)+(p.bot?"":" <span class='if-d'>(tuyo)</span>"),eu(p.val),r.tot>0?(p.val/r.tot*100).toFixed(1).replace(".",",")+" %":"—",p.pnl==null?"—":`<span class="${p.pnl>=0?"if-bien":"if-mal"}">${eu(p.pnl)}</span>`]),["Efectivo",eu(r.cash),r.tot>0?(r.cash/r.tot*100).toFixed(1).replace(".",",")+" %":"—",""]]))
  +caja("Valor por día (30 días)",tabla(["Día","Total","Invertido","Efectivo"],r.dias.map(d=>[fdia(d.d),eu(d.v),eu(d.inv),eu(d.cash)])))
  +caja("Órdenes (30 días)",tabla(["Fecha","","Activo","Importe","Estado"],r.ord.map(o=>[new Date(o.ts).toLocaleDateString("es-ES",{day:"numeric",month:"short"}),o.lado==="Venta"?"🔴":"🟢",esc(o.act),eu(o.eur),`<span class="${o.err?"if-mal":""}">${esc(o.err?"⚠️ "+o.err:o.estado)}</span>`])))}
-function vCripto(){const c=datosCripto();if(!c)return`<div class="if-v">Cargando cripto…</div>`;
+function vCripto(){const c=datosCripto();if(!c)returnskel(3);
  return bloqueo()+c.map(x=>caja({bitvavo:"🇪🇺 Bitvavo",okx:"🟦 OKX",hyperliquid:"💧 Hyperliquid"}[x.ex]||x.ex,x.err?`<div class="if-v">${esc(x.err==="sinclave"?"🔒 Bloqueado":x.err==="clave"?"⚠️ No se pudo abrir con tu clave":x.err)}</div>`:
   kv([["Valor",eu(x.valor)],x.aportado!=null?["Aportado",eu(x.aportado)]:null,x.cash!=null?["Efectivo",eu(x.cash)]:null,x.trades!=null?["Operaciones",x.trades]:null,x.paused?["⏸️","Parado"]:null])
   +tabla(["Cripto","Valor","Coste"],x.pos.map(p=>[esc(p.m),eu(p.val),p.cost!=null?eu(p.cost):"—"])))).join("")}
@@ -5270,20 +5270,77 @@ function vLab(){const l=datosLabs(),C={etf:"ETF",acc:"Acciones",mix:"Mixtos"};le
  if(l.tort)h+=caja("🐢 Tortugas (cripto)",tabla(["","Exchange","Riesgo","2 años","Caída"],l.tort.podio.map((x,i)=>[i+1+".º",esc(x.ex),esc(x.rk),pc(x.ret),pc(x.dd)])));
  if(l.hl)h+=caja("💧 Hyperliquid (muchas operaciones)",kv([["Combinaciones probadas",l.hl.n!=null?(+l.hl.n).toLocaleString("es-ES"):"—"],["Aprobadas",l.hl.aprob],["Provisional",esc(l.hl.prov||"ninguno")]]));
  if(l.ia)h+=caja("🧠 Ayudante IA",kv([["Estado",esc(l.ia.estado)],["Ideas en cola",l.ia.ideas]]));
- return h||`<div class="if-v">Cargando laboratorios…</div>`}
+ return h||skel(3)}
 function vErr(){const E=datosErrores();return caja("Errores ("+E.length+")",`<div class="if-acc"><button data-if="errtxt">⬇️ Descargar</button><button data-if="errborra">🧹 Borrar los de la app</button></div>`
  +tabla(["Cuándo","Qué"],E.slice(0,300).map(x=>[new Date(x.t).toLocaleString("es-ES",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+`<div class="if-d">${esc(x.src)}${x.n>1?" · ×"+x.n:""}</div>`,`<span class="if-mal">${esc(x.msg)}</span>${x.lu?`<div class="if-d">${esc(x.lu)}</div>`:""}`]),["30%",""]))}
 function vDia(){const D=datosDias();if(!T.dia&&D[0])T.dia=D[0].d;const q=T.q.toLowerCase(),L=todo().filter(e=>dk(e.t)===T.dia&&(!q||e.txt.toLowerCase().includes(q))).reverse();
  return caja("Actividad por día",tabla(["Día","💶","🪙","🤖","⚙️","⚠️","🔄"],D.map(r=>[`<button class="if-dia${r.d===T.dia?" on":""}" data-ifd="${r.d}">${fdia(r.d)}</button>`,r.real,r.cripto,r.lab,r.proc,r.err?`<b class="if-mal">${r.err}</b>`:0,r.met])))
  +caja(T.dia?fdia(T.dia)+" · "+L.length+" líneas":"Día",`<input id="if-q" placeholder="Buscar…" value="${esc(T.q)}" autocomplete="off"><div class="if-acc"><button data-if="diatxt">⬇️ Este día (TXT)</button></div>`
   +tabla(["Hora","","Qué"],L.slice(0,600).map(e=>[hh(e.t),(SRC[e.src]||["•"])[0],`<span class="${col(e.txt)||(esErr(e.txt)?"if-mal":"")}">${esc(e.txt)}</span>${e.n>1?` <span class="if-d">×${e.n}</span>`:""}`]),["46px","26px",""]))}
-const VIS={gen:vGen,real:vReal,cripto:vCripto,lab:vLab,err:vErr,dia:vDia};
+/* ================== 📰 PARTE DEL DÍA: qué ha pasado, en frases cortas (el día que elijas) ================== */
+const diaAnt=d=>{const x=new Date(d+"T12:00");x.setDate(x.getDate()-1);return dk(+x)},diaSig=d=>{const x=new Date(d+"T12:00");x.setDate(x.getDate()+1);return dk(+x)};
+const eu0=x=>x==null||!isFinite(+x)?"—":Math.round(+x).toLocaleString("es-ES")+" €",sg=x=>(x>=0?"+":"−")+eu(Math.abs(x)).replace(" €","")+" €";
+// último valor de una serie [[fecha, valor], …] en el día d y en el anterior con datos
+function cierreDe(S2,d){let hoyV=null,antV=null,antD=null;for(const [t,v] of S2){const k=t.length<=10?t:dk(Date.parse(t));if(k===d)hoyV=v;else if(k<d){antV=v;antD=k}}return{hoyV,antV,antD}}
+function parteDe(d){const P={real:[],cripto:[],lab:[],err:[],ok:[],mal:[]},hoyEs=d===dk(Date.now()),ev=todo().filter(e=>dk(e.t)===d);
+ /* 💶 real */
+ try{const R=window.__RLs&&window.__RLs.R;if(R){const c=cierreDe((R.days||[]).map(x=>[x.d,x.v]),d);
+   if(c.hoyV!=null){const dif=c.antV!=null?c.hoyV-c.antV:null,fl=((R.ledger&&R.ledger.hist)||[]).filter(x=>x&&x.ts&&dk(Date.parse(x.ts))===d&&/ingreso|retirada|aport|deposit|withdraw/i.test(x.tipo||""));
+    P.real.push(`Tu cartera vale <b>${eu(c.hoyV)}</b>`+(dif!=null?` · <b class="${dif>=0?"if-bien":"if-mal"}">${sg(dif)}</b> (${pc(c.antV?dif/c.antV*100:null)}) desde el ${fdia(c.antD).toLowerCase()}`:"")+(fl.length?" · incluye un ingreso o retirada":"")+".")}
+   const O=(R.orders||[]).filter(o=>o&&o.ts&&dk(Date.parse(o.ts))===d);for(const o of O.slice(0,6)){const v=/VENTA|sell/i.test(o.side||"");P.real.push(`${v?"🔴 Vendió":"🟢 Compró"} ${esc(o.name||o.sym||o.t||"")} por ${eu(o.eur)}${o.err?` · <span class="if-mal">⚠️ ${esc(o.err)}</span>`:""}.`)}
+   if(O.length>6)P.real.push(`…y ${O.length-6} órdenes más.`);if(!O.length&&c.hoyV!=null)P.real.push("No ha comprado ni vendido nada.");
+   for(const h of R.metHist||[])if(h&&h.d&&h.d.slice(0,10)===d)P.real.push(`🔄 Pasa a seguir «${esc(h.nombre||nom(h.metodo))}».`);
+   if(hoyEs&&R.paused)P.real.push(`<span class="if-mal">⏸️ Está en pausa: ${esc(R.paused.motivo||R.paused.why||"freno")}.</span>`);
+   if(hoyEs&&R.am&&R.am.k)P.real.push(`📈 Acompañante de Acciones/Mixtos: «${esc(nom(R.am.k))}».`)}}catch(e){globalThis.__errC&&__errC(e,"informes:parte")}
+ /* 🪙 cripto */
+ try{const M=MMo(),X=(M&&M.bvX)||{};for(const ex of ["bitvavo","okx"]){const R=(X[ex]||{}).R;if(!R||!Array.isArray(R.eq))continue;const c=cierreDe(R.eq.map(x=>[x[0],x[1]]),d),N=ex==="okx"?"OKX":"Bitvavo";if(c.hoyV==null)continue;
+   const dif=c.antV!=null?c.hoyV-c.antV:null,ops=ev.filter(e=>e.src==="cripto"&&new RegExp(N,"i").test(e.txt)&&/COMPRA|VENTA/.test(e.txt));
+   P.cripto.push(`${N}: <b>${eu(c.hoyV)}</b>`+(dif!=null?` · <b class="${dif>=0?"if-bien":"if-mal"}">${sg(dif)}</b>`:"")+(ops.length?` · ${ops.length} compras/ventas`:" · sin operaciones")+".")}
+  const H=M&&(M.hlX||{}).R;if(hoyEs&&H&&H.eq!=null)P.cripto.push(`Hyperliquid: <b>${eu(+H.eq)}</b> · ${(H.pos||[]).length} posiciones abiertas.`)}catch(e){globalThis.__errC&&__errC(e,"informes:parte")}
+ /* 🤖 laboratorios */
+ try{const s=Sx();if(s){const L=s.lab||{},pr=(L.prog||[]).slice().sort((a,b)=>a.d<b.d?-1:1),i=pr.findIndex(x=>x.d===d);
+   if(i>=0){const hoyP=pr[i],ant=i>0?pr[i-1]:null,n=ant&&hoyP.tried!=null&&ant.tried!=null?hoyP.tried-ant.tried:null;P.lab.push(`Laboratorio de ETF, Acciones y Mixtos: ${n!=null?`<b>${n.toLocaleString("es-ES")}</b> métodos probados ese día`:"rondas hechas"} (${(hoyP.tried||0).toLocaleString("es-ES")} en total)`+(hoyP.best!=null?` · el mejor de la liga rinde ${pc(hoyP.best*100)} al año`:"")+".")}
+   const lg=(L.log||[]).filter(x=>x&&x.d===d),cu=k=>lg.filter(x=>x.ev===k);
+   const ap=[...cu("aprueba"),...cu("nace")];if(ap.length)P.lab.push(`✅ ${ap.length} aprueban: ${ap.slice(0,3).map(x=>"«"+esc(String(x.n||nom(x.k)).replace(/^🤖 /,"").slice(0,70))+"»").join(", ")}${ap.length>3?"…":""}`);
+   const sa=cu("sale").length,de=cu("descartado").length;if(sa||de)P.lab.push(`${sa?sa+" salen de la liga":""}${sa&&de?" · ":""}${de?de+" descartados por suerte":""}.`);
+   if(!ap.length&&lg.length===0&&i>=0)P.lab.push("Ninguno nuevo aprobado.")}
+  const top=ev.filter(e=>/Nuevo número 1/.test(e.txt));for(const e of top)P.lab.push("🏆 "+esc(e.txt.replace(/^🏆\s*/,"")));
+  const tor=ev.filter(e=>/🐢 Examen/.test(e.txt)).length,hl=ev.filter(e=>/🧠 Lab cripto/.test(e.txt)).length;if(tor||hl)P.lab.push(`Cripto: ${tor?tor+" exámenes de Tortugas":""}${tor&&hl?" · ":""}${hl?hl+" rondas del laboratorio de Hyperliquid":""}.`)}catch(e){globalThis.__errC&&__errC(e,"informes:parte")}
+ /* ⚠️ errores */
+ try{const E=datosErrores().filter(x=>dk(x.t)===d);if(E.length){const top=E.slice().sort((a,b)=>(b.n||1)-(a.n||1))[0];P.err.push(`<span class="if-mal">${E.length} errores distintos</span>. El que más se repite: «${esc(top.msg.slice(0,120))}»${top.n>1?" (×"+top.n+")":""}.`)}else P.err.push("✅ Ningún error.")}catch(e){globalThis.__errC&&__errC(e,"informes")}
+ /* semáforo (solo hoy: es el estado de ahora) */
+ if(hoyEs){const ch=estadoChecks();P.mal=ch.filter(e=>/❌|⚠️/.test(e.txt)).map(e=>e.txt);P.ok=ch.filter(e=>/✅/.test(e.txt)).map(e=>e.txt)}
+ return P}
+function vParte(){if(!T.pd)T.pd=dk(Date.now());const d=T.pd,P=parteDe(d),hoyEs=d===dk(Date.now()),bl=(t,L)=>L.length?caja(t,`<div class="if-pt">${L.map(x=>`<div>${x}</div>`).join("")}</div>`):"";
+ const sem=hoyEs?caja(P.mal.length?`⚠️ Hay ${P.mal.length} cosa${P.mal.length>1?"s":""} que mirar`:"✅ Todo funciona bien",P.mal.length?`<div class="if-chk">${P.mal.map(t=>`<div class="${col(t)}">${esc(t)}</div>`).join("")}</div>`:`<div class="if-d">${P.ok.length} comprobaciones en verde.</div>`):"";
+ return`<div class="if-nav"><button data-ifp="-1">←</button><b>${hoyEs?"Hoy":new Date(d+"T12:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})}</b><button data-ifp="1"${hoyEs?" disabled":""}>→</button></div>`
+  +sem+bl("💶 Cartera real",P.real.length?P.real:[bloqueo()?"🔒 Desbloquea con tu clave en 💶 Real para verla.":"Sin datos de ese día."])+bl("🪙 Cripto",P.cripto.length?P.cripto:["Sin datos de ese día."])+bl("🤖 Laboratorios",P.lab.length?P.lab:["Sin datos de ese día."])+bl("⚠️ Errores",P.err)
+  +caja("Descargar informe completo",`<div class="if-acc"><button data-if="txt">⬇️ TXT</button><button data-if="json">⬇️ JSON</button><button data-if="csv">⬇️ Por día (CSV)</button></div>`)}
+/* ================== 📈 GRÁFICAS (SVG propio, sin librerías) ================== */
+function graf(tit,series,{barras=false,fmt=eu0,dias=90,rel=true}={}){const lim=dk(Date.now()-dias*864e5),S2=series.map(s=>({...s,p:s.p.filter(x=>x[0]>=lim).sort((a,b)=>a[0]<b[0]?-1:1)})).filter(s=>s.p.length);
+ if(!S2.length)return caja(tit,`<div class="if-v">Sin datos todavía.</div>`);const W=340,H=150,x0=6,y0=12,y1=H-20,xs=[...new Set(S2.flatMap(s=>s.p.map(x=>x[0])))].sort(),vs=S2.flatMap(s=>s.p.map(x=>+x[1])).filter(isFinite);
+ let mn=barras?0:Math.min(...vs),mx=Math.max(...vs);if(mx===mn){mx+=1;mn=barras?0:mn-1}const pad=(mx-mn)*0.08;if(!barras)mn-=pad;mx+=pad;
+ const X=d=>x0+(xs.length<2?(W-2*x0)/2:xs.indexOf(d)/(xs.length-1)*(W-2*x0)),Y=v=>y0+(1-(v-mn)/(mx-mn))*(y1-y0);
+ let g=`<line x1="${x0}" x2="${W-x0}" y1="${y1}" y2="${y1}" stroke="var(--muted)" stroke-opacity=".35"/>`;
+ S2.forEach(s=>{if(barras){const bw=Math.max(2,(W-2*x0)/Math.max(1,xs.length)*0.7);for(const [d,v] of s.p)g+=`<rect x="${X(d)-bw/2}" y="${Y(v)}" width="${bw}" height="${Math.max(0,y1-Y(v))}" fill="${s.c}" rx="1"><title>${fdia(d)}: ${fmt(v)}</title></rect>`}
+  else g+=`<path d="${s.p.map((x,i)=>(i?"L":"M")+X(x[0]).toFixed(1)+" "+Y(+x[1]).toFixed(1)).join(" ")}" fill="none" stroke="${s.c}" stroke-width="2"/>`});
+ const ult=S2.map(s=>{const a=s.p[0],b=s.p[s.p.length-1];return`<span style="color:${s.c}">●</span> ${esc(s.n)}: <b>${fmt(+b[1])}</b>${!barras&&rel&&s.p.length>1?` <span class="${+b[1]>=+a[1]?"if-bien":"if-mal"}">(${pc((+b[1]-+a[1])/Math.abs(+a[1]||1)*100)})</span>`:""}`}).join(" · ");
+ return caja(tit,`<svg viewBox="0 0 ${W} ${H}" class="if-g" role="img" aria-label="${esc(tit)}">${g}<text x="${x0}" y="${H-4}" class="if-gt">${fdia(xs[0])}</text><text x="${W-x0}" y="${H-4}" text-anchor="end" class="if-gt">${fdia(xs[xs.length-1])}</text><text x="${W-x0}" y="${y0-2}" text-anchor="end" class="if-gt">${fmt(mx)}</text></svg><div class="if-d" style="margin-top:4px">${ult}</div>`)}
+function vGraf(){let h="";
+ try{const R=window.__RLs&&window.__RLs.R;h+=R?graf("💶 Valor de tu cartera real (90 días)",[{n:"Total",c:"var(--acc)",p:(R.days||[]).filter(x=>x&&x.v!=null).map(x=>[x.d,x.v])}]):caja("💶 Cartera real",bloqueo()||skel(3))}catch(e){globalThis.__errC&&__errC(e,"informes")}
+ try{const M=MMo(),X=(M&&M.bvX)||{},ser=[];for(const [ex,c] of [["bitvavo","#2563eb"],["okx","#a855f7"]]){const R=(X[ex]||{}).R;if(R&&Array.isArray(R.eq)){const m=new Map();for(const x of R.eq)m.set(dk(Date.parse(x[0])),x[1]);ser.push({n:ex==="okx"?"OKX":"Bitvavo",c,p:[...m.entries()]})}}h+=graf("🪙 Valor de la cripto (90 días)",ser)}catch(e){globalThis.__errC&&__errC(e,"informes")}
+ try{const s=Sx(),pr=((s&&s.lab&&s.lab.prog)||[]).slice().sort((a,b)=>a.d<b.d?-1:1),p=[];for(let i=1;i<pr.length;i++)if(pr[i].tried!=null&&pr[i-1].tried!=null)p.push([pr[i].d,Math.max(0,pr[i].tried-pr[i-1].tried)]);
+  h+=graf("🤖 Métodos probados cada día (laboratorio de ETF, Acciones y Mixtos)",[{n:"Probados",c:"var(--go)",p}],{barras:true,fmt:x=>Math.round(x).toLocaleString("es-ES"),dias:60});
+  h+=graf("🏆 Lo que rinde el mejor de la liga (al año)",[{n:"El mejor",c:"#d97706",p:pr.filter(x=>x.best!=null).map(x=>[x.d,x.best*100])}],{fmt:x=>pc(x),dias:90,rel:false})}catch(e){globalThis.__errC&&__errC(e,"informes")}
+ try{h+=graf("⚠️ Errores por día",[{n:"Errores",c:"var(--stop)",p:datosDias().map(r=>[r.d,r.err])}],{barras:true,fmt:x=>Math.round(x)+"",dias:30})}catch(e){globalThis.__errC&&__errC(e,"informes")}
+ return h}
+const VIS={parte:vParte,graf:vGraf,gen:vGen,real:vReal,cripto:vCripto,lab:vLab,err:vErr,dia:vDia};
 let firma="";
 function pinta(force){const tab=$("#t-informes");if(!tab)return;
  if(!$("#if-body")||force){tab.innerHTML=`<div class="if"><div class="if-top"><div class="if-h">Informes</div><div class="if-d" id="if-est"></div></div>
   <div class="if-chips">${SECS.map(([k,t])=>`<button data-ifs="${k}" class="${T.sec===k?"on":""}">${t}</button>`).join("")}</div><div id="if-body"></div></div>`;firma=""}
  const st=$("#if-est");if(st)st.textContent=T.at?"Actualizado "+hh(T.at)+" · "+T.ev.size+" líneas guardadas en este móvil":"Recogiendo…";
- let h="";try{h=(VIS[T.sec]||vGen)()}catch(e){globalThis.__errC&&__errC(e,"informes:pantalla");h=`<div class="if-v if-mal">No se pudo mostrar este apartado: ${esc(e.message)}</div>`}
+ let h="";try{h=(VIS[T.sec]||vParte)()}catch(e){globalThis.__errC&&__errC(e,"informes:pantalla");h=`<div class="if-v if-mal">No se pudo mostrar este apartado: ${esc(e.message)}</div>`}
  if(!force&&h===firma)return
  const y=window.scrollY;firma=h;$("#if-body").innerHTML=h;if(!force)window.scrollTo(0,y)}
 /* ================== DESCARGAS ================== */
@@ -5303,7 +5360,8 @@ function informe(){const r=datosReal(),c=datosCripto()||[],l=datosLabs(),E=datos
 function informeJSON(){return JSON.stringify({app:"Bot Trading",version:ver(),fecha:new Date().toISOString(),estado:estadoChecks().map(e=>e.txt),real:datosReal(),cripto:datosCripto(),laboratorios:datosLabs(),errores:datosErrores(),porDia:datosDias(),actividad7d:todo().filter(e=>Date.now()-e.t<7*864e5).map(e=>({t:new Date(e.t).toISOString(),src:e.src,txt:e.txt,n:e.n}))},null,1)}
 function csvDias(){return"dia;real;cripto;laboratorio;procesos;errores;cambios\n"+datosDias().map(d=>[d.d,d.real,d.cripto,d.lab,d.proc,d.err,d.met].join(";")).join("\n")+"\n"}
 const hoy=()=>dk(Date.now());
-document.addEventListener("click",e=>{const s=e.target.closest&&e.target.closest("[data-ifs]");if(s){e.preventDefault();T.sec=s.dataset.ifs;LS.set("infSec",T.sec);pinta(true);try{scrollTo(0,0)}catch(_){globalThis.__errC&&__errC(_)}return}
+document.addEventListener("click",e=>{const s=e.target.closest&&e.target.closest("[data-ifs]");if(s){e.preventDefault();T.sec=s.dataset.ifs;LS.set("infSec2",T.sec);pinta(true);try{scrollTo(0,0)}catch(_){globalThis.__errC&&__errC(_)}return}
+ const pv=e.target.closest&&e.target.closest("[data-ifp]");if(pv){e.preventDefault();const d0=T.pd||dk(Date.now()),d1=+pv.dataset.ifp<0?diaAnt(d0):diaSig(d0);if(d1<=dk(Date.now()))T.pd=d1;pinta(true);return}
  const d=e.target.closest&&e.target.closest("[data-ifd]");if(d){e.preventDefault();T.dia=d.dataset.ifd;pinta(true);return}
  const b=e.target.closest&&e.target.closest("[data-if]");if(!b)return;const k=b.dataset.if;
  if(k==="txt")baja("bot-trading-informe-"+hoy()+".txt",informe());
@@ -5349,7 +5407,7 @@ window.__informes={T,recoge,pinta,informe,informeJSON,datosDias,datosErrores};wi
 #t-informes .if-dia{font-size:12px!important;padding:3px 8px!important;min-height:0!important;white-space:nowrap}
 #t-informes .if-acc{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}#t-informes .if-acc button{flex:1 1 auto;font-size:12px!important;padding:7px 8px!important;min-height:0!important}
 #t-informes #if-q{width:100%;box-sizing:border-box;font-size:14px!important;padding:8px 12px!important;margin:0 0 6px}
-#t-informes .if-chk div{padding:3px 0;font-size:13px!important}#t-informes .if-v{color:var(--muted);font-size:13px!important;padding:6px 0}
+#t-informes .if-chk div{padding:3px 0;font-size:13px!important}#t-informes .if-pt div{padding:4px 0;font-size:14px!important;line-height:1.4}#t-informes .if-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0}#t-informes .if-nav b{font-size:16px!important;text-align:center;flex:1}#t-informes .if-nav button{width:44px;min-height:0!important;padding:6px!important}#t-informes .if-nav button[disabled]{opacity:.3}#t-informes .if-g{width:100%;height:auto;display:block}#t-informes .if-gt{font-size:9px;fill:var(--muted)}#t-informes .if-v{color:var(--muted);font-size:13px!important;padding:6px 0}
 #t-informes .if-bien{color:var(--go)!important}#t-informes .if-aviso{color:#d97706!important}#t-informes .if-mal{color:var(--stop)!important}
 </style>
 <script id="ia-asistente">
