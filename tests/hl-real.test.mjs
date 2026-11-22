@@ -1,6 +1,8 @@
 // v460 · 🧪 PRUEBAS DEL BOT REAL DE HYPERLIQUID contra un Hyperliquid y un GitHub DE MENTIRA (sin dinero, sin red).
 // Cada prueba comprueba un comportamiento SEGURO: qué órdenes llegan al exchange, con qué tamaño y lado, y qué queda abierto.
 import test from "node:test";
+// v1.0 · G8-3 · varias pruebas simulan a propósito que no se puede guardar: eso ahora deja process.exitCode = 1 (correcto en producción); aquí se limpia tras cada prueba
+test.afterEach(() => { process.exitCode = 0; });
 import assert from "node:assert/strict";
 process.env.GITHUB_TOKEN = "tok-de-prueba";
 process.env.GITHUB_REPOSITORY = "prueba/repo";
