@@ -6,26 +6,79 @@
 // ≥ 3 operaciones al día, factor de beneficio ≥ 1,15, caída < 30 % y si sus vecinos (parámetros parecidos) también ganan.
 const INFO = "https://api.hyperliquid.xyz/info";
 export const COST_EXP = 0.00095;
-const COST = 0.00045 + 0.0005, N_COINS = 24, H = 3600e3;
+const COST = 0.00045 + 0.0005, H = 3600e3;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function post(body) { for (let i = 0; i < 5; i++) { try { const r = await fetch(INFO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) }); if (r.status === 429) { await sleep(5000 * (i + 1)); continue; } if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); } catch (e) { if (i === 4) throw e; await sleep(3000 * (i + 1)); } } }
+// v1.0 · 🚦 RITMO: Hyperliquid deja 1.200 de «peso» por minuto y por IP (fundingHistory pesa 20 + 1 por cada 20 datos; candleSnapshot 20 + 1 por cada 60).
+//   Con 100 criptos hay que ir a ritmo: se lleva la cuenta del último minuto y se espera antes de pasarse (se deja margen para el resto del bot).
+export const PESO_MIN = 900;
+export function pesoDe(b, ahora = Date.now()) { const n = (a, z, max) => Math.max(1, Math.min(max, Math.ceil(((+z || ahora) - (+a || 0)) / H)));
+  if (b && b.type === "fundingHistory") return 20 + Math.ceil(n(b.startTime, b.endTime, 500) / 20);
+  if (b && b.type === "candleSnapshot") return 20 + Math.ceil(n(b.req && b.req.startTime, b.req && b.req.endTime, 5000) / 60);
+  return 20; }
+const usado = [];
+async function ritmo(w) { for (;;) { const t = Date.now(); while (usado.length && t - usado[0][0] > 60e3) usado.shift(); const s = usado.reduce((a, x) => a + x[1], 0); if (s + w <= PESO_MIN || !usado.length) { usado.push([t, w]); return; } const t1 = Date.now(); await deps.espera(Math.max(200, 60e3 - (t - usado[0][0]) + 50)); if (Date.now() - t1 < 100) { usado.length = 0; } } }   /* si la espera no espera (pruebas), no se queda dando vueltas */
+async function post(body) { await ritmo(pesoDe(body)); for (let i = 0; i < 5; i++) { try { const r = await deps.fetch(INFO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) }); if (r.status === 429) { await deps.espera(5000 * (i + 1)); continue; } if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); } catch (e) { if (i === 4) throw e; await deps.espera(3000 * (i + 1)); } } }
 
 export const escalaK = (c) => /^k[A-Z]/.test(String(c || "")) ? 1000 : 1;   // v1.0 · G6-I5 · en Hyperliquid «kPEPE» = 1000 PEPE
+// v1.0 · 🌐 UNIVERSO COMPLETO (decisión del usuario, 23/11/2026): antes solo las 24 criptos con más volumen (16 tras los controles). Ahora TODAS las de
+//   Hyperliquid que el bot puede operar: no deslistadas y con volumen suficiente para que nuestra orden no mueva el precio (≥ VOL_MIN al día),
+//   hasta N_MAX. Siguen haciendo falta ≥ 80 % de los 540 días y sin huecos (una cripto nueva entra sola cuando tiene historia).
+export const VOL_MIN = 2e6, N_MAX = 100;
+export function universo(meta, ctxs) {
+  const T = ((meta && meta.universe) || []).map((u, i) => ({ c: u && u.name, v: +((ctxs || [])[i] || {}).dayNtlVlm || 0, d: !!(u && u.isDelisted) })).filter((x) => x.c && !x.d);
+  const U = T.filter((x) => x.v >= VOL_MIN && x.c !== "BTC").sort((a, b) => b.v - a.v).map((x) => x.c).slice(0, N_MAX - 1);
+  if (T.some((x) => x.c === "BTC")) U.unshift("BTC");   // BTC es la referencia de muchas señales: siempre dentro y la primera
+  return U;
+}
+// v1.0 · 💾 CACHÉ DE DATOS (rama pública hl-datos: solo precios y financiación de mercado, nada tuyo). Descargar 540 días de 100 criptos cada 3 h
+//   no cabe en el límite de Hyperliquid (1.200 de peso por minuto): se guarda lo descargado y en cada ronda solo se pide lo nuevo (y las últimas
+//   REFRESCO_H horas otra vez, por si la última vela cambió). Las criptos que aún no están en la caché se descargan enteras, como mucho NUEVAS_MAX
+//   por ronda (BTC siempre); el resto entra en las rondas siguientes. La fuente de cada cripto (OKX o Hyperliquid) no cambia nunca: no se mezclan.
+export const CACHE_RAMA = "hl-datos", CACHE_ARCH = "hl-datos.json.gz", NUEVAS_MAX = 20, REFRESCO_H = 48;
+export function cacheValida(j) { if (!j || typeof j !== "object" || j.v !== 1 || !j.c || typeof j.c !== "object") return null;
+  const c = {}; for (const [k, e] of Object.entries(j.c)) { if (!e || !["okx", "hl"].includes(e.s) || !Number.isFinite(+e.t0) || !Array.isArray(e.k) || !Array.isArray(e.f)) continue; c[k] = e; } return { v: 1, c }; }
+export function desdeCache(e) { const k = new Map(), f = new Map();
+  e.k.forEach((x, i) => { if (Array.isArray(x) && x.length >= 5 && +x[0] > 0) k.set(+e.t0 + i * H, x.slice(0, 5).map(Number)); });
+  e.f.forEach((x, i) => { if (x != null && Number.isFinite(+x)) f.set(+e.t0 + i * H, +x); }); return { k, f }; }
+const P8 = (x) => (Number.isFinite(x) ? +(+x).toPrecision(9) : 0);
+export function aCache(s, k, f, ini, fin) { const t0 = ini, n = Math.max(0, Math.round((fin - ini) / H)), K = new Array(n).fill(0), Fz = new Array(n).fill(null);
+  for (const [t, x] of k) { const i = Math.round((t - t0) / H); if (i >= 0 && i < n && x && x[0] > 0) K[i] = x.slice(0, 5).map(P8); }
+  for (const [t, r] of f) { const i = Math.round((t - t0) / H); if (i >= 0 && i < n && Number.isFinite(r)) Fz[i] = r; }
+  let a = 0; while (a < n && !K[a] && Fz[a] == null) a++; return { s, t0: t0 + a * H, k: K.slice(a), f: Fz.slice(a) }; }
+export const deps = { fetch: (...a) => globalThis.fetch(...a), espera: (ms) => sleep(ms), repo: () => process.env.GITHUB_REPOSITORY || "CarlosGomezS/Botrading" };
+export async function leeCache(log = () => {}) { try { const r = await deps.fetch(`https://raw.githubusercontent.com/${deps.repo()}/${CACHE_RAMA}/${CACHE_ARCH}?t=${Date.now()}`, { signal: AbortSignal.timeout(60000) });
+    if (r.status === 404) return { v: 1, c: {} }; if (!r.ok) throw new Error("HTTP " + r.status); const { gunzipSync } = await import("node:zlib");
+    const j = cacheValida(JSON.parse(gunzipSync(Buffer.from(await r.arrayBuffer())).toString("utf8"))); if (!j) throw new Error("caché con formato raro"); return j; }
+  catch (e) { log(`  Caché de datos no disponible (${String(e.message).slice(0, 60)}): esta ronda descarga desde cero (con el límite de criptos nuevas)`); return { v: 1, c: {} }; } }
+const instOkx = (c) => (c === "kPEPE" ? "PEPE" : c === "kBONK" ? "BONK" : c === "kSHIB" ? "SHIB" : c) + "-USDT-SWAP";
+async function velasOkx(c, desde, k) { let after = "", esp429 = 0; for (let p = 0; p < 200; p++) { const r = await deps.fetch(`https://www.okx.com/api/v5/market/history-candles?instId=${instOkx(c)}&bar=1H&limit=100${after ? "&after=" + after : ""}`, { signal: AbortSignal.timeout(20000) }); if (r.status === 429) { if (++esp429 > 20) break; await deps.espera(3000); p--; continue; }   /* v1.0 · G5-1.5 · como mucho 20 esperas (antes, sin fin) */ const j = await r.json(), d = (j && j.data) || []; if (!d.length) break; const xk = escalaK(c); for (const y of d) k.set(+y[0], [+y[4] * xk, (+y[6] || 0) / xk, +y[2] * xk, +y[3] * xk, +y[1] * xk]);   /* v1.0 · G6-I5 · kPEPE/kBONK/kSHIB son 1000 monedas: precio ×1000 y volumen ÷1000 (antes, precios 1000 veces más bajos que en Hyperliquid) */   /* v1.0 · G5-1.5 · volumen en MONEDAS (volCcy), igual que el de Hyperliquid (antes, en dólares) */ after = Math.min(...d.map((y) => +y[0])); if (after < desde) break; await deps.espera(110); } }
+async function velasHl(c, desde, fin, k) { for (let t = desde; t < fin; t += 4000 * H) { const r = await post({ type: "candleSnapshot", req: { coin: c, interval: "1h", startTime: t, endTime: Math.min(fin, t + 4000 * H) } }); for (const x of r || []) k.set(+x.t, [+x.c, +x.v || 0, +x.h, +x.l, +x.o]); await deps.espera(250); } }
+async function financiacion(c, desde, fin, f) { let t = desde; for (let g = 0; g < 40 && t < fin; g++) { const r = await post({ type: "fundingHistory", coin: c, startTime: t }); if (!r || !r.length) break; for (const x of r) f.set(Math.floor(+x.time / H) * H, +x.fundingRate); const last = +r[r.length - 1].time; if (last <= t) break; t = last + 1; await deps.espera(250); } }
 export async function datos(log) {
   const [meta, ctxs] = await post({ type: "metaAndAssetCtxs" });
-  const U = meta.universe.map((u, i) => ({ c: u.name, v: +ctxs[i].dayNtlVlm || 0, d: !!u.isDelisted })).filter((x) => !x.d && x.v > 0).sort((a, b) => b.v - a.v).slice(0, N_COINS).map((x) => x.c);
-  const fin = Math.floor(Date.now() / H) * H, ini = fin - 540 * 864e5, D = {};
-  for (const c of U) {
-    // v360 · Hyperliquid solo da las últimas 5.000 velas (~208 días): la historia larga de precios sale de OKX (mismo contrato perpetuo
-    // contra USDT, precios casi idénticos) y la financiación, de Hyperliquid. Si OKX no la tiene, se usan las velas de Hyperliquid.
-    const k = new Map(), inst = (c === "kPEPE" ? "PEPE" : c === "kBONK" ? "BONK" : c === "kSHIB" ? "SHIB" : c) + "-USDT-SWAP";
-    try { let after = "", esp429 = 0; for (let p = 0; p < 200; p++) { const r = await fetch(`https://www.okx.com/api/v5/market/history-candles?instId=${inst}&bar=1H&limit=100${after ? "&after=" + after : ""}`, { signal: AbortSignal.timeout(20000) }); if (r.status === 429) { if (++esp429 > 20) break; await sleep(3000); p--; continue; }   /* v1.0 · G5-1.5 · como mucho 20 esperas (antes, sin fin) */ const j = await r.json(), d = (j && j.data) || []; if (!d.length) break; const xk = escalaK(c); for (const y of d) k.set(+y[0], [+y[4] * xk, (+y[6] || 0) / xk, +y[2] * xk, +y[3] * xk, +y[1] * xk]);   /* v1.0 · G6-I5 · kPEPE/kBONK/kSHIB son 1000 monedas: precio ×1000 y volumen ÷1000 (antes, precios 1000 veces más bajos que en Hyperliquid) */   /* v1.0 · G5-1.5 · volumen en MONEDAS (volCcy), igual que el de Hyperliquid (antes, en dólares) */ after = Math.min(...d.map((y) => +y[0])); if (after < ini) break; await sleep(110); } } catch (e) {}
-    if (k.size < 24 * 300) k.clear();   // v1.0 · G6-I5 · si OKX no da bastante, se usa SOLO Hyperliquid (no se mezclan las dos fuentes)
-    if (k.size < 24 * 300) for (let t = ini; t < fin; t += 4000 * H) { const r = await post({ type: "candleSnapshot", req: { coin: c, interval: "1h", startTime: t, endTime: Math.min(fin, t + 4000 * H) } }); for (const x of r || []) k.set(+x.t, [+x.c, +x.v || 0, +x.h, +x.l, +x.o]); await sleep(250); }
-    const f = new Map(); let t = ini;
-    for (let g = 0; g < 40 && t < fin; g++) { const r = await post({ type: "fundingHistory", coin: c, startTime: t }); if (!r || !r.length) break; for (const x of r) f.set(Math.floor(+x.time / H) * H, +x.fundingRate); const last = +r[r.length - 1].time; if (last <= t) break; t = last + 1; await sleep(250); }
-    D[c] = { k, f }; log(`  ${c}: ${k.size} velas de 1 h · ${f.size} horas de financiación`);
+  const U0 = universo(meta, ctxs), fin = Math.floor(Date.now() / H) * H, ini = fin - 540 * 864e5, D = {}, CA = await leeCache(log), nueva = { v: 1, t: new Date(fin).toISOString(), c: {} };
+  const U = []; let nuevas = 0, esperan = 0;
+  for (const c of U0) {
+    const e = CA.c[c]; let k, f, s;
+    if (e) {   // ya en la caché: solo lo nuevo (y las últimas REFRESCO_H horas otra vez)
+      ({ k, f } = desdeCache(e)); s = e.s; for (const t of [...k.keys()]) if (t < ini) k.delete(t); for (const t of [...f.keys()]) if (t < ini) f.delete(t);
+      const ultK = k.size ? Math.max(...k.keys()) : ini, ultF = f.size ? Math.max(...f.keys()) : ini, dk = Math.max(ini, ultK - REFRESCO_H * H), df = Math.max(ini, ultF - REFRESCO_H * H);
+      try { if (s === "okx") await velasOkx(c, dk, k); else await velasHl(c, dk, fin, k); await financiacion(c, df, fin, f); } catch (er) { nueva.c[c] = e; log(`  ${c}: no se ha podido actualizar (${String(er.message).slice(0, 40)}), fuera esta ronda`); continue; }
+    } else {
+      if (c !== "BTC" && nuevas >= NUEVAS_MAX) { esperan++; continue; } nuevas++;
+      // v360 · Hyperliquid solo da las últimas 5.000 velas (~208 días): la historia larga de precios sale de OKX (mismo contrato perpetuo
+      // contra USDT, precios casi idénticos) y la financiación, de Hyperliquid. Si OKX no la tiene, se usan las velas de Hyperliquid.
+      k = new Map(); f = new Map(); s = "okx";
+      try { await velasOkx(c, ini, k); } catch (er) {}
+      if (k.size < 24 * 300) k.clear();   // v1.0 · G6-I5 · si OKX no da bastante, se usa SOLO Hyperliquid (no se mezclan las dos fuentes)
+      try { if (k.size < 24 * 300) { s = "hl"; await velasHl(c, ini, fin, k); } await financiacion(c, ini, fin, f); } catch (er) { log(`  ${c}: no se ha podido descargar (${String(er.message).slice(0, 40)}), fuera esta ronda`); continue; }
+    }
+    for (const t of [...k.keys()]) if (t >= fin) k.delete(t);   // la vela de la hora en curso aún no ha cerrado
+    D[c] = { k, f }; U.push(c); nueva.c[c] = aCache(s, k, f, ini, fin); log(`  ${c}: ${k.size} velas de 1 h · ${f.size} horas de financiación`);
   }
+  for (const [c, e] of Object.entries(CA.c)) if (!nueva.c[c] && Date.now() - (+e.t0 + e.k.length * H) < 30 * 864e5) nueva.c[c] = e;   // las que hoy no entran (poco volumen) se guardan 30 días por si vuelven
+  if (esperan) log(`  ${esperan} criptos más esperan su turno para descargarse (como mucho ${NUEVAS_MAX} nuevas por ronda)`);
+  if (!D.BTC) throw new Error("BTC no tiene datos: paro el examen");
   const T = []; for (let t = ini; t < fin; t += H) T.push(t);
   // v467 · BTC también pasa los controles: es la referencia de muchas señales, así que si NO tiene datos fiables se PARA el examen entero
   validaBTC(T, D);
@@ -34,7 +87,7 @@ export async function datos(log) {
   //   ni puede empezar sin financiación conocida. Si falta, la cripto queda FUERA (no se rellena con precios planos ni con financiación inventada).
   for (const c of [...U]) { const q = huecos(T, D[c]); if (q.velas > HUECO_MAX || q.fund > HUECO_MAX || q.sinFund) { U.splice(U.indexOf(c), 1); log(`  ${c}: datos con huecos (${q.sinFund ? "sin financiación al principio" : `${Math.max(q.velas, q.fund)} h seguidas sin datos`}), fuera`); } }
   const out = {}; for (const c of U) { const C = new Float64Array(T.length), F = new Float64Array(T.length), V = new Float64Array(T.length), Hi = new Float64Array(T.length), Lo = new Float64Array(T.length), O = new Float64Array(T.length); let last = NaN, lastF = 0; T.forEach((t, i) => { const x = D[c].k.get(t); if (x && x[0] > 0) { O[i] = x[4] > 0 ? x[4] : last; last = x[0]; V[i] = x[1]; Hi[i] = x[2]; Lo[i] = x[3]; } else { Hi[i] = Lo[i] = O[i] = last; } C[i] = last; const f = D[c].f.get(t); if (f != null && Number.isFinite(f)) lastF = f; F[i] = lastF; }); out[c] = { C, F, V, Hi, Lo, O }; }   // v467 · O = apertura REAL de cada vela   // v465 · huecos cortos (≤ 24 h): la última financiación conocida; nunca un dato del futuro
-  return { T, M: out, U };
+  return { T, M: out, U, cache: nueva };
 }
 
 // Simulación de cartera: plazas iguales; cada operación [i0, coin, dir, i1] ocupa una plaza de i0 a i1 (horas). Se paga comisión+deslizamiento al

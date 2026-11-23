@@ -11,15 +11,20 @@ import { execSync } from "node:child_process";
 import { writeFileSync, rmSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { senales, FILTROS, ema, atr, medianaMovil } from "./caza-hl2.mjs";
+import { pesoDe, desdeCache, aCache, cacheValida } from "./caza-hl.mjs";
 const env = (k) => (process.env[k] || "").trim(), REPO = env("GITHUB_REPOSITORY") || "CarlosGomezS/Botrading", TOKEN = env("GITHUB_TOKEN");
 const INFO = "https://api.hyperliquid.xyz/info", EXCH = "https://api.hyperliquid.xyz/exchange", H = 3600e3, VELAS = 1200, MIN_ORDEN = 11, SLIP = 0.02, SLIP_ABRE = 0.005;   // v459 · al ABRIR solo se acepta un 0,5 % peor que el precio (si se ha disparado, no entra); al CERRAR, 2 % para asegurar el cierre
 const RAMA = "hl-real", ARCH = "hl-real.json";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
 // v460 · 🧪 dependencias externas en un solo sitio: las pruebas automáticas las sustituyen por un Hyperliquid y un GitHub de mentira
-export const deps = { fetch: (...a) => globalThis.fetch(...a), firma: null, direccion: null, guardar: null, aviso: null, metodo: null, senales: null, espera: (ms) => sleep(ms) };
+export const deps = { fetch: (...a) => globalThis.fetch(...a), firma: null, direccion: null, guardar: null, aviso: null, metodo: null, senales: null, espera: (ms) => sleep(ms), guardaVivo: null };
 const F = (...a) => deps.fetch(...a);
-async function info(body) { for (let i = 0; i < 5; i++) { try { const r = await F(INFO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) }); if (r.status === 429) { await deps.espera(3000 * (i + 1)); continue; } if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); } catch (e) { if (i === 4) throw e; await deps.espera(2000 * (i + 1)); } } }
+// v1.0 · 🚦 RITMO (universo de ~100 criptos): Hyperliquid deja 1.200 de peso por minuto y por IP; se va a ritmo para no recibir «429» a mitad de ronda
+export const PESO_MIN = 900; const usado = [];
+async function ritmo(w) { for (;;) { const t = Date.now(); while (usado.length && t - usado[0][0] > 60e3) usado.shift(); const s = usado.reduce((a, x) => a + x[1], 0); if (s + w <= PESO_MIN || !usado.length) { usado.push([t, w]); return; } const t1 = Date.now(); await deps.espera(Math.max(200, 60e3 - (t - usado[0][0]) + 50)); if (Date.now() - t1 < 100) { usado.length = 0; } } }   /* si la espera no espera (pruebas), no se queda dando vueltas */
+const pesoInfo = (b) => (b && ["l2Book", "allMids", "clearinghouseState", "orderStatus", "spotClearinghouseState", "exchangeStatus"].includes(b.type) ? 2 : pesoDe(b));
+async function info(body) { await ritmo(pesoInfo(body)); for (let i = 0; i < 5; i++) { try { const r = await F(INFO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) }); if (r.status === 429) { await deps.espera(3000 * (i + 1)); continue; } if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); } catch (e) { if (i === 4) throw e; await deps.espera(2000 * (i + 1)); } } }
 
 // ---------- firma de órdenes (igual que el SDK oficial de Python: msgpack + keccak + EIP-712 «Agent») ----------
 let ETH = null, MP = null;
@@ -95,10 +100,24 @@ async function mandar(o, pk) { const res = await exchange({ type: "order", order
   return { ok: false, rechazo, err: st && st.error ? String(st.error).slice(0, 120) : res.j && res.j.response ? String(res.j.response).slice(0, 120) : "HTTP " + res.http + " " + String(res.t).slice(0, 100) }; }
 
 // ---------- datos en directo: las mismas series que usa el laboratorio (velas de 1 h + financiación) ----------
-async function serie(c, fin) {
-  const ini = fin - VELAS * H, k = new Map(), f = new Map();
-  const v = await info({ type: "candleSnapshot", req: { coin: c, interval: "1h", startTime: ini, endTime: fin - 1 } }); for (const x of v || []) if (+x.t < fin) k.set(+x.t, [+x.c, +x.v || 0, +x.h, +x.l]);
-  let t = ini; /* v475 · la financiación de TODA la ventana (antes solo las últimas 500 h; lo anterior contaba como 0) */ for (let g = 0; g < 4 && t < fin; g++) { const r = await info({ type: "fundingHistory", coin: c, startTime: t }); if (!r || !r.length) break; for (const x of r) f.set(Math.floor(+x.time / H) * H, +x.fundingRate); const last = +r[r.length - 1].time; if (last <= t) break; t = last + 1; }
+// v1.0 · 💾 CACHÉ EN VIVO (rama pública hl-vivo: solo velas y financiación de mercado de las criptos del laboratorio, nada tuyo).
+//   Con ~100 criptos, pedir cada hora las 1.200 velas y su financiación de todas pasaría del límite de Hyperliquid (unos 15 min de espera).
+//   Se guarda lo descargado y cada hora solo se piden las últimas VIVO_REFRESCO horas (si la caché es de hace poco); si no, la serie entera.
+//   Si el tiempo de datos (VIVO_MIN) se acaba, las criptos que falten no dan señal esta hora (BTC va siempre la primera).
+export const VIVO_RAMA = "hl-vivo", VIVO_ARCH = "hl-vivo.json.gz", VIVO_REFRESCO = 3, VIVO_MIN = 6;
+async function leeVivo() { try { const r = await F(`https://raw.githubusercontent.com/${REPO}/${VIVO_RAMA}/${VIVO_ARCH}?t=${Date.now()}`, { signal: AbortSignal.timeout(30000) }); if (!r.ok) return {};
+    const { gunzipSync } = await import("node:zlib"), j = cacheValida(JSON.parse(gunzipSync(Buffer.from(await r.arrayBuffer())).toString("utf8"))); return (j && j.c) || {}; } catch (e) { return {}; } }
+async function guardaVivo(c) { if (deps.guardaVivo) return deps.guardaVivo(c); if (!TOKEN || !Object.keys(c).length) return false;
+  try { const { gzipSync } = await import("node:zlib"), sh = (x) => execSync(x, { stdio: "pipe", encoding: "utf8" }), pub = path.join(process.cwd(), ".pubhlvivo"); rmSync(pub, { recursive: true, force: true }); mkdirSync(pub);
+    writeFileSync(path.join(pub, VIVO_ARCH), gzipSync(Buffer.from(JSON.stringify({ v: 1, t: new Date().toISOString(), c })))); const g = (x) => sh(`git -C "${pub}" ${x}`);
+    g(`init -q -b ${VIVO_RAMA}`); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"'); g("add " + VIVO_ARCH); g('commit -q -m "datos en vivo"');
+    for (let i = 0; i < 2; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git ${VIVO_RAMA}`); return true; } catch (e) { await sleep(2000); } } } catch (e) {} return false; }
+export function trozoCache(e, ini, fin) { if (!e) return null; const { k, f } = desdeCache(e); for (const t of [...k.keys()]) if (t < ini || t >= fin) k.delete(t); for (const t of [...f.keys()]) if (t < ini || t >= fin) f.delete(t);
+  const uk = k.size ? Math.max(...k.keys()) : 0, uf = f.size ? Math.max(...f.keys()) : 0; return uk >= fin - 48 * H && uf >= fin - 48 * H ? { k, f, uk, uf } : null; }   // de hace más de 2 días: no vale, serie entera
+async function serie(c, fin, e) {
+  const ini = fin - VELAS * H, z = trozoCache(e, ini, fin), k = z ? z.k : new Map(), f = z ? z.f : new Map(), dk = z ? Math.max(ini, z.uk - VIVO_REFRESCO * H) : ini, df = z ? Math.max(ini, z.uf - VIVO_REFRESCO * H) : ini;
+  const v = await info({ type: "candleSnapshot", req: { coin: c, interval: "1h", startTime: dk, endTime: fin - 1 } }); for (const x of v || []) if (+x.t < fin && +x.t >= ini) k.set(+x.t, [+x.c, +x.v || 0, +x.h, +x.l, +x.o || 0]);
+  let t = df; /* v475 · la financiación de TODA la ventana (antes solo las últimas 500 h; lo anterior contaba como 0) */ for (let g = 0; g < 4 && t < fin; g++) { const r = await info({ type: "fundingHistory", coin: c, startTime: t }); if (!r || !r.length) break; for (const x of r) { const h = Math.floor(+x.time / H) * H; if (h < fin) f.set(h, +x.fundingRate); } const last = +r[r.length - 1].time; if (last <= t) break; t = last + 1; }
   return { k, f };
 }
 // v475 · 🕳️ INTEGRIDAD DE LOS DATOS EN VIVO (los mismos controles que el laboratorio): al menos el 80 % de las velas, la ÚLTIMA vela presente,
@@ -114,11 +133,15 @@ export function integridadViva(T, d) { if (!d || !d.k || !d.f) return { ok: fals
   return { ok: true }; }
 async function datosVivos(U) {
   const fin = Math.floor(Date.now() / H) * H, T = []; for (let t = fin - VELAS * H; t < fin; t += H) T.push(t);
-  const M = {}, fuera = []; for (const c of U) { let d; try { d = await serie(c, fin); } catch (e) { continue; } const iv = integridadViva(T, d); if (!iv.ok) { fuera.push(`${c} (${iv.motivo})`); continue; }
+  const CA = await leeVivo(), nueva = {}, t0 = Date.now(), orden = [...U].sort((a, b) => (a === "BTC" ? -1 : b === "BTC" ? 1 : 0));
+  const M = {}, fuera = []; let sinTiempo = 0; for (const c of orden) { if (c !== "BTC" && Date.now() - t0 > VIVO_MIN * 60e3) { sinTiempo++; continue; }
+    let d; try { d = await serie(c, fin, CA[c]); } catch (e) { continue; } nueva[c] = aCache("hl", d.k, d.f, fin - VELAS * H, fin); const iv = integridadViva(T, d); if (!iv.ok) { fuera.push(`${c} (${iv.motivo})`); continue; }
     const C = new Float64Array(T.length), F = new Float64Array(T.length), V = new Float64Array(T.length), Hi = new Float64Array(T.length), Lo = new Float64Array(T.length); let last = NaN, lastF = 0;
     T.forEach((t, i) => { const x = d.k.get(t); if (x && x[0] > 0) { last = x[0]; V[i] = x[1]; Hi[i] = x[2]; Lo[i] = x[3]; } else { Hi[i] = Lo[i] = last; } C[i] = last; { const f = d.f.get(t); if (f != null && Number.isFinite(f)) lastF = f; F[i] = lastF; } });
-    M[c] = { C, F, V, Hi, Lo, ultima: d.k.has(fin - H) }; await sleep(120); }
+    M[c] = { C, F, V, Hi, Lo, ultima: d.k.has(fin - H) }; }
   if (fuera.length) log(`Datos en vivo incompletos, sin señal esta hora: ${fuera.length} cripto${fuera.length === 1 ? "" : "s"}`);   /* v478 · registro público: solo cuántas */
+  if (sinTiempo) log(`Datos en vivo: ${sinTiempo} cripto${sinTiempo === 1 ? "" : "s"} sin tiempo para descargarse esta hora (sin señal)`);
+  await guardaVivo(nueva).catch(() => false);
   return { T, M, U: U.filter((c) => M[c]), fin };
 }
 
@@ -535,3 +558,4 @@ export async function revisaStops() { const yo = env("HL_WALLET").toLowerCase();
   const dist = ab.map((p) => { const o = oo.find((z) => z.coin === p.coin && +z.triggerPx > 0); return o ? Math.round(Math.abs(+o.triggerPx / +p.entryPx - 1) * 1000) / 10 : null; }).filter((x) => x != null).sort((a, b) => a - b); log(`Distancia de los stops respecto a la entrada: ${dist.map((x) => "−" + x + " %").join(" · ") || "—"}`);
   try { await libs(); const pk = env("HL_AGENT_KEY"), mia = new ETH.Wallet(pk.startsWith("0x") ? pk : "0x" + pk).address.toLowerCase(), ag = await info({ type: "extraAgents", user: yo }), a = (ag || []).find((x) => String(x.address).toLowerCase() === mia); log(a ? `Clave del bot: válida ${Math.floor((+a.validUntil - Date.now()) / 864e5)} días más` : `Clave del bot: no aparece entre los agentes (${(ag || []).length} agentes)`); } catch (e) { log("Clave del bot: no se pudo consultar"); } }
 if (process.argv[1] && process.argv[1].endsWith("hl-real.mjs")) (process.argv[2] === "firma" ? pruebaFirma() : process.argv[2] === "stops" ? revisaStops() : process.argv[2] === "ajustes" ? guardaAjustes() : ronda()).catch(async (e) => { const t = String(e.message).split("\n")[0].replace(/0x[0-9a-fA-F]{40,}/g, "0x…").slice(0, 160); console.log("Error: " + t); if (process.argv[2] === "ajustes") await aviso("🚨 Hyperliquid: NO he podido guardar tus ajustes (" + t + "). Siguen los anteriores (y si el freno estaba echado, sigue echado). Vuelve a guardarlos desde la app en un momento."); else if (!["firma", "stops"].includes(process.argv[2])) await aviso("🚨 Hyperliquid: la ronda de esta hora ha fallado (" + t + "). Lo vuelve a intentar en la siguiente; tus posiciones siguen con su stop de emergencia."); process.exit(1); });
+export { datosVivos as _datosVivos };   // solo para las pruebas

@@ -72,7 +72,7 @@ jobs:
           while [ "$(date +%s)" -lt "$end" ]; do
             s=$(date +%s)
             # v441 · 💧 Hyperliquid: su ronda de cada hora, en cuanto empieza la hora (en paralelo; si ya está hecha, no repite)
-            H=$(date -u +%Y%m%d%H); if [ -n "$HL_AGENT_KEY" ] && [ "$H" != "$hlH" ] && { [ -z "$hlP" ] || ! kill -0 "$hlP" 2>/dev/null; }; then hlH=$H; ( timeout 300 node runner/hl-real.mjs ronda > /tmp/hl.log 2>&1; cat /tmp/hl.log ) & hlP=$!; fi
+            H=$(date -u +%Y%m%d%H); if [ -n "$HL_AGENT_KEY" ] && [ "$H" != "$hlH" ] && { [ -z "$hlP" ] || ! kill -0 "$hlP" 2>/dev/null; }; then hlH=$H; ( timeout 720 node runner/hl-real.mjs ronda > /tmp/hl.log 2>&1; cat /tmp/hl.log ) & hlP=$!; fi
             # v441 · 🛡️ cada 10 min, el vigilante comprueba que todo lo demás sigue vivo (cartera real, guardián, Hyperliquid…) y lo relanza si no
             if [ $(( $(date +%s) - vg )) -ge 600 ]; then vg=$(date +%s); ( AVISA_ARRANQUES=1 timeout 90 bash runner/vigia.sh > /tmp/vigia.log 2>&1; grep "⚠️" /tmp/vigia.log || true ) & fi
             if timeout 100 node runner/bitvavo.mjs > /tmp/m-bv.log 2>&1; then fb=0; else fb=$(( ${fb:-0} + 1 )); fi; cat /tmp/m-bv.log

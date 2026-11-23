@@ -7,7 +7,7 @@
 //    peso de las familias de las que más se publica.
 // Examen (v365): ≥ 4 operaciones al día (v455: o ~2 por semana si es un método LENTO, de 2 a 7 días por operación); gana en la historia completa hasta hoy, en los últimos 6 meses y en ≥60 % de 16 tramos al azar (la mitad acaban hoy), con
 // comisión + deslizamiento + financiación reales de Hyperliquid, caída < 30 % y factor de beneficio ≥ 1,15 / 1,10. v458: y al menos una de 2 variantes vecinas también gana.
-import { datos, cartera, caidaHoraria } from "./caza-hl.mjs";
+import { datos, cartera, caidaHoraria, CACHE_RAMA, CACHE_ARCH } from "./caza-hl.mjs";
 import { senales, FILTROS } from "./caza-hl2.mjs";
 import { execSync } from "node:child_process";
 import { writeFileSync, rmSync, mkdirSync } from "node:fs";
@@ -94,6 +94,7 @@ export function tramosAlAzar(corte, rnd = azarFijo(semanaDe())) { const T = []; 
 export const PESO_MAX = 5;
 export const iaEnUso = (M0) => [...((M0 && M0.aprobadas) || []), ...((M0 && M0.casi) || []), ...((M0 && M0.podio) || [])].some((x) => x && x.g && (x.g.ia || x.g.iab));
 export async function lab(log = console.log) {
+  const LIMITE = Date.now() + (+env("CAZA_MIN") || 55) * 60e3;   // v1.0 · ⏱️ hasta cuándo se examinan combinaciones nuevas (luego: reexamen del podio y guardar)
   const M0 = (await memoria()) || {};
   // v456 · 🧊 CUARENTENA: un método que aprueba pasa 21 días en ficticio (precios reales, sin dinero) antes de poder usarse con dinero real.
   //   Exento: el que ya estaba operando con dinero real cuando se creó la cuarentena (el n.º 1 del podio en ese momento).
@@ -106,8 +107,9 @@ export async function lab(log = console.log) {
   const mem = { probadas: M0.probadas || {}, pesos: M0.limpio466 ? M0.pesos || {} : {},   /* v466 · los pesos de familia se reinician una vez (venían de notas contaminadas) */ casi: (M0.casi || []).filter((x) => x && x.is && x.v >= 466),   /* v466 · se descartan las anteriores: su nota usaba tramos que tocaban los 90 días ocultos */   /* v465 · se descartan las «casi» antiguas (se eligieron viendo los 90 días ocultos) */ aprobadas: M0.aprobadas || [], rondas: (M0.rondas || 0) + 1, hist: M0.hist || [] };
   const ID = await ideas(M0.ideas); const recientes = ID.filter((x) => Date.now() - Date.parse(x.visto) < 30 * 864e5), menc = {}; for (const x of recientes) for (const f of x.fams) menc[f] = (menc[f] || 0) + 1;
   log(`🧠 Ronda ${mem.rondas} · memoria: ${Object.keys(mem.probadas).length} combinaciones ya probadas · ideas nuevas leídas: ${ID.length - (M0.ideas || []).length}`);
-  const D = await datos(() => {}), { T, M, U } = D, n = T.length, corte = Math.floor(n * 0.6), mitad = Math.floor((corte + n) / 2);
+  const D = await datos((m) => { if (!/velas de 1 h/.test(m)) log(m); }), { T, M, U } = D, n = T.length, corte = Math.floor(n * 0.6), mitad = Math.floor((corte + n) / 2);
   // v466 · 🔒 los tramos al azar acaban como muy tarde en el CORTE (antes de los 90 días ocultos): así nada de la nota que guía la búsqueda los ve
+  log(`🌐 Criptos de Hyperliquid examinadas: ${U.length}`);
   const CORTE_OCULTO = Math.max(300, n - 1 - 90 * 24);
   const TRAMOS = tramosAlAzar(CORTE_OCULTO);   // v1.0 · G5-1.4 · los de esta SEMANA (antes, nuevos en cada ronda)
   const X = { btcUp: null, up: {}, vol: {}, volMed: {} }; { const { ema, atr, medianaMovil } = await import("./caza-hl2.mjs"); const e = ema(M.BTC.C, 200); X.btcUp = Uint8Array.from(M.BTC.C, (c, i) => (c > e[i] ? 1 : 0)); for (const c of U) { const e2 = ema(M[c].C, 100); X.up[c] = Uint8Array.from(M[c].C, (x, i) => (x > e2[i] ? 1 : 0)); X.vol[c] = atr(M[c], 24); X.volMed[c] = medianaMovil(X.vol[c]);   /* v1.0 · G5-1.5 · causal, igual que en el real */ } }
@@ -167,17 +169,20 @@ export async function lab(log = console.log) {
   const vecinosOk = (g) => { const res = vecinos(g).map((v) => { const r = evalua(v); return { h: v.h, sl: v.sl, ok: r.a.ret > 0 && r.o.ret > 0 && r.c2.ret > 0, ret: +(r.a.ret * 100).toFixed(1) }; }); return { ok: res.some((x) => x.ok), res }; };
   // candidatos: 30 % mutaciones de las «casi», 70 % nuevas (con los pesos aprendidos); nunca se repite una ya probada
   const VB = await memoriaVistas(M0.totalVistas == null); for (const k of Object.keys(mem.probadas)) marca(VB, k);
-  const cand = [], vistas = { has: (k) => !!vista(VB, k), add: (k) => marca(VB, k) };
+  const cand = [], enRonda = new Set(), vistas = { has: (k) => !!vista(VB, k) || enRonda.has(k), add: (k) => enRonda.add(k) };   // v1.0 · se marcan en la memoria SOLO las que de verdad se examinan (abajo)
   // v366 · 🤖 como mucho el 15 % de la ronda son recetas de la IA (su propuesta tal cual + variaciones de filtro, salida y stop); el resto, como siempre
   if (IA.length) { const cupo = Math.floor(PRUEBAS * 0.15); for (let z = 0; z < cupo * 20 && cand.length < cupo; z++) { const r = IA[z < IA.length ? z : Math.floor(Math.random() * IA.length)], a = iaIdx.get(r.id); if (a == null) continue;
       const g = z < IA.length ? { a, b: null, f: r.filtro, h: r.salida_h, sl: r.stop } : muta({ a, b: null, f: r.filtro, h: r.salida_h, sl: r.stop }); if (g.a !== a && !(S[g.a] && S[g.a].ia)) g.a = a; marcaIA(g); const k = hs(clave(g)); if (vistas.has(k)) continue; vistas.add(k); cand.push(g); } }
   for (let z = 0; z < PRUEBAS * 20 && cand.length < PRUEBAS; z++) { const b0 = mem.casi.length && Math.random() < 0.3 ? mem.casi[Math.floor(Math.random() * mem.casi.length)].g : null, base = fixG(b0); const g = marcaIA(base && S[base.a] ? muta(base) : sinEco(nuevo())); if (g.a == null || !S[g.a]) continue; const k = hs(clave(g)); if (vistas.has(k)) continue; vistas.add(k); cand.push(g); }
-  cand.sort((x, y) => x.a - y.a); const famStat = {}; let nOk = 0;
-  for (const g of cand) { const r = evalua(g), k = hs(clave(g)), f = S[g.a].fam; mem.probadas[k] = +r.nota.toFixed(3); if (r.is && r.is.n >= 20) (famStat[f] = famStat[f] || []).push(r.nota);   /* v1.0 · G6-M5 · con menos de 20 operaciones la nota es suerte: no cambia los pesos de la familia */
+  cand.sort((x, y) => x.a - y.a); const famStat = {}; let nOk = 0, hechas = 0;
+  // v1.0 · ⏱️ PRESUPUESTO DE TIEMPO: con ~100 criptos cada combinación cuesta más; se examinan las que quepan hasta el límite y el resto
+  //   no se da por vista (se probará en otra ronda). Así la ronda nunca se corta a medias (GitHub la mataría sin guardar nada).
+  for (const g of cand) { if (hechas >= 50 && Date.now() > LIMITE) break; hechas++; const r = evalua(g), k = hs(clave(g)), f = S[g.a].fam; marca(VB, k); mem.probadas[k] = +r.nota.toFixed(3); if (r.is && r.is.n >= 20) (famStat[f] = famStat[f] || []).push(r.nota);   /* v1.0 · G6-M5 · con menos de 20 operaciones la nota es suerte: no cambia los pesos de la familia */
     // v465 · 🔒 las «casi» (las madres de las mutaciones) se eligen SOLO con datos anteriores a los 90 días ocultos: así el examen final no se filtra a la búsqueda
     if (r.is.ret > 0 && r.is.pf >= 1.05 && r.is.opsDia >= minOpsB(g)) { mem.casi.push({ v: 466, g, n: nombre(g), nota: r.nota, is: { ret: r.is.ret, pf: r.is.pf, opsDia: r.is.opsDia, dd: r.is.dd }, a: r.a, b: r.b, t: r.t }); }
     if (r.okA && r.okB && r.okC && !mem.aprobadas.some((x) => x.k === k) && !vecinosOk(g).ok) continue;   /* v458 · sin vecinos que ganen: no aprueba */   /* v458 · sin vecinos que ganen: se queda en «casi» */
     if (r.okA && r.okB && r.okC) { nOk++; if (!mem.aprobadas.some((x) => x.k === k)) mem.aprobadas.push({ k, g, n: nombre(g), a: r.a, b: r.b, t: r.t, o: r.o, c2: r.c2, is: { ret: r.is.ret, dd: r.is.dd, pf: r.is.pf, opsDia: r.is.opsDia }, desde: new Date().toISOString() }); } }
+  if (hechas < cand.length) log(`⏱️ Tiempo de la ronda agotado: examinadas ${hechas} de ${cand.length} (las demás, en otra ronda)`); cand.length = hechas;
   for (const [f, v] of Object.entries(famStat)) { const top = v.sort((a, b) => b - a).slice(0, 5), m = top.reduce((a, b) => a + b, 0) / top.length; mem.pesos[f] = +Math.min(PESO_MAX, (mem.pesos[f] || 1) * 0.7 + 0.3 * Math.max(0.2, m)).toFixed(3); }   /* v1.0 · G5-1.3 · con tope: una familia no puede acaparar el laboratorio */
   mem.casi = mem.casi.sort((a, b) => b.nota - a.nota).filter((x, i, A) => A.findIndex((y) => y.n === x.n) === i).slice(0, 60);
   // las aprobadas se vuelven a examinar cada ronda con los datos nuevos: si dejan de aprobar, salen del podio
@@ -204,7 +209,7 @@ export async function lab(log = console.log) {
     if (nuevos.length) { const AV = await import("./avisos.mjs"); await AV.tg(nuevos.map(({ x, i }) => `🏆 Laboratorio de cripto (muchas operaciones): nuevo método en el podio, puesto ${i + 1}.º\n${x.n}\nEn los últimos 6 meses: ${(x.b.ret * 100).toFixed(1).replace(".", ",")} % · ${x.b.opsDia.toFixed(1).replace(".", ",")} operaciones al día · caída máxima ${(x.b.dd * 100).toFixed(1).replace(".", ",")} %`).join("\n\n") + "\n\nNo mueve dinero: antes de meterlo en Hyperliquid te lo preguntaré."); } } catch (e) { log("aviso del podio no enviado"); }
   out.podio.forEach((x, i) => log(`  🏆 ${i + 1}.º ${x.cuar ? (x.cuar.provisional ? "[provisional: en uso hasta que otro pase la cuarentena] " : x.cuar.exento ? "[en uso, exento] " : x.cuar.ok ? "[listo para real] " : `[cuarentena día ${Math.floor(x.cuar.dias)} de 21, ${x.cuar.n} op.] `) : ""}${x.n} · últimos 6 meses ${(x.b.ret * 100).toFixed(1)} % (${x.b.opsDia.toFixed(1)} op/día, caída ${(x.b.dd * 100).toFixed(1)} %) · en el podio desde ${x.desde}`));
   mem.casi.slice(0, 3).forEach((x) => log(`  🟡 casi: ${x.n} · historia completa ${(x.a.ret * 100).toFixed(1)} % · últimos 6 meses ${(x.b.ret * 100).toFixed(1)} % · gana en ${x.t ? Math.round(x.t.g * 100) : "?"} % de los tramos`));
-  Object.defineProperty(out, "__vistas", { value: VB, enumerable: false });
+  Object.defineProperty(out, "__vistas", { value: VB, enumerable: false }); Object.defineProperty(out, "__cache", { value: D.cache, enumerable: false });
   return out;
 }
 async function guarda(out) {
@@ -214,4 +219,12 @@ async function guarda(out) {
   for (let i = 0; i < 4; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git ${RAMA}`); console.log("Laboratorio de cripto guardado."); return; } catch (e) { await new Promise((r) => setTimeout(r, 4000)); } }
   throw new Error("No he podido publicar el laboratorio (4 intentos): la ejecución termina con error");   // v466 · que GitHub la marque como fallida
 }
-if (process.argv[1] && process.argv[1].endsWith("caza-lab.mjs")) lab().then(guarda).catch((e) => { console.log("Error: " + String(e.message).split("\n")[0].slice(0, 160)); process.exit(1); });
+// v1.0 · 💾 caché de datos de mercado (rama pública hl-datos; solo precios y financiación): si no se puede guardar no pasa nada, la próxima ronda descarga más
+export async function guardaCache(cache, log = console.log) {
+  if (!cache || !cache.c || !Object.keys(cache.c).length) return false; const { gzipSync } = await import("node:zlib"), buf = gzipSync(Buffer.from(JSON.stringify(cache)), { level: 9 });
+  if (!TOKEN) { writeFileSync(CACHE_ARCH, buf); return true; }
+  try { const pub = path.join(process.cwd(), ".pubhldatos"); rmSync(pub, { recursive: true, force: true }); mkdirSync(pub); writeFileSync(path.join(pub, CACHE_ARCH), buf);
+    const g = (c) => sh(`git -C "${pub}" ${c}`); g(`init -q -b ${CACHE_RAMA}`); g('config user.name "bot-trading"'); g('config user.email "bot-trading@users.noreply.github.com"'); g("add " + CACHE_ARCH); g(`commit -q -m "datos de mercado ${cache.t}"`);
+    for (let i = 0; i < 3; i++) { try { g(`push -q -f https://x-access-token:${TOKEN}@github.com/${REPO}.git ${CACHE_RAMA}`); log(`💾 Caché de datos guardada: ${Object.keys(cache.c).length} criptos · ${(buf.length / 1e6).toFixed(1)} MB`); return true; } catch (e) { await new Promise((r) => setTimeout(r, 4000)); } }
+  } catch (e) {} log("⚠️ No he podido guardar la caché de datos (la próxima ronda descargará más)"); return false; }
+if (process.argv[1] && process.argv[1].endsWith("caza-lab.mjs")) lab().then(async (o) => { await guarda(o); await guardaCache(o.__cache); }).catch((e) => { console.log("Error: " + String(e.message).split("\n")[0].slice(0, 160)); process.exit(1); });
