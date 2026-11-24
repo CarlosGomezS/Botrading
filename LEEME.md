@@ -1,4 +1,4 @@
-# Bot Trading en la nube (gratis, sin ordenador encendido)
+# CriptoBot en la nube (gratis, sin ordenador encendido)
 
 > **Estado actual: v1.0 «Ancla» (compilación 481, 13/11/2026) — primera versión estable en producción. Es la v480 sin cambios de comportamiento; a partir de aquí, observar.** Lo de abajo es el historial de cambios; las reglas vigentes son estas.
 >

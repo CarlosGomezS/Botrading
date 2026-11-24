@@ -10,39 +10,22 @@ const out = [];
 const P = (s = "") => out.push(s);
 const html = readFileSync(path.join(ROOT, "index.html"), "utf8");
 const ver = (html.match(/Compilación (\d+)/) || [])[1] || "?";
-P(`# Bot Trading · conocimiento completo del proyecto (compilación #${ver}, generado ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC)`);
+P(`# CriptoBot · conocimiento completo del proyecto (compilación #${ver}, generado ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC)`);
 P();
 P(`## Qué es
 App personal (web publicada en GitHub Pages, envuelta en un APK para Android) que invierte sola con dinero real y prueba métodos con dinero ficticio. Todo el trabajo lo hacen procesos automáticos en la nube (GitHub Actions); el móvil solo MUESTRA lo que dejan publicado. Todo en castellano.
 
 ## Pestañas
-- 💶 Real: la cuenta de Trading 212 (valor, ingresado, invertido, efectivo, gráfica con marcas de cambio de método, órdenes, método que sigue).
-- 🤖 Laboratorio: podio de ETF/acciones/mixtos (top 3), podio de cripto (Tortugas por exchange y riesgo), laboratorio de muchas operaciones (Hyperliquid, solo datos), ayudante IA (Gemini), y en «⋯ Más» la cartera ficticia, observación y detalles.
-- 🪙 Cripto: cuentas reales de Bitvavo y OKX (lo que vale, comprado, ventas, gráfica), solo con el método de las Tortugas.
-- 📋 Informes (antes «Terminal»): General (comprobaciones 🩺 y resumen), Real (dónde está el dinero, valor por día, órdenes), Cripto, Laboratorios (probados, aprobados y podios), Errores (todos los fallos de la app y de los procesos) y Por día (tabla y detalle); se descarga en TXT, JSON o CSV.
-- ⚙️ Ajustes: ☁️ ajustes protegidos con clave (claves de exchanges, de precios, Gemini, costes de la simulación), 💶 Real (ajustes de la cartera real y sus claves), 🤖 Laboratorio (prueba), 🪙 Cripto (riesgo, dinero, criptos a no tocar), 🔑 Cuenta (cerrar sesión, Telegram), ❓ Ayuda (guía paso a paso de claves).
+- 💶 Real: las cuentas de cripto con dinero real (Bitvavo y OKX con el método de las Tortugas; Hyperliquid con el n.º 1 de su laboratorio): lo que vale, comprado, ventas, gráfica.
+- 📋 Informes: Parte del día, Gráficas, Errores, Real (cripto), Laboratorios de cripto y Por día; descargas en TXT/JSON/CSV.
+- ⚙️ Ajustes: ☁️ ajustes protegidos con clave (claves de exchanges, Gemini…), cripto (riesgo, dinero real) y Hyperliquid.
 - Botón 🤖 (abajo a la derecha): este asistente. Botón 🔒 (arriba a la derecha): cerrar sesión.
+- (Desde el 24/11/2026 la app se llama CriptoBot: ya NO tiene Trading 212 ni laboratorios de ETF, Acciones o Mixtos.)
 
 ## Seguridad
 - Entrada con una clave (y la huella del móvil si lo admite, WebAuthn). La sesión se cierra sola tras 30 min sin usar la app.
 - Los datos de dinero real se publican CIFRADOS (AES-GCM con PBKDF2, clave REAL_VIEW_PASS); el repositorio es público pero sin la clave no se puede leer nada de dinero.
 - Las claves de brókers solo están en GitHub Secrets; nunca con permiso de retirar. Los registros públicos nunca llevan importes ni claves.
-
-## Cartera real (Trading 212) · runner/real.mjs
-- Sigue SIEMPRE al n.º 1 del laboratorio de ETF (si el n.º 1 aún no tiene cartera calculada, al siguiente que la tenga hasta esa noche).
-- Si el nuevo n.º 1 compra cosas distintas, solo cambia cuando le saca al actual al menos 1 punto al año (evita vender y comprar por empates). Si compra lo mismo, cambia sin coste.
-- Revisiones en días laborables (7:17-15:17 UTC cada hora, más 16:47); las órdenes se envían con la bolsa europea abierta. Valor en directo cada 15 min.
-- Frenos: freno de pérdidas (pausa si cae más del % fijado), reserva de efectivo, orden mínima, máximo de órdenes por revisión, solo ETF en euros si así se elige.
-- Modo automático («Invertir sin mi aprobación») o con aprobación por Telegram (botones ✅/❌).
-- Telegram: cada compra/venta, propuestas, pausas y errores. Ya NO avisa de cambios de método (solo del podio).
-
-## Laboratorio de ETF, acciones y mixtos · index.html (corre en la nube con un navegador sin pantalla, runner/runner.mjs)
-- Cada ~30 min-2 h una ronda crea métodos nuevos (genes: grupo de ETF, plazos de fuerza, filtros de tendencia, alarma del S&P 500, régimen, refugio en oro, pesos por riesgo, estilos…), con un modelo que aprende qué genes funcionan, 25 % reservado a familias nuevas y hasta 7 ideas por ronda del ayudante IA.
-- Examen básico: ganar al SPY en 3 periodos (2000-2016, 2016-2021, 2021-hoy) sin caer más que él → «✅ Ganador».
-- Tramos al azar: 300 periodos de 3 a 7 años (nuevos en cada prueba, la mitad acaban hoy); para entrar en el podio tiene que ganar al S&P 500 en ≥60 % y no ir mal en los últimos 18 meses (perder o quedarse >3 puntos/año por detrás).
-- ORDEN del podio: dinero ganado desde el año 2000 hasta hoy (al año, tras impuestos); a igual ganancia, el que menos cae.
-- Telegram: solo cuando un método ENTRA en el podio.
-- Cada noche (tras el cierre de Wall Street) se descargan precios y se recalcula la prueba histórica completa.
 
 ## Cripto real (Bitvavo y OKX) · runner/bitvavo.mjs + bitvavo-real.mjs + tortugas.mjs
 - Solo las 🐢 Tortugas: compra una cripto cuando cierra por encima de su máximo de N días y la vende al caer por debajo de su mínimo de M días; stop de emergencia guardado en el propio exchange (STOP_EMERG); no compra si el hueco de precio es grande.
@@ -89,8 +72,6 @@ P();
 // parámetros clave
 P("## Parámetros clave del código");
 const grab = (file, re, lab) => { try { const t = readFileSync(path.join(ROOT, file), "utf8"), m = t.match(re); if (m) P(`- ${lab}: ${m[0].slice(0, 400)}`); } catch (e) {} };
-grab("runner/real-cfg.mjs", /export const DEF = \{[\s\S]*?\};/, "Ajustes por defecto de la cartera real (real-cfg.mjs)");
-grab("runner/real.mjs", /export const MARGEN_1 = [^;]+;/, "Margen para cambiar de método");
 grab("runner/bitvavo-real.mjs", /const (STOP_EMERG|FRENO)[^;]*;/, "Frenos de cripto real");
 grab("runner/tortugas.mjs", /const UNI_VOL[^;]*;/, "Universo de criptos vigiladas");
 grab("runner/caza-lab.mjs", /const CAZA_N[^;]*;|CAZA_N[^,;]*/, "Tamaño de cada ronda del laboratorio de cripto");

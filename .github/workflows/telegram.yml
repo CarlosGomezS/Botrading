@@ -31,22 +31,6 @@ jobs:
           TELEGRAM_USER: ${{ secrets.TELEGRAM_USER }}   # v479 · opcional: solo hace falta si usas un grupo (en un chat privado, tu chat ya es tu usuario)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node runner/telegram.mjs
-      # v91 · arranque de seguridad del laboratorio: GitHub a veces no activa los horarios de los flujos nuevos. Si la última ronda
-      # del laboratorio tiene más de 2 horas (y estamos entre las 03 y las 19 UTC), la lanza desde aquí.
-      - name: ¿Le toca ronda al laboratorio?
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          H=$(date -u +%H); H=$((10#$H))
-          if [ "$H" -lt 3 ] || [ "$H" -gt 19 ]; then echo "Fuera de horario del laboratorio."; exit 0; fi
-          R="repos/${{ github.repository }}/actions/workflows/laboratorio.yml/runs?per_page=1"
-          st=$(gh api "$R" -q '.workflow_runs[0].status // "none"')
-          t=$(gh api "$R" -q '.workflow_runs[0].created_at // "1970-01-01T00:00:00Z"')
-          age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 ))
-          echo "Última ronda: $t ($age min, $st)"
-          if [ "$st" = "in_progress" ] || [ "$st" = "queued" ]; then exit 0; fi
-          if [ "$age" -ge 125 ]; then gh api -X POST "repos/${{ github.repository }}/actions/workflows/laboratorio.yml/dispatches" -f ref=main && echo "Ronda del laboratorio lanzada."; fi
       # v95 · que el bot no se pare NUNCA: GitHub desactiva los horarios de un repositorio público tras 60 días sin cambios.
       # Cada vez que se ejecuta comprueba que todos los procesos siguen activos (si alguno está desactivado, lo reactiva) y,
       # si la rama principal lleva más de 30 días sin cambios, deja una marca (.vivo) para que GitHub vea actividad.
@@ -56,7 +40,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           R="repos/${{ github.repository }}"
-          for wf in diario.yml historico.yml laboratorio.yml real.yml telegram.yml meme.yml real-pulso.yml hl-real.yml examen-largo.yml caza-lab.yml ia-lab.yml; do
+          for wf in telegram.yml meme.yml hl-real.yml examen-largo.yml caza-lab.yml ia-lab.yml; do
             st=$(gh api "$R/actions/workflows/$wf" -q .state 2>/dev/null || echo "?")
             if [ "$st" != "active" ] && [ "$st" != "?" ]; then gh api -X PUT "$R/actions/workflows/$wf/enable" && echo "Reactivado: $wf"; fi
           done
@@ -77,4 +61,4 @@ jobs:
           ENLACE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ] || exit 0
-          curl -s -m 20 -o /dev/null --data-urlencode "chat_id=$TELEGRAM_CHAT" --data-urlencode "text=🚨 Bot Trading: ha fallado «$QUE» ($(TZ=Europe/Madrid date +'%d/%m %H:%M')). Se volverá a intentar solo; si te llega varias veces seguidas, avísame. Detalle: $ENLACE" "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" || true
+          curl -s -m 20 -o /dev/null --data-urlencode "chat_id=$TELEGRAM_CHAT" --data-urlencode "text=🚨 CriptoBot: ha fallado «$QUE» ($(TZ=Europe/Madrid date +'%d/%m %H:%M')). Se volverá a intentar solo; si te llega varias veces seguidas, avísame. Detalle: $ENLACE" "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" || true

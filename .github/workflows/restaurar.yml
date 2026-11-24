@@ -38,7 +38,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for w in meme.yml cripto-lab.yml examen-largo.yml real.yml real-pulso.yml hl-real.yml laboratorio.yml caza-lab.yml ia-lab.yml; do for id in $(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?status=in_progress" -q '.workflow_runs[].id'); do gh api -X POST "repos/${{ github.repository }}/actions/runs/$id/cancel" || true; done; done
+          for w in meme.yml cripto-lab.yml examen-largo.yml hl-real.yml caza-lab.yml ia-lab.yml; do for id in $(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?status=in_progress" -q '.workflow_runs[].id'); do gh api -X POST "repos/${{ github.repository }}/actions/runs/$id/cancel" || true; done; done
           sleep 60
       - name: Restaurar
         env:
@@ -74,7 +74,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # lo que arrancó durante la restauración cargó los datos viejos: se cancela y se arranca limpio
-          for w in meme.yml cripto-lab.yml examen-largo.yml real.yml real-pulso.yml hl-real.yml laboratorio.yml caza-lab.yml ia-lab.yml; do for id in $(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?status=in_progress" -q '.workflow_runs[].id'); do gh api -X POST "repos/${{ github.repository }}/actions/runs/$id/cancel" || true; done; done
+          for w in meme.yml cripto-lab.yml examen-largo.yml hl-real.yml caza-lab.yml ia-lab.yml; do for id in $(gh api "repos/${{ github.repository }}/actions/workflows/$w/runs?status=in_progress" -q '.workflow_runs[].id'); do gh api -X POST "repos/${{ github.repository }}/actions/runs/$id/cancel" || true; done; done
           sleep 45
           # v1.0 · G6-C8 · al terminar solo se vuelve a encender lo de siempre: los bots de dinero real (Trading 212, Hyperliquid) y los laboratorios arrancan
           #   solos en su siguiente turno, nunca lanzados a la fuerza sobre datos recién restaurados

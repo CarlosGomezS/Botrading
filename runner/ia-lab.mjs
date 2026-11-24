@@ -217,7 +217,7 @@ async function nvModelos() { const P = globalThis.__PREV || {}; if (P.nvOk && P.
 const corta = (p) => { let x = p.split("\n").filter((l) => !/^(IDEAS RECIENTES DE INTERNET|TU MEMORIA LARGA|LO QUE HAS ENCONTRADO EN INTERNET)/.test(l)).map((l) => (l.length > 2500 ? l.slice(0, 2500) + "…" : l)).join("\n"); return x.length > 16000 ? x.slice(0, 16000) : x; };
 const conTope = (pr, ms) => Promise.race([pr, new Promise((_, no) => setTimeout(() => no(new Error("tardó demasiado")), ms))]);
 async function consejo(prompt, MS) {
-  const OR_H = { "HTTP-Referer": "https://github.com/" + REPO, "X-Title": "Bot Trading" }, tareas = [];
+  const OR_H = { "HTTP-Referer": "https://github.com/" + REPO, "X-Title": "CriptoBot" }, tareas = [];
   if (KEY && !globalThis.__GEMINI_KO) tareas.push(geminiSolo(prompt, MS).catch((e) => { if (/HTTP (401|402|403)/.test(String(e.message))) globalThis.__GEMINI_KO = 1; throw e; }));
   if (GROQ) { const ms = await vivos("https://api.groq.com/openai/v1/models", GROQ, PREF); tareas.push(compat("https://api.groq.com/openai/v1/chat/completions", GROQ, ms.length ? ms : ["openai/gpt-oss-120b"], corta(prompt))); }
   if (OR) { const ms = await vivos("https://openrouter.ai/api/v1/models", "", PREF, (id) => /:free$/.test(id)); tareas.push(compat("https://openrouter.ai/api/v1/chat/completions", OR, ms.length ? ms : ["openrouter/auto"], prompt, OR_H)); }
@@ -236,7 +236,7 @@ async function gemini(prompt, MS) { return await consejo(prompt, MS); }
 async function geminiViejo(prompt, MS) { let err = null;
   if (KEY && !globalThis.__GEMINI_KO) { try { return await geminiSolo(prompt, MS); } catch (e) { err = e; if (/HTTP (401|402|403)/.test(String(e.message))) { globalThis.__GEMINI_KO = 1; log("Gemini no deja usar esta clave: paso a los otros proveedores gratis"); } } }
   if (GROQ) try { return await compat("https://api.groq.com/openai/v1/chat/completions", GROQ, ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3-32b", "moonshotai/kimi-k2-instruct"], prompt); } catch (e) { err = e; }
-  if (OR) try { return await compat("https://openrouter.ai/api/v1/chat/completions", OR, ["deepseek/deepseek-chat-v3.1:free", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-120b:free"], prompt, { "HTTP-Referer": "https://github.com/" + REPO, "X-Title": "Bot Trading" }); } catch (e) { err = e; }
+  if (OR) try { return await compat("https://openrouter.ai/api/v1/chat/completions", OR, ["deepseek/deepseek-chat-v3.1:free", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-120b:free"], prompt, { "HTTP-Referer": "https://github.com/" + REPO, "X-Title": "CriptoBot" }); } catch (e) { err = e; }
   throw err || new Error("sin clave de IA (GEMINI_KEY, GROQ_KEY u OPENROUTER_KEY)"); }
 
 // ---------- v413 · 🐢 TORTUGAS (cripto diario, Bitvavo y OKX): la IA propone reglas nuevas con las piezas del motor ----------

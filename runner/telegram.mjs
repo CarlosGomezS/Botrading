@@ -1,4 +1,4 @@
-// Recoge lo que pulsas en Telegram (botones «Aprobar» / «Rechazar» de la cartera real) y lanza el flujo real.yml.
+// Recoge lo que pulsas en Telegram (/parar, /seguir y los botones de cripto). v1.0 · 🪙 CriptoBot: sin Trading 212.
 // Lo ejecuta telegram.yml cada ~5 minutos. No necesita instalar nada (solo fetch de Node).
 // Seguridad: solo se obedece a TU chat (TELEGRAM_CHAT). Los registros de GitHub son públicos: aquí no se escribe ningún dato.
 const env = (k) => (process.env[k] || "").trim();
@@ -54,13 +54,6 @@ export async function hlParar(o, F = fetch) { if (o.accion !== "parar") return t
   return false; }
 // v1.0 · G4-1.3 · la orden solo se da por hecha si se ha guardado en TODOS los sitios que toca (antes bastaba con uno: «PARADO» sin estarlo)
 export const todoGuardado = (accion, ok0, okBv, okHl) => (accion === "parar" || accion === "seguir" ? ok0 && okBv && okHl : ok0);
-async function dispatch(accion, plan) {
-  const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/real.yml/dispatches`, {
-    method: "POST", headers: { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" },
-    body: JSON.stringify({ ref: "main", inputs: { accion, plan } }),
-  });
-  return r.status === 204;
-}
 
 // v479 · 🔐 solo obedece a TU usuario: el botón tiene que venir de tu chat Y pulsarlo tu cuenta de Telegram (TELEGRAM_USER; en un chat privado
 //   tu número de chat ES tu usuario, así que no hace falta configurarlo). En un grupo sin TELEGRAM_USER no se obedece a nadie.
@@ -84,18 +77,18 @@ export function parseUpdates(ups, chat, user = "") {
       answers.push([q.id, { ap: "✅ Recibido: lo apruebo en unos minutos", re: "❌ Recibido: lo rechazo", mc: "✅ Recibido: cambio el método en unos minutos", mr: "❌ Recibido: sigues con tu método", lb: "🔓 Recibido: la libero en unos minutos" }[m[1]]]);
     } else if (u.message && u.message.chat) {
       const cid = String(u.message.chat.id), t = String(u.message.text || "").trim();
-      if (!chat) replies.push([cid, `Hola 👋 Tu número de chat es:\n\n${cid}\n\nCópialo en la web: 💶 Real → Ajustes de la cartera real → Claves → «Telegram: tu número de chat» (TELEGRAM_CHAT) y guarda. A partir de entonces te avisaré aquí de todo lo que haga la cartera real.`]);
+      if (!chat) replies.push([cid, `Hola 👋 Tu número de chat es:\n\n${cid}\n\nCópialo en la web: ⚙️ Ajustes → Claves → «Telegram: tu número de chat» (TELEGRAM_CHAT) y guarda. A partir de entonces te avisaré aquí de todo lo que haga CriptoBot.`]);
       else if (/^\/(id|chat|numero|número)\b/i.test(t)) replies.push([cid, `Tu número de chat es:\n\n${cid}\n\nCópialo en la web: ⚙️ Ajustes → «📤 Telegram en este dispositivo».`]);
       else if (cid === chat && /^\/(parar|stop|seguir|reanudar)\b/i.test(t) && !autorizado(u.message.from && u.message.from.id, chat, user)) replies.push([cid, "No autorizado."]);
       else if (cid === chat && /^\/(parar|stop)\b/i.test(t)) { memes = { accion: "parar" }; items.push({ id: u.update_id, memes, clave: "parar:" + u.update_id }); }
       else if (cid === chat && /^\/(seguir|reanudar)\b/i.test(t)) { memes = { accion: "seguir" }; items.push({ id: u.update_id, memes, clave: "seguir:" + u.update_id }); }
-      else if (cid === chat && /^\/(start|ayuda|help)/i.test(t)) replies.push([cid, "Estoy conectado ✔\n\nTe aviso aquí de todo lo que hace tu cartera real. Cuando proponga órdenes, verás los botones «✅ Aprobar» y «❌ Rechazar»: se procesan en 5-15 minutos y te contesto con el resultado."]);
+      else if (cid === chat && /^\/(start|ayuda|help)/i.test(t)) replies.push([cid, "Estoy conectado ✔\n\nTe aviso aquí de todo lo que hace CriptoBot con tu dinero real (Bitvavo, OKX e Hyperliquid). /parar lo para todo; /seguir lo reanuda."]);
     }
   }
   return { act, last, replies, answers, memes, items };
 }
 
-export async function procesa(ups, { api, say, dispatch, memesCtl, bvCtl, CHAT, USER }) {
+export async function procesa(ups, { api, say, memesCtl, bvCtl, CHAT, USER }) {
   // v479 · 📬 cada pulsación se procesa EN ORDEN y se marca como leída justo después (si el proceso se corta, las que faltan se procesan en la siguiente
   //   vuelta: no se pierde ninguna). Una pulsación repetida (mismo botón dos veces) se ejecuta una sola vez. Si GitHub falla al lanzar una, se para ahí
   //   y se reintenta en la siguiente vuelta (las acciones de la cartera real son idempotentes: repetir una ya hecha no hace nada).
@@ -111,12 +104,9 @@ export async function procesa(ups, { api, say, dispatch, memesCtl, bvCtl, CHAT, 
       if (!ok) { corte = it; await say(CHAT, "✖ No pude guardar la orden de Cripto en GitHub. Lo reintento en unos minutos."); break; }
       await say(CHAT, { aprobar: "💶 Hecho: Cripto empieza a copiar al terminal con tu cartera del bot en la próxima vuelta (1-2 min).", no: "Vale: Cripto sigue en ficticio. Te volveré a preguntar si sigue ganando.", parar: "🛑 Cripto real PARADO (Bitvavo, OKX e Hyperliquid): venden lo que tengan abierto y no compran más. Para volver: /seguir (Hyperliquid se reanuda desde la app)", seguir: "▶️ Bitvavo y OKX reanudados. Hyperliquid se reanuda desde la app (💧 Hyperliquid → Activo)." }[memes.accion]);
       console.log("Orden de Memes procesada"); }
-    if (it.act) { const act = it.act;
+    if (it.act) { const act = it.act;   // v1.0 · 🪙 CriptoBot: Trading 212 ya no está en la app; un botón antiguo de su cartera solo se contesta (nunca bloquea los demás)
       if (act.msg) await api("editMessageReplyMarkup", { chat_id: act.msg.chat, message_id: act.msg.id, reply_markup: { inline_keyboard: [] } }).catch(() => {});
-      const ok = await dispatch(act.accion, act.plan);
-      if (!ok) { corte = it; await say(CHAT, "✖ No pude lanzar la cartera real en GitHub. Hazlo desde la web (💶 Real).".replace(/\.?$/, ". Lo reintento en unos minutos.")); console.log("Botón de Telegram: no se pudo lanzar (se reintenta)"); break; }
-      await say(CHAT, ({ aprobar: "⏳ Aprobación recibida. En 1-3 minutos te digo qué se ha ejecutado (si la bolsa está cerrada, quedará aprobada para la próxima apertura).", "metodo-si": "⏳ Cambio de método recibido. En 1-3 minutos te lo confirmo." }[act.accion] || "⏳ Recibido. En 1-3 minutos te confirmo."));
-      console.log("Botón de Telegram procesado: " + act.accion + " (lanzado)"); }
+      await say(CHAT, "ℹ️ Ese botón era de Trading 212, que ya no está en CriptoBot: no hago nada."); console.log("Botón antiguo de Trading 212: ignorado"); }
     hechas.add(it.clave); await api("getUpdates", { offset: it.id + 1, timeout: 0 }).catch(() => {});   // marcada como hecha
   }
   if (!corte) await api("getUpdates", { offset: last + 1, timeout: 0 }).catch(() => {});   // el resto (mensajes sin orden) también como leídos
@@ -143,6 +133,6 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop()
     const cand = await tgCandado(); if (!cand.ok) { console.log("Otro proceso está leyendo Telegram ahora mismo: no hago nada."); return; }
     try { const ups = await api("getUpdates", { timeout: 0, allowed_updates: ["message", "callback_query"] });
       if (!ups.length) { console.log("Sin novedades en Telegram."); return; }
-      await procesa(ups, { api, say, dispatch, memesCtl, bvCtl, CHAT, USER }); } finally { if (cand.suelta) await cand.suelta(); }
+      await procesa(ups, { api, say, memesCtl, bvCtl, CHAT, USER }); } finally { if (cand.suelta) await cand.suelta(); }
   })().catch((e) => { console.log("Error con Telegram: " + String(e.message).slice(0, 120)); process.exit(1); });
 }

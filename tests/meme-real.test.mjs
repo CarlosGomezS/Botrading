@@ -61,21 +61,22 @@ test("v478 · Telegram: el botón «la he revisado: liberar» lanza la acción �
 
 // ---------- v479 · H-14 y H-15: Telegram ----------
 const cbx = (id, data, { chat = 7, from = 7 } = {}) => ({ update_id: id, callback_query: { id: "q" + id, data, from: { id: from }, message: { chat: { id: chat }, message_id: id } } });
+// v1.0 · 🪙 CriptoBot: sin Trading 212, las órdenes de Telegram que quedan son las de cripto (ma/mx, /parar, /seguir)
 const falso = (fallaEn = new Set()) => { const F = { lanzadas: [], offsets: [], msgs: [], n: 0 };
   F.deps = { CHAT: "7", USER: "", say: async (c, t) => { F.msgs.push(t); }, api: async (m, b) => { if (m === "getUpdates") F.offsets.push(b.offset); return true; },
-    dispatch: async (a, p) => { F.n++; if (fallaEn.has(F.n)) return false; F.lanzadas.push(a + ":" + p); return true; }, memesCtl: async () => true, bvCtl: async () => true };
+    memesCtl: async (o) => { F.n++; if (fallaEn.has(F.n)) return false; F.lanzadas.push(o.accion + ":" + o.id); return true; }, bvCtl: async () => true };
   return F; };
 
 test("v479 · H-14: varios botones pulsados seguidos se ejecutan TODOS y en orden; el mismo botón dos veces, una sola vez", async () => {
-  const F = falso(); await procesa([cbx(12, "lb:b"), cbx(11, "lb:a"), cbx(13, "lb:a"), cbx(14, "ap:p1")], F.deps);
-  assert.deepEqual(F.lanzadas, ["liberar:a", "liberar:b", "aprobar:p1"], "en el orden en que se pulsaron, sin repetir");
+  const F = falso(); await procesa([cbx(12, "mx:b"), cbx(11, "ma:a"), cbx(13, "ma:a"), cbx(14, "mx:c")], F.deps);
+  assert.deepEqual(F.lanzadas, ["aprobar:a", "no:b", "no:c"], "en el orden en que se pulsaron, sin repetir");
   assert.equal(Math.max(...F.offsets), 15, "todo marcado como leído");
 });
 
-test("v479 · H-14: si GitHub falla al lanzar una, se para ahí SIN marcarla como leída (se reintenta en la siguiente vuelta) y no se pierde ninguna", async () => {
-  const F = falso(new Set([2])), ups = [cbx(21, "lb:a"), cbx(22, "lb:b"), cbx(23, "lb:c")]; await procesa(ups, F.deps);
-  assert.deepEqual(F.lanzadas, ["liberar:a"]); assert.equal(Math.max(...F.offsets), 22, "solo la primera queda leída: la 22 y la 23 vuelven a llegar");
-  const F2 = falso(); await procesa(ups.filter((u) => u.update_id >= 22), F2.deps); assert.deepEqual(F2.lanzadas, ["liberar:b", "liberar:c"]);
+test("v479 · H-14: si GitHub falla al guardar una, se para ahí SIN marcarla como leída (se reintenta en la siguiente vuelta) y no se pierde ninguna", async () => {
+  const F = falso(new Set([2])), ups = [cbx(21, "ma:a"), cbx(22, "mx:b"), cbx(23, "mx:c")]; await procesa(ups, F.deps);
+  assert.deepEqual(F.lanzadas, ["aprobar:a"]); assert.equal(Math.max(...F.offsets), 22, "solo la primera queda leída: la 22 y la 23 vuelven a llegar");
+  const F2 = falso(); await procesa(ups.filter((u) => u.update_id >= 22), F2.deps); assert.deepEqual(F2.lanzadas, ["no:b", "no:c"]);
 });
 
 test("v479 · H-15: solo obedece a TU usuario: en un grupo, otro miembro no puede pulsar; con TELEGRAM_USER, solo esa persona", () => {

@@ -49,7 +49,7 @@ test("📋 la pestaña Terminal ya no existe: Informes con General, Real, Cripto
   assert.equal(script("terminal-app"), null); assert.doesNotMatch(html, /b\.innerHTML="<span>🖥️<\/span>Terminal"/);
   const s = script("informes-app"); assert.ok(s);
   assert.match(s, /b\.dataset\.t="informes";b\.innerHTML="<span>📋<\/span>Informes"/);
-  for (const k of ['"parte"', '"graf"', '"real"', '"cripto"', '"lab"', '"err"', '"dia"']) assert.ok(s.includes("[" + k), "apartado " + k);
+  for (const k of ['"parte"', '"graf"', '"cripto"', '"lab"', '"err"', '"dia"']) assert.ok(s.includes("[" + k), "apartado " + k);
   for (const k of ['k==="txt"', 'k==="json"', 'k==="csv"', 'k==="errtxt"', 'k==="diatxt"']) assert.ok(s.includes(k), "descarga " + k);
   assert.doesNotMatch(html, /go\(\\'terminal\\'\)/);
   assert.match(html, /window\.__terminal=\{T,recoge,pinta\}/, "el asistente IA sigue leyendo el estado");
