@@ -765,13 +765,7 @@ La app vive en GitHub (gratis). Para que desde el móvil se puedan guardar ajust
 1. Instala Telegram y busca <b>@BotFather</b>. Escríbele <code>/newbot</code>, ponle un nombre (p. ej. «Mi CriptoBot») y un usuario que acabe en «bot». Te da un <b>token</b> (algo como <code>123456:ABC…</code>).<br>
 2. Abre tu bot nuevo y pulsa <b>Iniciar</b> (si no, no puede escribirte).<br>
 3. Busca <b>@userinfobot</b>, pulsa Iniciar y te dice tu <b>número de chat</b> (Id).<br>
-4. Pega los dos en <b>⚙️ Ajustes → 💶 Real · Trading 212 → Claves</b>: <b>TELEGRAM_TOKEN</b> y <b>TELEGRAM_CHAT</b>. Guarda. Te llegará un mensaje de prueba en la siguiente revisión.</div></div></details>
-<details class="rd"><summary><span>4️⃣ Trading 212 (la cartera de ETF)</span></summary><div class="rb"><div class="m">
-1. En la app de Trading 212 acepta, si te lo pide, el aviso de riesgo. Ve a <b>☰ Menú → Ajustes → API (Beta) → Generar clave API</b>.<br>
-2. Nombre: «CriptoBot». Permisos: los de <b>cuenta, cartera, historial y órdenes</b> (lectura y ejecución de órdenes).<br>
-3. Restricción de IP: elige <b>sin restricción</b> (el bot funciona desde GitHub, cuya dirección IP cambia; si la restringes, no podrá entrar). Trading 212 no permite retirar dinero por API.<br>
-4. Te da <b>API Key</b> y <b>API Secret</b> (el secreto <b>solo se ve una vez</b>: cópialo ya). Pégalos en <b>⚙️ Ajustes → 💶 Real · Trading 212 → Claves</b>: <b>T212_KEY</b> y <b>T212_SECRET</b>. Ahí mismo, en <b>«Contraseña para ver tu cartera real»</b>, pon <b>la misma clave con la que entras en la app</b> (paso 1️⃣). Guarda y pulsa «Probar conexión».<br>
-5. En <b>⚙️ Ajustes → 💶 Real · Trading 212</b>: <b>Entorno: Demo</b> para practicar (con una clave de la cuenta demo) o <b>Real</b>; «Dinero que trabaja el bot» = cuánto quieres que use; empieza con <b>«Invertir sin mi aprobación» desmarcado</b> (te pedirá permiso por Telegram antes de cada orden). Activa la cartera y acepta el aviso.</div></div></details>
+4. Pega los dos en <b>⚙️ Ajustes → 🔑 Cuenta, claves y copias → Abrir el asistente de claves</b>: <b>TELEGRAM_TOKEN</b> y <b>TELEGRAM_CHAT</b>. Guarda. Te llegará un mensaje de prueba en la siguiente revisión.</div></div></details>
 <details class="rd"><summary><span>5️⃣ Bitvavo (cripto, opcional)</span></summary><div class="rb"><div class="m">
 1. Desde la <b>web</b> de Bitvavo (no la app): tu nombre arriba a la derecha → <b>Ajustes → API → Añadir nueva clave API</b>. Necesitas tener activada la verificación en dos pasos (2FA).<br>
 2. Nombre: «CriptoBot». Permisos: <b>ver</b> y <b>operar</b>. <b>NUNCA marques «retirar»</b> (los retiros por API no piden 2FA).<br>
@@ -793,7 +787,7 @@ La app vive en GitHub (gratis). Para que desde el móvil se puedan guardar ajust
 • Si algo sale en ❌, pregunta al asistente de abajo copiando el mensaje (sin claves).</div></div></details>
 </div>
 <div class="p" id="guia-ia"><h2>🤖 Asistente de la app</h2><div class="m">Pregúntale cualquier duda: cómo sacar una clave, qué significa algo de la app, por qué ha hecho una compra o qué se podría mejorar. Lo tienes siempre en el botón ✦ de abajo a la derecha.</div><button type="button" data-nobusy onclick="window.iaAbre&&iaAbre()" style="margin-top:8px">🤖 Abrir el asistente</button></div>
-<div class="p"><h2>📱 La app, en 5 pestañas</h2><div class="m">• <b>💶 Real</b>: tu cuenta de Trading 212 (saldo, ingresado, invertido, efectivo, ganancia y la gráfica; desliza el dedo sobre ella para ver cada día). • <b>🤖 Laboratorio</b>: el podio de métodos ganadores. • <b>🪙 Cripto</b>: Bitvavo y OKX con dinero real. • <b>🖥️ Terminal</b>: todo lo que hace la app por detrás, línea a línea y con su hora: cada línea que escribe cada proceso (bot de cripto, examen de las Tortugas, revisión y valor en directo de la cartera real, rondas del laboratorio), una copia de cada Telegram que te llega, los cambios de método y cada proceso de GitHub; todo se guarda cifrado con tu clave; incluye 🩺 comprobaciones de que todo funciona (bot de cripto, conexiones, cartera real, laboratorio, precios y procesos) y el filtro «⚠️ Errores» para ver solo lo que ha fallado; se busca, se exporta entero o por día y «Limpiar» despeja la pantalla sin borrar nada. • <b>⚙️ Ajustes</b>: apariencia (claro, oscuro o como el móvil), copias y lo técnico. En cada pantalla, lo que no es del día a día está en <b>«⋯ Más»</b>. Los datos se actualizan solos: precios de cripto cada 2 segundos y el resto en cuanto el bot publica algo nuevo (la app se recarga sola si llevas 10 segundos sin tocarla). Todos los avisos llegan por <b>Telegram</b>.</div></div>
+<div class="p"><h2>📱 La app, en 4 pestañas</h2><div class="m">• <b>💶 Real</b>: tus cuentas de cripto con dinero real (Bitvavo y OKX con las 🐢 Tortugas; 💧 Hyperliquid con el n.º 1 de su laboratorio). • <b>🤖 Laboratorio</b>: los laboratorios de cripto (Tortugas, Hyperliquid y el consejo de IAs). • <b>📋 Informes</b>: el parte del día, gráficas, errores y el historial por día, con descargas. • <b>⚙️ Ajustes</b>: apariencia, cripto, claves y copias. Todos los avisos llegan por <b>Telegram</b> (/parar lo para todo).</div></div>
 
 <div class="p hlp"><h2>Cómo funciona, en 1 minuto</h2>
 <div class="steps">
@@ -2422,14 +2416,14 @@ function labCriptoHtml(){try{labCriptoCarga();const C=window.__LABC,el=C.el,cl=C
    h+=`<div style="margin-top:6px">Última vez: ${fi(I.t)}${mods?`<br><small class="m">IA que respondieron: ${esc(mods)}</small>`:""}${(I.web||[]).length?`<br><small class="m">🌐 Ideas leídas de internet en esa ronda: ${I.webN||I.web.length}</small>`:""}</div>
    <div>💧 Hyperliquid: ${rc.length} recetas propuestas${cv?` · ${cv.probadas} combinaciones probadas en la última ronda · ${cv.casi} entre las «casi» · ${cv.aprobadas} aprobadas`:""}</div>
    <div>🐢 Tortugas (Bitvavo y OKX): ${tr.length} reglas propuestas</div>
-   ${["etf","mix","acc"].map(c=>`<div>${CN[c]}: ${gc[c].length} ideas propuestas</div>`).join("")}<div class="m">El laboratorio de ETF, Mixtos y Acciones mete hasta 15 ideas de la IA en cada ronda.</div>`;
-   const L=[["💧 Hyperliquid",I.cripto&&I.cripto.lecciones],["🐢 Tortugas",I.tort&&I.tort.lecciones],["📊🔀🏢 ETF, Mixtos y Acciones",I.etf&&I.etf.lecciones]].filter(x=>x[1]&&x[1].length);
+   `;   /* v1.0 · 🪙 CriptoBot: sin ideas de ETF, Mixtos y Acciones */
+   const L=[["💧 Hyperliquid",I.cripto&&I.cripto.lecciones],["🐢 Tortugas",I.tort&&I.tort.lecciones]].filter(x=>x[1]&&x[1].length);
    if(L.length)h+=`<details class="rd" data-id="labialec"${opn("labialec",false)} style="margin-top:6px"><summary><span>📓 Su cuaderno de lecciones (lo que ha aprendido)</span></summary><div class="rb">${L.map(([n,l],i)=>`<div${i?' style="margin-top:6px"':""}><b>${n}</b></div>`+l.map(x=>`<div class="m">• ${esc(x)}</div>`).join("")).join("")}</div></details>`;
    const fila=(t,idea,tipo)=>`<div class="m">• ${t}${tipo&&TIPO[tipo]?` <small>(${TIPO[tipo]})</small>`:""}${idea?" — "+esc(idea):""}</div>`;
    h+=`<details class="rd" data-id="labiaideas"${opn("labiaideas",false)} style="margin-top:6px"><summary><span>💡 Sus últimas ideas, por módulo</span></summary><div class="rb">
     ${rc.length?`<div><b>💧 Hyperliquid</b></div>`+rc.slice(0,6).map(r=>fila("«"+esc(r.nombre)+"»",r.idea,r.tipo)).join(""):""}
     ${tr.length?`<div style="margin-top:6px"><b>🐢 Tortugas</b></div>`+tr.slice(0,6).map(r=>fila(esc(r.ex||"")+" · riesgo "+esc(r.riesgo||""),r.idea,r.tipo)).join(""):""}
-    ${["etf","mix","acc"].map(c=>gc[c].length?`<div style="margin-top:6px"><b>${CN[c]}</b></div>`+gc[c].slice(0,6).map(x=>fila("grupo «"+esc(x.g.u)+"»",x.idea,x.tipo)).join(""):`<div style="margin-top:6px"><b>${CN[c]}</b></div><div class="m">• Todavía ninguna: llegarán en su próxima ronda.</div>`).join("")}</div></details>`}
+    </div></details>`}
   h+=`</div></details>`}catch(e){globalThis.__errC&&__errC(e)}
  h+=`<h3 class="labsec" style="margin-top:18px">🪙 Cripto · los mejores de cada exchange</h3>`;
  let pod=el&&el.podio;if(!(el&&Array.isArray(el.podio))&&el&&el.tortugas){const L=[];for(const [ex,t] of Object.entries(el.tortugas))for(const [rk,r] of Object.entries((t&&t.perfiles)||{}))if(r&&r.ok)L.push({ex,rk,ret:r.ret,dd:r.dd,n:r.n,pf:r.pf,aciertos:r.aciertos,semestres:r.semestres,P:r.P});pod=L.sort((a,b)=>Math.round(b.ret*10)-Math.round(a.ret*10)||a.dd-b.dd).slice(0,3)}
@@ -4280,13 +4274,9 @@ async function saveCfg(patch,secs,dels,why){const c=needTok();if(!c||RL.busy)ret
   for(const [k,v] of secs){say("Guardando la clave "+k+"…");try{await c.secret(r,k,v);if(k!=="REAL_VIEW_PASS_OLD")okS.push(k);if(c.sec)c.sec[k]=true}catch(e){koS.push(k+" ("+(e.message||e)+")");if(/^REAL_VIEW_PASS/.test(k)){say("✖ No se pudo guardar la contraseña de la cartera ("+(e.message||e)+"): no se guarda nada más.");return false}}}
   if(nw){try{sessionStorage.setItem("rlpw",nw)}catch(e){globalThis.__errC&&__errC(e)}if(remHas())await remSave(nw)}
   for(const k of dels){try{await c.secretDel(r,k);okS.push(k+" (quitada)");if(c.sec)c.sec[k]=false}catch(e){koS.push(k+" ("+(e.message||e)+")")}}
-  say("Cifrando y guardando los ajustes de la cartera real…");const since=Date.now();
-  const x=await c.dispatch(r,"real-ajustes.yml",{json:JSON.stringify(await encrypt(JSON.stringify(cfg),pw))});
-  if(x.status!==204){say(rej(x,"real-ajustes.yml"));return false}
-  say("Esperando a que GitHub guarde los ajustes (1-2 minutos)…");
-  const res=await c.waitRun(r,"real-ajustes.yml",since,300);
-  if(res==="success"){RL.cfg=cfg;RL.saved={t:Date.now(),cfg};await loadCfg(true);ok=true;RL.dirty=false;RL.pick=null;RL.extraPick=null;document.querySelectorAll("#t-real [data-rk]").forEach(e=>e.value="")}
-  try{if(c.secList)await c.secList(true)}catch(e){globalThis.__errC&&__errC(e)}say((res==="success"?"✔ "+(why||"Ajustes guardados")+". Se usan desde la próxima revisión.":res===null?"Enviado; GitHub aún no confirma. Mira en unos minutos.":"✖ GitHub rechazó los ajustes (resultado: "+res+"). Mira Actions → «Ajustes de la cartera real».")+(okS.length?" · ✔ Claves: "+okS.join(", "):"")+(koS.length?" · ✖ No guardadas: "+koS.join("; "):""));
+  /* v1.0 · 🪙 CriptoBot: ya no hay ajustes de Trading 212 que guardar (su flujo no existe): solo las claves */
+  const res=koS.length?"failure":"success";ok=!koS.length;RL.dirty=false;
+  try{if(c.secList)await c.secList(true)}catch(e){globalThis.__errC&&__errC(e)}say((res==="success"?"✔ "+(why||"Claves guardadas"):"✖ Alguna clave no se pudo guardar")+(okS.length?" · ✔ Claves: "+okS.join(", "):"")+(koS.length?" · ✖ No guardadas: "+koS.join("; "):""));
  }catch(e){say("No se pudo guardar: "+(e.message||e))}finally{RL.busy=false;draw()}return ok}
 
 /* ---------- utilidades de presentación ---------- */
@@ -4964,7 +4954,7 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
   const avb=$("#simpl-av .fb"); if(avb)[...avb.children].forEach(c=>{if(/Parámetros del bot|Dinero con el que se muestra|Costes de la simulación|Costes que usa el laboratorio/.test((c.textContent||"").slice(0,90)))la.appendChild(c)});
   const cr=mk("aj-cripto","🪙 Cripto · Bitvavo, OKX e Hyperliquid"); if(!$("#aj-cripto-body")){const x=document.createElement("div");x.id="aj-cripto-body";cr.appendChild(x)}
   const cu=mk("aj-cuenta","🔑 Cuenta, claves y copias");
-  if(!$("#aj-onb")){const x=document.createElement("div");x.id="aj-onb";x.className="p";x.innerHTML='<h2>🔑 Claves y puesta en marcha</h2><div class="m">Pon o cambia las claves de Trading 212, Telegram, Bitvavo y OKX paso a paso. Se guardan cifradas en GitHub sin que tengas que entrar allí.</div><button type="button" data-onb="" style="margin-top:8px">🔑 Abrir el asistente de claves</button> <button type="button" data-pasa data-nobusy style="margin-top:8px">📲 Pasar la app a otro móvil</button><div class="m" style="margin-top:4px">«Pasar a otro móvil» crea un enlace: se abre en el otro móvil, se entra con la misma clave y ya funciona todo sin volver a configurar.</div>';cu.appendChild(x)}
+  if(!$("#aj-onb")){const x=document.createElement("div");x.id="aj-onb";x.className="p";x.innerHTML='<h2>🔑 Claves y puesta en marcha</h2><div class="m">Pon o cambia las claves de Bitvavo, OKX y Telegram paso a paso. Se guardan cifradas en GitHub sin que tengas que entrar allí.</div><button type="button" data-onb="" style="margin-top:8px">🔑 Abrir el asistente de claves</button> <button type="button" data-pasa data-nobusy style="margin-top:8px">📲 Pasar la app a otro móvil</button><div class="m" style="margin-top:4px">«Pasar a otro móvil» crea un enlace: se abre en el otro móvil, se entra con la misma clave y ya funciona todo sin volver a configurar.</div>';cu.appendChild(x)}
   if(!$("#aj-salir")){const x=document.createElement("div");x.id="aj-salir";x.className="p";x.innerHTML='<h2>🔒 Sesión</h2><div class="m">Cierra la sesión en este móvil: la próxima vez te pedirá la clave (y la huella). También se cierra sola tras 30 minutos sin usar la app.</div><button type="button" data-salir data-nobusy style="margin-top:8px">🔒 Cerrar sesión</button>';cu.appendChild(x)}
   [...aj.children].forEach(c=>{if(["simpl-tema","aj-real","aj-lab","aj-cripto","aj-cuenta","simpl-ay"].includes(c.id))return;cu.appendChild(c)});
   /* v351 · en «Cuenta» solo queda a la vista lo que usas (ajustes protegidos con tu clave y Telegram); lo técnico de cuando la app lo hacía todo en el móvil va a «🧰 Técnico» */
@@ -5592,13 +5582,13 @@ ${estado(conReal)}
  #onb .pri{background:#16a34a!important;border-color:#16a34a!important;color:#fff!important;font-weight:700;flex:1}#onb .m{font-size:13px;color:#9fb0c3}#onb .ok{color:#4ade80}#onb .er{color:#f87171;min-height:1.2em;margin-top:8px}
  #onb .bx{background:#0b1424;border:1px solid #2b3a55;border-radius:10px;padding:10px;margin:10px 0}#onb .ch{display:flex;gap:8px;align-items:flex-start;font-weight:400}#onb .ch input{margin-top:4px}`;
  let D={},paso=0,PASOS=[],cerrar=null;
- function arma(desde){if(desde==="solo"){PASOS=["token","hecho"];paso=0;D.solo=1;return}const c=C(),pre=[];if(pw0().length<12)pre.push("clave");if(!c||!c.hasEnc())pre.push("token");const todo=["t212","tg","cripto","fin"],i=desde?todo.indexOf(desde):-1;
+ function arma(desde){if(desde==="solo"){PASOS=["token","hecho"];paso=0;D.solo=1;return}const c=C(),pre=[];if(pw0().length<12)pre.push("clave");if(!c||!c.hasEnc())pre.push("token");const todo=["tg","cripto","fin"],i=desde?todo.indexOf(desde):-1;
   PASOS=(i>=0?[]:["hola"]).concat(pre,i>=0?todo.slice(i):todo);paso=0}
  const V=id=>{const e=document.getElementById(id);return e?(e.value||"").trim():""};
  const campo=(id,lab,ph,ok,tipo)=>`<label for="${id}">${lab}${ok?' <span class="ok m">✔ ya puesta</span>':""}</label><input id="${id}" type="${tipo||"password"}" autocomplete="off" placeholder="${esc(ok?"ya está puesta · escribe solo para cambiarla":ph||"")}" value="${esc(D[id]||"")}">`;
  function pinta(){const ri=RI(),s=secs(),p=PASOS[paso],n=PASOS.length;let h=`<div class="pp">${PASOS.map((x,i)=>`<i class="${i<=paso?"on":""}"></i>`).join("")}</div>`,bt="";
   if(p==="hola"){h+=`<h2>👋 Vamos a ponerla en marcha</h2><p>En unos minutos dejamos la app lista para operar. Te iré pidiendo las claves una a una y yo las guardo, <b>cifradas</b>, en tu GitHub (no hace falta que entres allí).</p>
-   <div class="bx"><b>Necesitas:</b><ol><li><b>Trading 212</b>: clave API y secreto <span class="m">(obligatorio)</span></li><li>Telegram para los avisos <span class="m">(recomendado)</span></li><li>Bitvavo, OKX y/o Hyperliquid para las criptos <span class="m">(opcional, puedes hacerlo más tarde)</span></li></ol></div>
+   <div class="bx"><b>Necesitas:</b><ol><li>Bitvavo, OKX y/o Hyperliquid: sus claves <span class="m">(solo leer y operar, nunca retirar)</span></li><li>Telegram para los avisos <span class="m">(recomendado)</span></li></ol></div>
    <p class="m">¿Dudas? Toca la estrella ✨ de la app y pregúntale a la IA, o mira 📖 Ayuda → «Cómo ponerla en marcha».</p>`;bt=`<button data-nobusy data-x="luego">Ahora no</button><button data-nobusy class="pri" data-x="sig">Empezar</button>`}
   else if(p==="clave"){h+=`<h2>🔐 Tu clave de la app</h2><p>Con esta clave entras en la app y se cifran todos tus datos. Tiene que tener <b>12 caracteres o más</b> (mejor una frase que recuerdes, p. ej. <i>“mi perro come a las 8”</i>).</p>
    ${campo("ob_p1","Clave nueva","12 caracteres o más")}${campo("ob_p2","Repítela","otra vez la misma")}<p class="m">Apúntala en un sitio seguro: si se olvida, no hay forma de recuperar los datos cifrados.</p>`;bt=`<button data-nobusy data-x="ant">Atrás</button><button data-nobusy class="pri" data-x="sig">Seguir</button>`}
@@ -5619,14 +5609,7 @@ ${estado(conReal)}
    <div class="bx"><b>⚠️ Al crear la clave API marca solo «Leer» y «Operar». NUNCA «Retirar».</b> Deja vacía la lista de IP.</div>
    <div class="bx"><b>💶 Bitvavo</b> <span class="m">(web → Ajustes → Clave API)</span>${campo("ob_bk","Clave API","",s.BITVAVO_KEY===true)}${campo("ob_bs","Secreto","",s.BITVAVO_SECRET===true)}</div>
    <div class="bx"><b>🟦 OKX</b> <span class="m">(Perfil → API → Crear clave; la frase de paso la eliges tú)</span>${campo("ob_ok","Clave API","",s.OKX_KEY===true)}${campo("ob_os","Secreto","",s.OKX_SECRET===true)}${campo("ob_op","Frase de paso (passphrase)","",s.OKX_PASSPHRASE===true)}</div>`;bt=`<button data-nobusy data-x="ant">Atrás</button><button data-nobusy data-x="salta">Saltar</button><button data-nobusy class="pri" data-x="sig">Seguir</button>`}
-  else if(p==="fin"){const t212=!!(D.ob_tk||s.T212_KEY===true),ya=(()=>{try{return!!__realOnb.cfg().on}catch(e){return false}})();h+=`<h2>🚀 Último paso</h2><p>Voy a guardar las claves en GitHub y a probar la conexión con Trading 212.</p>
-   ${ya?'<p class="ok">✔ La cartera real ya está activada: no se cambia nada de ella.</p>':`<label class="ch"><input type="checkbox" id="ob_on" ${D.ob_on===false?"":"checked"}> <span>Que el bot <b>empiece a operar con dinero real</b> en Trading 212</span></label>
-   <div id="ob_onx"><label for="ob_lim">¿Cuánto dinero puede usar el bot? (€)</label><input id="ob_lim" type="number" min="5" step="1" inputmode="numeric" value="${esc(D.ob_lim||"")}" placeholder="p. ej. 500">
-   <p class="m">Solo usa ese dinero (y lo que gane). Si en Trading 212 tienes más, no lo toca. Ten ese dinero ya ingresado allí.</p>
-   <label class="ch"><input type="radio" name="ob_md" value="confirmar" ${D.ob_md!=="auto"?"checked":""}> <span><b>Con mi confirmación</b> <span class="m">(recomendado al principio): antes de comprar o vender te pregunta (Telegram o la app).</span></span></label>
-   <label class="ch"><input type="radio" name="ob_md" value="auto" ${D.ob_md==="auto"?"checked":""}> <span><b>Automático</b>: opera solo, sin preguntar.</span></label>
-   <label class="ch"><input type="checkbox" id="ob_ac" ${D.ob_ac?"checked":""}> <span>Entiendo que es <b>dinero real</b>, que puede bajar y que el bot no garantiza ganancias.</span></label></div>`}
-   ${t212?"":'<p class="er">Falta la clave de Trading 212 (paso anterior).</p>'}<div class="er" id="ob_st"></div>`;bt=`<button data-nobusy data-x="ant">Atrás</button><button data-nobusy class="pri" data-x="guarda" ${t212?"":"disabled"}>Guardar todo y empezar</button>`}
+  else if(p==="fin"){h+=`<h2>🚀 Último paso</h2><p>Voy a guardar las claves en GitHub (cifradas). CriptoBot empezará con ellas en su próxima vuelta.</p><div class="er" id="ob_st"></div>`;bt=`<button data-nobusy data-x="ant">Atrás</button><button data-nobusy class="pri" data-x="guarda">Guardar todo y empezar</button>`}
   else if(p==="listo"){h+=`<h2>✅ ¡Lista!</h2><p>${esc(D.res||"Claves guardadas.")}</p><p>En unos minutos verás tu cuenta en <b>💶 Real</b>${D.tg?" y te llegará un mensaje de prueba por Telegram":""}. A partir de ahora solo tendrás que poner tu clave para entrar.</p>
    <div class="bx"><b>📲 ¿Lo has configurado tú para otra persona?</b><p class="m">Envíale este enlace. Lo abre en su móvil, entra con la clave de la app y ya tiene todo (el permiso va cifrado con esa clave).</p><button data-nobusy data-pasa type="button">📲 Enviar el enlace a su móvil</button></div><p class="m">Para cambiar o añadir claves más adelante (por ejemplo las de criptos): ⚙️ Ajustes → «🔑 Claves y puesta en marcha».</p>`;bt=`<button data-nobusy class="pri" data-x="cierra">Entrar en la app</button>`}
   if(p!=="fin"&&p!=="listo")h+=`<div class="er" id="ob_st"></div>`;
@@ -5641,7 +5624,7 @@ ${estado(conReal)}
    st("Comprobando el permiso…");try{const H={Authorization:"Bearer "+t,Accept:"application/vnd.github+json"},b="https://api.github.com/repos/"+ri.o+"/"+ri.r+"/";
     const r=await fetch(b+"actions/secrets/public-key",{headers:H,cache:"no-store"});if(r.status===401)return st("GitHub no acepta ese token (¿copiado entero? ¿caducado?).");if(r.status===403||r.status===404)return st("El token no tiene acceso a "+ri.r+" o le falta «Secrets: Read and write». Repasa los pasos 2 y 3.");if(!r.ok)return st("GitHub respondió HTTP "+r.status+". Prueba otra vez.");
     await c.setTok(t,pw0());D.ob_tok=""}catch(e){return st("No se pudo comprobar: "+(e.message||e))}}
-  if(p==="t212"&&!(D.ob_tk||secs().T212_KEY===true))return st("La clave de Trading 212 es obligatoria.");
+  
   if(p==="t212"&&!!D.ob_tk!==!!D.ob_ts&&secs().T212_SECRET!==true)return st("Pon la clave Y el secreto.");
   if(p==="tg"&&!!D.ob_gt!==!!D.ob_gc&&!(secs().TELEGRAM_TOKEN&&secs().TELEGRAM_CHAT))return st("Pon el token y el número de chat (o pulsa Saltar).");
   if(p==="tg"&&D.ob_gc&&!/^-?\d{4,}$/.test(D.ob_gc))return st("El número de chat son solo cifras (p. ej. 123456789).");
@@ -5649,15 +5632,14 @@ ${estado(conReal)}
  async function guarda(){guardaCampos();const c=C(),ri=RI(),R=window.__realOnb;if(!c||!ri)return st("Abre la app desde su dirección de GitHub Pages.");
   if(!c.tok()){try{await c.unlock(pw0())}catch(e){globalThis.__errC&&__errC(e)}if(!c.tok())return st("Falta el permiso de GitHub (token). Vuelve atrás.")}
   if(!R)return st("La app aún está cargando. Espera unos segundos y vuelve a pulsar.");
-  let ya=false;try{ya=!!R.cfg().on}catch(e){globalThis.__errC&&__errC(e)}const real=!ya&&D.ob_on!==false,lim=+D.ob_lim;if(real){if(!(lim>=5))return st("Pon cuánto dinero puede usar el bot (5 € o más).");if(!D.ob_ac)return st("Marca la casilla de «Entiendo que es dinero real».")}
-  const S=[["REAL_VIEW_PASS",pw0()]],M={ob_tk:"T212_KEY",ob_ts:"T212_SECRET",ob_gt:"TELEGRAM_TOKEN",ob_gc:"TELEGRAM_CHAT",ob_bk:"BITVAVO_KEY",ob_bs:"BITVAVO_SECRET",ob_ok:"OKX_KEY",ob_os:"OKX_SECRET",ob_op:"OKX_PASSPHRASE"};
+  const real=false,lim=0;   /* v1.0 · 🪙 CriptoBot: sin cartera de Trading 212 que activar */
+  const S=[["REAL_VIEW_PASS",pw0()]],M={ob_gt:"TELEGRAM_TOKEN",ob_gc:"TELEGRAM_CHAT",ob_bk:"BITVAVO_KEY",ob_bs:"BITVAVO_SECRET",ob_ok:"OKX_KEY",ob_os:"OKX_SECRET",ob_op:"OKX_PASSPHRASE"};
   for(const k in M)if(D[k])S.push([M[k],D[k]]);if(secs().REAL_VIEW_PASS===true)S.shift();
   const patch=real?{on:1,env:"live",aceptoReal:1,limite:Math.round(lim),modo:D.ob_md==="auto"?"auto":"confirmar"}:{};
   const b=$('#onb [data-x="guarda"]');if(b)b.disabled=true;const iv=setInterval(()=>{try{const t=document.querySelector("#rl-st");if(t&&t.textContent)st(t.textContent)}catch(e){globalThis.__errC&&__errC(e)}},700);
   st("Guardando las claves en GitHub…");let ok=false;try{ok=await R.save(patch,S,[],"Claves guardadas")}catch(e){st("No se pudo: "+(e.message||e))}clearInterval(iv);
   if(!ok){if(b)b.disabled=false;const t=document.querySelector("#rl-st");st((t&&t.textContent)||"No se pudo guardar. Prueba otra vez.");return}
   for(const k in M)D[k]="";D.tg=!!(secs().TELEGRAM_TOKEN);
-  try{st("Probando la conexión con Trading 212…");await c.dispatch(ri,"real.yml",{accion:"probar"})}catch(e){globalThis.__errC&&__errC(e)}
   LS.s("onbOK","1");D.res="✔ Claves guardadas en GitHub"+(real?" y cartera real activada ("+Math.round(lim)+" €, "+(patch.modo==="auto"?"automático":"con tu confirmación")+").":".");PASOS.push("listo");paso=PASOS.length-1;pinta()}
  function abre(desde){if($("#onb"))return;if(!$("#onb-css")){const s=document.createElement("style");s.id="onb-css";s.textContent=css;document.head.appendChild(s)}
   D={};arma(desde);const d=document.createElement("div");d.id="onb";d.innerHTML='<div class="ob"></div>';document.body.appendChild(d);pinta();
@@ -5723,12 +5705,19 @@ ${estado(conReal)}
    (sus procesos se han borrado). La pestaña de cripto pasa a llamarse «💶 Real» y es la que se abre al entrar. */
 (function(){try{
  const nav=document.getElementById("nav");
- const quita=()=>{if(!nav)return;for(const b of [...nav.querySelectorAll("button")]){const t=b.dataset.t;if(t==="hoy"||t==="informe"||t==="real"||b.id==="rl-nav")b.remove()}
-  const m=nav.querySelector('button[data-t="memes"]');if(m&&!m.dataset.cb){m.dataset.cb=1;m.innerHTML="<span>💶</span>Real"}};
+ const quita=()=>{if(!nav)return;for(const b of [...nav.querySelectorAll("button")]){const t=b.dataset.t;if(t==="hoy"||t==="real"||b.id==="rl-nav")b.remove()}
+  const m=nav.querySelector('button[data-t="memes"]');if(m&&!m.dataset.cb){m.dataset.cb=1;m.innerHTML="<span>💶</span>Real";nav.insertBefore(m,nav.firstChild)}};
+ /* 🤖 Laboratorio: SOLO los de cripto (Tortugas de Bitvavo/OKX, Hyperliquid y el consejo de IAs); lo de ETF queda oculto */
+ const lab=document.getElementById("t-informe");
+ if(lab){for(const c of [...lab.children])c.hidden=true;const d=document.createElement("div");d.id="cb-lab";d.className="p";lab.appendChild(d);
+  const pinta=()=>{try{for(const c of [...lab.children])if(c!==d)c.hidden=true;if(!lab.classList.contains("on"))return;const h=typeof labCriptoHtml==="function"?labCriptoHtml():"";d.innerHTML='<h2>🤖 Laboratorio de cripto</h2><div class="m" style="margin:4px 0 10px">Prueba métodos de cripto con dinero ficticio: las 🐢 Tortugas para Bitvavo y OKX, y los de muchas operaciones para 💧 Hyperliquid. Tu dinero real sigue a los mejores.</div>'+(h||(typeof skel==="function"?skel(3):""))}catch(e){globalThis.__errC&&__errC(e)}};
+  new MutationObserver(pinta).observe(lab,{attributes:true,attributeFilter:["class"]});setInterval(pinta,20000);pinta()}
  quita();setTimeout(quita,0);setTimeout(quita,1500);
- const go1=window.go;if(typeof go1==="function"){window.go=go=function(t){if(t==="hoy"||t==="informe"||t==="real"||!document.getElementById("t-"+t))t="memes";return go1(t)}}
- try{const l=localStorage.getItem("pbtab");if(!l||["hoy","informe","real"].includes(l))localStorage.setItem("pbtab","memes")}catch(e){globalThis.__errC&&__errC(e)}
- setTimeout(()=>{try{const on=document.querySelector(".tab.on");if(!on||/^t-(hoy|informe|real)$/.test(on.id))go("memes")}catch(e){globalThis.__errC&&__errC(e)}},50);
+ const go1=window.go;if(typeof go1==="function"){window.go=go=function(t){if(t==="hoy"||t==="real"||!document.getElementById("t-"+t))t="memes";return go1(t)}}
+ try{const l=localStorage.getItem("pbtab");if(!l||["hoy","real"].includes(l))localStorage.setItem("pbtab","memes")}catch(e){globalThis.__errC&&__errC(e)}
+ setTimeout(()=>{try{const on=document.querySelector(".tab.on");if(!on||/^t-(hoy|real)$/.test(on.id))go("memes")}catch(e){globalThis.__errC&&__errC(e)}},50);
+ /* ⚙️ Ajustes: fuera «💶 Real · Trading 212» y «🤖 Laboratorio» (eran de ETF); se queda «🪙 Cripto» */
+ const ocultaAj=()=>{for(const id of ["aj-real","aj-lab"]){const x=document.getElementById(id);if(x)x.hidden=true}};ocultaAj();[1000,3000,6000,10000,16000].forEach(t=>setTimeout(ocultaAj,t));
  document.title="CriptoBot";
 }catch(e){globalThis.__errC&&__errC(e)}})();
 </script>

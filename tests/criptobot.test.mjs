@@ -14,10 +14,13 @@ test("🪙 no queda ningún proceso de Trading 212 ni del laboratorio de ETF", (
   assert.doesNotMatch(readFileSync(new URL("../runner/vigia.sh", import.meta.url), "utf8"), /[^-]real\.yml|real-pulso|laboratorio\.yml|diario\.yml/);
 });
 
-test("🪙 la app se llama CriptoBot y la pestaña de cripto es «💶 Real» (se abre al entrar); sin Ficticia, Laboratorio ni Trading 212", () => {
+test("🪙 la app se llama CriptoBot; la pestaña de cripto es «💶 Real» (se abre al entrar); el Laboratorio es SOLO de cripto; sin Ficticia ni Trading 212", () => {
   assert.match(html, /<title>CriptoBot<\/title>/); assert.doesNotMatch(html, /Bot Trading/);
   const s = html.match(/<script id="criptobot">([\s\S]*?)<\/script>/)[1];
-  assert.match(s, /t==="hoy"\|\|t==="informe"\|\|t==="real"\|\|b\.id==="rl-nav"/); assert.match(s, /m\.innerHTML="<span>💶<\/span>Real"/); assert.match(s, /go\("memes"\)/);
+  assert.match(s, /if\(t==="hoy"\|\|t==="real"\|\|b\.id==="rl-nav"\)b\.remove\(\)/); assert.match(s, /labCriptoHtml\(\)/); assert.match(s, /for\(const c of \[\.\.\.lab\.children\]\)if\(c!==d\)c\.hidden=true/);
+  assert.match(s, /for\(const id of \["aj-real","aj-lab"\]\)/, "Ajustes sin Trading 212 ni laboratorio de ETF");
+  assert.match(html, /const todo=\["tg","cripto","fin"\]/, "el asistente de claves ya no pide Trading 212");
+  assert.doesNotMatch(html, /dispatch\(r,"real-ajustes\.yml"/, "guardar claves ya no lanza el flujo de Trading 212 (no existe)"); assert.match(s, /m\.innerHTML="<span>💶<\/span>Real"/); assert.match(s, /go\("memes"\)/);
   assert.match(html, /const SECS=\[\["parte","📰 Parte del día"\],\["graf","📈 Gráficas"\],\["err","⚠️ Errores"\],\["cripto","💶 Real \(cripto\)"\]/);
   assert.doesNotMatch(html, /caja\("🤖 ETF, Acciones y Mixtos"/);
 });
