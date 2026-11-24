@@ -31,3 +31,13 @@ test("🪙 Telegram: un botón antiguo de Trading 212 se contesta y NO bloquea u
   await T.procesa(ups, { api: async () => ({}), say: async (c, t) => dicho.push(String(t)), memesCtl: async (o) => (ctl.push(o.accion), true), bvCtl: async () => true, CHAT: "5", USER: "" }).catch(() => {});
   assert.ok(dicho.some((t) => /era de Trading 212/.test(t))); assert.deepEqual(ctl, ["parar"], "el /parar se procesa");
 });
+
+test("🪙 pantalla de inicio de CriptoBot: la imagen nueva con una barra de carga animada (la antigua, con «📈 ETF», ya no está)", () => {
+  assert.match(html, /<div id="splash" aria-hidden="true"><div class="sp-m"><img src="splash\.jpg"/);
+  assert.ok(existsSync(new URL("../splash.jpg", import.meta.url)), "la imagen está en el repositorio");
+  assert.ok(readFileSync(new URL("../splash.jpg", import.meta.url)).length < 200e3, "ligera (< 200 KB) para que salga al instante");
+  assert.doesNotMatch(html, /<span>📈 ETF<\/span>/);
+  assert.equal((html.match(/id="splash"/g) || []).length, 1, "una sola pantalla de inicio");
+  assert.match(html, /sessionStorage\.getItem\("splash1"\)/, "solo al abrir la app, no en cada recarga automática");
+  assert.match(html, /window\.__quitaSplash&&__quitaSplash\(\)/, "se quita cuando sale la clave o la app está lista");
+});
