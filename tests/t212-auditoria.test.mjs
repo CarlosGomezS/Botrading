@@ -39,11 +39,11 @@ test("G4-1.5 · un pulso NO se pone a la cola si «Cartera real» está esperand
   assert.match(yaml, /\n  libre:\n[\s\S]*actions\/workflows\/real\.yml\/runs\?status=\$st/);
   assert.match(yaml, /\n  pulso:\n    needs: libre\n    if: needs\.libre\.outputs\.ok == 'true'/);
   assert.match(yaml, /\|\| echo 1\)/, "si no se puede comprobar, se salta (lo seguro)");
-  assert.match(yaml, /\n  cadena:\n    needs: pulso\n    if: always\(\)/, "la cadena sigue aunque el pulso se salte");
+  assert.doesNotMatch(yaml, /\n  cadena:/, "v1.0 · 🪶 ya no va en cadena: lo lanza su horario");
 });
 
 test("G4-1.2 / G4-3 · flujos: el bucle espera a la ronda de Hyperliquid; restaurar cancela a todos los que escriben; «mantener vivo» los cubre", () => {
-  const meme = WF("meme.yml"); assert.match(meme, /done\n\s*# v1\.0 · G4-1\.2[^\n]*\n\s*if \[ -n "\$hlP" \]; then wait "\$hlP"/); assert.match(meme, /timeout-minutes: 45/);
+  const meme = WF("meme.yml"); assert.match(meme, /if \[ -n "\$hlP" \]; then wait "\$hlP"/); assert.match(meme, /timeout-minutes: 20/);
   const rest = WF("restaurar.yml"); for (const w of ["real.yml", "real-pulso.yml", "hl-real.yml", "laboratorio.yml", "caza-lab.yml"]) assert.ok(rest.includes(w), "restaurar cancela " + w);
   for (const f of ["laboratorio.yml", "telegram.yml"]) for (const w of ["meme.yml", "real-pulso.yml", "hl-real.yml", "examen-largo.yml", "caza-lab.yml"]) assert.ok(new RegExp("for wf in [^;]*" + w.replace(".", "\\.")).test(WF(f)), f + " reactiva " + w);
 });

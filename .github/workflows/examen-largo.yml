@@ -4,7 +4,7 @@ name: Cripto · examen largo (1 año, solo dinero ficticio)
 # El dinero real no sigue a un método cuya regla actual suspende este examen. Nunca toca dinero real.
 on:
   schedule:
-    - cron: "41 */3 * * *"
+    - cron: "41 5 * * *"   # v1.0 · 🪶 consumo mínimo: una vez al día (antes cada 3 h)
   workflow_dispatch:
 
 permissions:

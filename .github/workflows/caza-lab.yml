@@ -3,7 +3,7 @@ name: Cripto · laboratorio de muchas operaciones (Hyperliquid, solo datos)
 # métodos de 4+ operaciones al día que ganen con los costes reales de Hyperliquid. Nunca toca dinero.
 on:
   schedule:
-    - cron: "23 */3 * * *"
+    - cron: "23 1,7,13,19 * * *"   # v1.0 · 🪶 consumo mínimo: cada 6 h (antes cada 3 h)
   workflow_dispatch:
   # v1.0 · R7 · en cuanto cambia el código del laboratorio (examen, señales, datos), se vuelve a examinar sin esperar a su turno
   push:

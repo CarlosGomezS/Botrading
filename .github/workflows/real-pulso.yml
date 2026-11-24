@@ -8,7 +8,10 @@ name: Cartera real · valor en directo (cada 15 min)
 # actualización de precios, cadena del laboratorio) y lee los botones de Telegram. El laboratorio, a su vez, la vigila a ella.
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    # v1.0 · 🪶 CONSUMO MÍNIMO (24/11/2026): GitHub bloqueó la copia por usar Actions como un servidor encendido todo el día.
+    #   Ya no va en cadena: cada 15 min con la bolsa abierta (lunes-viernes 7-21 UTC) y cada 3 h el resto. Solo lee (sin órdenes).
+    - cron: "*/15 7-20 * * 1-5"
+    - cron: "5 */3 * * *"
   workflow_dispatch:
 
 permissions:
@@ -82,50 +85,6 @@ jobs:
           REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node runner/diario.mjs terminal-pulso
-      - name: 🚨 Avisar por Telegram si algo ha fallado
-        if: failure()
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
-          QUE: ${{ github.workflow }}
-          ENLACE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT" ] || exit 0
-          curl -s -m 20 -o /dev/null --data-urlencode "chat_id=$TELEGRAM_CHAT" --data-urlencode "text=🚨 Bot Trading: ha fallado «$QUE» ($(TZ=Europe/Madrid date +'%d/%m %H:%M')). Se volverá a intentar solo; si te llega varias veces seguidas, avísame. Detalle: $ENLACE" "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" || true
-  cadena:
-    needs: pulso
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          sparse-checkout: runner
-      - name: Siguiente vuelta (en cadena, las 24 horas)
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
-          TELEGRAM_USER: ${{ secrets.TELEGRAM_USER }}   # v1.0 · G4-3
-        run: |
-          R="repos/${{ github.repository }}/actions/workflows/real-pulso.yml"
-          # primero se pide la siguiente vuelta (queda en cola): aunque algo fallara después, la cadena no se corta
-          timeout 60 gh api -X POST "$R/dispatches" -f ref=main && echo "Siguiente vuelta pedida."
-          D=$(date -u +%u); M=$((10#$(date -u +%H) * 60 + 10#$(date -u +%M)))
-          # v403 · con bolsa abierta (Europa y EE. UU., 7:00-21:00 UTC entre semana) lee la cuenta cada ~2-3 min; el resto, cada ~20 min
-          if [ "$D" -le 5 ] && [ "$M" -ge 420 ] && [ "$M" -le 1260 ]; then T=90; else T=1200; fi
-          # el vigilante, como mucho una vez cada ~15 min (antes iba en cada vuelta)
-          if [ "$T" -ge 600 ] || [ $(( M % 15 )) -lt 3 ]; then timeout 90 bash runner/vigia.sh || true; fi
-          # mientras espera, lee los botones de Telegram cada ~2,5 min (si el flujo de Telegram no está ya en marcha) y vuelve a vigilar a mitad
-          end=$(( $(date +%s) + T )); half=$(( $(date +%s) + T / 2 )); vh=0
-          while [ "$(date +%s)" -lt "$end" ]; do
-            tg=$(timeout 30 gh api "repos/${{ github.repository }}/actions/workflows/telegram.yml/runs?status=in_progress&per_page=1" -q .total_count 2>/dev/null || echo 0)
-            if [ "${tg:-0}" -eq 0 ]; then timeout 120 node runner/telegram.mjs || true; fi
-            if [ "$vh" = 0 ] && [ "$T" -ge 600 ] && [ "$(date +%s)" -ge "$half" ]; then vh=1; timeout 90 bash runner/vigia.sh || true; fi
-            left=$(( end - $(date +%s) )); [ "$left" -gt 0 ] && sleep $(( left < 150 ? left : 150 ))
-          done
       - name: 🚨 Avisar por Telegram si algo ha fallado
         if: failure()
         env:

@@ -3,7 +3,7 @@ name: Vigilante · que el bot y los laboratorios nunca se queden parados
 # v262 · cada 10 min: si el bot de cada minuto lleva > 6 min sin publicar, o un laboratorio > 20 min, y no hay ninguna ejecución en marcha, los relanza.
 on:
   schedule:
-    - cron: "3,13,23,33,43,53 * * * *"
+    - cron: "53 * * * *"   # v1.0 · 🪶 consumo mínimo: cada hora (el bot de cripto también lo pasa cada 15 min)
   workflow_dispatch:
 
 permissions:

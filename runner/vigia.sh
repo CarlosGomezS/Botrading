@@ -27,21 +27,21 @@ if [ "$dow" -ge 2 ] && [ "$dow" -le 6 ] && [ "$madrid_min" -ge 360 ] && [ "$madr
     if busy diario.yml; then echo "La actualización ya está en marcha."; else gh api -X POST "$R/actions/workflows/diario.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ GitHub se saltó la actualización de anoche: lanzada ahora."; fi
   fi
 fi
-# 3) cadena del laboratorio (03-19 UTC): si no hay ninguna ronda en marcha ni en los últimos 70 min, se relanza
+# 3) laboratorio (03-19 UTC): v1.0 · 🪶 4 rondas al día por horario; si lleva más de 7 h sin ninguna, se lanza una
 H=$((10#$(date -u +%H)))
 if [ "$H" -ge 3 ] && [ "$H" -le 18 ]; then
   t=$(gh api "$R/actions/workflows/laboratorio.yml/runs?per_page=1" -q '.workflow_runs[0].created_at // "1970-01-01T00:00:00Z"' 2>/dev/null || echo "")
   if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "Laboratorio · última ronda hace $age min"
-    if [ "$age" -ge 70 ] && ! busy laboratorio.yml; then gh api -X POST "$R/actions/workflows/laboratorio.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ La cadena del laboratorio estaba parada: relanzada."; fi; fi
+    if [ "$age" -ge 420 ] && ! busy laboratorio.yml; then gh api -X POST "$R/actions/workflows/laboratorio.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ El laboratorio llevaba más de 7 h sin ronda: lanzada."; fi; fi
 fi
 
-# 4) guardián de 24 horas (valor en directo): si no hay ninguna vuelta en marcha ni en los últimos 40 min, se relanza
+# 4) valor en directo: v1.0 · 🪶 cada 15 min con bolsa abierta y cada 3 h el resto; si lleva más de 4 h sin ninguna, se lanza una
 t=$(gh api "$R/actions/workflows/real-pulso.yml/runs?per_page=1" -q '.workflow_runs[0].created_at // "1970-01-01T00:00:00Z"' 2>/dev/null || echo "")
 if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "Guardián · última vuelta hace $age min"
-  if [ "$age" -ge 40 ] && ! busy real-pulso.yml; then gh api -X POST "$R/actions/workflows/real-pulso.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ El guardián estaba parado: relanzado."; fi; fi
+  if [ "$age" -ge 240 ] && ! busy real-pulso.yml; then gh api -X POST "$R/actions/workflows/real-pulso.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ El valor en directo llevaba más de 4 h sin leerse: lanzado."; fi; fi
 
 # 5) v420 · exámenes y ayudante IA: GitHub a veces se salta sus horarios; si llevan demasiado sin hacerse, se lanzan aquí
-for par in "examen-largo.yml:240" "ia-lab.yml:150" "caza-lab.yml:420"; do wf=${par%%:*}; lim=${par##*:}
+for par in "examen-largo.yml:1560" "ia-lab.yml:420" "caza-lab.yml:420"; do   # v1.0 · 🪶 límites acordes a los horarios nuevos (1 al día / cada 6 h) wf=${par%%:*}; lim=${par##*:}
   t=$(gh api "$R/actions/workflows/$wf/runs?per_page=1" --jq '.workflow_runs[0].created_at' 2>/dev/null || echo "")
   if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "$wf · última hace $age min"
     if [ "$age" -ge "$lim" ] && ! busy "$wf"; then gh api -X POST "$R/actions/workflows/$wf/dispatches" -f ref=main >/dev/null 2>&1 && echo "⚠️ $wf llevaba $age min sin hacerse: lanzado."; fi; fi
@@ -50,7 +50,8 @@ done
 # 6) v441 · el bot de cripto de cada minuto (Bitvavo, OKX y la ronda de Hyperliquid): si lleva > 6 min sin publicar y no hay tramo vivo, se relanza
 t=$(gh api "$R/contents/bitvavo.json?ref=bitvavo" -H "Accept: application/vnd.github.raw" 2>/dev/null | python3 -c "import json,sys;j=json.load(sys.stdin);print((j.get('meta') or {}).get('t') or j.get('t') or '')" 2>/dev/null || echo "")
 if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "Cripto · última vuelta hace $age min"
-  if [ "$age" -ge 6 ] && ! busy meme.yml; then gh api -X POST "$R/actions/workflows/meme.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ El bot de cripto estaba parado: relanzado."; fi; fi
+  if [ "$age" -ge 40 ] && ! busy meme.yml; then   # v1.0 · 🪶 ahora va cada 15 min
+    gh api -X POST "$R/actions/workflows/meme.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ El bot de cripto estaba parado: relanzado."; fi; fi
 # 7) v441 · 💧 Hyperliquid: si su última ronda tiene más de 70 min (y está configurado), se lanza una ahora
 t=$(gh api "$R/contents/hl-real.json?ref=hl-real" -H "Accept: application/vnd.github.raw" 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin).get('t') or '')" 2>/dev/null || echo "")
 if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "Hyperliquid · última ronda hace $age min"
