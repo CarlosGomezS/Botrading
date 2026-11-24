@@ -67,5 +67,5 @@ test("📰 Informes se abre con el PARTE DEL DÍA (frases de qué ha pasado, dí
   assert.ok(s.includes('["parte","📰 Parte del día"]') && s.includes('["graf","📈 Gráficas"]'));
   for (const k of ["function parteDe(d)", "function vParte()", "function vGraf()", "function graf(tit,series"]) assert.ok(s.includes(k), k);
   assert.match(s, /data-ifp="-1"/, "se puede ir a días anteriores");
-  for (const k of ["Valor de la cripto", "Errores por día"]) assert.ok(s.includes(k), "gráfica: " + k);
+  for (const k of ["data-cbg=\"bv:bitvavo\"", "data-cbg=\"hl\"", "Errores por día"]) assert.ok(s.includes(k), "gráfica: " + k);
 });

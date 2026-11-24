@@ -163,6 +163,13 @@ export function libro(ops) {
 
 // ---- una vuelta (cada minuto, justo después de que los submodos ficticios hayan comprado o vendido)
 // fuentes = { eq: S, turbo: S.sub.turbo, mix: S.sub.mix } · ctl = { copia, parado } · deps = { api, tg, mercados(m) → {min, dec} }
+// v1.0 · 📈 GRÁFICA CON HISTORIA LARGA: un punto cada 30 min los últimos 30 días y, antes, el último de cada día (hasta 5 años).
+//   Así caben los rangos de día, semana, mes, 3 meses, año y todo sin que el estado (cifrado) crezca sin fin.
+export function compactaCurva(cv, ahora, dias = 30, max = 5 * 365) {
+  const lim = ahora - dias * 864e5, viejos = new Map(), recientes = [];
+  for (const x of cv || []) { if (!Array.isArray(x) || !Number.isFinite(+x[0])) continue; if (+x[0] >= lim) recientes.push(x); else viejos.set(new Date(+x[0]).toISOString().slice(0, 10), x); }
+  return [...[...viejos.values()].sort((a, b) => a[0] - b[0]).slice(-max), ...recientes];
+}
 // v455 · rentabilidad real (sin contar ingresos ni retiradas: cada cambio de «start» es dinero que entra o sale) frente a la curva de la prueba, en los últimos 30 días
 export function desvioTort(eq, cv, now) {
   if (!Array.isArray(eq) || eq.length < 2 || !Array.isArray(cv) || cv.length < 2) return null;
@@ -421,7 +428,7 @@ export async function vuelta(RS, fuentes, ctl, tick, now, deps) {
         if (!vale) await protege(m); } }
       RS.cuenta = { t: now.toISOString(), eur: r2(+(B.EUR || 0)), total: r2(tot), activos: act.sort((a, b) => b.eur - a.eur) };
       // v309 · 📈 gráfica de la cuenta: un punto cada 30 min (unas 3 semanas)
-      RS.curva = RS.curva || []; if (!RS.curva.length || now - RS.curva[RS.curva.length - 1][0] >= 30 * 60e3) { RS.curva.push([now.getTime(), r2(tot)]); RS.curva = RS.curva.slice(-1000); }
+      RS.curva = RS.curva || []; if (!RS.curva.length || now - RS.curva[RS.curva.length - 1][0] >= 30 * 60e3) { RS.curva.push([now.getTime(), r2(tot)]); RS.curva = compactaCurva(RS.curva, now.getTime()); }   // v1.0 · 📈 antes solo los últimos 1.000 puntos (~3 semanas)
       // v282 · 📒 el historial real del exchange, cada 10 min o en cuanto cambian las monedas de la cuenta
       const firmaB = Object.keys(B).sort().join(",");
       if (X.operaciones && (!RS.libro || RS.libro.firma !== firmaB || now - Date.parse(RS.libro.t) > 10 * 60000)) { try {

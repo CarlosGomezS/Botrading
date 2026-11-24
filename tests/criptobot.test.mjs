@@ -44,8 +44,9 @@ test("🪙 pantalla de inicio de CriptoBot: la imagen nueva con una barra de car
 
 test("🪙 nada de Trading 212 ni ETF a la vista: no se leen sus datos, ni salen en Informes, Ayuda, asistente ni asistente de claves", () => {
   assert.match(html, /window\.__SIN_T212=1;/);
-  assert.match(html, /async function loadReal\(fresh\)\{if\(window\.__SIN_T212\)return;/); assert.match(html, /function mount\(\)\{if\(window\.__SIN_T212\|\|/);
-  assert.match(html, /function datosLabs\(\)\{const s=window\.__SIN_T212\?null:Sx\(\)/); assert.match(html, /function datosReal\(\)\{const R=!window\.__SIN_T212&&/);
+  assert.doesNotMatch(html, /<script id="real-ui">/, "la pantalla de Trading 212 ya no existe (ni su código)");
+  assert.match(html, /<script id="clave-cripto">[\s\S]*Object\.assign\(window,\{pwGet,decrypt,remSave,remLoad,remForget\}\)[\s\S]*window\.__realOnb=\{save:saveCfg/, "lo compartido de la clave sigue (cripto lo necesita)");
+  assert.match(html, /function datosLabs\(\)\{const s=window\.__SIN_T212\?null:Sx\(\)/); assert.match(html, /function datosReal\(\)\{return null\}/);
   assert.doesNotMatch(html, /graf\("💶 Valor de tu cartera real/); assert.doesNotMatch(html, /Métodos probados cada día \(laboratorio de ETF/);
   assert.doesNotMatch(html, /\["terminal-real","real"/); assert.doesNotMatch(html, /bl\("💶 Cartera real"/);
   assert.doesNotMatch(html, /La cartera real, en pocas palabras/); assert.doesNotMatch(html, /valor_real:\{wf:"real-pulso\.yml"/); assert.doesNotMatch(html, /ronda_lab:\{wf:"laboratorio\.yml"/);

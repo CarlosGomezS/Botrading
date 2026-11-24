@@ -3072,8 +3072,7 @@ function bvRealHtml(f){const C=MM.bvCtl||{},CU=bvCuentas(C),S=MM.S||{},SR=S.real
    return`<div><div class="mt-big ${G>=0?"up":"dn"}" style="font-size:24px" data-cta-big>${E2r(Cn.total*MEMF(MM.S))}</div><div class="mt-dim">lo que hay ahora en tu cuenta · <b>ganado de verdad ${W2(G)} (${pc(G/R.start*100)})</b> sobre los ${Eu(R.start)} que usa · ${R.st.trades} compras · comisiones ${Eu(R.st.fees)}</div></div>`})():""}
   ${R&&R.desvio&&R.desvio.dias>=3?(()=>{const d=R.desvio,g=d.real-d.sim;return`<div class="m" style="margin-top:4px">📏 Real frente a prueba (últimos ${d.dias} días): tu dinero <b class="${d.real>=0?"up":"dn"}">${pc(d.real)}</b> · las mismas Tortugas en la prueba <b class="${d.sim>=0?"up":"dn"}">${pc(d.sim)}</b> · ${Math.abs(g)<3?"✅ van parecido":g>0?"✅ el real va mejor":g<-8?"⚠️ el real va bastante peor (te aviso por Telegram)":"🟡 el real va algo peor"}</div>`})():""}
   ${R&&!(R.cuenta&&R.libro)?`<div><div class="mt-big ${pl>=0?"up":"dn"}" style="font-size:24px" data-acct="real:${ex}" data-lv="big" data-st="${R.start}">${Eu(eq)}</div><div class="mt-dim">empezó con ${Eu(R.start)} · total <b data-acct="real:${ex}" data-lv="totp" data-st="${R.start}">${pc(pl/R.start*100)}</b>${(()=>{const hoyD=new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Madrid"}),b=R.dia&&R.dia.d===hoyD?+R.dia.eq0:null;return b>0?` · hoy <b data-acct="real:${ex}" data-lv="hoyp" data-b0="${b}" class="${eq>=b?"up":"dn"}">${pc((eq/b-1)*100)}</b>`:""})()} · ${R.st.trades} compras · ${R.st.wins} G · ${R.st.losses} P · comisiones ${Eu(R.st.fees)}</div></div>`:x.err==="sinclave"?`<div class="mt-dim">🔒 Desbloquea con tu clave en ⚙️ Ajustes para ver el saldo real (va cifrado).</div>`:x.err==="clave"?`<div class="mt-dim">🔒 Tu clave de la web no abre el estado real.</div>`:""}
-  ${R&&R.cuenta?(()=>{const Cn=R.cuenta,ago=Math.round((Date.now()-Date.parse(Cn.t))/60000);return`${(()=>{const cv=(R.curva||[]).filter(x=>x&&x[1]>0);if(cv.length<3)return"";const W=320,H=70,v=cv.map(x=>x[1]),mn=Math.min(...v),mx=Math.max(...v),rg=mx-mn||1,pts=cv.map((x,i)=>`${(i/(cv.length-1)*W).toFixed(1)},${(H-4-(x[1]-mn)/rg*(H-8)).toFixed(1)}`).join(" "),up=v[v.length-1]>=v[0];
-  return`<div class="mt-p" style="margin:8px 0;padding:8px 10px"><div class="mt-dim" style="display:flex;justify-content:space-between"><span>📈 Tu cuenta de ${N} (lo que vale en total)</span><span>${new Date(cv[0][0]).toLocaleDateString("es-ES",{day:"numeric",month:"short"})} → hoy</span></div><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:80px;display:block"><polyline fill="none" stroke="${up?"#16a34a":"#dc2626"}" stroke-width="2" points="${pts}"/></svg><div class="mt-dim" style="display:flex;justify-content:space-between"><span>mín ${E2r(mn*f)}</span><span>máx ${E2r(mx*f)}</span></div></div>`})()}
+  ${R&&R.cuenta?(()=>{const Cn=R.cuenta,ago=Math.round((Date.now()-Date.parse(Cn.t))/60000);return`<div data-cbg="bv:${ex}"></div>
 <div class="mt-p" style="margin:8px 0;padding:10px" data-cta data-eur="${Cn.eur}"><div class="mt-dim"><b class="mt-w">🔍 Tu cuenta de ${N} ahora mismo (exacto)</b> · saldos leídos hace ${ago} min · <span data-cta-t>precios en directo</span></div>
    <div style="display:flex;justify-content:space-between;margin-top:4px"><span>💰 Total de la cuenta <small class="m">(euros + criptos)</small></span><b class="mt-w" data-cta-tot>${E2r(Cn.total*f)}</b></div><div style="display:flex;justify-content:space-between"><span>💶 Euros sin invertir</span><span>${E2r(Cn.eur*f)}</span></div>
    ${(Cn.activos||[]).map(a=>{const p=(R.pos||{})[a.sym+"-EUR"],lb=R.libro&&R.libro.abiertas&&R.libro.abiertas[a.sym],e0=lb?lb.px:p&&p.px?p.px:null,pcv=e0?(a.px/e0-1)*100:null;return`<div style="display:flex;justify-content:space-between;gap:6px"><span><b>${esc(a.sym)}</b> <small class="m">${a.q.toLocaleString("es-ES",{maximumFractionDigits:6})}</small>${lb?`<br><small class="m">comprada por ${E2r(lb.cost*Math.min(1,a.q/lb.q)*f)} · ${hm(lb.t0)}</small>`:""}${p&&p.huerfana?' <small class="m">(la vigila: stop −6 %)</small>':""}${p&&p.src==="base"?' <small class="m">· 🧺 cartera base</small>':""}${p&&p.src==="ballena"?' <small class="m">· 🐋 copia a profesionales</small>':""}${p&&p.src==="tortuga"?' <small class="m">· 🐢 tortuga (stop '+(p.stop&&p.px?((p.stop/p.px-1)*100).toFixed(1).replace(".",","):"")+' %)</small>':""}${p?(p.stopEst==="ok"?' <small class="m">· 🛡️ stop −10 % en el exchange</small>':p.stopEst==="sin comprobar"?' <small class="dn">· 🛡️❔ stop sin poder comprobar ahora (se reintenta)</small>':p.stopEst==="resto"?' <small class="m">· 🧹 resto por debajo del mínimo, sin stop (se completará y se venderá)</small>':p.stopEst?' <small class="dn">· 👁️ sin stop en el exchange ('+esc(p.stopEst)+'; solo la vigila el bot)</small>':' <small class="dn">· 👁️ sin stop en el exchange: solo la vigila el bot</small>'):""}</span><span class="n" data-cta-c="${esc(a.sym)}-EUR" data-q="${a.q}" data-v="${a.eur}" data-e="${e0||""}">${E2r(a.eur*f)}${pcv!=null?` <small class="${pcv>=0?"up":"dn"}">${pc(pcv)}</small>`:""}</span></div>`}).join("")}
@@ -3257,8 +3256,7 @@ function bvPanel(f,exO,soloAj){const ex=exO||(bvModo()==="okx"?"okx":"bitvavo"),
    <div class="mt-p" style="padding:8px;margin:0"><div class="mt-dim">📦 Invertido ahora</div><b style="font-size:18px">${eu(inv)}</b><div class="mt-dim">${act.length} cripto${act.length===1?"":"s"}</div></div></div>
   <div class="mt-dim" style="margin-top:8px">Ventas: <b class="up">${gan.length} con ganancia</b> · <b class="dn">${per.length} con pérdida</b> · resultado de las ventas <b class="${cl(ce)}">${res(ce)}</b> · comisiones pagadas ${eu(R.st&&R.st.fees)}</div>`;
  // 2) gráfica
- const cv=(R.curva||[]).filter(x=>x&&x[1]>0);let graf="";if(cv.length>=3){const W=320,H=80,v=cv.map(x=>x[1]),mn=Math.min(...v),mx=Math.max(...v),rg=mx-mn||1,pts=cv.map((x,i)=>`${(i/(cv.length-1)*W).toFixed(1)},${(H-4-(x[1]-mn)/rg*(H-8)).toFixed(1)}`).join(" "),up=v[v.length-1]>=v[0];
-  graf=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:110px;display:block;margin-top:10px" preserveAspectRatio="none"><polyline fill="none" stroke="${up?"var(--go)":"var(--stop)"}" stroke-width="2" vector-effect="non-scaling-stroke" points="${pts}"/></svg><div class="mt-dim" style="display:flex;justify-content:space-between"><span>${fh(cv[0][0])}</span><span>mín ${eu(mn)} · máx ${eu(mx)}</span><span>ahora</span></div>`}else graf=`<div class="mt-dim">Se dibuja con un punto cada 30 min; en unas horas verás la línea.</div>`;
+ const graf=`<div data-cbg="bv:${ex}"></div>`;   /* v1.0 · 📈 gráfica nueva con rangos y pantalla completa (script «graficas») */
  // 3) comprado
  const comp=act.length?`<div class="tw"><table><tr><th>Cripto</th><th>Pagaste</th><th>Vale ahora</th><th>Resultado</th></tr>${act.map(a=>{const r0=a.coste!=null?a.eur-a.coste:null,pc0=a.e0?(a.px/a.e0-1)*100:null;return`<tr><td><b>${esc(a.sym)}</b>${a.px>0?`<br><small class="m">${a.e0?"compró a "+fpx(a.e0*MEMF(MM.S))+" · ":""}ahora <b class="${a.e0&&a.px<a.e0?"dn":"up"}" data-cta-px="${esc(a.sym)}-EUR" data-e="${a.e0||""}">${fpx(a.px*MEMF(MM.S))}</b></small>`:""}${a.t0?`<br><small class="m">🟢 compró ${fh(a.t0)}</small>`:""}<br><small class="m">${tipo(a.src)}${a.stop&&a.e0?` · stop ${pct((a.stop/a.e0-1)*100)}`:""}${a.stopEst==="ok"?" · 🛡️ stop en el exchange":a.stopEst==="resto"?" · 🧹 resto sin stop":(a.src||a.stop||a.stopEst)?" · 👁️ solo vigilancia del bot":""}</small></td><td class="n">${a.coste!=null?eu(a.coste):"—"}</td><td class="n" data-cta-c="${esc(a.sym)}-EUR" data-q="${a.q}" data-v="${a.eur}" data-e="${a.e0||""}">${eu(a.eur)}</td><td class="n ${r0==null?"":cl(r0)}"${a.coste!=null?` data-cta-r="${a.coste}"`:""}>${r0==null?"—":res(r0)}<br><small>${pc0==null?"":pct(pc0)}</small></td></tr>`}).join("")}</table></div>`:`<div class="mt-dim">Ahora no tiene ninguna cripto comprada: todo está en euros, esperando la siguiente oportunidad.</div>`;
  // 4) ventas
@@ -3351,7 +3349,7 @@ function hlDraw(el){const f=MEMF(MM.S||{}),X=MM.hlX||{},R0=X.R,V=MM.hlV&&R0&&MM.
  if(!R)body=`<div class="mt-p"><div class="mt-dim">${X.err==="sinclave"?"🔒 Desbloquea con tu clave para ver tu cuenta de Hyperliquid.":X.err==="clave"?"No puedo abrir los datos con tu clave actual.":"Todavía no hay datos: el bot guarda su estado cada hora en punto. Si aún no has puesto las claves, ve a ⚙️ Ajustes → ☁️ Ajustes → 🪙 Claves de los exchanges (HL_WALLET y HL_AGENT_KEY)."}</div></div>`;
  else{const g=(+R.eq||0)-(+R.neto||0),pos=R.pos||[],ci=R.cierres||[],h=((R.pos||[]).find(x=>x&&x.h)||{}).h||R.h||16   /* v471 · si hay posiciones, la duración de las suyas */;
   const es=hlCtl().estado;body=`<div class="bv-top"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="mt-dim">💧 Hyperliquid · tu cuenta · ${es==="on"?'<b class="up">activo</b>':es==="pausa"?"en pausa":'<b class="dn">parado</b>'}</div>${es==="on"?`<button data-hlset="estado:parado" data-nobusy style="padding:6px 12px;font-size:13px;white-space:nowrap;background:#ff5d7322;color:#ff5d73;border-color:#ff5d73">⏹️ Parar</button>`:`<button class="go" data-hlset="estado:on" data-nobusy style="padding:6px 12px;font-size:13px;white-space:nowrap">▶️ Reanudar</button>`}</div>${hlEspera(R0)?`<div class="mt-big">${SKN(true)}</div><div class="mt-dim">${SKN()} · leyendo tu cuenta en vivo…</div>`:`<div class="mt-big">${D(R.eq)}</div><div class="mt-dim">ingresado ${D(R.neto)} · <b class="${g>=0?"up":"dn"}">${Ds(g)} (${R.neto>0?(g>=0?"+":"−")+Math.abs(g/R.neto*100).toFixed(2).replace(".",",")+" %":"—"})</b>${V?" · 🟢 en vivo":ago!=null?" · actualizado hace "+(ago<60?ago+" min":Math.round(ago/60)+" h"):""}</div>`}</div>
-  ${hlCtl().estado!=="on"?`<div class="mt-p"><div class="mt-dim">${hlCtl().estado==="pausa"?"⏸️ <b>En pausa</b>: no abre posiciones nuevas; las abiertas se cierran a su hora.":"🛑 <b>Parado</b>: ha cerrado todo y no abrirá más hasta que pulses ▶️ Activo en los ajustes."}</div></div>`:""}${R.freno?`<div class="mt-p"><div class="mt-dim">🛑 <b>Freno activado</b>: la cuenta bajó de la mitad de lo ingresado. Ha cerrado todo y no abrirá más hasta que lo revises.</div></div>`:""}
+  <div data-cbg="hl"></div>${hlCtl().estado!=="on"?`<div class="mt-p"><div class="mt-dim">${hlCtl().estado==="pausa"?"⏸️ <b>En pausa</b>: no abre posiciones nuevas; las abiertas se cierran a su hora.":"🛑 <b>Parado</b>: ha cerrado todo y no abrirá más hasta que pulses ▶️ Activo en los ajustes."}</div></div>`:""}${R.freno?`<div class="mt-p"><div class="mt-dim">🛑 <b>Freno activado</b>: la cuenta bajó de la mitad de lo ingresado. Ha cerrado todo y no abrirá más hasta que lo revises.</div></div>`:""}
   <div class="mt-p"><div class="mt-ph"><span>QUÉ HACE</span></div><div class="mt-dim">${R.metodo?`Sigue al <b>método n.º ${hlCtl().puesto} del podio</b> del laboratorio de Hyperliquid: <b class="mt-w">${esc(durTxt(R.metodo))}</b>. Cada hora en punto mira la vela que acaba de cerrar: si hay señal, abre <b>largo</b> (gana si sube) o <b>corto</b> (gana si baja) y cierra a las <b>${h} h</b>.`:`Ahora mismo <b>ningún método</b> del laboratorio de Hyperliquid ha pasado la cuarentena (21 días en prueba), así que <b>no abre posiciones nuevas</b>. Las que ya están abiertas siguen las reglas del método con el que se abrieron: cada una se cierra a su hora (columna «Cierra») o antes si salta su stop.`} Sin apalancamiento: entre todas las posiciones nunca usa más que tu saldo. Con tu saldo caben <b>${R.plazas||0}</b> a la vez (cada orden necesita ≥ 10 $; el método está probado con 5).${R.senales!=null?" Señales en la última hora: <b>"+R.senales+"</b>.":""} Si la cuenta cae más de un ${hlCtl().freno*100} % respecto a lo ingresado, lo cierra todo.</div></div>
   <div class="p"><details class="rd" open><summary><span>Abiertas (${pos.length})</span></summary>${pos.length?`<div class="tw"><table class="tvh"><tr><th>Cripto</th><th>Ahora</th><th>Cierra</th></tr>${pos.map(p=>`<tr><td><b>${esc(p.c)}</b> ${p.lado>0?"📈 largo":"📉 corto"}<br><small class="m">${D(p.v)} · entró a ${esc(String(p.entrada))}${(()=>{const v=+p.v,e=+p.entrada,k=v-(p.lado>0?1:-1)*(+p.pnl||0),pa=v>0&&e>0&&k>0?v*e/k:0;return pa>0?` · ahora <b class="${p.pnl>=0?"up":"dn"}">${fpx(pa)}</b>`:""})()}${p.desde?"<br>🟢 abrió "+hm(p.desde):""}</small></td><td class="n ${p.pnl>=0?"up":"dn"}">${Ds(p.pnl)}</td><td>${p.desde?hm(p.desde+(p.h||h)*36e5):"—"}</td></tr>`).join("")}</table></div>`:'<div class="m">Nada abierto ahora: espera a la próxima señal (mira cada hora en punto).</div>'}</details></div>
   ${(()=>{try{const t0=(R.slip||[]).filter(x=>x&&Number.isFinite(+x.d)),sl=t0.filter(x=>x.x!=="señal"),rt=t0.filter(x=>x.x==="señal");if(!sl.length&&!rt.length)return"";const me=a=>a.reduce((s,x)=>s+ +x.d,0)/a.length,f=v=>(v>=0?"":"−")+Math.abs(v).toFixed(3).replace(".",",")+" %";
@@ -3871,7 +3869,7 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
   h+=h3("🪙 Claves de los exchanges de cripto (Bitvavo, OKX e Hyperliquid)")+'<div class="kv">'+SECRETS.slice(0,7).map(secField).join("")+'</div>';
   h+=h3("🤖 IA del laboratorio (con una basta; si una falla, usa la siguiente)")+'<div class="kv">'+secField(["GEMINI_KEY","Gemini (aistudio.google.com → Get API key)"])+secField(["GROQ_KEY","Groq (console.groq.com → API Keys) · gratis"])+secField(["OPENROUTER_KEY","OpenRouter (openrouter.ai → Keys) · modelos gratis"])+secField(["NVIDIA_KEY","NVIDIA (build.nvidia.com → Get API Key) · modelos enormes gratis"])+secField(["ZAI_KEY","Z.ai (z.ai → API Keys) · GLM gratis, sin tarjeta"])+'</div><div class="m">🧠 Con varias claves, la IA trabaja en <b>consejo</b>: la misma pregunta va a todas a la vez y se juntan sus ideas. Todas tienen que aprobar el mismo examen.</div>';
   (function(){var d=window.iaClavesMovil();if(Object.keys(d).length)h+='<div style="margin-top:8px"><button type="button" id="cs_iacopy">🤖 Usar en el laboratorio las claves de IA de este móvil ('+Object.keys(d).map(function(k){return{gemkey:"Gemini",groqkey:"Groq",orkey:"OpenRouter"}[k]+(d[k].o?" de tu app":"")}).join(", ")+')</button><div id="cs_iacopy_st" class="m" style="margin-top:6px;font-weight:600"></div></div>'})();
-  if(!window.__ESPACIO){var dst0="";try{dst0=localStorage.getItem("copiaDestino")||""}catch(e){globalThis.__errC&&__errC(e)}h+=h3("📤 Pasar tus claves comunes a otra app")+'<div class="m">Copia a otra copia de esta app (otra cuenta de GitHub o repositorio) tus claves de <b>precios</b> (Alpaca, Twelve Data, Polygon, Alpha Vantage, FMP) y de <b>IA</b> (Gemini, Groq, OpenRouter, NVIDIA, Z.ai), sin escribirlas. Nunca copia las personales (Trading 212, Bitvavo, OKX, Telegram). Necesita un token de GitHub con acceso al repositorio de destino y «Secrets: Read and write».</div><div class="kv"><div style="grid-column:1/-1"><span style="font-weight:700">Repositorio de destino</span> <span class="m">(dueño/nombre)</span><input id="cs_dst" type="text" autocomplete="off" placeholder="usuario/repositorio" value="'+String(dst0).replace(/[^\w.\/-]/g,"")+'"></div>'+secField(["DESTINO_TOKEN","Token de GitHub con acceso al repositorio de destino"])+'<div style="grid-column:1/-1"><span style="font-weight:700">💬 Clave de entrada de la otra app</span> <span class="m">(opcional: para pasar también las claves del chat ✨; no se guarda en ningún sitio)</span><input id="cs_dpw" type="password" autocomplete="new-password" placeholder="la clave con la que se entra en esa app"></div></div><div style="margin-top:8px"><button type="button" id="cs_copia">📤 Copiar las claves comunes</button><div id="cs_copia_st" class="m" style="margin-top:6px;font-weight:600"></div></div>';}
+  if(!window.__ESPACIO){var dst0="";try{dst0=localStorage.getItem("copiaDestino")||""}catch(e){globalThis.__errC&&__errC(e)}h+=h3("📤 Pasar tus claves comunes a otra app")+'<div class="m">Copia a otra copia de esta app (otra cuenta de GitHub o repositorio) tus claves de <b>precios</b> (Alpaca, Twelve Data, Polygon, Alpha Vantage, FMP) y de <b>IA</b> (Gemini, Groq, OpenRouter, NVIDIA, Z.ai), sin escribirlas. Nunca copia las personales (Bitvavo, OKX, Hyperliquid, Telegram). Necesita un token de GitHub con acceso al repositorio de destino y «Secrets: Read and write».</div><div class="kv"><div style="grid-column:1/-1"><span style="font-weight:700">Repositorio de destino</span> <span class="m">(dueño/nombre)</span><input id="cs_dst" type="text" autocomplete="off" placeholder="usuario/repositorio" value="'+String(dst0).replace(/[^\w.\/-]/g,"")+'"></div>'+secField(["DESTINO_TOKEN","Token de GitHub con acceso al repositorio de destino"])+'<div style="grid-column:1/-1"><span style="font-weight:700">💬 Clave de entrada de la otra app</span> <span class="m">(opcional: para pasar también las claves del chat ✨; no se guarda en ningún sitio)</span><input id="cs_dpw" type="password" autocomplete="new-password" placeholder="la clave con la que se entra en esa app"></div></div><div style="margin-top:8px"><button type="button" id="cs_copia">📤 Copiar las claves comunes</button><div id="cs_copia_st" class="m" style="margin-top:6px;font-weight:600"></div></div>';}
   h+=h3("📥 Claves de precios (opcionales: sin ellas ya funcionan Yahoo y Stooq)")+'<div class="kv">'+SECRETS.slice(7,12).map(secField).join("")+'<div>Tiempo máximo por actualización (min, 2 a 60)<input id="cs_mins" type="number" step="1" min="2" max="60" value="'+(CL.mins!=null?CL.mins:8)+'" style="width:100%"></div></div>';
   h+=h3("Avisos")+'<div class="m">📲 <b>Todos los avisos van a tu Telegram</b> (sus claves están en ⚙️ Ajustes → 🔑 Cuenta, claves y copias). Si Telegram fallara, el móvil (ntfy) hace de respaldo.</div><details class="rd"><summary><span>Respaldo si Telegram falla: móvil (ntfy) y correo</span></summary><div class="rb"><div class="kv">'+SECRETS.slice(12).map(secField).join("")+
    yn("cs_avm","Avisos al móvil (ntfy) de la actualización y la prueba histórica",AV.movil,1)+
@@ -3928,7 +3926,7 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
  function loadSodium(){if(window.__SEAL&&window.nacl)return Promise.resolve(window.__SEAL);   /* v48: cifrado incluido en la propia web (antes se descargaba libsodium de un CDN y fallaba en algunos navegadores) */
   if(SODIUM)return SODIUM;SODIUM=new Promise(function(res,rej){var urls=["https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js","https://cdnjs.cloudflare.com/ajax/libs/libsodium-wrappers/0.7.13/sodium.min.js"],k=0;
   function next(){if(window.sodium&&window.sodium.ready){window.sodium.ready.then(function(){res(window.sodium)},rej);return}if(k>=urls.length){rej(new Error("no se pudo cargar la librería de cifrado"));return}var sc=document.createElement("script");sc.src=urls[k++];sc.onload=next;sc.onerror=next;document.head.appendChild(sc)}next()});SODIUM.catch(function(){SODIUM=null});return SODIUM}
- async function ghSecret(ri,name,val){var H=ghH(),base=apiU(ri,"actions/secrets/");if(/^(HL_|T212_|BITVAVO_|OKX_KEY|OKX_SECRET|TELEGRAM_TOKEN|TELEGRAM_CHAT|GEMINI_KEY|GROQ_KEY|OPENROUTER_KEY|NVIDIA_KEY|ZAI_KEY|ALPACA_KEY|TWELVEDATA_KEY|POLYGON_KEY|ALPHAVANTAGE_KEY|FMP_KEY)/.test(name))val=String(val).replace(/\s+/g,"");   /* v400 · las claves API nunca llevan espacios: se quitan los que mete el teclado o el copiar y pegar */
+ async function ghSecret(ri,name,val){var H=ghH(),base=apiU(ri,"actions/secrets/");if(/^(HL_|BITVAVO_|OKX_KEY|OKX_SECRET|TELEGRAM_TOKEN|TELEGRAM_CHAT|GEMINI_KEY|GROQ_KEY|OPENROUTER_KEY|NVIDIA_KEY|ZAI_KEY|ALPACA_KEY|TWELVEDATA_KEY|POLYGON_KEY|ALPHAVANTAGE_KEY|FMP_KEY)/.test(name))val=String(val).replace(/\s+/g,"");   /* v400 · las claves API nunca llevan espacios: se quitan los que mete el teclado o el copiar y pegar */
  
   var so=await loadSodium(),r=await fetch(base+"public-key",{headers:H});if(!r.ok)throw new Error("HTTP "+r.status+" al pedir la clave pública (¿falta el permiso Secrets: Read and write?)");
   var pk=await r.json(),enc=so.crypto_box_seal(so.from_string(val),so.from_base64(pk.key,so.base64_variants.ORIGINAL)),
@@ -3953,7 +3951,7 @@ function curVal(k,m){var v=null;if(CL.cfg&&CL.cfg[k]!=null)v=CL.cfg[k];else{try{
   try{var since=new Date(Date.now()-60000).toISOString(),r=await window.__CLOUD.dispatch(ri,"copiar-claves.yml",chat?{destino:dst,chat:chat}:{destino:dst});if(!r.ok)throw new Error(rejectMsg(r,"copiar-claves.yml"));var c=await window.__CLOUD.waitRun(ri,"copiar-claves.yml",since,300);
    if(dp)dp.value="";stSet(c==="success"?"✔ Claves comunes copiadas a "+dst+(chat?" (también las del chat ✨)":"")+".":"✖ No se pudo copiar"+(c?" ("+c+")":"")+". Revisa que el token tenga acceso a "+dst+" con «Secrets: Read and write»"+(chat?" y «Contents: Read and write» (para las del chat)":"")+".")}catch(x){stSet("✖ "+(x&&x.message||x))}b.disabled=false},true);
  /* v405 · estado REAL de las claves: se pregunta a GitHub qué secretos existen (solo los nombres, nunca el valor) */
- var SEC_ALL=["DESTINO_TOKEN","NVIDIA_KEY","ZAI_KEY","HL_WALLET","HL_AGENT_KEY","GROQ_KEY","OPENROUTER_KEY","T212_KEY","T212_SECRET","REAL_VIEW_PASS","TELEGRAM_TOKEN","TELEGRAM_CHAT","OKX_KEY","OKX_SECRET","OKX_PASSPHRASE","BITVAVO_KEY","BITVAVO_SECRET","GEMINI_KEY","ALPACA_KEY","TWELVEDATA_KEY","POLYGON_KEY","ALPHAVANTAGE_KEY","FMP_KEY","SMTP_USER","SMTP_PASS","SMTP_HOST","SMTP_PORT","EMAIL","NTFY_TOPIC","WEB3FORMS_KEY"],secLT=0;
+ var SEC_ALL=["DESTINO_TOKEN","NVIDIA_KEY","ZAI_KEY","HL_WALLET","HL_AGENT_KEY","GROQ_KEY","OPENROUTER_KEY","REAL_VIEW_PASS","TELEGRAM_TOKEN","TELEGRAM_CHAT","OKX_KEY","OKX_SECRET","OKX_PASSPHRASE","BITVAVO_KEY","BITVAVO_SECRET","GEMINI_KEY","ALPACA_KEY","TWELVEDATA_KEY","POLYGON_KEY","ALPHAVANTAGE_KEY","FMP_KEY","SMTP_USER","SMTP_PASS","SMTP_HOST","SMTP_PORT","EMAIL","NTFY_TOPIC","WEB3FORMS_KEY"],secLT=0;
  async function secList(force){var ri=repoInfo();if(!ri||!TOK)return false;if(!force&&Date.now()-secLT<60000)return true;
   try{var r=await fetch(apiU(ri,"actions/secrets?per_page=100"),{headers:ghH(),cache:"no-store"});if(!r.ok)return false;var j=await r.json(),has={};(j.secrets||[]).forEach(function(x){has[x.name]=true});
    SEC_ALL.concat(Object.keys(has)).forEach(function(n){SEC[n]=!!has[n]});secLT=Date.now();try{window.__SECGH=Object.assign({},SEC)}catch(e){globalThis.__errC&&__errC(e)}
@@ -4091,44 +4089,20 @@ document.addEventListener("click",async function(e){const b=e.target.closest&&e.
  try{await navigator.clipboard.writeText(v);ok=true}catch(x){try{const t=document.createElement("textarea");t.value=v;t.style.position="fixed";t.style.opacity="0";document.body.appendChild(t);t.select();ok=document.execCommand("copy");t.remove()}catch(y){}}
  const old=b.innerHTML;b.innerHTML=ok?"✔ Copiado":esc2(v);setTimeout(()=>{b.innerHTML=old},1400);function esc2(z){return String(z).replace(/[&<>"]/g,"")}},true);
 </script>
-<script id="real-ui">
-/* ===== v47 · 💶 CARTERA REAL (Trading 212) =====
-   Pantalla propia para el dinero real. Lee lo que publica el flujo «Cartera real (Trading 212)» (rama real → real.json,
-   cifrado con REAL_VIEW_PASS si lo pusiste) y los ajustes de real-ajustes.json. Para aprobar órdenes, lanzar acciones o
-   cambiar ajustes usa el mismo token cifrado y la misma clave que «⚙️ Ajustes» (window.__CLOUD). La web nunca habla con
-   Trading 212: lo hace GitHub con tus claves guardadas en Secrets. */
-(function(){
-"use strict";
-try{(window.__busyChecks=window.__busyChecks||[]).push(()=>RL.busy||RL.loading)}catch(e){globalThis.__errC&&__errC(e)}
-const RL={R:null,meta:null,enc:null,err:null,cfg:null,cfgSrc:"",loading:false,msg:"",busy:false,rng:"all",showRep:30,pick:null,at:0};try{window.__RLs=RL}catch(e){globalThis.__errC&&__errC(e)}
+<script id="clave-cripto">
+/* v1.0 · 🔐 LO COMPARTIDO DE LA CLAVE (antes vivía dentro de la pantalla de Trading 212, que se ha borrado entera):
+   recordar la contraseña en este móvil, descifrar y cifrar, saber si están puestas las claves de Bitvavo y OKX, y guardar claves
+   (lo usa el asistente de claves). Nada de Trading 212. */
+(function(){"use strict";
+const RL={busy:false,meta:null,msg:"",dirty:false};
 const $r=s=>document.querySelector(s);
 const C=()=>window.__CLOUD||null;
-try{window.addEventListener("cloud-unlocked",()=>{try{draw()}catch(e){globalThis.__errC&&__errC(e)}})}catch(e){globalThis.__errC&&__errC(e)}
-try{window.__realReload=()=>loadReal(true)}catch(e){globalThis.__errC&&__errC(e)}
-/* v136: «💶 Usar en mi cartera real» desde el Laboratorio: abre la cartera real con ese método elegido (falta pulsar Guardar) */
-try{window.__realPick=k=>{if(!k||!MXr(k))return;RL.pick=k===A().metodo?null:k;RL.dirty=true;OPENS.met=true;OPENS.cfg=true;try{window.__userNav=true;go("real")}catch(e){globalThis.__errC&&__errC(e)}draw();{const sm=$r("#rl-c-met");if(sm&&RL.pick){if(![...sm.options].some(o=>o.value===RL.pick)){const o=document.createElement("option");o.value=RL.pick;o.textContent=MXr(RL.pick).n;sm.appendChild(o)}sm.value=RL.pick}}setTimeout(()=>{const d=$r('details[data-o="met"]');if(d)d.open=true;const b=$r("#rl-mok")||$r("#rl-c-met");if(b)b.scrollIntoView({block:"center"})},300)};
- document.addEventListener("click",e=>{const b=e.target&&e.target.closest&&e.target.closest("[data-realpick]");if(!b)return;e.preventDefault();e.stopPropagation();window.__realPick(b.dataset.realpick)},true)}catch(e){globalThis.__errC&&__errC(e)}
-const NOMB={sect:"Rotación de sectores (Faber)",sectx:"Rotación ampliada (sectores + QQQ + SMH + IWM)",trq:"Tendencia QQQ de 10 meses (Faber)",dmu:"Dual Momentum EE. UU. (QQQ, SPY, IWM, SMH)",mix:"Mezcla 50/50: sectores + QQQ en tendencia"};
-const SECT=["XLK","XLV","XLE","XLF","XLY","XLP","XLI","XLU","XLB","XLC"];
-const UNI={sect:SECT,sectx:SECT.concat(["QQQ","SMH","IWM"]),trq:["QQQ"],dmu:["QQQ","SPY","IWM","SMH"],mix:SECT.concat(["QQQ"])};
-const TESTED={sect:"✔ El único que igualó o batió al SPY en la prueba histórica"};
-const DESC={SPY:"S&P 500",QQQ:"Nasdaq 100",SMH:"Semiconductores",IWM:"Pequeñas empresas EE. UU.",XLK:"Tecnología",XLV:"Salud",XLE:"Energía",XLF:"Financiero",XLY:"Consumo discrecional",XLP:"Consumo básico",XLI:"Industrial",XLU:"Servicios públicos",XLB:"Materiales",XLC:"Comunicaciones",SHY:"Bonos 1-3 años",GLD:"Oro"};
-const DEF={on:0,env:"live",modo:"confirmar",metodo:"sect",extra:[],limite:100,sumarIngresos:1,minOrden:5,umbral:5,reserva:2,maxOrdenes:8,maxPerdida:25,divisa:"eur",acciones:1,movil:1,telegram:1,correo:1,avisos:"todo",discreto:1,aceptoReal:0,reajuste:"revision",semanal:1,mapa:{}};
-const NUM={limite:[5,100000,"Dinero que trabaja el bot (€)","El bot solo usa este dinero (y lo que vaya ganando, que se reinvierte). Si ingresas más en Trading 212, no lo toca. Al cambiar este número, el bot pasa a trabajar con esa cantidad: si ahora vale menos, la diferencia es una aportación tuya; si vale más, una retirada (vende lo necesario). Nunca cuenta como ganancia ni pérdida."],minOrden:[1,1000,"Orden mínima (€)","No envía órdenes más pequeñas (evita órdenes ridículas)."],umbral:[1,50,"Desvío para reajustar (% del presupuesto)","Solo en el modo «también si se desvía»: reajusta un activo si se aparta más de esto de su peso."],reserva:[0,20,"Reserva en efectivo (%)","Margen que se deja sin invertir por si el precio sube entre el cálculo y la orden."],maxOrdenes:[1,30,"Máximo de órdenes por revisión","Freno de seguridad: si salieran más, deja el resto para el día siguiente."],maxPerdida:[5,90,"Freno de pérdidas (%)","Si la cuenta cae esto desde lo aportado, el bot se pone en PAUSA solo y te avisa."]};
-const SECRETS=[["T212_KEY","Clave API de Trading 212 (API key)"],["T212_SECRET","Secreto de la clave API (API secret)"],["TELEGRAM_TOKEN","Telegram: token de tu bot (te lo da @BotFather)"],["TELEGRAM_CHAT","Telegram: tu número de chat (te lo dice tu bot al escribirle /start)"],["REAL_VIEW_PASS","Contraseña para ver tu cartera real (obligatoria · cifra todos tus datos)"]];
-const ES=n=>n==null||!isFinite(+n)?"—":E(+n),SG=n=>n==null||!isFinite(+n)?"—":E2(+n),PC=n=>n==null||!isFinite(+n)?"—":P2(+n);
-const cls=v=>v>0.004?"up":v<-0.004?"dn":"";
-const dt=t=>{try{return new Date(t).toLocaleString("es-ES",{dateStyle:"short",timeStyle:"short"})}catch(e){return String(t||"—")}};
 const ri=()=>{const c=C();return c&&c.ri?c.ri():null};
-const qtyT=q=>(+q).toLocaleString("es-ES",{maximumFractionDigits:4});
-/* v117 · métodos de la cartera real: el principal y hasta 2 más (el dinero se reparte a partes iguales) */
-const MS=a=>[...new Set([a.metodo,...(a.extra||[])].filter(k=>k))].slice(0,3);
-const MN=a=>{const ks=MS(a),n=k=>(NOMB[k]||((typeof MX==="function"&&MX(k))||STR[k]||{}).n||k)+" #"+k;return ks.length>1?"Reparto a partes iguales: "+ks.map(n).join(" + "):n(ks[0])};
-function A(){const o=A0();try{if(RL.cfg||(RL.R&&RL.R.cfg))window.__realMets=MS(o)}catch(e){globalThis.__errC&&__errC(e)}return o}
-function A0(){const o=Object.assign({},DEF);/* v125: se mezcla campo a campo y un valor vacío o roto (null, NaN…) nunca pisa uno bueno */for(const src of [(RL.R&&RL.R.cfg)||{},RL.cfg||{}])for(const [k,v] of Object.entries(src)){if(v==null||v==="")continue;if(NUM[k]&&!Number.isFinite(+v))continue;o[k]=v}const _o=o,ov=RL.R&&RL.R.metOv;o.extra=Array.isArray(o.extra)?o.extra.slice():[];if(ov&&ov.k&&!(RL.cfg&&RL.cfg.savedAt&&Date.parse(RL.cfg.savedAt)>=Date.parse(ov.ts))){if(ov.de&&o.extra.includes(ov.de))o.extra=o.extra.map(x=>x===ov.de?ov.k:x).filter(x=>x!==o.metodo);else{o.metodo=ov.k;o.extra=o.extra.filter(x=>x!==ov.k)}if(ov.acc){o.acciones=1;o.divisa="cualquiera"}}return o}
+const A=()=>({});
+function draw(){}
 function say(t){RL.msg=t;["#rl-st","#rl-st2","#rl-st3"].forEach(id=>{const e=$r(id);if(e)e.textContent=t})}
-
-/* ---------- datos: real.json (rama real) y real-ajustes.json (rama main) ---------- */
+try{(window.__busyChecks=window.__busyChecks||[]).push(()=>RL.busy)}catch(e){globalThis.__errC&&__errC(e)}
+const SECRETS=[["TELEGRAM_TOKEN","Telegram: token de tu bot"],["TELEGRAM_CHAT","Telegram: tu número de chat"],["REAL_VIEW_PASS","Contraseña que cifra tus datos"],["BITVAVO_KEY",""],["BITVAVO_SECRET",""],["OKX_KEY",""],["OKX_SECRET",""],["OKX_PASSPHRASE",""],["HL_WALLET",""],["HL_AGENT_KEY",""]];
 function b64u(t){const s=atob(t),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}
 const KDF_IT=600000;   /* v16: 600 000 iteraciones (OWASP 2023); lo cifrado antes con 250 000 se sigue leyendo */
 async function decrypt(o,pw){const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
@@ -4169,46 +4143,8 @@ function pwWeak(p){p=String(p||"");const t=[/[a-zà-ÿñ]/,/[A-ZÀ-ÝÑ]/,/\d/,/
  if(p.length<12)return"tiene que tener al menos 12 caracteres";if(p.length<20&&t<3)return"mezcla al menos 3 tipos: minúsculas, mayúsculas, números o símbolos (o usa una frase de 20 caracteres o más)";
  if(/^(.)\1+$/.test(p)||/(1234|qwerty|password|contraseña|abcdef)/i.test(p))return"es demasiado fácil de adivinar";return null}
 function pwGet(){try{return sessionStorage.getItem("rlpw")||""}catch(e){return""}}
-async function getJson(urls,hdr){let last=null;for(const u of urls){try{const r=await fetch(u,{headers:hdr&&/api\.github\.com/.test(u)?hdr:{},cache:"no-store"});if(r.status===404){last="404";continue}if(!r.ok){last="HTTP "+r.status;continue}return await r.json()}catch(e){last=String(e.message||e)}}throw new Error(last||"sin respuesta")}
-function hdrs(raw){const c=C(),h={Accept:raw?"application/vnd.github.raw+json":"application/vnd.github+json"};if(c&&c.tok&&c.tok())h.Authorization="Bearer "+c.tok();return h}
-async function loadReal(fresh){if(window.__SIN_T212)return;   /* v1.0 · 🪙 CriptoBot: no se lee nada de Trading 212 */
-if(RL.loading)return;RL.loading=true;const cb=!RL.at||fresh;if(cb)cargaIni("real");await remLoad();
- try{
-  const q=new URLSearchParams(location.search),over=q.get("real"),r=ri(),t=Math.floor(Date.now()/(fresh?1000:60000));
-  const urls=over?[over+(over.includes("?")?"&":"?")+"t="+t]:r?(fresh?["https://api.github.com/repos/"+r.o+"/"+r.r+"/contents/real.json?ref=real"]:[]).concat(["https://raw.githubusercontent.com/"+r.o+"/"+r.r+"/real/real.json?t="+t,"https://api.github.com/repos/"+r.o+"/"+r.r+"/contents/real.json?ref=real"]):["real.json?t="+t];
-  let j=null;try{j=await getJson(urls,hdrs(true))}catch(e){RL.err=e.message==="404"?"nada":"No pude leer los datos de la cartera real ("+e.message+").";RL.R=null;RL.enc=null}
-  if(!j){}else{RL.meta=j.meta||null;RL.err=null;try{const ms=((j.meta&&j.meta.metodos)||[]).filter(x=>typeof x==="string");if(ms.length&&JSON.stringify(ms)!==JSON.stringify(window.__REALMET||[])){window.__REALMET=ms;setTimeout(()=>{try{if(typeof window.draw==="function")window.draw()}catch(e){globalThis.__errC&&__errC(e)}},0)}}catch(e){globalThis.__errC&&__errC(e)}
-  if(j.enc){RL.enc=j;const pw=pwGet();if(pw){try{RL.R=JSON.parse(await decrypt(j,pw))}catch(e){RL.R=null;RL.err="clave";remForget()}}else RL.R=null}
-  else{RL.enc=null;RL.R=j}}
-  RL.at=Date.now();ficBaseUpd();try{window.__T212STK=RL.R?(RL.R.stk||false):undefined;const ta=document.getElementById("t-acciones");if(window.__accDraw&&ta&&ta.classList.contains("on"))window.__accDraw()}catch(e){globalThis.__errC&&__errC(e)}
- }finally{RL.loading=false;if(!RL.at)RL.at=Date.now();cargaFin("real")}
- await loadCfg(fresh);draw()}
-async function loadCfg(fresh){const r=ri();const urls=(fresh&&r?["https://api.github.com/repos/"+r.o+"/"+r.r+"/contents/real-ajustes.json?ref=main"]:[]).concat(["real-ajustes.json?t="+Date.now()]);
- let got=null;try{got=await getJson(urls,hdrs(true))}catch(e){globalThis.__errC&&__errC(e)}
- RL.cfgEnc=null;
- if(got&&got.enc){RL.cfgEnc=got;const pw=pwGet();let d=null;if(pw){try{d=JSON.parse(await decrypt(got,pw))}catch(e){globalThis.__errC&&__errC(e)}}got=d}
- /* lo recién guardado manda durante 15 min: GitHub Pages tarda en publicar la copia nueva */
- if(RL.saved&&Date.now()-RL.saved.t<15*60000&&(!got||JSON.stringify(got)!==JSON.stringify(RL.saved.cfg))){RL.cfg=RL.saved.cfg;return}
- if(got){RL.cfg=got;RL.cfgSrc="nube"}else if(!RL.saved)RL.cfg=null}
-async function unlockView(){const pw=($r("#rl-vpw")||{}).value||"";if(!pw||!(RL.enc||RL.cfgEnc))return;say("Descifrando…");
- let ok=false;try{if(RL.enc){RL.R=JSON.parse(await decrypt(RL.enc,pw));RL.err=null}else await decrypt(RL.cfgEnc,pw);ok=true}catch(e){globalThis.__errC&&__errC(e)}
- if(!ok){say("Contraseña incorrecta.");return}
- RL.noAuto=false;try{sessionStorage.setItem("rlpw",pw)}catch(e){globalThis.__errC&&__errC(e)}if(($r("#rl-vrem")||{}).checked){if(!(await remSave(pw)))alert("Este móvil no me deja recordar la clave: tendrás que escribirla al abrir la app.")}else await remForget(true);say("");navShow()
- await loadCfg(false);draw()}
-
-/* ---------- acciones en la nube (GitHub Actions) ---------- */
 function needTok(){const c=C();if(!c){say("Para esto abre la web publicada en GitHub Pages.");return null}if(!c.tok()){say("🔒 Primero desbloquea con tu clave de ⚙️ Ajustes (abajo, en «Configuración»).");const e=$r("#rl-pw");if(e){e.focus();e.scrollIntoView({block:"center"})}return null}c.touch();return c}
-function rej(r,wf){return r.status===401||r.status===403?"GitHub rechazó el token (HTTP "+r.status+"): comprueba que sea de este repositorio, con «Actions: Read and write», y que no haya caducado.":r.status===404?"No existe el flujo «"+wf+"» en el repositorio: sube .github/workflows/"+wf+".":r.status===422?"GitHub no acepta esa acción (HTTP 422): sube la versión nueva de .github/workflows/"+wf+".":"No se pudo enviar (HTTP "+r.status+")."}
-async function runCloud(accion,plan,label){const c=needTok();if(!c||RL.busy)return;const r=ri();RL.busy=true;draw();
- try{const since=Date.now();say((label||accion)+": enviando a GitHub…");
-  const x=await c.dispatch(r,"real.yml",{accion:accion,plan:plan||""});
-  if(x.status!==204){say(rej(x,"real.yml"));return}
-  say((label||accion)+": GitHub lo está haciendo (suele tardar 1-2 minutos; las órdenes, algo más)…");
-  const res=await c.waitRun(r,"real.yml",since,600);
-  await loadReal(true);
-  const rep=RL.R&&RL.R.reports&&RL.R.reports[0];
-  say((res==="success"?"✔ Hecho":res===null?"Enviado, pero GitHub aún no ha terminado: recarga en unos minutos":"✖ Terminó con error")+(rep?" · "+rep.titulo+" (el informe completo está abajo, en «Informes»)":""));
- }catch(e){say("No se pudo: "+(e.message||e))}finally{RL.busy=false;draw()}}
+function secState(){const c=C(),m=(RL.meta&&RL.meta.secrets)||{},o={};SECRETS.forEach(([k])=>{o[k]=c&&c.sec&&c.sec[k]!==undefined?c.sec[k]:(k in m?m[k]:null)});return o}
 async function saveCfg(patch,secs,dels,why){const c=needTok();if(!c||RL.busy)return false;const r=ri();
  secs=(secs||[]).slice();dels=dels||[];
  /* privacidad: los ajustes viajan y se guardan CIFRADOS con la contraseña de la cartera (el repositorio es público) */
@@ -4227,453 +4163,7 @@ async function saveCfg(patch,secs,dels,why){const c=needTok();if(!c||RL.busy)ret
   try{if(c.secList)await c.secList(true)}catch(e){globalThis.__errC&&__errC(e)}say((res==="success"?"✔ "+(why||"Claves guardadas"):"✖ Alguna clave no se pudo guardar")+(okS.length?" · ✔ Claves: "+okS.join(", "):"")+(koS.length?" · ✖ No guardadas: "+koS.join("; "):""));
  }catch(e){say("No se pudo guardar: "+(e.message||e))}finally{RL.busy=false;draw()}return ok}
 
-/* ---------- utilidades de presentación ---------- */
-function mdHtml(md){const L=String(md||"").split("\n"),o=[];let i=0;const inl=t=>esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/`([^`]+)`/g,"<code>$1</code>");
- while(i<L.length){const l=L[i];
-  if(/^\s*\|/.test(l)){const rows=[];while(i<L.length&&/^\s*\|/.test(L[i])){rows.push(L[i]);i++}const cells=x=>x.trim().replace(/^\||\|$/g,"").split("|").map(s=>s.trim());
-   const body=rows.filter(x=>!/^\s*\|[\s:|-]+\|\s*$/.test(x));o.push('<div class="tw"><table><tr>'+cells(body[0]).map(c=>"<th>"+inl(c)+"</th>").join("")+"</tr>"+body.slice(1).map(x=>"<tr>"+cells(x).map(c=>"<td>"+inl(c)+"</td>").join("")+"</tr>").join("")+"</table></div>");continue}
-  let m;if((m=l.match(/^(#{1,4})\s+(.*)/))){o.push('<div style="font-weight:800;margin-top:8px;font-size:'+(m[1].length<=2?15:14)+'px">'+inl(m[2])+"</div>")}
-  else if((m=l.match(/^(\s*)-\s+(.*)/)))o.push('<div style="padding-left:'+(10+m[1].length*6)+'px">• '+inl(m[2])+"</div>");
-  else if(l.trim())o.push("<div>"+inl(l)+"</div>");
-  i++}
- return'<div class="m" style="display:grid;gap:3px;color:var(--ink)">'+o.join("")+"</div>"}
-function badge(t,k){return'<span class="rl-hb '+(k==="b-sell"?"rl-red":k==="b-buy"?"rl-grn":"")+'">'+t+"</span>"}
-function simKey(){const a=A();if(MS(a).length>1)return null;/* v117: con reparto no hay una sola simulación con la que comparar */return a.metodo||(S&&S.main)||"sect"}
-function simEqAt(B,d){let v=null;for(const x of B.days||[]){if(x.d<=d)v=x.eq;else break}return v}
-function days(){return((RL.R&&RL.R.days)||[]).filter(x=>x.be!=null)}
-/* rentabilidad del bot «ponderada en el tiempo»: no cuenta como ganancia lo que le das ni como pérdida lo que le quitas */
-/* v96: el flujo del día es el registrado (bf); si falta, el cambio de capital del bot (bc); y si aun así el día sube o baja más de un 20 %
-   (imposible para una cartera de ETF), se trata como un ingreso, no como ganancia. Las caídas NUNCA se esconden */
-function dayFlow(x,p){const f=+x.bf||0;if(f)return f;if(!(p.be>0))return 0;const r=x.be/p.be,dc=x.bc!=null&&p.bc!=null?x.bc-p.bc:0;if(Math.abs(dc)>0.5&&Math.abs((x.be-dc)/p.be-1)<Math.abs(r-1))return dc;return 0}
-/* v98: flujo efectivo de un paso (día o lectura de 15 min). Un salto hacia arriba imposible (> thr) sin ingreso apuntado = ingreso que aún no se había apuntado.
-   Un salto hacia abajo solo se compensa con ingresos ya apuntados o saltos anteriores (si el ingreso se apunta antes o después de verse en el valor). Una caída de verdad nunca se esconde. */
-function flowFix(pv,v,rf,st,thr){if(!(pv>0))return rf;const g=v-pv-rf;if(g>thr*pv){st.J+=g;return rf+g}if(g<-thr*pv){const lim=Math.max(0,st.J)+Math.max(0,rf),a=Math.min(lim,-g);if(a>0){st.J-=a;return rf-a}}return rf}
-function flowsOf(D){const st={J:0};return D.map((x,i)=>{const p=D[i-1];return p?flowFix(p.be,x.be,dayFlow(x,p),st,0.2):0})}
-/* v428 · el dinero que metes se cuenta desde el PRINCIPIO del día (el bot lo invierte ese mismo día): antes se contaba al final y, si ese día bajaba, toda la bajada caía sobre el dinero de antes y el % salía peor de lo real. Las retiradas, al final del día. */
-function twr(D){let idx=1;const FL=flowsOf(D);return D.map((x,i)=>{const p=D[i-1];if(p&&p.be>0){const f=FL[i]||0,r=f>0?x.be/(p.be+f):(x.be-f)/p.be;if(isFinite(r)&&r>0)idx*=r}return Object.assign({},x,{i:idx})})}
-const dayKey=t=>{try{return new Date(t).toLocaleDateString("sv-SE",{timeZone:"Europe/Madrid"})}catch(e){return String(t).slice(0,10)}};
-const hora=t=>{try{return new Date(t).toLocaleTimeString("es-ES",{timeZone:"Europe/Madrid",hour:"2-digit",minute:"2-digit",second:"2-digit"})}catch(e){return""}};
-const fdL=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}catch(e){return d}};
-function madridNow(){const p={};new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Madrid",hour12:false,weekday:"short",hour:"2-digit",minute:"2-digit"}).formatToParts(new Date()).forEach(x=>p[x.type]=x.value);const min=(+p.hour%24)*60+(+p.minute);return{wk:!/^(Sat|Sun)$/.test(p.weekday),min,euOpen:!/^(Sat|Sun)$/.test(p.weekday)&&min>=545&&min<=1040}}
-/* v156 · base de la ficticia = lo ingresado neto en Trading 212 (o, si aún no se conoce, el capital del bot).
-   Se lee directamente de los días de la cartera real (no depende de que la ficticia ya esté cargada) y se recuerda en el dispositivo. */
-function ficBaseUpd(){try{const R=RL.R;if(!R)return;const ds=R.days||[];let ap=R.depLive&&+R.depLive.net>1?+R.depLive.net:null,cap=null;for(let i=ds.length-1;i>=0&&(ap==null||cap==null);i--){const x=ds[i]||{};if(ap==null&&+x.ap>1)ap=+x.ap;if(cap==null&&+x.bc>1)cap=+x.bc}
- const nb=Math.round((ap||cap||0)*100)/100;if(!(nb>1&&nb<1e7))return;try{localStorage.setItem("pbficb",String(nb))}catch(e){globalThis.__errC&&__errC(e)}
- if(nb!==window.__ficBase){window.__ficBase=nb;setTimeout(()=>{try{window.draw()}catch(e){globalThis.__errC&&__errC(e)}},0)}}catch(e){globalThis.__errC&&__errC(e)}}
-function summary(){const R=RL.R,D=days();if(!D.length)return null;const T=twr(D),l=T[T.length-1],prev=T.length>1?T[T.length-2]:null;
- let pk=-Infinity,dd=0,green=0;T.forEach((x,i)=>{pk=Math.max(pk,x.i);dd=Math.min(dd,x.i/pk-1);if(i&&x.i>T[i-1].i+1e-9)green++});
- const O=R.orders||[],B=bkOf(simKey());let sim=null;
- if(B&&B.days&&B.days.length&&T.length>1){const e0=simEqAt(B,T[0].d)||B.days[0].eq,e1=B.days[B.days.length-1].eq;if(e0>0)sim=(e1/e0-1)*100}
- const L=R.ledger||{},acc=(R.days||[]).filter(x=>x.v>0).pop()||{};
- return{d0:T[0].d,cap:l.bc,be:l.be,res:l.be-l.bc,pct:(l.i-1)*100,dia:prev?l.be-prev.be-flowsOf(D)[D.length-1]:null,dd:dd*100,green,nd:T.length,ok:O.filter(o=>o.estado==="ejecutada").length,bad:O.filter(o=>/error|rechazada/.test(o.estado)).length,sim,cashBot:l.bcash,invBot:l.be-(l.bcash||0),real:L.real||0,acc:acc.v,accCash:acc.cash,ap:acc.ap}}
-/* ---------- gráfica: tu dinero real frente al mismo método en simulación ---------- */
-const fdx=d=>/:/.test(String(d))?String(d):fd(d);
-function chartHtml(){const D=days(),R0=RL.R||{},IN=(R0.intra&&R0.intra.p)||[],hasIn=IN.length>=2;
- if(D.length<2&&!hasIn)return'<div class="m">Aquí verás cuánto gana o pierde el dinero del bot. Con la bolsa abierta se actualiza cada ~15 minutos; necesita al menos 2 lecturas.</div>';
- if(!RL.rngSet&&hasIn&&D.length<6)RL.rng="d";
- const B=bkOf(simKey());let pts,sl;
- if((RL.rng==="d"||D.length<2)&&hasIn){const pv=(R0.days||[]).filter(x=>x.d<R0.intra.d&&x.be>0).pop(),base=pv?pv.be:IN[0][1];
-  const fT=+(((R0.days||[]).find(x=>x.d===R0.intra.d)||{}).bf||0);let fk=0;
-  /* v73: lo que metes o sacas ese día no es ganancia: se descuenta desde el punto en que entra (3.er dato del punto o, en puntos antiguos, al detectar el salto) */
-  /* v98: cadena de lecturas: en cada paso, lo que cambia el valor menos el dinero que entra o sale en ese paso (ver flowFix) */
-  const st={J:0};let idx=1,pv0=base,pf=0;
-  pts=IN.map(([h,v,f],i)=>{if(f!=null)fk=+f;else if(fT&&i&&Math.abs(v-IN[i-1][1]-fT)<Math.abs(v-IN[i-1][1])*0.6+0.01&&Math.abs(v-IN[i-1][1])>Math.abs(fT)*0.5)fk=fT;
-   const fl=flowFix(pv0,v,fk-pf,st,0.1);pf=fk;if(pv0>0){const r=1+(v-pv0-fl)/pv0;if(isFinite(r)&&r>0)idx*=r}pv0=v;return{d:h,v,ap:null,p:(idx-1)*100,s:null}});sl=[{d:R0.intra.d}];RL.rng="d"}
- else{if(RL.rng==="d")RL.rng="all";const T=twr(D),nd={w:5,m:21,q:63}[RL.rng];sl=nd?T.slice(-(nd+1)):T;
-  const i0=sl[0].i,e0=B?simEqAt(B,sl[0].d):null;
-  pts=sl.map(x=>({d:x.d,v:x.be,ap:x.bc,p:(x.i/i0-1)*100,s:e0&&B?((simEqAt(B,x.d)||e0)/e0-1)*100:null}))}
- const host=$r("#rl-ch"),W=Math.max(300,Math.min(900,(host&&host.clientWidth)||640)),H=220,pl=46,pr=14,pt=14,pb=26,pw=W-pl-pr,N=pts.length,xs=i=>pl+(N>1?i/(N-1)*pw:pw/2);
- const vals=pts.flatMap(x=>[x.p,x.s]).filter(v=>v!=null).concat([0]);let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<1){const m=(hi+lo)/2;lo=m-.5;hi=m+.5}const pad=(hi-lo)*.14;lo-=pad;hi+=pad;
- const ys=v=>pt+(hi-v)/(hi-lo)*(H-pt-pb),stp=[.25,.5,1,2,5,10,20,50,100].find(s=>(hi-lo)/s<=5)||100,tk=[];for(let v=Math.ceil(lo/stp)*stp;v<=hi;v+=stp)tk.push(+v.toFixed(4));
- const P0=pts.map((x,i)=>[xs(i),ys(x.p)]),line=smoothPath(P0),y0=ys(0),area=line+` L${xs(N-1).toFixed(1)} ${y0.toFixed(1)} L${xs(0).toFixed(1)} ${y0.toFixed(1)} Z`;
- const sp=pts.map((x,i)=>x.s==null?null:[xs(i),ys(x.s)]).filter(Boolean),simP=sp.length>1?`<path d="${smoothPath(sp)}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 5" opacity=".85"/>`:"";
- const grid=tk.map(v=>`<line x1="${pl}" x2="${W-pr}" y1="${ys(v).toFixed(1)}" y2="${ys(v).toFixed(1)}" stroke="var(--line)" ${v===0?'stroke-width="1.6" stroke-dasharray="5 4"':'opacity=".7"'}/><text x="${pl-7}" y="${(ys(v)+4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--muted)">${v>0?"+":""}${v}%</text>`).join("");
- const xl=[[0,"start"],...(N>=5?[[Math.round((N-1)/2),"middle"]]:[]),[N-1,"end"]].map(([i,a])=>`<text x="${xs(i).toFixed(1)}" y="${H-7}" text-anchor="${a}" font-size="11" fill="var(--muted)">${esc(fdx(pts[i].d))}</text>`).join("");
- const last=pts[N-1],col=last.p>=0?"var(--go)":"var(--stop)",[px,py]=P0[N-1];
- const mh=(RL.R.metHist||[]).filter(m=>m.d>sl[0].d).map((m,ix,ar)=>{const i=pts.findIndex(x=>x.d>=m.d);return i<0?"":`<line x1="${xs(i).toFixed(1)}" x2="${xs(i).toFixed(1)}" y1="${pt}" y2="${H-pb}" stroke="var(--wait)" stroke-dasharray="2 3"/>`+(ix===ar.length-1?`<text x="${(xs(i)-3).toFixed(1)}" y="${pt+10}" font-size="10" text-anchor="end" fill="var(--wait)">┆ = cambio de método</text>`:"")}).join("");
- const svg=`<svg id="rl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Rentabilidad de la cartera real frente a la simulación"><defs><clipPath id="rlU"><rect x="0" y="0" width="${W}" height="${y0.toFixed(1)}"/></clipPath><clipPath id="rlD"><rect x="0" y="${y0.toFixed(1)}" width="${W}" height="${H}"/></clipPath>
-<linearGradient id="rlgU" gradientUnits="userSpaceOnUse" x1="0" y1="${y0.toFixed(1)}" x2="0" y2="${pt}"><stop offset="0" style="stop-color:var(--go);stop-opacity:0"/><stop offset="1" style="stop-color:var(--go);stop-opacity:.4"/></linearGradient>
-<linearGradient id="rlgD" gradientUnits="userSpaceOnUse" x1="0" y1="${y0.toFixed(1)}" x2="0" y2="${H-pb}"><stop offset="0" style="stop-color:var(--stop);stop-opacity:0"/><stop offset="1" style="stop-color:var(--stop);stop-opacity:.4"/></linearGradient></defs>
-${grid}${xl}${mh}<g clip-path="url(#rlU)"><path d="${area}" fill="url(#rlgU)"/><path d="${line}" fill="none" stroke="var(--go)" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></g>
-<g clip-path="url(#rlD)"><path d="${area}" fill="url(#rlgD)"/><path d="${line}" fill="none" stroke="var(--stop)" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></g>${simP}
-<line id="rl-x" x1="0" x2="0" y1="${pt}" y2="${H-pb}" stroke="var(--ink)" stroke-dasharray="3 3" opacity="0"/><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="5.5" fill="${col}" stroke="var(--panel)" stroke-width="3"/><circle id="rl-d" r="5.5" fill="var(--panel)" stroke="var(--ink)" stroke-width="2.5" opacity="0"/></svg>`;
- const s=summary(),chip=(t,v,c)=>`<div class="chip"><small>${t}</small><b class="${c||""}">${v}</b></div>`,gap=s&&s.sim!=null&&s.pct!=null?s.pct-s.sim:null;
- RL.pts=pts;RL.cx={W,pl,pw,N,ys};
- return`<div class="pills" id="rl-rng">${[...(hasIn?[["d","Hoy"]]:[]),...(D.length>=2?[["w","1 sem"],["m","1 mes"],["q","3 meses"],["all","Todo"]]:[])].map(([k,t])=>`<button data-r="${k}" class="${RL.rng===k?"on":""}">${t}</button>`).join("")}</div>
-<div class="chh" id="rl-chh"></div><div id="rl-chw" style="touch-action:pan-y;cursor:crosshair">${svg}</div>
-<div class="m" style="font-size:12px">${RL.rng==="d"?"Hoy, cada ~15 min, frente al cierre de ayer.":"<span>╌╌</span> el mismo método en la ficticia."} Pasa el dedo por la gráfica.</div>
-<div class="chips">${s?chip("Hoy",SG(s.dia),cls(s.dia))+chip("Rentabilidad",PC(s.pct),cls(s.pct))+chip("Peor caída",PC(s.dd),cls(s.dd)):""}</div>`}
-function chartBind(){const w=$r("#rl-chw");document.querySelectorAll("#rl-rng button").forEach(b=>b.onclick=()=>{RL.rng=b.dataset.r;RL.rngSet=true;draw()});if(!w||!RL.pts)return;
- const {W,pl,pw,N,ys}=RL.cx,pts=RL.pts,xs=i=>pl+(N>1?i/(N-1)*pw:pw/2);
- const setH=i=>{const x=pts[i],h=$r("#rl-chh");if(!h)return;h.innerHTML=`<span class="m">${esc(fdx(x.d))}</span><br><b class="${cls(x.p)}">${P2(x.p)}</b> <span class="m">· rentabilidad del bot (sin contar lo que ingresas) · vale ${E(x.v)}<span class="sim0">${x.ap!=null?" · capital "+E(x.ap):""}${x.s!=null?" · simulación "+P2(x.s):""}</span></span>`};
- const show=i=>{i=Math.max(0,Math.min(N-1,i));const l=$r("#rl-x"),c=$r("#rl-d");if(l){l.setAttribute("x1",xs(i));l.setAttribute("x2",xs(i));l.setAttribute("opacity",".55")}if(c){c.setAttribute("cx",xs(i));c.setAttribute("cy",ys(pts[i].p));c.setAttribute("opacity","1")}setH(i)};
- const hide=()=>{["#rl-x","#rl-d"].forEach(s=>{const e=$r(s);if(e)e.setAttribute("opacity","0")});setH(N-1)};
- const mv=ev=>{const r=w.getBoundingClientRect(),x=(ev.clientX-r.left)/r.width*W;show(Math.round((x-pl)/pw*(N-1)))};
- w.onpointermove=mv;w.onpointerdown=mv;w.onpointerleave=hide;w.onpointercancel=hide;setH(N-1)}
-
-/* ---------- bloques de la pantalla ---------- */
-function lockHtml(){const c=C();
- if(!c)return'<div class="m">Estás viendo el archivo en el ordenador: para aprobar órdenes o cambiar ajustes abre la web publicada en GitHub Pages.</div>';
- if(c.tok())return'<div class="m" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">🔓 <b>Desbloqueado</b> · puedes aprobar, lanzar y guardar (se bloquea solo a los 10 minutos) <button id="rl-lock">Bloquear</button></div>';
- if(!c.hasEnc())return'<div class="m">🔒 Para aprobar órdenes o cambiar ajustes, primero guarda tu <b>token de GitHub</b> una sola vez en <b>⚙️ Ajustes → «Ajustes (protegidos con clave)»</b>. Después basta con tu clave aquí.</div><div><button id="rl-goaj">Ir a Ajustes</button></div>';
- return'<div class="m">🔒 Escribe tu clave (la misma de Ajustes) para aprobar órdenes, lanzar acciones o cambiar ajustes. Mirar no necesita clave.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rl-pw" type="password" placeholder="Tu clave" autocomplete="current-password" style="flex:1 1 160px"><button id="rl-unl">Desbloquear</button></div><label class="m" style="display:block;margin-top:4px"><input type="checkbox" class="pwrem" checked style="width:auto"> Recordarla en este dispositivo</label>'}
-function warns(){const R=RL.R,a=A(),w=[],sec=secState();
- if(RL.cfgEnc&&!RL.cfg)w.push("No puedo descifrar el archivo de ajustes con esta contraseña (¿la cambiaste hace poco?): muestro los ajustes de la última ejecución del bot. Al pulsar «Guardar todos los ajustes» se vuelven a cifrar con la contraseña actual.");
- if(sec.T212_KEY===false||sec.T212_SECRET===false)w.push("Faltan las claves de Trading 212: ponlas en «Ajustes de la cartera real» (abajo) y pulsa «Probar conexión».");
- if(sec.REAL_VIEW_PASS===false)w.push("Falta la <b>contraseña de la cartera</b>: sin ella el bot no consulta tu cuenta ni guarda nada (tu web es pública). Ponla en «Ajustes de la cartera real».");
- const m=(RL.meta&&RL.meta.secrets)||{};if(m.TELEGRAM_TOKEN===false||m.TELEGRAM_CHAT===false)w.push("No te llegarán avisos al <b>móvil</b>: falta el tema de ntfy (⚙️ Ajustes → Avisos al móvil y por correo).");if((m.SMTP_USER===false||m.SMTP_PASS===false)&&!(m.TELEGRAM_TOKEN&&m.TELEGRAM_CHAT))w.push("No te llegarán avisos por <b>correo</b>: falta el usuario o la contraseña de aplicación de Gmail (⚙️ Ajustes → Avisos).");
- if(false)w.push("Tienes apagados los avisos al móvil y por correo de la cartera real (solo te avisaría de errores).");
- if(R&&(R.pendBot||[]).length)w.push("⏳ Hay "+R.pendBot.length+" "+(R.pendBot.length===1?"orden del bot pendiente":"órdenes del bot pendientes")+" en Trading 212: se comprobarán y apuntarán en la próxima ejecución.");
- if(R&&R.approved)w.push("✅ Aprobaste órdenes el "+esc(R.approved.d)+" con la bolsa europea cerrada: se ejecutarán solas en la próxima revisión con la bolsa abierta (hacia las 10:15). Si cambian los activos, te pedirá aprobarlas de nuevo.");
- if(R&&R.paused)w.push("⛔ <b>Pausa automática</b>: "+esc(R.paused.why)+". No opera hasta que pulses «Reanudar».");
- if(!a.on)w.push("La cartera real está <b>desactivada</b>: solo guarda el valor de la cuenta. Actívala en los ajustes cuando la conexión funcione.");
- else if(a.env==="live"&&!a.aceptoReal)w.push("Falta marcar «Entiendo que opera con dinero real» en los ajustes: sin eso no envía órdenes.");
- if(R&&R.last&&Date.now()-Date.parse(R.last)>4*864e5)w.push("Los datos de la cartera real son del "+dt(R.last)+": hace más de 4 días que no se ejecuta. Mira Actions → «Cartera real (Trading 212)».");
- if(S&&S.lastDate){const age=(Date.now()-Date.parse(S.lastDate+"T22:00:00Z"))/864e5;if(age>5)w.push("Los datos del simulador son del "+esc(S.lastDate)+": con datos de más de 5 días la cartera real no opera.")}
- const minor=x=>/No te llegarán avisos|Tienes apagados los avisos/.test(x),imp=w.filter(x=>!minor(x)),mn=w.filter(minor);
- return imp.map(x=>'<div class="mi-warn">⚠️ '+x+"</div>").join("")+(mn.length?'<details class="rd rl-minor"><summary><span>ℹ️ '+mn.length+(mn.length===1?" aviso menor":" avisos menores")+' de configuración</span></summary><div class="rb">'+mn.map(x=>'<div class="m">• '+x+"</div>").join("")+"</div></details>":"")}
-function secState(){const c=C(),m=(RL.meta&&RL.meta.secrets)||{},o={};SECRETS.forEach(([k])=>{o[k]=c&&c.sec&&c.sec[k]!==undefined?c.sec[k]:(k in m?m[k]:null)});return o}
-function heroHtml(){ficBaseUpd();const R=RL.R,a=A(),s=summary(),acc=(R&&R.account)||{},L=R&&R.ledger;
- const env=a.env==="demo"?badge("DEMO · dinero de práctica","b-hold"):badge("💶 DINERO REAL","b-sell");
- const modo=badge({confirmar:"Modo: con tu confirmación",auto:"Modo: automático",pausa:"Modo: solo mira"}[a.modo]||a.modo,"b-hold");
- const est=R&&R.paused?badge("⛔ En pausa","b-sell"):a.on?badge("Activada","b-buy"):badge("Desactivada","b-hold");
- const tot=+((acc.cash&&acc.cash.availableToTrade)||0)+ +((acc.investments&&acc.investments.currentValue)||0)+ +((acc.cash&&acc.cash.reservedForOrders)||0);
- const mood=R&&R.paused?"⛔ El bot está en pausa: mira los avisos.":R&&R.plan&&R.plan.estado==="pendiente"?"🟡 Tienes una propuesta esperando tu aprobación.":R&&R.approved?"✅ Órdenes aprobadas: se hacen en la próxima revisión con la bolsa abierta.":!a.on?"💤 La cartera real está desactivada.":"✅ Todo en orden: el bot sigue a «"+esc(MN(a))+"».";
- const lv=R&&(R.live||R.last),ago=lv?Math.max(0,Math.round((Date.now()-Date.parse(lv))/60000)):null,agoT=ago==null?"":ago<1?"ahora mismo":ago<60?"hace "+ago+" min":ago<1440?"hace "+Math.round(ago/60)+" h":"el "+dt(lv);
- const cash=+((acc.cash&&acc.cash.availableToTrade)||0),resv=+((acc.cash&&acc.cash.reservedForOrders)||0)+ +((acc.cash&&acc.cash.inPies)||0),inv=+((acc.investments&&acc.investments.currentValue)||0),hasAcc=!!(R&&R.account&&(cash||inv));
- const tv=hasAcc?(+acc.totalValue>0?+acc.totalValue:cash+resv+inv):null,ps=(R&&R.positions)||[],pnl=ps.reduce((t,p)=>t+(+p.pnl||0),0),cost=ps.reduce((t,p)=>t+(+p.cost||0),0),rend=cost>0?pnl/cost*100:null;
- const today=dayKey(Date.now()),pv=((R&&R.days)||[]).filter(x=>x.d<today&&x.v>0).pop(),td=((R&&R.days)||[]).find(x=>x.d===today),dep=pv&&td&&pv.ap!=null&&td.ap!=null?td.ap-pv.ap:0,ch=pv&&tv!=null?tv-pv.v-dep:null;
- const botMon=s?s.be:null,own=tv!=null&&botMon!=null?tv-botMon:0;
- return`<div class="p hero"><div class="hero-top"><h2>${hasAcc?"Tu cuenta de Trading 212":"Dinero del bot"}</h2><span class="hero-tags">${env}${est}</span></div>
-<div class="big">${hasAcc?E(tv):s?E(s.be):L?E(L.cap):"—"}</div>
-${hasAcc?`<div class="hero-chg">${ch!=null?`Desde ayer <b class="${cls(ch)}">${SG(ch)}</b>`:""}${rend!=null?`${ch!=null?" · ":""}lo que tiene ahora va <b class="${cls(pnl)}">${SG(pnl)} (${PC(rend)})</b>`:""}</div>
-<div class="hero-row hero-row3"><span>Ingresado <b>${(()=>{const L2=((R&&R.days)||[]).filter(x=>x.ap!=null).pop();return L2?E(L2.ap):"—"})()}</b></span><span>Invertido <b>${E(inv)}</b></span><span>Efectivo <b>${E(cash+resv)}</b></span></div>
-${(()=>{if(!s)return"";const ap=(()=>{const L2=((R&&R.days)||[]).filter(x=>x.ap!=null).pop();return L2?+L2.ap:null})();return window.botTuyoHtml({cap:s.cap,be:s.be,res:s.res,pct:s.pct,inv:Math.max(0,s.invBot||0),cash:Math.max(0,s.cashBot||0)},{inv:inv,cash:cash+resv,own:own,ap:ap},{E:E,SG:SG,PC:PC,cls:cls})})()}${window.dondeHtml?window.dondeHtml(ps,{E:E,SG:SG,cls:cls,esc:esc}):""}`:
-`<div class="hero-chg">${s?`<b class="${cls(s.res)}">${SG(s.res)} (${PC(s.pct)})</b> desde el ${esc(fd(s.d0))}${s.dia!=null?` · hoy <b class="${cls(s.dia)}">${SG(s.dia)}</b>`:""}`:"Aún sin historial"}</div>
-<div class="hero-row"><span>Invertido <b>${s?E(s.invBot):"—"}</b></span><span>Efectivo <b>${s?E(s.cashBot):"—"}</b></span></div>`}
-${/^✅ Todo en orden/.test(mood)?"":`<div class="hero-mood">${mood}</div>`}
-<div class="hero-live">${lv?`<i class="${ago!=null&&ago<40?"on":""}"></i> Actualizado ${agoT}`:""} · ${a.modo==="auto"?"invierte solo":a.modo==="pausa"?"solo mira":"te pide aprobación"}</div><button id="rl-h-rec" type="button" ${RL.busy?"disabled":""} style="margin-top:10px;width:100%;padding:11px;font-weight:700">↻ Actualizar saldo ahora</button><div class="m" id="rl-st3" style="margin-top:6px;font-size:12px">${RL.busy&&RL.msg?esc(RL.msg):""}</div></div>`}
-/* v74 · ¿hay algo mejor que el método de tu cartera real? (según el filtro de la prueba histórica y la ficticia) */
-function betterHtml(){try{const b=S&&S.btm;if(!b||!b.rows||!b.rows.spy)return"";const cur=A().metodo,pc=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",",")+" %";
- const tx=!!(b.rows.spy[0]&&b.rows.spy[0].atax!=null),AN=r=>tx?annualTaxOf(r,b.cuts):annualOf(r,b.cuts),as=AN(b.rows.spy);
- const L=Object.keys(b.rows).filter(k=>k!=="spy"&&MX(k)).map(k=>{const r=b.rows[k];return{k,v:btmVerd(b,k),an:AN(r),dd:r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null}}).filter(x=>x.an!=null);
- const nm=k=>(MX(k)||{}).n||NOMB[k]||k,today=T0();
- /* v103 · confirmación en la ficticia: al menos 30 días sin quedarse más de 2 puntos por detrás de tu método ni del SPY */
- const H=hG(),spyAt=d=>{const h=H.SPY;if(!h||!h.r)return null;const n=dayN(d);let v=null;for(const x of h.r){if(x[0]<=n)v=x[4];else break}return v},spyNow=()=>{const h=H.SPY;return h&&h.r&&h.r.length?h.r[h.r.length-1][4]:null};
- const fwd=k=>{const B=bkOf(k);if(!B||!B.days||B.days.length<2)return null;const d0=B.days[0].d,e0=B.days[0].eq,g=e0>0?liveEq(k)/e0-1:null,C=bkOf(cur),c0=C&&C.days?(C.days.find(z=>z.d>=d0)||{}).eq:null,gc=c0>0?liveEq(cur)/c0-1:null,s0=spyAt(d0),s1=spyNow(),gs=s0&&s1?s1/s0-1:null,nd=dayN(today)-dayN(d0);
-  const st=nd<30?"obs":(g!=null&&(gc==null||g>=gc-0.02)&&(gs==null||g>=gs-0.02))?"ok":"bad";return{d0,g,gc,gs,nd,st}};
- const W=L.filter(x=>x.v&&x.v.c==="ok"&&!(S.lab&&S.lab.off&&S.lab.off[x.k])&&(typeof labHoldOk!=="function"||labHoldOk(x.k))).sort((x,y)=>y.an-x.an).map(x=>({...x,f:x.k===cur?null:fwd(x.k)})),me=L.find(x=>x.k===cur),meOk=me&&me.v&&me.v.c==="ok";
- const conf=W.filter(x=>x.k!==cur&&x.f&&x.f.st==="ok"),obs=W.filter(x=>x.k!==cur&&(!x.f||x.f.st==="obs"));
- const fwT=x=>{const f=x.f;if(!f)return x.k===cur?"es el tuyo":"aún no está en la ficticia";const t=`en la ficticia ${f.g!=null?pc(f.g):"—"} desde el ${fd(f.d0)}${f.gs!=null?" (SPY "+pc(f.gs)+")":""}`;return f.st==="obs"?`⏳ en observación: ${t} · faltan ${30-f.nd} días para confirmarlo`:f.st==="ok"?`✅ confirmado: ${t}`:`⚠️ ${t}: va peor que tu método o que el SPY`};
- const row=x=>`<div class="row"><div><b>${esc(nm(x.k))}${midB(x.k)}${x.k===cur?" (el tuyo)":""}</b><small>peor caída ${pc(x.dd)}${x.v&&x.v.opy!=null?" · ~"+Math.max(1,Math.round(x.v.opy))+" ventas/año":""}</small><small>${esc(fwT(x))}</small></div><span class="${x.an>=as?"up":"dn"}">${pc(x.an)}/año</span></div>`;
- let head,btn="";const best=conf[0];
- if(!W.length)head="Ningún candidato pasa ahora el filtro. Lo más sensato es seguir con tu método (o con el SPY, comprar y mantener).";
- else if(meOk&&!best)head="✅ <b>Tu método pasa el filtro.</b> No hace falta cambiar.";
- else if(best)head=`${meOk?"✅ Tu método pasa el filtro, pero":"🟡 Tu método no pasa el filtro y"} <b>«${esc(nm(best.k))}»</b> ya lo ha confirmado en la ficticia (30 días o más sin quedarse atrás). Puedes plantearte el cambio:`,btn=`<button class="go" id="rl-bt-go" data-k="${esc(best.k)}">🧭 Cambiar a «${esc(nm(best.k))}»</button><div class="m" style="font-size:12px">Te lleva a «Elige el método»; no cambia nada hasta que guardes los ajustes. En la siguiente revisión el bot vendería lo de ahora y compraría lo nuevo (las ventas con ganancia tributan).</div>`;
- else head=`${meOk?"✅ <b>Tu método pasa el filtro.</b>":"🟡 <b>Tu método no pasa el filtro</b>"+(me?` (${pc(me.an)}/año frente al ${pc(as)}/año del SPY${tx?", tras impuestos":""})`:"")+"."} ${obs.length?"Hay "+(obs.length===1?"un candidato mejor":obs.length+" candidatos mejores")+" <b>en observación</b> en la ficticia: <b>de momento no cambies</b>; cuando lleve 30 días sin quedarse atrás frente a tu método ni frente al SPY, aquí aparecerá el botón para cambiar.":"Los que pasan el filtro van peor en la ficticia: de momento no cambies."}`;
- const RS=RL.R||{},ms=RS.metSug,ov=RS.metOv;if(ms&&ms.estado==="pendiente")head=`📩 <b>Te he propuesto por Telegram cambiar a «${esc(ms.n)}».</b> Contesta allí con «✅ Cambiar» o «❌ No cambiar».<br>`+head;if(ov&&A().metodo===ov.k)head=`✅ Cambiaste por Telegram a <b>«${esc(ov.n||nm(ov.k))}»</b> el ${esc(fd(String(ov.ts).slice(0,10)))}.<br>`+head;
- return`<div class="p rl-better"><h2>🔎 ¿Hay algo mejor?</h2><div class="m">${head}</div>${W.slice(0,3).map(row).join("")}${!meOk&&me?row(me):""}<div class="m" style="font-size:12px">Prueba histórica ${esc(b.from.slice(0,4))}–${esc(b.to.slice(0,4))}${tx?", después de impuestos (19 %, como si lo vendieras todo al final)":""} · SPY ${pc(as)}/año. Filtro: ≥2 puntos al año más que el SPY, le gana en 2000-2015 y en 2016-hoy, caída no peor del −35 % y pocas operaciones; y después, 30 días en la ficticia sin quedarse atrás. Solo se propone si gana a tu método por 2 puntos al año o más, y como mucho un cambio cada 3 meses (o al mes, si es 4 puntos mejor). Si aparece uno así, te llega por Telegram con botones para cambiar.</div>${btn}</div>`}catch(e){return""}}
-/* v72 · resultado de cada método que has tenido en la cartera real (por periodos) */
-function metResHtml(){const R=RL.R,D=days();if(D.length<2)return"";const H=((R&&R.metHist)||[]).slice().sort((x,y)=>x.d<y.d?-1:1);
- const cur=A().metodo,nm=k=>NOMB[k]||(MXr(k)||{}).n||k,P=[];const at=d=>{let j=-1;H.forEach((h,i)=>{if(h.d<=d)j=i});return j<0?0:j};
- const FL=flowsOf(D);for(let i=1;i<D.length;i++){const x=D[i],p=D[i-1];if(!(p.be>0))continue;const fl=FL[i],g=x.be-p.be-fl,base=p.be+Math.max(0,fl),j=H.length?at(x.d):-1;
-  let q=P[P.length-1];if(!q||q.j!==j){q={j,k:j>=0?H[j].metodo:cur,n:(()=>{const k=j>=0?H[j].metodo:cur;let n=j>=0&&H[j].nombre&&H[j].nombre!==k?H[j].nombre:nm(k);if(!n||n===k)n="Método del laboratorio";return (window.nomCorto||(x=>x))(n)+" · #"+k})(),d0:j>=0&&H[j].d>D[0].d?H[j].d:D[0].d,d1:x.d,g:0,idx:1};P.push(q)}
-  q.g+=g;q.d1=x.d;if(base>0)q.idx*=1+g/base}
- if(!P.length)return"";const tot=P.reduce((t,q)=>t+q.g,0);
- return`<div class="p"><h2>🧭 Resultado por método</h2><div class="rl-mres">${P.slice().reverse().map((q,i)=>`<div class="${i===0?"on":""}"><div><b>${esc(q.n)}</b><small>${i===0&&q.k===cur?"desde el "+esc(fd(q.d0))+" · el actual":esc(fd(q.d0))+" – "+esc(fd(q.d1))}</small></div><span class="${cls(q.g)}">${SG(q.g)}<small>${PC((q.idx-1)*100)}</small></span></div>`).join("")}</div>
- <div class="m">Total desde el ${esc(fd(D[0].d))}: <b class="${cls(tot)}">${SG(tot)}</b>. Lo que metes o sacas de Trading 212 no cuenta como ganancia ni como pérdida.</div></div>`}
-function isinOf(t,sym,pi){if(pi)return pi;const M=(RL.R&&RL.R.map)||{};if(sym&&M[sym]&&M[sym].t===t&&M[sym].isin)return M[sym].isin;const x=Object.values(M).find(z=>z&&z.t===t&&z.isin);return x?x.isin:""}
-const isinBtn=i=>i?`<button class="cpy" data-copy="${esc(i)}" title="Copiar el ISIN">ISIN ${esc(i)} 📋</button>`:"";
-function ordCard(o,canAct){const buy=o.side==="COMPRA";
- return`<div class="mi-card ${buy?"mi-buy":"mi-sell"}"><div class="mi-top"><div class="mi-t">${esc(o.t)}<small>${esc(o.name||"")}${o.sym?" · señal del bot: "+esc(o.sym)+" ("+esc(DESC[o.sym]||"")+")":""}</small></div><span class="mi-badge ${buy?"b-buy":"b-sell"}">${buy?"🟢 COMPRAR":"🔴 VENDER"}</span></div>
-${isinBtn(isinOf(o.t,o.sym,o.isin))}<div class="mi-grid"><div><span>Importe aproximado</span><b>${ES(o.eur)}</b></div>${o.side==="VENTA"?`<div><span>Participaciones</span><b>${qtyT(o.qty)}${o.full?" (todo)":""}</b></div>`:""}</div><div class="mi-why">${esc(o.why||"")}</div></div>`}
-function planHtml(){const R=RL.R,P=R&&R.plan,LP=R&&R.lastPlan,c=C(),a=A();let h="";
- if(P&&P.estado==="pendiente"){
-  h+=`<div class="mi-warn" style="background:var(--waitbg)">🟡 <b>Propuesta pendiente de tu confirmación</b> · ${esc(P.metodoNombre)} · calculada el ${esc(dt(P.ts))}. Caduca al terminar el día.</div>`;
-  h+=P.orders.map(o=>ordCard(o)).join("");
-  h+=`<div class="mi-cash"><span>Presupuesto del bot ${ES(P.presupuesto)} · invertible ${ES(P.invertible)}</span><span>Efectivo libre ${ES(P.cash)}</span></div>`;
-  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="go" id="rl-ok" ${RL.busy?"disabled":""} style="flex:2 1 200px">✅ Aprobar y ejecutar en Trading 212</button><button id="rl-no" ${RL.busy?"disabled":""} style="flex:1 1 120px">✖ Rechazar</button></div>`;
-  h+='<div class="m">Al aprobar, GitHub vuelve a calcular el plan con los precios de ese momento: si los activos a comprar o vender han cambiado, no ejecuta nada y te propone el nuevo. Las órdenes son a mercado (como pulsar «Comprar» en la app).</div>';
-  if(P.notas&&P.notas.length)h+='<details class="rd"><summary>Notas del plan ('+P.notas.length+')</summary><div class="rb m">'+P.notas.map(n=>"<div>• "+esc(n)+"</div>").join("")+"</div></details>";
- }else if(LP){
-  const apr=R.approved&&LP.orders&&LP.orders.length&&R.approved.firma===LP.firma;
-  h+=`<div class="rl-plan1"><div><b>${apr?"⏳ Aprobado, se hace en la próxima apertura":LP.orders&&LP.orders.length?"✔ Hecho en la última revisión":"✔ Nada que cambiar"}</b><small>${esc(dt(LP.ts))} · ${esc(LP.metodoNombre)}</small></div><span class="mi-badge b-hold">${LP.orders&&LP.orders.length?LP.orders.length+(LP.orders.length===1?" orden":" órdenes"):"Sin cambios"}</span></div>`;
-  if(false)h+=`<div class="mi-card mi-hold"><div class="mi-top"><div class="mi-t">Última revisión<small>${esc(dt(LP.ts))} · ${esc(LP.metodoNombre)}</small></div><span class="mi-badge b-hold">${LP.orders&&LP.orders.length?LP.orders.length+" órdenes":"Sin cambios"}</span></div><div class="mi-why">${LP.orders&&LP.orders.length?"Mira «Historial de órdenes» para ver qué se hizo.":"Tu cartera ya sigue al método. La próxima revisión es el siguiente día de bolsa hacia las 10:15 (hora de España)."}${LP.yaAplicada?" Como en la simulación, no se reajusta por pequeñas variaciones de precio hasta que el método revise su cartera.":""}</div></div>`;
-  if(LP.orders&&LP.orders.length)h+=apr?LP.orders.map(o=>ordCard(o)).join(""):'<details class="rd"><summary><span>Ver las órdenes de esa revisión</span></summary><div class="rb">'+LP.orders.map(o=>ordCard(o)).join("")+"</div></details>";
-  if(LP.notas&&LP.notas.length)h+='<details class="rd rl-notas"><summary>Notas de la última revisión ('+LP.notas.length+')</summary><div class="rb m">'+LP.notas.map(n=>"<div>• "+esc(n)+"</div>").join("")+"</div></details>";
- }else h+='<div class="m">Todavía no hay ninguna revisión. Cuando la conexión funcione y actives la cartera, cada día de bolsa hacia las 10:15 (hora de España) el bot compara tu cuenta con el método y '+(a.modo==="auto"?"ejecuta las órdenes solo":a.modo==="confirmar"?"te propone las órdenes para que las apruebes aquí":"solo anota lo que haría")+".</div>";
- const ob=(P&&P.estado==="pendiente"?P:LP);
- if(ob&&ob.objetivo){h+=`<details class="rd"${OPENS.obj?" open":""} data-o="obj"><summary>Cartera objetivo del método (${ob.objetivo.length} activos) · del ${esc(ob.tgtD||"—")}</summary><div class="rb"><div class="tw"><table><tr><th>Señal</th><th>Peso</th><th>≈ €</th><th>Se compra en Trading 212</th></tr>${ob.objetivo.map(o=>`<tr><td><b>${esc(o.sym)}</b> <span class="m">${esc(DESC[o.sym]||"")}</span></td><td>${(o.w*100).toFixed(1)}%</td><td>${ES(o.w*(ob.invertible||0))}</td><td>${o.t?esc(o.t)+' <span class="m">'+esc(o.name||"")+"</span>":'✖ <span class="m">'+esc(o.disp||"")+"</span>"}</td></tr>`).join("")}</table></div>${ob.bull===false?'<div class="m">El método está <b>fuera del mercado</b>: lo que no está en la tabla queda en efectivo.</div>':""}</div></details>`}
- return h}
-function posHtml(){const R=RL.R;if(!R)return"";const acc=R.account||{},ps=R.positions||[],L=R.ledger||{lots:{},cash:0,real:0},s=summary();
- const cash=+((acc.cash&&acc.cash.availableToTrade)||0),inv=+((acc.investments&&acc.investments.currentValue)||0);
- const bot=ps.filter(p=>p.bq>0),botVal=bot.reduce((t,p)=>t+p.bq*(p.q>0?p.val/p.q:0),0),botCost=bot.reduce((t,p)=>t+(p.botCost||0),0),open=botVal-botCost;
- let h=`<div class="kv rl-k1"><div>Dinero del bot<b>${s?E(s.be):E(botVal+L.cash)}</b></div><div>Invertido por el bot<b>${E(botVal)}</b></div><div>Efectivo del bot<b>${E(L.cash)}</b></div><div>Ganancia abierta del bot<b class="${cls(open)}">${E2(open)}</b></div><div>Ganancia cobrada (ventas)<b class="${cls(L.real)}">${E2(L.real||0)}</b></div><div>Capital que le has dado<b>${E(L.cap||0)}</b></div></div>`;
- h+=`<div class="kv rl-k2"><div>Tu cuenta: efectivo libre<b>${E(cash)}</b></div><div>Tu cuenta: invertido<b>${E(inv)}</b></div><div>Órdenes pendientes<b>${(R.pending||[]).length}</b></div></div>`;
- if(L.cash>cash+0.5)h+=`<div class="mi-warn">El efectivo del bot (${E(L.cash)}) es mayor que el efectivo libre de tu cuenta (${E(cash)}): el bot solo usará ${E(cash)}. Si has sacado dinero, baja «Dinero que trabaja el bot».</div>`;
- h+=ps.length?`<div class="rl-pos">${ps.map(p=>{const u=p.q>0?p.val/p.q:0,bv=p.bq*u,uq=Math.max(0,p.q-p.bq),bp=bv-(p.botCost||0),bpp=p.botCost>0?bp/p.botCost*100:null;
-  return`<div><div class="rl-pt"><b>${esc(p.t)}</b><span>${ES(p.val)}</span></div><div class="m">${esc(p.name||"")} · precio ahora ${(+p.px).toFixed(2)} ${esc(p.cur||"")}</div>${isinBtn(isinOf(p.t,null,p.isin))}
-  ${p.bq>0?`<div class="rl-pt m"><span>🤖 <b>Del bot:</b> ${qtyT(p.bq)} particip. · costó ${E(p.botCost||0)} · vale ${E(bv)}</span><b class="${cls(bp)}" style="font-size:14px">${E2(bp)}${bpp!=null?" ("+P2(bpp)+")":""}</b></div>`:""}
-  ${uq>1e-6?`<div class="m">👤 <b>Tuyas</b> (el bot no las toca): ${qtyT(uq)} particip. · valen ${E(uq*u)}</div>`:""}</div>`}).join("")}</div>`:'<div class="m">No hay nada comprado en tu cuenta: todo está en efectivo.</div>';
- const pb=R.pendBot||[];if(pb.length)h+=`<div class="mi-warn">⏳ Órdenes del bot pendientes en Trading 212 (se comprueban y apuntan en la próxima ejecución): ${pb.map(o=>esc(o.side+" "+o.t+" · "+qtyT(o.qty)+" particip. · enviada "+dt(o.ts))).join(" · ")}</div>`;
- return h+(R.account&&R.account.at?'<div class="m">Datos de Trading 212 del '+esc(dt(R.account.at))+(R.account.currency&&R.account.currency!=="EUR"?" · ⚠️ divisa de la cuenta: "+esc(R.account.currency):"")+"</div>":"")}
-function ordHtml(){const O=((RL.R&&RL.R.orders)||[]).slice().sort((a,b)=>a.ts<b.ts?1:-1);if(!O.length)return'<div class="m">Todavía no se ha enviado ninguna orden real.</div>';
- const ic={ejecutada:"✔",error:"✖",rechazada:"✖",aplazada:"⏳",omitida:"⚪",pendiente:"⏳",desconocida:"❓"},g={};O.forEach(o=>{const k=dayKey(o.ts);(g[k]=g[k]||[]).push(o)});
- return Object.keys(g).sort().reverse().map((d,j)=>`<details class="rd" ${j<3?"open":""}><summary><span><b>${esc(fdL(d))}</b></span><span class="m">${g[d].length} ${g[d].length===1?"orden":"órdenes"}</span></summary><div class="rb">${g[d].map(o=>`<div class="ev ${o.estado==="ejecutada"?(o.side==="COMPRA"?"buy":"sell"):/error|rechazada/.test(o.estado)?"sell":"hold"}"><b>${esc(hora(o.ts))} · ${ic[o.estado]||"·"} ${o.side==="COMPRA"?"🟢 COMPRA":"🔴 VENTA"} ${esc(o.t)}</b>${o.sym?' <span class="m">(señal '+esc(o.sym)+")</span>":""}
-<div class="m">${ES(o.eur)}${o.qty?" · "+qtyT(Math.abs(o.qty))+" particip.":""}${o.px?" a "+(+o.px).toFixed(2):""}${o.coste!=null&&o.side==="VENTA"?" · costó "+E(o.coste):""}${o.pnl!=null?' · <b class="'+cls(o.pnl)+'">resultado '+E2(o.pnl)+"</b>":""}</div>
-<div class="m">${esc(o.estado)}${o.modo?" · "+(o.modo==="manual"?"👤 hecha por ti en la app":o.modo==="aprobada"?"aprobada por ti":"automática"):""}${o.env==="demo"?" · DEMO":""}${o.ejecutadaEn?" · ejecutada "+esc(dt(o.ejecutadaEn)):""}${o.cashBot!=null?" · efectivo del bot después: "+E(o.cashBot):""}${o.id?" · id "+esc(o.id):""}</div>${o.err?'<div class="m">'+esc(o.err)+"</div>":""}${o.why?'<div class="m">Motivo: '+esc(o.why)+"</div>":""}${isinBtn(isinOf(o.t,o.sym,o.isin))}</div>`).join("")}</div></details>`).join("")}
-/* contabilidad del bot: todo lo que entra y sale de su subcuenta, con fecha y hora */
-function movHtml(){const R=RL.R,H=((R&&R.ledger&&R.ledger.hist)||[]).slice().sort((a,b)=>a.ts<b.ts?1:-1),C=(R&&R.cuenta)||[];
- let h='<div class="m">Cada compra, venta, aportación o retirada del bot, con el efectivo que le queda después. Es su «libro de cuentas» (la ganancia de cada venta es la que se declara en la renta).</div>';
- if(!H.length)h+='<div class="m">Aún no hay movimientos.</div>';
- else{const ic={capital:"🏁",aportación:"➕",retirada:"➖",compra:"🟢",venta:"🔴",ajuste:"✋"},g={};H.forEach(x=>{const k=dayKey(x.ts);(g[k]=g[k]||[]).push(x)});
-  h+=Object.keys(g).sort().reverse().map((d,j)=>`<details class="rd" ${j<2?"open":""}><summary><span><b>${esc(fdL(d))}</b></span><span class="m">${g[d].length} mov.</span></summary><div class="rb"><div class="rl-pos">${g[d].map(x=>`<div><div class="rl-pt"><b>${esc(hora(x.ts))} · ${ic[x.tipo]||"·"} ${esc(x.tipo)}${x.t?" "+esc(x.t):""}</b><b class="${cls(x.eur)}">${E2(x.eur||0)}</b></div><div class="m">${x.q?qtyT(Math.abs(x.q))+" particip."+(x.px?" a "+(+x.px).toFixed(2):"")+" · ":""}${x.pnl!=null?'resultado <b class="'+cls(x.pnl)+'">'+E2(x.pnl)+"</b> · ":""}efectivo del bot después: ${E(x.cashBot||0)}</div>${x.nota?'<div class="m">'+esc(String(x.nota).slice(0,200))+"</div>":""}</div>`).join("")}</div></div></details>`).join("")}
- if(C.length)h+='<div class="m" style="margin-top:8px"><b>Ingresos y retiradas en tu cuenta de Trading 212</b> (no cambian el dinero del bot)</div>'+C.map(x=>`<div class="m">${esc(dt(x.ts))} · ${x.eur>0?"➕ ingresaste":"➖ retiraste"} ${E(Math.abs(x.eur))} · ingresado neto ${E(x.net)}</div>`).join("");
- return h}
-function btTxt(k){try{const b=S.btm;if(!b||!b.rows||!b.rows[k])return TESTED[k]||"Aún no está en la última prueba histórica";const a=annualOf(b.rows[k],b.cuts),sp=b.rows.spy?annualOf(b.rows.spy,b.cuts):null,r=b.rows[k],dd=r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null,v=btmVerd(b,k);return(v?v.t:"")+" en la prueba: "+(a==null?"—":P(a*100))+"/año"+(sp!=null?" (SPY "+P(sp*100)+")":"")+(dd!=null?" · peor caída "+P(dd*100):"")}catch(e){return TESTED[k]||""}}
-function coverage(k){const M=(RL.R&&RL.R.map)||{},t0=Object.keys((bkOf(k)&&bkOf(k).tgt&&bkOf(k).tgt.w)||{}),u=UNI[k]||(t0.length?t0:(((typeof MX==="function"&&MX(k))||STR[k]||{}).syms||[]).filter(x=>x!=="SPY"||k!=="m10")),ok=u.filter(s=>M[s]&&M[s].t),no=u.filter(s=>M[s]&&!M[s].t),unk=u.filter(s=>!M[s]);return{u,ok,no,unk}}
-/* v106 · «Elige el método»: solo 10 (tu método y los 9 mejores que pasan tus condiciones), comparados con el tuyo:
-   lo que gana cada uno en la prueba de 26 años (después de impuestos) y lo que habría ganado con precios reales desde la misma fecha que el tuyo,
-   según lo que compraría (su cartera en la ficticia). Ordenados de más a menos. */
-/* v118 · métodos por FAMILIAS: los que nacen de la misma idea van juntos (plegables), hasta 40 en total y 6 por familia,
-   con su riesgo (peor caída en la prueba) para poder elegir unos que arriesgan más y otros menos. */
-const MXr=k=>{try{return(typeof MX==="function"&&MX(k))||STR[k]||null}catch(e){return STR[k]||null}};
-const FAMB={rot:"🔄 Rotación de sectores",tec:"📈 Tendencia y tecnología (Nasdaq, semiconductores)",tac:"🌍 Asignación táctica (bolsa, bonos y oro)",pru:"🛡️ Carteras prudentes (todo tiempo, 60/40, permanente)",otr:"🧩 Otras ideas",mez:"🔀 Mezclas 50/50 del laboratorio"};
-const FAMK={rot:"sect sectx s11 sfab s121 sriv sadj s2 s4 snf s13612 sdm lowv core50 core",tec:"trq qtlt dmu smh grw mix mq m10 qld aim aic",tac:"gtaa5 gtaa3 vaa daa adm gem",pru:"aw gb rp pp s6040 trend",otr:"hal halq bufm buf9"};
-function famOf(k){const m=MXr(k)||{},g=m.lab;
- if(g&&g.bl)return{id:"mez",n:FAMB.mez};if(g&&g.base)return famOf(g.base);
- if(g&&g.u!=null){const U=(typeof LABU!=="undefined"&&LABU[g.u])||{n:g.u};return{id:"lab_"+g.u+"_"+g.t+(g.z&&g.z!=="mom"?"_"+g.z:""),n:(g.z==="rp"?"⚖️ Paridad de riesgo con ":g.z==="lv"?"🧘 Los más tranquilos de ":g.z==="rev"?"🔁 Compra en caídas en ":g.z==="acel"?"⚡ Aceleración en ":"🚀 "+(g.t===1?"El mejor":"Los "+g.t+" mejores")+" de ")+U.n+" (laboratorio)"}}
- for(const f in FAMK)if((" "+FAMK[f]+" ").includes(" "+k+" "))return{id:f,n:FAMB[f]};return{id:"otr",n:FAMB.otr}}
-const riskOf=dd=>dd==null?{t:"riesgo sin calcular",c:""}:dd>-0.25?{t:"🟢 arriesga poco",c:"up"}:dd>-0.4?{t:"🟡 riesgo medio",c:""}:{t:"🔴 arriesga mucho",c:"dn"};
-function metList(){const a=A(),cur=a.metodo,b=S.btm,anOf=k=>{const r=b&&b.rows&&b.rows[k];try{return r?(r.every(x=>x&&x.atax!=null)?annualTaxOf(r,b.cuts):annualOf(r,b.cuts)):null}catch(e){return null}};
- const ddOf=k=>{const r=b&&b.rows&&b.rows[k];return r&&r.every(Boolean)?Math.min(...r.map(x=>x.dd)):null};
- const eqAt=(B,d)=>{let v=null;for(const z of (B.days||[])){if(z.d<=d)v=z.eq;else break}return v};
- const live=k=>{const B=bkOf(k),Cb=bkOf(cur);if(!B||!B.days||!B.days.length)return null;const d0=Cb&&Cb.days&&Cb.days.length&&Cb.days[0].d>B.days[0].d?Cb.days[0].d:B.days[0].d,b0=eqAt(B,d0),c0=Cb?eqAt(Cb,d0):null;
-  return{d0,g:b0>0?liveEq(k)/b0-1:null,gc:c0>0&&k!==cur?liveEq(cur)/c0-1:null}};
- const vOf=k=>{try{return(b&&b.rows&&b.rows[k]&&btmVerd(b,k)||{}).c||null}catch(e){return null}};
- const mine=MS(a),off=k=>!!(S.lab&&S.lab.off&&S.lab.off[k]);
- const cand=new Set([...Object.keys((b&&b.rows)||{}).filter(k=>k!=="spy"&&MXr(k)&&!off(k)&&["ok","mid"].includes(vOf(k))),...Object.keys(STR||{}).filter(k=>{try{return winTrue(k)}catch(e){return false}}),...mine.filter(k=>MXr(k))]);
- const mode=RL.msort||"prueba",key=x=>mode==="vivo"?(x.lv&&x.lv.g!=null?x.lv.g:-9):(x.an!=null?x.an:-9);
- const mkRow=k=>({k,an:anOf(k),dd:ddOf(k),v:vOf(k),lv:live(k),bk:!!bkOf(k),f:famOf(k)}),rows=[...cand].map(mkRow);
- const F={};for(const x of rows)(F[x.f.id]=F[x.f.id]||{id:x.f.id,n:x.f.n,all:[]}).all.push(x);
- const PER=6,MAXT=40;let fams=Object.values(F).map(f=>{f.all.sort((x,y)=>key(y)-key(x));const m=f.all.filter(x=>mine.includes(x.k)),o=f.all.filter(x=>!mine.includes(x.k)).slice(0,Math.max(0,PER-m.length));f.list=[...m,...o].sort((x,y)=>key(y)-key(x));f.hid=f.all.length-f.list.length;f.best=f.list.length?key(f.list[0]):-9;return f}).sort((x,y)=>y.best-x.best);
- let tot=fams.reduce((t,f)=>t+f.list.length,0);
- while(tot>MAXT){let w=null;for(const f of fams){const c=f.list.filter(x=>!mine.includes(x.k));if(c.length>1&&(!w||f.list.length>w.list.length||(f.list.length===w.list.length&&key(c[c.length-1])<key(w.list.filter(x=>!mine.includes(x.k)).pop()))))w=f}if(!w)break;const c=w.list.filter(x=>!mine.includes(x.k)).pop();w.list=w.list.filter(x=>x!==c);w.hid++;tot--}
- const me=rows.find(x=>x.k===cur),list=fams.flatMap(f=>f.list);
- return{cur,mine,me,fams,list,mode,anCur:me?me.an:anOf(cur),total:rows.length,mkRow}}
-function metHtml(){const {cur,mine,fams,list,mode,anCur,total,mkRow}=metList();const ex=RL.extraPick||A().extra||[],inMix=k=>k===(RL.pick||cur)||ex.includes(k);if(!list.length)return'<div class="m">El simulador aún no tiene métodos cargados.</div>';
- const pt=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1).replace(".",","),pcD=x=>x==null?"—":"−"+Math.abs(x*100).toFixed(0)+" %";RL.famOpen=RL.famOpen||{};
- const row=(x,i)=>{const k=x.k,M=MXr(k)||{n:k},cv=coverage(k),sel=k===cur,lv=x.lv,mx=inMix(k),pos=k===(RL.pick||cur)?1:ex.indexOf(k)+2,rk=riskOf(x.dd);
-  const cvT=!x.bk?"⏳ aún no está en la ficticia: si lo eliges, entra en la próxima actualización diaria y desde entonces el bot lo sigue":!RL.R||!Object.keys(RL.R.map||{}).length?"pulsa «Probar conexión» para saber si se puede comprar todo":cv.no.length?"✖ no disponible en tu cuenta: "+cv.no.join(", "):cv.unk.length?"sin comprobar: "+cv.unk.join(", "):!cv.u.length?"aún sin cartera en la simulación":"✔ se puede comprar todo";
-  const dA=!sel&&x.an!=null&&anCur!=null?x.an-anCur:null,dL=!sel&&lv&&lv.g!=null&&lv.gc!=null?lv.g-lv.gc:null;
-  const big=mode==="vivo"?(lv&&lv.g!=null?pt(lv.g)+" %":"—"):(x.an!=null?pt(x.an)+" %<small>/año</small>":"—"),bigCls=mode==="vivo"?cls(lv&&lv.g):cls(x.an);
-  const vs=sel?"es el tuyo":mode==="vivo"?(dL!=null?`${dL>=0?"▲":"▼"} ${pt(dL)} puntos vs el tuyo`:"aún sin comparar"):(dA!=null?`${dA>=0?"▲":"▼"} ${pt(dA)} puntos/año vs el tuyo`:"");
-  const l1=`Prueba 26 años, tras impuestos: <b>${x.an!=null?pt(x.an)+" %/año":"—"}</b>${dA!=null?` (${dA>=0?"+":"−"}${Math.abs(dA*100).toFixed(1).replace(".",",")} puntos que el tuyo)`:""}`;
-  const l0=`<strong class="${rk.c}">${rk.t}</strong> · peor caída ${pcD(x.dd)} · ${x.v==="ok"?"✅ gana al SPY":"⚪ no supera al SPY por 2 puntos"}`;
-  const l2=lv&&lv.g!=null?`Con precios reales desde el ${esc(fd(lv.d0))}: <b>${pt(lv.g)} %</b>${lv.gc!=null?` (el tuyo ${pt(lv.gc)} %)`:""}`:"Con precios reales: aún sin datos";
-  return`<div class="rk-c" data-mk="${esc(k)}" style="${mx?"border:2px solid var(--acc)":""}"><div class="rk-n">${mx?"✅":i+1}</div><div class="rk-t"><b>${esc(M.n)}${midB(k)}${M.fwd?' <span class="bdg t">🔭 en vivo</span>':""}</b><span class="m" style="display:block;font-size:12px;margin-top:2px">${l0}<br>${l1}<br>${l2}<br>${esc(cvT)}</span>${mx?`<span class="bdg ok" style="margin-top:4px;display:inline-block">en tu cartera · ${pos===1?"principal":pos+".º"}</span>${pos>1?` <button class="ghost" data-mx="-${esc(k)}" style="padding:4px 10px;font-size:12px">➖ Quitar del reparto</button>`:""}`:ex.length<2?`<button class="ghost" data-mx="+${esc(k)}" style="padding:4px 10px;font-size:12px;margin-top:4px">➕ Añadir al reparto</button>`:""}</div><div class="rk-g ${bigCls}">${big}<small>${vs}</small></div></div>`};
- const shown=list.length;
- return'<div class="m">La cartera real copia la <b>cartera objetivo</b> del método que elijas (los mismos activos y pesos), con equivalentes UCITS en euros. Están agrupados por <b>familias</b> (los que nacen de la misma idea): toca una familia para abrirla. Toca un método para que sea el principal, o usa <b>➕ Añadir al reparto</b> para repartir el dinero a partes iguales entre 2 o 3. <b>Para repartir el riesgo de verdad, elige métodos de familias distintas</b>: dos de la misma compran casi lo mismo.</div>'+
- `<div style="display:flex;gap:6px;margin:8px 0"><input id="rl-msq" type="search" inputmode="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="🔎 Buscar por #id o por nombre (p. ej. g_c579x9)" value="${esc(RL.msq||"")}" style="flex:1;min-width:0"><button id="rl-msgo" class="go" style="padding:8px 12px">Buscar</button>${RL.msq?'<button id="rl-msx" class="ghost" style="padding:8px 10px">✖</button>':""}</div>`+
- (RL.msq?(()=>{const q=RL.msq.trim().replace(/^#/,"").toLowerCase(),ks=[...new Set([...Object.keys(STR||{}),...Object.keys((S.btm&&S.btm.rows)||{}),...Object.keys(globalThis.__BTX||{})])].filter(k=>k!=="spy"&&MXr(k)&&(k.toLowerCase().includes(q)||String(MXr(k).n||"").toLowerCase().includes(q))).sort((a,b)=>(a.toLowerCase()===q?-1:0)-(b.toLowerCase()===q?-1:0)).slice(0,10);
-   return `<div class="m" style="margin:4px 0"><b>Resultado de «${esc(RL.msq)}»</b>: ${ks.length?ks.length+(ks.length===10?" o más":"")+" método(s)":"ninguno. Prueba con el #id que ves junto al nombre del método."}</div>`+(ks.length?`<div class="rk" style="margin-bottom:10px">${ks.map((k,i)=>row(mkRow(k),i)).join("")}</div>`:"")})():"")+
- `<div class="pills" style="margin:6px 0"><button data-msort="prueba" class="${mode==="prueba"?"on":""}">Por la prueba (26 años)</button><button data-msort="vivo" class="${mode==="vivo"?"on":""}">Por lo que lleva con precios reales</button></div>`+
- fams.filter(f=>f.list.length).map((f,j)=>{const has=f.list.some(x=>inMix(x.k)),open=RL.famOpen[f.id]!=null?RL.famOpen[f.id]:has,dds=f.list.map(x=>x.dd).filter(x=>x!=null),ans=f.list.map(x=>x.an).filter(x=>x!=null);
-  const lo=ans.length?Math.min(...ans):null,hi=ans.length?Math.max(...ans):null,rng=ans.length?(Math.abs(hi-lo)<0.0005?`${pt(hi)} %/año`:`${pt(lo)} a ${pt(hi)} %/año`):"",rk=riskOf(dds.length?dds.sort((x,y)=>x-y)[Math.floor(dds.length/2)]:null);
-  return`<details class="rd" data-fam="${esc(f.id)}"${open?" open":""}><summary><span>${esc(f.n)}${has?" · ✅ la tuya":""}<small class="m" style="display:block;font-weight:400">${f.list.length} método${f.list.length>1?"s":""}${f.hid?(/^lab_|^mez/.test(f.id)?` (y ${f.hid} variante${f.hid>1?"s":""} más, casi iguales)`:` (y ${f.hid} más flojo${f.hid>1?"s":""})`):""} · ${rng} · ${rk.t}</small></span></summary><div class="rb"><div class="rk">${f.list.map(row).join("")}</div></div></details>`}).join("")+
- `<div class="m" style="font-size:12px;margin-top:6px">Se muestran ${shown} de los ${total} métodos probados con 26 años de datos (máximo 6 por familia, los mejores; nunca más de 40). El riesgo sale de la peor caída en 26 años: 🟢 menos del 25 %, 🟡 entre 25 y 40 %, 🔴 más del 40 %.</div>`+
-  ((RL.pick&&RL.pick!==cur&&MXr(RL.pick))||RL.extraPick?`<div class="mi-warn">Has elegido <b>${esc(MN({metodo:RL.pick||cur,extra:RL.extraPick||A().extra||[]}))}</b> (aún sin guardar). Se aplica cuando pulses <b>«Guardar todos los ajustes»</b> al final de «Ajustes de la cartera real»; en la próxima revisión el bot venderá lo que no esté en su cartera y comprará lo nuevo.<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="go" id="rl-mok">Ir a guardar</button><button id="rl-mno">Cancelar</button></div></div>`:"")}
-function mapHtml(){const M=(RL.R&&RL.R.map)||{},xs=Object.values(M).sort((a,b)=>a.sym.localeCompare(b.sym));
- if(!xs.length)return'<div class="m">Aún no se ha comprobado. Pon tus claves de Trading 212 y pulsa <b>«Probar conexión»</b>: el bot descarga la lista de instrumentos de tu cuenta y te dice, uno por uno, con qué ETF europeo se compra cada activo.</div>';
- const used=new Set([].concat(...Object.keys(STR||{}).map(k=>UNI[k]||[])));
- const tr=x=>`<tr><td><b>${esc(x.sym)}</b> <span class="m">${esc(DESC[x.sym]||"")}</span></td><td>${x.t?"✔ "+esc(x.t)+'<br><span class="m">'+esc(x.name||"")+"</span>"+(x.isin?"<br>"+isinBtn(x.isin):""):"✖ "+'<span class="m">'+esc(x.why||"")+"</span>"}</td><td>${esc(x.cur||"—")}</td></tr>`;
- const a=xs.filter(x=>used.has(x.sym)),b=xs.filter(x=>!used.has(x.sym));
- return'<div class="m">Los ETFs de EE. UU. (XLK, QQQ…) <b>no se pueden comprar desde España</b> (normativa europea PRIIPs): el bot compra el ETF europeo (UCITS) que sigue el mismo índice. La señal sale del ETF de EE. UU.; la orden, del europeo.</div><div class="tw"><table><tr><th>Activo del bot</th><th>Se compra en Trading 212</th><th>Divisa</th></tr>'+a.map(tr).join("")+"</table></div>"+(b.length?'<details class="rd"><summary>Otros activos comprobados (no los usa ningún método actual): '+b.length+'</summary><div class="rb"><div class="tw"><table>'+b.map(tr).join("")+"</table></div></div></details>":"")+
- (RL.R.inst?'<div class="m">Lista de instrumentos de Trading 212 del '+esc(dt(RL.R.inst.at))+" ("+RL.R.inst.n+" instrumentos). Si prefieres otro ETF para algún activo, ponlo en «Sustituciones manuales» de los ajustes.</div>":"")}
-function actHtml(){const R=RL.R,dis=RL.busy?"disabled":"";
- return`<div class="rl-btns"><button id="rl-a-normal" class="go" ${dis}>🔄 Revisar ahora</button>${R&&R.paused?`<button id="rl-a-reanudar" class="go" ${dis}>▶ Reanudar (quitar pausa)</button>`:""}<div class="rl-mini"><button id="rl-a-rec" ${dis}>↻ Actualizar</button><button id="rl-a-probar" ${dis}>🔌 Probar conexión</button><button id="rl-a-foto" ${dis}>📸 Guardar valor</button></div></div>
-<div class="m rl-hint" style="font-size:12px">«Revisar ahora» aplica ya el método. Lo automático: revisión cada día de bolsa desde las 9:17 y el valor cada ~15 min con la bolsa abierta.</div>`}
-function cfgHtml(){const a=A(),sec=secState(),sel=(id,v,opts)=>`<select id="${id}" style="width:100%">${opts.map(([k,t])=>`<option value="${k}"${String(v)===String(k)?" selected":""}>${t}</option>`).join("")}</select>`;
- const yn=(id,v)=>sel(id,v,[[1,"Sí"],[0,"No"]]),mp=Object.entries(a.mapa||{}).map(([k,v])=>k+"="+v).join("\n");
- let h='<div class="m">Estos ajustes son <b>solo de tu cartera real de Trading 212</b>. Se guardan cifrados en tu repositorio y el bot los usa desde su siguiente revisión.</div><div class="kv rl-cfg">';
- h+=`<div>Cartera real activada${yn("rl-c-on",a.on)}</div><div>Entorno${sel("rl-c-env",a.env,[["live","💶 Real (dinero de verdad)"],["demo","Demo (práctica de Trading 212)"]])}</div>`;
- h+=`<div style="grid-column:1/-1"><label style="display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:12px"><input type="checkbox" id="rl-c-auto" ${a.modo==="auto"?"checked":""} style="width:22px;height:22px;flex:none;margin-top:2px"><span><b>Invertir sin mi aprobación</b><span class="m" style="display:block;font-size:12px">Marcado: el bot compra y vende solo y te avisa de lo que ha hecho. Sin marcar: te propone las órdenes y no hace nada hasta que pulses «Aprobar» en Telegram o en la web.</span></span></label><label style="display:flex;gap:10px;align-items:center;margin-top:6px;font-size:13px"><input type="checkbox" id="rl-c-pau" ${a.modo==="pausa"?"checked":""} style="width:20px;height:20px;flex:none"> Pausa: solo mirar, no enviar ninguna orden</label></div>`;
- h+=`<div>Cuándo reajusta${sel("rl-c-reaj",a.reajuste,[["revision","Igual que la simulación (solo en las revisiones del método)"],["desvio","También si un activo se desvía del umbral"]])}</div>`;
- {const Lk=(()=>{const L=metList().list.map(x=>x.k);for(const k of [RL.pick,a.metodo,...(RL.extraPick||a.extra||[])])if(k&&MXr(k)&&!L.includes(k))L.push(k);return L.filter(k=>MXr(k)).map(k=>[k,MXr(k).n+" · #"+k])})(),ex=RL.extraPick||a.extra||[];
- const AUT=!(a.metAuto===0||a.metAuto===false);h+=`<div style="grid-column:1/-1">Método${AUT?`<small class="m" style="display:block">Ahora lo elige el laboratorio solo (sigue al n.º 1). Si lo cambias a mano, en la siguiente revisión vuelve al n.º 1; para elegirlo tú, pon «Seguir siempre al n.º 1» en No.</small>`:""}<input type="search" class="mfilter" data-filter="option" data-scope="#rl-c-met" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="🔎 Filtrar la lista por #id o nombre" style="width:100%;margin:6px 0">${sel("rl-c-met",RL.pick||a.metodo,Lk)}</div>`;
- h+=`<div style="grid-column:1/-1${AUT?";display:none":""}">2.º método (opcional: el dinero se reparte a partes iguales)<input type="search" class="mfilter" data-filter="option" data-scope="#rl-c-met2" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="🔎 Filtrar por #id o nombre" style="width:100%;margin:6px 0">${sel("rl-c-met2",ex[0]||"",[["","— ninguno —"],...Lk])}</div><div style="grid-column:1/-1${AUT?";display:none":""}">3.º método (opcional)<input type="search" class="mfilter" data-filter="option" data-scope="#rl-c-met3" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="🔎 Filtrar por #id o nombre" style="width:100%;margin:6px 0">${sel("rl-c-met3",ex[1]||"",[["","— ninguno —"],...Lk])}</div>`}
- /* v146: «Dinero que trabaja el bot» enseña lo que vale HOY (lo que empezó + lo ganado, que se reinvierte). Si no lo tocas, al guardar no cambia nada;
-   si escribes otra cifra, el bot pasa a trabajar con esa cantidad (la diferencia con lo que vale hoy es dinero que metes o sacas). */
- const nowBot=(()=>{try{const x=summary();return x&&Number.isFinite(+x.be)&&x.be>0?Math.round(x.be*100)/100:null}catch(e){return null}})();
- h+=Object.entries(NUM).map(([k,[lo,hi,t,d]])=>{const saved=Number.isFinite(+a[k])&&a[k]!==""&&a[k]!=null?+a[k]:(k==="limite"?"":DEF[k]),val=k==="limite"&&nowBot!=null?nowBot:saved;
-  const dd=k==="limite"?(nowBot!=null?`Es lo que vale <b>hoy</b> el dinero del bot: empezó con ${ES(+saved||0)} y lo que gana se reinvierte solo${A().sumarIngresos?"; lo que ingreses en Trading 212 se suma solo":""}. No hace falta tocarlo. Escribe otra cifra solo si quieres que el bot pase a trabajar con más dinero (lo metes tú) o con menos (vende lo necesario).`:d):d;
-  return`<div>${t}<input id="rl-c-${k}" type="number" inputmode="decimal" autocomplete="off" name="rl-n-${k}" step="any" min="${lo}" max="${hi}" value="${val}" style="width:100%"><span class="m" style="display:block;font-size:12px">${dd} (${lo} a ${hi})</span></div>`}).join("");
- h+=`<div>Divisa de los ETFs${sel("rl-c-div",a.divisa,[["eur","Solo en euros (sin comisión de cambio)"],["cualquiera","Cualquiera (también $ o £; 0,15% de cambio)"]])}</div><div>Permitir acciones de EE. UU.${yn("rl-c-acc",a.acciones)}</div>`;
- h+=`<div style="grid-column:1/-1">Sumar al bot lo que ingrese o retire en Trading 212${yn("rl-c-sum",a.sumarIngresos==null?1:a.sumarIngresos)}<span class="m" style="display:block;font-size:12px">Sí: si ingresas 50 € en Trading 212, el bot pasa a trabajar con 50 € más y los invierte en la siguiente revisión (y si retiras, se le descuenta). No: el bot solo usa «Dinero que trabaja el bot»; lo demás es tuyo.${RL.R&&RL.R.ledger&&RL.R.ledger.auto?" Ahora mismo lleva sumados "+E(RL.R.ledger.auto)+" de ingresos (trabaja con "+E(RL.R.ledger.limite)+").":""}</span></div><div style="grid-column:1/-1" class="m">📲 Todos los avisos van a tu <b>Telegram</b> (con importes, órdenes y botones para aprobar). El móvil y el correo solo se usan de respaldo si Telegram falla.</div><div>🤖 Seguir siempre al n.º 1 del laboratorio${yn("rl-c-mau",a.metAuto==null?1:a.metAuto)}<small class="m" style="display:block">Sí = la cartera real pasa sola al n.º 1 del laboratorio (si compra cosas distintas, solo cuando le saca 1 punto al año al actual). No = el método lo eliges tú abajo y el laboratorio solo te propone cambios por Telegram.</small></div><div>Informe semanal (viernes)${yn("rl-c-sem",a.semanal)}</div><div>Avisarme de${sel("rl-c-avi",a.avisos,[["todo","Todo lo que haga (cada revisión, foto, aprobación…)"],["importante","Solo lo importante (órdenes, propuestas, errores, semanal)"]])}</div></div>`;
- h+=`<div style="margin-top:10px"><b>Sustituciones manuales</b> <span class="m">(opcional: una por línea, <code>XLK=QDVEd_EQ</code> para elegir otro ETF, o <code>XLC=-</code> para no comprar ese activo)</span><textarea id="rl-c-map" rows="3" placeholder="XLK=QDVEd_EQ" readonly autocomplete="off" name="rl-n-map" spellcheck="false" style="opacity:.75">${esc(mp)}</textarea><button type="button" class="ghost" id="rl-c-mapedit" style="margin-top:6px;padding:6px 12px;font-size:13px">✏️ Editar sustituciones</button></div>`;
- h+='<h3 style="margin:16px 0 6px;font-size:15px">Claves (se guardan cifradas en GitHub Secrets; aquí nunca se muestran)</h3><div class="kv">'+SECRETS.map(([k,t])=>{const ok=sec[k];return`<div>${ok===true?"✔ ":ok===false?"✖ ":"· "}${esc(t)} <span class="m">(${k})</span><input data-rk="${k}" type="text" readonly class="rl-sec" name="rl-x-${k.toLowerCase()}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" style="-webkit-text-security:disc;text-security:disc;width:100%;opacity:.75" placeholder="${ok===true?"puesta · pulsa ✏️ para cambiarla":ok===false?"vacía · pulsa ✏️ para escribirla":"comprobando… · pulsa ✏️ para escribirla"}"><button type="button" class="ghost" data-unlock-rk="${k}" style="margin-top:4px;padding:4px 10px;font-size:12px">✏️ ${ok===true?"Cambiar":"Escribir"}</button>${ok===true?`<label class="m" style="display:flex;gap:6px;margin-top:4px"><input type="checkbox" data-rd="${k}"> quitar</label>`:""}</div>`}).join("")+"</div>";
- h+='<div class="m">Cómo crear la clave en Trading 212: en la app, <b>Ajustes → API (Beta) → Generar clave</b>. Marca los permisos <b>Account data, Portfolio, Orders (read y execute), History y Metadata</b>. <b>No</b> limites por IP (GitHub cambia de IP). Copia la <i>API key</i> y el <i>API secret</i> aquí. Si eliges «Demo», la clave tiene que ser de la cuenta demo.</div>';
- h+=`<label class="m" style="margin-top:10px"><input type="checkbox" id="rl-c-ok" ${a.aceptoReal?"checked":""}> Entiendo que, con el entorno «Real», el bot envía órdenes con mi dinero de Trading 212, que puedo perderlo y que ningún método garantiza ganar.</label>`;
- const c0=C(),locked=c0&&!c0.tok();
- h+=`<div id="rl-c-end" style="display:grid;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
-<div class="m"><b>Se guarda TODO lo de esta sección de una vez</b>: activación, entorno, modo, cuándo reajusta, método, importes y frenos, divisa, avisos, informe semanal, sustituciones y las claves que hayas escrito (las vacías no se tocan). Se cifra en tu navegador y se envía a GitHub.</div>
-<div class="mi-warn" id="rl-c-dirty" style="display:${RL.dirty?"block":"none"}">✏️ Tienes cambios sin guardar.</div>
-${!c0?'<div class="m">Para guardar, abre la web publicada en GitHub Pages.</div>':locked?(c0.hasEnc()?`<input type="text" autocomplete="username" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"><input id="rl-c-pw" type="password" placeholder="Tu clave de ⚙️ Ajustes (para poder guardar)" autocomplete="current-password">`:'<div class="m">🔒 Primero guarda tu token de GitHub en ⚙️ Ajustes (una sola vez).</div>'):'<div class="m">🔓 Desbloqueado: puedes guardar.</div>'}
-<button class="go" id="rl-c-save" ${RL.busy?"disabled":""}>💾 Guardar todos los ajustes y enviarlos a GitHub</button>
-<div class="m" id="rl-st2" style="font-weight:700">${esc(RL.msg||"")}</div></div>`;
- return h}
-function readCfg(){const g=id=>$r("#rl-c-"+id),a0=A(),o={on:+g("on").value,env:g("env").value,modo:g("pau")&&g("pau").checked?"pausa":g("auto")&&g("auto").checked?"auto":"confirmar",reajuste:g("reaj").value,metodo:g("met").value,extra:[...new Set([g("met2")&&g("met2").value,g("met3")&&g("met3").value].filter(x=>x&&x!==g("met").value))],divisa:g("div").value,acciones:+g("acc").value,movil:g("mov")?+g("mov").value:(a0.movil==null?1:a0.movil),sumarIngresos:g("sum")?+g("sum").value:1,telegram:1,correo:0,metAuto:g("mau")?+g("mau").value:(a0.metAuto==null?1:a0.metAuto),semanal:+g("sem").value,avisos:g("avi").value,discreto:g("dis")?+g("dis").value:(a0.discreto==null?1:a0.discreto),aceptoReal:g("ok").checked?1:0};
- /* v124: acepta coma decimal; si la casilla llega vacía (algunos móviles la vacían) se conserva el valor guardado */
- for(const [k,[lo,hi,t]] of Object.entries(NUM)){const el=g(k),prev=+a0[k],typed=el&&el.dataset.typed==="1",raw=typed?String(el.value).trim().replace(/\s/g,"").replace(",","."):"";let v=raw===""?NaN:+raw;   /* v130: sin teclear, vale lo guardado */
-  if(!isFinite(v)&&raw===""&&isFinite(prev)&&prev>=lo&&prev<=hi)v=prev;
-  if(!isFinite(v)||v<lo||v>hi)return{err:t+": debe estar entre "+lo+" y "+hi+(raw!==""?" (has puesto «"+raw+"»)":" (la casilla está vacía)")};o[k]=k==="maxOrdenes"?Math.round(v):+v.toFixed(2)}
- if(o.minOrden>o.limite)return{err:"La orden mínima no puede ser mayor que el dinero máximo."};
- const mapEl=g("map"),mapTyped=mapEl&&mapEl.dataset.typed==="1"&&(!mapEl.value.trim()||mapEl.value.includes("="));const m=mapTyped?{}:{...(a0.mapa||{})};if(mapTyped)for(const l of mapEl.value.split("\n").map(x=>x.trim()).filter(Boolean)){const p=l.split("=").map(x=>x.trim());if(p.length!==2||!/^[A-Z0-9.\-]{1,12}$/.test(p[0].toUpperCase())||!(p[1]==="-"||/^[A-Za-z0-9._-]{2,40}$/.test(p[1])))return{err:"Sustitución no válida: «"+l+"» (formato XLK=TICKER_EQ o XLC=-)"};m[p[0].toUpperCase()]=p[1]}
- o.mapa=m;if(o.on&&o.env==="live"&&!o.aceptoReal)return{err:"Para activar la cartera con dinero real marca la casilla «Entiendo que…»."};return{cfg:o}}
-async function onSave(){const c0=C(),pwI=$r("#rl-c-pw");
- if(c0&&!c0.tok()&&window.abrirNube)await window.abrirNube();
- if(c0&&!c0.tok()){const pw=pwI&&pwI.value||pwGet()||"";if(!pw){say("🔒 Escribe tu clave de ⚙️ Ajustes encima del botón «Guardar» para poder guardar.");if(pwI)pwI.focus();return}
-  say("Comprobando la clave…");try{await c0.unlock(pw)}catch(e){say("✖ Clave incorrecta: no se ha guardado nada.");return}}
- const r=readCfg();if(r.err){say("✖ "+r.err);return}const a=A(),c=r.cfg,secs=[],dels=[];
- let autoF=0;document.querySelectorAll("#t-real [data-rk]").forEach(e=>{const v=(e.value||"").trim();if(v&&e.dataset.typed!=="1"){autoF++;e.value="";return}if(v){if(/[\r\n]/.test(v)){say("✖ La clave "+e.dataset.rk+" no puede tener saltos de línea.");secs.length=0;return}secs.push([e.dataset.rk,v])}});
- document.querySelectorAll("#t-real [data-rd]").forEach(e=>{if(e.checked&&!secs.some(s=>s[0]===e.dataset.rd))dels.push(e.dataset.rd)});
- if(autoF&&!secs.length)RL.autoFillNote="He vaciado "+autoF+" casilla(s) de claves que había rellenado sola el móvil (gestor de contraseñas): tus claves guardadas no se tocan.";
- {const np=(secs.find(s=>s[0]==="REAL_VIEW_PASS")||[])[1];if(np){const w=pwWeak(np);if(w){say("✖ La contraseña de la cartera "+w+".");return}if(secs.some(s=>/^T212_/.test(s[0])&&s[1]===np)){say("✖ La contraseña de la cartera no puede ser igual que tus claves de Trading 212.");return}}}
- if(!secs.some(s=>s[0]==="REAL_VIEW_PASS")&&secState().REAL_VIEW_PASS!==true&&!pwGet()){say("✖ Escribe una «Contraseña para ver tu cartera real» (12 caracteres o más, con mayúsculas, minúsculas y números o símbolos): es obligatoria porque tu web es pública.");return}
- const turnOn=c.on&&(!a.on||a.env!==c.env||(a.modo!=="auto"&&c.modo==="auto"));
- if(turnOn&&c.env==="live"&&!confirm("Vas a dejar la cartera real ACTIVADA con DINERO REAL en modo «"+({confirmar:"con tu confirmación",auto:"AUTOMÁTICO",pausa:"solo mirar"}[c.modo])+"».\n\nMétodo: "+((MXr(c.metodo)||{}).n||c.metodo)+"\nDinero máximo que gestiona: "+c.limite+" €\n"+(c.modo==="auto"?"\nEl bot comprará y venderá SOLO, sin preguntarte.\n":"\nCada revisión te pedirá que apruebes las órdenes aquí.\n")+"\n¿Seguro?"))return;
- if(dels.length&&!confirm("Vas a quitar estas claves: "+dels.join(", ")+". ¿Seguro?"))return;
- const keys=secs.some(s=>/^T212_/.test(s[0]));const ok=await saveCfg(c,secs,dels,"Ajustes de la cartera real guardados");
- if(ok){const tt=(secs.find(s=>s[0]==="TELEGRAM_TOKEN")||[])[1],tc=(secs.find(s=>s[0]==="TELEGRAM_CHAT")||[])[1];if((tt||tc)&&typeof tgDevSet==="function")tgDevSet({tok:tt,chat:tc})}
- if(ok&&keys&&confirm("Claves de Trading 212 guardadas. ¿Pruebo la conexión ahora? (no opera)"))runCloud("probar","","Probar conexión")}
-function repHtml(){const R=RL.R,s=summary(),rs=((R&&R.reports)||[]).slice().sort((a,b)=>a.ts<b.ts?1:-1);RL.repSorted=rs;let h="";
- if(s)h+=`<div class="kv"><div>Desde<b>${esc(fd(s.d0))}</b></div><div>Capital del bot<b>${E(s.cap)}</b></div><div>Vale<b>${E(s.be)}</b></div><div>Resultado<b class="${cls(s.res)}">${SG(s.res)}</b></div><div>Rentabilidad<b class="${cls(s.pct)}">${PC(s.pct)}</b></div><div>Simulación del método<b class="${cls(s.sim)}">${PC(s.sim)}</b></div><div>Peor caída<b class="${cls(s.dd)}">${PC(s.dd)}</b></div><div>Cobrado en ventas<b class="${cls(s.real)}">${SG(s.real)}</b></div><div>Días registrados<b>${s.nd}</b></div><div>Órdenes ejecutadas · con error<b>${s.ok} · ${s.bad}</b></div></div>`;
- h+=`<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rl-d-md">⬇️ Todos los informes (.md)</button><button id="rl-d-csv">⬇️ Órdenes (.csv)</button><button id="rl-d-mov">⬇️ Movimientos del bot (.csv)</button><button id="rl-d-days">⬇️ Valor diario (.csv)</button><button id="rl-d-json">⬇️ Todos los datos (.json)</button></div>`;
- if(!rs.length)return h+'<div class="m">Aún no hay informes. Cada ejecución (revisión, aprobación, prueba, foto) deja aquí el suyo, con fecha y hora.</div>';
- const ic=x=>x.estado==="error"?"✖":x.estado==="bloqueado"?"✋":/órdenes? ejecutada/.test(x.titulo||"")&&!/^0 /.test(x.titulo||"")?"💶":/Propuesta/.test(x.titulo||"")?"🟡":/semanal/i.test(x.titulo||"")?"📊":/aplazad/.test(x.titulo||"")?"⏳":"✔";
- const g={};rs.forEach((x,i)=>{const k=dayKey(x.ts);(g[k]=g[k]||[]).push(i)});const ks=Object.keys(g).sort().reverse(),nd=RL.showRep||30;
- h+='<div class="m">'+rs.length+" informes en "+ks.length+" días, del más nuevo al más antiguo. Dentro de cada día, por hora.</div>";
- h+=ks.slice(0,nd).map((d,j)=>`<details class="rd" ${j===0?"open":""}><summary><span><b>${esc(fdL(d))}</b></span><span class="m">${g[d].length} ${g[d].length===1?"informe":"informes"}</span></summary><div class="rb">${g[d].map(i=>{const x=rs[i];return`<details class="rd" data-ri="${i}"><summary><span>${esc(hora(x.ts))} · ${ic(x)} <b>${esc(x.titulo||x.tipo)}</b></span></summary><div class="rb"><div id="rl-rb-${i}"></div><div><button data-rdl="${i}">⬇️ Descargar este informe (.md)</button></div></div></details>`}).join("")}<div><button data-rdd="${esc(d)}">⬇️ Informes de este día (.md)</button></div></div></details>`).join("");
- if(ks.length>nd)h+=`<button id="rl-more">Ver ${Math.min(30,ks.length-nd)} días más</button>`;
- return h}
-const OPENS={};try{Object.assign(OPENS,JSON.parse(localStorage.getItem("rlop")||"{}"))}catch(e){globalThis.__errC&&__errC(e)}
-function fold(id,title,body,open){const o=OPENS[id]!=null?OPENS[id]:open;return`<details class="fold" data-o="${id}"${o?" open":""}><summary>${title}</summary><div class="fb">${body}</div></details>`}
-function secHtml(){const c=C(),tok=!!(c&&c.hasEnc&&c.hasEnc()),rem=remHas(),ses=!!pwGet();
- return`<div class="m">Tu web y tu repositorio son públicos, así que todo lo de tu dinero real está protegido por capas:</div>
-<div class="rl-pos">
-<div><b>🔐 1 · Contraseña de la cartera (REAL_VIEW_PASS)</b><div class="m">Todo (saldo, posiciones, órdenes, ajustes, informes) se guarda cifrado con AES-256-GCM. La clave se deriva de tu contraseña con PBKDF2-SHA256 y 600.000 iteraciones (recomendación OWASP), así que probar contraseñas a ciegas es lentísimo. Sin ella, quien entre en la web solo ve «Zona privada».</div></div>
-<div><b>🔑 2 · Token de GitHub + tu clave de ⚙️ Ajustes</b><div class="m">Para aprobar órdenes, lanzar acciones o cambiar ajustes hace falta tu token de GitHub, que está cifrado en este navegador con tu clave (también con 600.000 iteraciones) y se bloquea solo a los 10 minutos. Nadie más puede lanzar los flujos de tu repositorio.</div></div>
-<div><b>🏦 3 · Claves de Trading 212 en GitHub Secrets</b><div class="m">Viajan cifradas con la clave pública de GitHub (libsodium) y solo las ven los flujos de GitHub: esta web no las guarda ni las puede leer. Y aunque alguien las robara, <b>la API de Trading 212 no permite sacar dinero</b>, solo operar.</div></div>
-<div><b>🙈 4 · Nada en abierto</b><div class="m">Los registros de GitHub Actions (públicos) solo dicen «ok» o «error». Los avisos al móvil van sin importes si eliges «Discretos». El correo lleva el detalle, pero llega solo a ti.</div></div>
-</div>
-<div class="m"><b>En este dispositivo:</b> contraseña de la cartera ${rem?"recordada (cifrada con una clave del navegador)":ses?"solo en esta pestaña (se borra al cerrarla)":"no guardada"} · token de GitHub ${tok?"guardado (cifrado)":"no guardado"}.</div>
-<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rl-s-lock">🔒 Bloquear ahora (pedirá la contraseña)</button><button id="rl-s-forget">Olvidar la contraseña en este dispositivo</button><button id="rl-s-tok">Olvidar el token de GitHub en este dispositivo</button></div>
-<div class="m"><b>Recomendaciones (importantes):</b> activa la <b>verificación en dos pasos</b> en GitHub, en Trading 212 y en tu Gmail · token de GitHub «fine-grained», solo de este repositorio, con caducidad · contraseña de la cartera distinta de todas las demás (mejor una frase larga) · tema de ntfy largo y raro · si pierdes el móvil, cambia la contraseña de la cartera y borra el token en GitHub (Settings → Developer settings).</div>`}
-function helpHtml(){const r=ri(),u=r?"https://github.com/"+r.o+"/"+r.r:"";
- return'<div class="steps">'+
- '<div class="step"><b>1</b><div>En Trading 212: <b>Ajustes → API</b> → crea una clave (permisos de cuenta, cartera, órdenes, historial y metadatos). Ponla con su secreto en <b>«Ajustes de la cartera real»</b>, junto con la <b>contraseña de la cartera</b> (lo cifra todo: tu web es pública).</div></div>'+
- '<div class="step"><b>2</b><div>Pulsa <b>«Probar conexión»</b>: en 1-2 minutos verás tu saldo y qué ETFs encuentra en tu cuenta.</div></div>'+
- '<div class="step"><b>3</b><div>Elige el método, pon el dinero del bot, marca «Entiendo que…» y activa la cartera. Deja <b>sin marcar</b> «Invertir sin mi aprobación» hasta que te fíes.</div></div>'+
- '<div class="step"><b>4</b><div>Cada día de bolsa (desde las 9:17) te llega por <b>Telegram</b> lo que propone, con botones para <b>Aprobar</b> o <b>Rechazar</b>. Con la bolsa cerrada, lo aprobado se compra en la siguiente apertura.</div></div>'+
- '</div>'+
- '<div class="m"><b>Tu dinero y el del bot:</b> el bot tiene su «subcuenta» (su capital, su efectivo y lo que compra él). Lo que compras tú en la app es tuyo y nunca lo vende. Con «Sumar al bot lo que ingrese», tus ingresos pasan al bot solos. Ni lo que aportas cuenta como ganancia ni lo que retiras como pérdida.</div>'+
- '<div class="m"><b>Costes:</b> Trading 212 no cobra comisión; solo pierdes unos céntimos por la diferencia de precio. Por eso el bot solo opera cuando el método cambia de cartera.</div>'+
- '<div class="m"><b>Impuestos:</b> Trading 212 no retiene nada en España; las ganancias de cada venta se declaran en la renta. Descarga «Órdenes (.csv)» en Informes.</div>'+(u?'<div class="m"><a href="'+u+'/actions/workflows/real.yml" target="_blank" rel="noopener">Ver las ejecuciones en GitHub Actions</a></div>':"")}
-
-function draw(){const keep={};if(RL.dirty)document.querySelectorAll('#t-real [id^="rl-c-"],#t-real [data-rk],#t-real [data-rd]').forEach(e=>{const k=e.id||(e.dataset.rk?"rk:"+e.dataset.rk:"rd:"+e.dataset.rd);if(e.id==="rl-c-pw")return;if((e.dataset.rk||/^(number|text|textarea)$/.test(e.type))&&e.id!=="rl-c-pw"&&e.dataset.typed!=="1")return;keep[k]=e.type==="checkbox"?{c:e.checked}:{v:e.value,t:e.dataset.typed==="1"?1:0}});
- draw0();
- for(const [k,x] of Object.entries(keep)){const e=k.startsWith("rk:")?document.querySelector('#t-real [data-rk="'+k.slice(3)+'"]'):k.startsWith("rd:")?document.querySelector('#t-real [data-rd="'+k.slice(3)+'"]'):document.getElementById(k);if(!e)continue;if("c" in x)e.checked=x.c;else{e.value=x.v;if(x.t)e.dataset.typed="1"}}}
-function draw0(){const root=$r("#rl-root");if(!root)return;const R=RL.R;let h="";
- const lockP='<div class="p" id="rl-lockp"><div id="rl-lockb">'+lockHtml()+'</div></div>',stP='<div class="m rl-st" id="rl-st" style="font-weight:700">'+esc(RL.msg||"")+"</div>";
- if(((RL.enc&&!R)||(RL.cfgEnc&&!RL.cfg&&!R))&&window.pedirClave&&!pwGet()){root.innerHTML=`<div class="p"><div class="m">🔐 Escribe tu clave al entrar en la app.</div></div>`;window.pedirClave();return}
- if((RL.enc&&!R)||(RL.cfgEnc&&!RL.cfg&&!R)){const vp0=$r("#rl-vpw");if(vp0&&root.contains(vp0)){const st0=$r("#rl-st");if(st0)st0.textContent=RL.msg||"";return}   /* v249 · ya se ve la pantalla de clave: no se redibuja (si no, borraba lo escrito o autocompletado) */
-  h=`<div class="p"><h2>🔐 Zona privada</h2><div class="m">Esta parte solo la puede ver el dueño. Escribe la <b>contraseña de la cartera</b>.${RL.err==="clave"?" <b>La contraseña guardada ya no sirve.</b>":""}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rl-vpw" type="password" placeholder="Contraseña de la cartera real" autocomplete="current-password" style="flex:1 1 180px"><button id="rl-vgo">Entrar</button></div><label class="m"><input type="checkbox" id="rl-vrem" checked> Recordarla en este dispositivo (se guarda cifrada con una clave propia del navegador; márcalo solo en tus dispositivos)</label><div class="m" id="rl-st" style="font-weight:700">${esc(RL.msg||"")}</div></div>`;root.innerHTML=h;bind();return}
- if(!R){h+=`<div class="p"><h2>💶 Cartera real con Trading 212</h2><div class="m">${RL.loading||!RL.at?skel(4):RL.err&&RL.err!=="nada"?esc(RL.err):"Todavía no hay datos de tu cuenta real. Sigue los pasos de abajo: pon tus claves de Trading 212 en los ajustes y pulsa «Probar conexión»."}</div></div>`;
-  h=lockP+h+warns()+'<div class="p"><h2>Acciones</h2>'+actHtml()+stP+"</div>"+fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),false)+fold("met","🧭 Elige el método",metHtml(),false)+fold("help","❓ Cómo ponerla en marcha",helpHtml(),false);root.innerHTML=h;bind();return}
- // v61: lo importante arriba (cuánto vale, qué va a hacer, botones); el detalle, plegado debajo
- // v339 · 💶 REAL MÍNIMA: saldo y gráfica · método y qué tiene · ganado por método · informes. Los ajustes viven en ⚙️ Ajustes → 💶 Real.
- h+=heroHtml();
- h+='<div class="p"><div class="chtop"><h2>¿Va ganando?</h2></div><div id="rl-ch">'+chartHtml()+"</div>"+(()=>{try{const d=RL.R&&RL.R.desvio;if(!d||d.dias<3)return"";const g=d.real-d.sim,f=x=>(x>=0?"+":"−")+Math.abs(x).toFixed(1).replace(".",",")+" %";return`<div class="m" style="margin-top:6px">📏 Real frente a prueba (últimos ${d.dias} días, con el método actual): tu dinero <b class="${d.real>=0?"up":"dn"}">${f(d.real)}</b> · el mismo método en la ficticia <b class="${d.sim>=0?"up":"dn"}">${f(d.sim)}</b> · ${Math.abs(g)<2?"✅ van parecido":g>0?"✅ el real va mejor":g<-5?"⚠️ el real va bastante peor (te aviso por Telegram)":"🟡 el real va algo peor"}</div>`}catch(e){return""}})()+"</div>";
- const pend=!!(R&&R.plan&&R.plan.estado==="pendiente");
- if(pend)h+='<div class="p"><h2>⏳ Espera tu aprobación</h2><div style="display:grid;gap:10px">'+planHtml()+'</div></div><div class="p rl-act">'+actHtml()+stP+'</div>';
- h+=(()=>{try{const a=A(),nm=k=>NOMB[k]||(MXr(k)||{}).n||k,ps=((R&&R.positions)||[]).filter(p=>p.bq>0),val=p=>p.bq*(p.q>0?p.val/p.q:0),tot=ps.reduce((t,p)=>t+val(p),0);
-   const ten=ps.length?ps.sort((x,y)=>val(y)-val(x)).map(p=>`<b>${esc(p.name||p.t)}</b> ${tot>0?Math.round(val(p)/tot*100):0} %`).join(" · "):"todo en efectivo";
-   return `<div class="p rl-met"><div class="m">🤖 Sigue a</div><div style="font-weight:600">${esc((window.nomCorto||(x=>x))(nm(a.metodo)))} <span class="m" style="font-weight:400">#${esc(a.metodo)}</span></div>${nm(a.metodo).length>60?`<details style="margin-top:4px"><summary class="m">Ver sus reglas</summary><div class="m">${esc(nm(a.metodo))}</div></details>`:""}<div class="m" style="margin-top:6px">📦 Tiene: ${ten}</div></div>`}catch(e){return""}})();
- h+=metResHtml();
- h+=fold("rep","📥 Informes y exportar",repHtml()+fold("ord","🧾 Órdenes ("+((R.orders||[]).length)+")",ordHtml(),false)+fold("mov","📒 Movimientos del bot",movHtml(),false),false);
- /* ajustes de la real → en la pestaña Ajustes */
- let aj="";if(!pend)aj+='<div class="p"><h2>Qué hará en la próxima revisión</h2><div style="display:grid;gap:10px">'+planHtml()+'</div></div><div class="p rl-act">'+actHtml()+stP+'</div>';
- aj+=warns()+betterHtml()+fold("cfg","⚙️ Ajustes de la cartera real",cfgHtml(),false)+fold("met","🧭 Elegir método a mano",metHtml(),false)+fold("map","🔎 ¿Se puede comprar todo?",mapHtml(),false)+fold("sec","🛡️ Seguridad",secHtml(),false)+lockP+fold("help","❓ Cómo funciona la cartera real",helpHtml(),false);
- try{let ar=document.getElementById("aj-real-body");if(ar)ar.innerHTML=aj;else h+=fold("aj","⚙️ Ajustes",aj,false)}catch(e){globalThis.__errC&&__errC(e)}
- root.classList.add("rl-full");root.innerHTML=h;bind();setTimeout(()=>{const ch=$r("#rl-ch");if(ch&&RL.pts&&Math.abs((ch.clientWidth||0)-RL.cx.W)>40&&ch.clientWidth>=300){ch.innerHTML=chartHtml();chartBind()}},0)}
-function csvEsc(v){v=v==null?"":String(v);return/[",;\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
-function bind(){const R=RL.R,on=(id,f)=>{const e=$r(id);if(e)e.onclick=f};
- document.querySelectorAll("#t-real details[data-o]").forEach(d=>d.addEventListener("toggle",()=>{OPENS[d.dataset.o]=d.open;try{localStorage.setItem("rlop",JSON.stringify(OPENS))}catch(e){globalThis.__errC&&__errC(e)}}));
- on("#rl-lock",()=>{const c=C();if(c)c.lock();draw()});on("#rl-goaj",()=>go("ajustes"));
- const unl=async()=>{const c=C(),pw=($r("#rl-pw")||{}).value||"";if(!c||!pw)return;say("Comprobando…");try{await c.unlock(pw);say("");await loadCfg(true);draw()}catch(e){say("Clave incorrecta.")}};
- on("#rl-unl",unl);const pw=$r("#rl-pw");if(pw)pw.onkeydown=e=>{if(e.key==="Enter")unl()};
- on("#rl-vgo",unlockView);const vp=$r("#rl-vpw");if(vp)vp.onkeydown=e=>{if(e.key==="Enter")unlockView()};
- chartBind();
- on("#rl-ok",()=>{const P=R&&R.plan;if(!P)return;const a=A();if(!confirm((a.env==="demo"?"DEMO":"💶 DINERO REAL")+" · ¿Ejecutar ahora estas órdenes en Trading 212?\n\n"+P.orders.map(o=>(o.side==="COMPRA"?"🟢 COMPRAR ":"🔴 VENDER ")+o.t+" · ≈ "+E(o.eur)).join("\n")+"\n\nSon órdenes a mercado: el precio final puede variar un poco."+(madridNow().euOpen?"":"\n\n⏳ Ahora la bolsa europea está CERRADA: quedarán aprobadas y se enviarán solas en la próxima revisión con la bolsa abierta (hacia las 10:15).")))return;runCloud("aprobar",P.id,"Aprobar y ejecutar")});
- on("#rl-no",()=>{const P=R&&R.plan;if(!P)return;if(!confirm("¿Rechazar la propuesta? No se envía nada; mañana se vuelve a revisar."))return;runCloud("rechazar",P.id,"Rechazar")});
- on("#rl-a-probar",()=>runCloud("probar","","Probar conexión"));
- on("#rl-a-normal",()=>{const a=A();if(a.on&&a.modo==="auto"&&a.env==="live"&&!confirm("Modo AUTOMÁTICO con dinero real: si hay cambios, la revisión ejecutará las órdenes sin preguntar. ¿Seguir?"))return;runCloud("normal","","Revisar ahora")});
- on("#rl-a-foto",()=>runCloud("foto","","Guardar valor de hoy"));
- on("#rl-a-reanudar",()=>{if(confirm("¿Quitar la pausa automática? El freno de pérdidas se vuelve a contar desde el valor de hoy."))runCloud("reanudar","","Reanudar")});
- on("#rl-a-rec",()=>runCloud("pulso","","Leer tu cuenta de Trading 212 ahora"));on("#rl-h-rec",()=>runCloud("pulso","","Actualizar saldo"));
- document.querySelectorAll("#t-real [data-msort]").forEach(e=>e.onclick=()=>{RL.msort=e.dataset.msort;draw()});
- document.querySelectorAll("#t-real details[data-fam]").forEach(e=>e.addEventListener("toggle",()=>{RL.famOpen=RL.famOpen||{};RL.famOpen[e.dataset.fam]=e.open}));
- document.querySelectorAll("#t-real [data-mx]").forEach(e=>e.onclick=ev=>{ev.stopPropagation();const v=e.dataset.mx,k=v.slice(1),cur=RL.pick||A().metodo;let ex=(RL.extraPick||A().extra||[]).filter(x=>x!==cur);
-  if(v[0]==="+"){if(!ex.includes(k)&&k!==cur&&ex.length<2)ex.push(k)}else ex=ex.filter(x=>x!==k);RL.extraPick=ex;RL.dirty=true;
-  const m2=$r("#rl-c-met2"),m3=$r("#rl-c-met3");if(m2)m2.value=ex[0]||"";if(m3)m3.value=ex[1]||"";draw();const b=$r("#rl-mok");if(b)b.scrollIntoView({block:"center"})});
- document.querySelectorAll("#t-real [data-mk]").forEach(e=>e.onclick=()=>{RL.pick=e.dataset.mk===A().metodo?null:e.dataset.mk;const sm=$r("#rl-c-met");if(sm&&RL.pick)sm.value=RL.pick;if(RL.pick)RL.dirty=true;draw();const b=$r("#rl-mok");if(b)b.scrollIntoView({block:"center"})});
- const cf=$r('details[data-o="cfg"] .fb');if(cf){const mk=()=>{RL.dirty=true;const d=$r("#rl-c-dirty");if(d)d.style.display="block"};cf.addEventListener("input",mk);cf.addEventListener("change",e=>{mk();if(e.target&&e.target.id==="rl-c-met"){RL.pick=e.target.value===A().metodo?null:e.target.value}})}
- /* v127-v130: una casilla solo cambia si la escribes o la pegas tú: lo que meta el autorrelleno del móvil se deshace al momento */
- document.querySelectorAll('#t-real [data-rk],#t-real input[id^="rl-c-"][type="number"],#t-real input[id^="rl-c-"][type="text"],#t-real textarea[id^="rl-c-"]').forEach(e=>{if(e.id==="rl-c-pw")return;e.addEventListener("input",()=>{if(e.dataset.typed!=="1"&&e.value!==e.defaultValue)e.value=e.defaultValue});const mk=()=>{e.dataset.typed="1"};e.addEventListener("keydown",mk);e.addEventListener("paste",mk);e.addEventListener("beforeinput",ev=>{const t=ev.inputType||"";if(/^(insertText|insertCompositionText|insertFromPaste|deleteContent)/.test(t))mk()})});
- const pwS=$r("#rl-c-pw");if(pwS)pwS.onkeydown=e=>{if(e.key==="Enter")onSave()};
- const msGo=()=>{const i=$r("#rl-msq");RL.msq=i?i.value.trim():"";OPENS.met=true;draw();setTimeout(()=>{const d=$r('details[data-o="met"]');if(d)d.open=true;const r=$r("#rl-msq");if(r)r.scrollIntoView({block:"start"})},50)};
- on("#rl-msgo",msGo);on("#rl-msx",()=>{RL.msq="";draw()});{const i=$r("#rl-msq");if(i)i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();msGo()}}}
- on("#rl-c-mapedit",()=>{const t=$r("#rl-c-map");if(t){t.readOnly=false;t.style.opacity=1;t.focus()}});
- document.querySelectorAll("#t-real [data-unlock-rk]").forEach(b=>b.onclick=()=>{const e=$r('#t-real [data-rk="'+b.dataset.unlockRk+'"]');if(e){e.readOnly=false;e.style.opacity=1;e.focus()}});
- on("#rl-mno",()=>{RL.pick=null;RL.extraPick=null;draw()});
- on("#rl-mok",()=>{OPENS.cfg=true;draw();const d=$r('details[data-o="cfg"]');if(d)d.open=true;const e=$r("#rl-c-end");if(e)e.scrollIntoView({block:"center"})});
- on("#rl-c-save",onSave);
- on("#rl-bt-go",()=>{const k=($r("#rl-bt-go")||{}).dataset.k;if(!k||!MXr(k))return;RL.pick=k;RL.dirty=true;OPENS.met=true;draw();setTimeout(()=>{const d=$r('details[data-o="met"]');if(d)d.open=true;const b=$r("#rl-mok");if(b)b.scrollIntoView({block:"center"})},50)});
- on("#rl-s-lock",()=>{const c=C();if(c)c.lock();try{sessionStorage.removeItem("rlpw")}catch(e){globalThis.__errC&&__errC(e)}RL.noAuto=true;RL.R=null;RL.cfg=null;loadReal(false)});
- on("#rl-s-forget",async()=>{if(!confirm("¿Olvidar la contraseña de la cartera en este dispositivo? Tendrás que escribirla la próxima vez."))return;await remForget();RL.R=null;RL.cfg=null;loadReal(false)});
- on("#rl-s-tok",()=>{const c=C();if(!c)return;if(!confirm("¿Olvidar el token de GitHub en este dispositivo? Para aprobar o cambiar ajustes tendrás que volver a pegarlo en ⚙️ Ajustes."))return;c.forget();draw()});
- document.querySelectorAll("#t-real details[data-ri]").forEach(d=>d.addEventListener("toggle",()=>{const i=+d.dataset.ri,b=$r("#rl-rb-"+i);if(d.open&&b&&!b.innerHTML)b.innerHTML=mdHtml(RL.repSorted[i].md)}));
- document.querySelectorAll("#t-real [data-rdl]").forEach(b=>b.onclick=()=>{const x=RL.repSorted[+b.dataset.rdl];dl("cartera-real-"+String(x.ts).replace(/[:.]/g,"-").slice(0,19)+"-"+x.tipo+".md",x.md)});
- on("#rl-more",()=>{RL.showRep=(RL.showRep||30)+30;draw()});
- const mdDay=(rs,t)=>"# "+t+"\n\nDescargado: "+new Date().toLocaleString("es-ES")+"\n\n"+rs.map(x=>"<!-- "+dayKey(x.ts)+" "+hora(x.ts)+" -->\n"+x.md).join("\n\n---\n\n");
- on("#rl-d-md",()=>{const rs=((R&&R.reports)||[]).slice().sort((a,b)=>a.ts<b.ts?-1:1);dl("cartera-real-informes-"+T0()+".md",mdDay(rs,"Cartera real · todos los informes ("+rs.length+"), del más antiguo al más nuevo"))});
- document.querySelectorAll("#t-real [data-rdd]").forEach(b=>b.onclick=()=>{const d=b.dataset.rdd,rs=((R&&R.reports)||[]).filter(x=>dayKey(x.ts)===d).sort((a,b)=>a.ts<b.ts?-1:1);dl("cartera-real-informes-"+d+".md",mdDay(rs,"Cartera real · informes del "+fdL(d)))});
- on("#rl-d-csv",()=>{const O=((R&&R.orders)||[]).slice().sort((a,b)=>a.ts<b.ts?-1:1),cols=["fecha","hora","side","t","sym","name","qty","px","eur","coste","pnl","estado","modo","env","metodo","why","err","id","plan","pxFuente","cashBot"];dl("cartera-real-ordenes-"+T0()+".csv",cols.join(";")+"\n"+O.map(o=>cols.map(k=>csvEsc(k==="fecha"?dayKey(o.ts):k==="hora"?hora(o.ts):o[k])).join(";")).join("\n"))});
- on("#rl-d-mov",()=>{const H=((R&&R.ledger&&R.ledger.hist)||[]).slice().sort((a,b)=>a.ts<b.ts?-1:1),cols=["fecha","hora","tipo","t","q","px","eur","coste","pnl","cashBot","id","nota"];dl("cartera-real-movimientos-bot-"+T0()+".csv",cols.join(";")+"\n"+H.map(x=>cols.map(k=>csvEsc(k==="fecha"?dayKey(x.ts):k==="hora"?hora(x.ts):x[k])).join(";")).join("\n"))});
- on("#rl-d-days",()=>{const D=twr(((R&&R.days)||[]).filter(x=>x.be!=null));dl("cartera-real-valor-diario-"+T0()+".csv","fecha;dinero_bot;capital_bot;aportado_o_retirado_ese_dia;efectivo_bot;rentabilidad_acumulada_%;cuenta_total;efectivo_cuenta;invertido_cuenta;ingresado_neto\n"+D.map(x=>[x.d,x.be,x.bc,x.bf,x.bcash,((x.i-1)*100).toFixed(3),x.v,x.cash,x.inv,x.ap].map(csvEsc).join(";")).join("\n"))});
- on("#rl-d-json",()=>dl("cartera-real-datos-"+T0()+".json",JSON.stringify(R,null,1)))}
-
-/* ---------- integración con la app ---------- */
-function mount(){if(window.__SIN_T212||$r("#t-real"))return;const sec=document.createElement("section");sec.className="tab";sec.id="t-real";sec.innerHTML='<div id="rl-root"></div>';const ay=$r("#t-ayuda");ay.parentNode.insertBefore(sec,ay);
- const nav=$r("#nav"),b=document.createElement("button");b.dataset.t="real";b.id="rl-nav";b.innerHTML="<span>💶</span>Real";b.onclick=()=>{window.__userNav=true;go("real")};const h=nav.querySelector('button[data-t="hoy"]');nav.insertBefore(b,h||nav.firstChild)}
-const FORCE=location.hash==="#real",T_FORCE=Date.now()+12000;
-/* el botón 💶 Real solo aparece en TUS dispositivos (los que tienen tu token cifrado o la contraseña de la cartera); en otro, entra con …/#real */
-function navShow(){const b=$r("#rl-nav");if(!b)return;const c=C(),mine=FORCE||!c||!!pwGet()||remHas()||(c.hasEnc&&c.hasEnc());b.style.display=mine?"":"none"}
-mount();navShow();
-/* v165 · la pestaña se recuerda solo cuando TÚ la eliges (no con los saltos automáticos del arranque) */
-document.addEventListener("click",e=>{try{const b=e.target.closest&&e.target.closest("#nav button[data-t]");if(b&&e.isTrusted)localStorage.setItem("pbtab",b.dataset.t)}catch(_){globalThis.__errC&&__errC(_)}},true);
-addEventListener("hashchange",()=>{if(location.hash==="#real"){const x=$r("#rl-nav");if(x)x.style.display="";window.__userNav=true;go("real")}});
-const go0=go;let goFirst=true;
-go=function(t){if(goFirst&&!window.__userNav){goFirst=false;if(t==="hoy"){const nb=$r("#rl-nav"),realOk=nb&&nb.style.display!=="none";let last="";try{last=localStorage.getItem("pbtab")||""}catch(e){globalThis.__errC&&__errC(e)}if(last&&document.getElementById("t-"+last)&&(last!=="real"||realOk))t=last;else if(realOk)t="real"}}else goFirst=false;if(FORCE&&t!=="real"&&!window.__userNav&&Date.now()<T_FORCE)t="real";go0(t);if(t==="real"){if(!RL.R&&!RL.enc&&!RL.loading)loadReal(false);else draw()}};
-window.__realLock=function(){navShow();const b=$r("#rl-lockb");if(b){b.innerHTML=lockHtml();bind()}};
-window.__realReload=()=>loadReal(true);
-loadReal(false);
-/* v157 · al volver a la app (estaba en segundo plano) se vuelve a leer tu cartera real si tiene más de 1 minuto */
-document.addEventListener("visibilitychange",()=>{try{if(!document.hidden&&!RL.busy&&Date.now()-(RL.at||0)>60000)loadReal(false)}catch(e){globalThis.__errC&&__errC(e)}});
-if(FORCE)setTimeout(()=>go("real"),300);
-setInterval(()=>{const t=$r("#t-real");if(t&&t.classList.contains("on")&&!document.hidden&&!RL.busy&&!RL.dirty&&Date.now()-RL.at>60000&&!/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||""))loadReal(false)},30000);
 try{window.__realOnb={save:saveCfg,sec:secState,cfg:A,meta:()=>RL.meta}}catch(e){globalThis.__errC&&__errC(e)}
-let rz=null;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{const t=$r("#t-real");if(t&&t.classList.contains("on")&&RL.R){const ch=$r("#rl-ch");if(ch){ch.innerHTML=chartHtml();chartBind()}}},250)});
 })();
 </script>
 <script>/* v145: buscador en todas las listas y desplegables de métodos (por #id o por nombre) */
@@ -4896,7 +4386,6 @@ document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&
  // v339 · ⚙️ AJUSTES EN 4 APARTADOS: 💶 Real · 🤖 Laboratorio · 🪙 Cripto · 🔑 Cuenta y claves (+ Apariencia y Ayuda)
  function secciones(){const aj=$("#t-ajustes");if(!aj)return;
   const mk=(id,tit)=>{let d=$("#"+id);if(!d){d=fold(id,tit,false);aj.appendChild(d)}return d.querySelector(".fb")};
-  const re=mk("aj-real","💶 Real · Trading 212"); if(!$("#aj-real-body")){const x=document.createElement("div");x.id="aj-real-body";x.innerHTML='<div class="m">Se carga al abrir 💶 Real (desbloquea con tu contraseña).</div>';re.appendChild(x);try{window.dispatchEvent(new Event("cloud-unlocked"))}catch(e){globalThis.__errC&&__errC(e)}}
   const la=mk("aj-lab","🤖 Laboratorio");
   ["#t-informe .btbar","#simpl-labmas .btbar","#btcf"].forEach(q=>{const x=$(q);if(x&&!la.contains(x))la.appendChild(x)});
   const avb=$("#simpl-av .fb"); if(avb)[...avb.children].forEach(c=>{if(/Parámetros del bot|Dinero con el que se muestra|Costes de la simulación|Costes que usa el laboratorio/.test((c.textContent||"").slice(0,90)))la.appendChild(c)});
@@ -5116,11 +4605,7 @@ function lab(){const s=window.__SIN_T212?null:Sx();if(!s)return;const L=s.lab||{
  for(const x of s.siglog||[])if(x&&x.d)add("lab",hd(x.d),"🧪 "+nom(x.m)+" · "+(x.k==="compra"?"🟢 compra ":x.k==="venta"?"🔴 vende ":x.k+" ")+(x.s||"")+(x.amt!=null?" · "+(+x.amt).toFixed(2)+" € ficticios":""));
  for(const p of L.prog||[])if(p&&p.d)add("lab",hd(p.d),"🧠 Aprendizaje: "+(p.tried||0)+" reglas probadas en total"+(p.best!=null?" · la mejor rinde "+(p.best*100).toFixed(1)+" % al año":""));
  const top=(s.promo||[])[0];if(top){const prev=LS.get("termTop1","");if(prev!==top){if(prev)add("lab",Date.now(),"🏆 Nuevo número 1 del laboratorio: "+nom(top)+" (antes: "+nom(prev)+")",1,1);LS.set("termTop1",top)}}}
-function real(){const RL=window.__RLs,R=RL&&RL.R;if(!R)return;T.ok.real=1;
- for(const o of R.orders||[])if(o&&o.ts){const s=/VENTA|sell/i.test(o.side||"")?"🔴 VENTA":"🟢 COMPRA";add("real",o.ts,s+" "+(o.name||o.sym||o.t||"")+(o.eur!=null?" · "+(+o.eur).toFixed(2)+" €":"")+(o.estado?" · "+o.estado:"")+(o.why?" · "+o.why:"")+(o.err?" · ⚠️ "+o.err:""))}
- for(const r of R.reports||[])if(r&&r.ts)add("real",r.ts,"📄 "+(r.titulo||r.tipo||"Informe")+(r.estado?" ("+r.estado+")":""));
- for(const h of R.metHist||[])if(h&&h.d)add("real",h.d.length<=10?h.d+"T09:00:00":h.d,"🔄 La cartera real pasa a seguir «"+(h.nombre||h.metodo)+"»",1,1);
- for(const x of (R.ledger&&R.ledger.hist)||[])if(x&&x.ts&&!/^(compra|venta|buy|sell)$/i.test(x.tipo||""))add("real",x.ts,"💶 Movimiento: "+(x.tipo||"")+(x.eur!=null?" · "+(+x.eur).toFixed(2)+" €":"")+(x.nota?" · "+x.nota:""))}
+function real(){}
 const DIARIOS=[["terminal-cripto","cripto",""],["terminal-cripto-tg","cripto",""],["terminal-examen","cripto","🐢 Examen · "],["terminal-cazalab","cripto","🧠 Lab cripto · "]];
 async function servidor(){if(Date.now()-T.srvAt<5*60e3||typeof memeGet!=="function")return;T.srvAt=Date.now();const pw=(typeof pwGet==="function"&&pwGet())||"";if(!pw)return;let n=0;
  await Promise.all(DIARIOS.map(async([rama,src,pre])=>{try{const j=await memeGet(rama,"terminal.json");if(!j||j.nada||!j.enc)return;const d=JSON.parse(await decrypt(j,pw));if(d&&d.l){n+=d.l.length;T.ok[src]=1;for(const [t,x,k] of d.l)add(src,t,(/^📤 Telegram/.test(x)?"":pre)+x,k)}}catch(e){globalThis.__errC&&__errC(e,"informes:"+rama)}}));T.srvN=n}
@@ -5137,10 +4622,7 @@ function checks(){const now=Date.now(),hm=t=>new Date(t).toLocaleTimeString("es-
    add("chk",now,now-last<10*60e3?"✅ Bot de cripto: funcionando":"❌ Bot de cripto: sin dar vueltas desde las "+hm(last));
    const cx=C.conex||{};for(const ex of ["bitvavo","okx"]){const e=cx[ex];if(e)add("chk",now,e.estado==="ok"?"✅ Conexión con "+(ex==="okx"?"OKX":"Bitvavo")+": bien":"❌ Conexión con "+(ex==="okx"?"OKX":"Bitvavo")+": "+e.estado)}
    const tor=C.tort||{};for(const ex of ["bitvavo","okx"]){const x=tor[ex];if(x&&x.t)add("chk",now,now-x.t<8*3600e3?"✅ Señales de Tortugas en "+(ex==="okx"?"OKX":"Bitvavo")+": al día":"⚠️ Señales de Tortugas en "+(ex==="okx"?"OKX":"Bitvavo")+": sin recalcular desde las "+hm(x.t))}}}catch(e){globalThis.__errC&&__errC(e)}
- try{const R=window.__RLs&&window.__RLs.R;if(R){const r0=(R.reports||[])[0],tr=r0&&Date.parse(r0.ts);if(tr)add("chk",now,lab0&&now-tr>30*3600e3?"⚠️ Cartera real: sin revisión desde el "+new Date(tr).toLocaleDateString("es-ES"):"✅ Cartera real: revisión hecha");
-   if(R.paused)add("chk",now,"⚠️ Cartera real: en pausa ("+(R.paused.motivo||R.paused.why||"freno")+")");
-   const lv=R.live&&Date.parse(R.live);if(lv&&lab0&&h>=10&&h<=17)add("chk",now,now-lv<60*60e3?"✅ Cartera real: valor en directo al día":"⚠️ Cartera real: valor en directo parado desde las "+hm(lv));
-   const bad=(R.orders||[]).filter(o=>o&&o.err&&now-Date.parse(o.ts)<7*864e5);add("chk",now,bad.length?"⚠️ Cartera real: "+bad.length+" órdenes con error en 7 días":"✅ Cartera real: ninguna orden con error en 7 días")}}catch(e){globalThis.__errC&&__errC(e)}
+
  try{const s=window.__SIN_T212?null:Sx();if(s){const j=(s.journal||[])[0],sv=s.savedAt;if(sv)add("chk",now,h>=6&&h<=22&&now-sv>3*3600e3?"⚠️ Laboratorio: sin rondas desde las "+hm(sv):"✅ Laboratorio: haciendo rondas");
    if(j&&j.marketDate){const d=new Date();d.setDate(d.getDate()-1);while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()-1);const ult=dk(+d);add("chk",now,j.marketDate>=ult||h<5?"✅ Precios de la noche: al día":"⚠️ Precios de la noche: falta la sesión del "+ult)}
    const rl=(s.runLog||[])[0];if(rl&&rl.requestedAssets){const fr=(rl.freshAssets||0)/rl.requestedAssets;add("chk",now,fr>=0.97?"✅ Precios: casi todos al día":"⚠️ Precios: solo "+Math.round(fr*100)+" % al día")}
@@ -5154,12 +4636,7 @@ async function recoge0(){try{cripto()}catch(e){globalThis.__errC&&__errC(e,"info
 /* ================== DATOS DE CADA APARTADO (los mismos para la pantalla y para las descargas) ================== */
 const todo=()=>[...T.ev.values()].sort((a,b)=>a.t-b.t);
 function estadoChecks(){const now=Date.now(),last=new Map();for(const e of todo())if(e.src==="chk"&&now-e.t<6*3600e3){const k=e.txt.replace(/^\S+\s/,"").split(":")[0];last.set(k,e)}return[...last.values()].sort((a,b)=>(/❌/.test(b.txt)-/❌/.test(a.txt))||(/⚠️/.test(b.txt)-/⚠️/.test(a.txt)))}
-function datosReal(){const R=!window.__SIN_T212&&window.__RLs&&window.__RLs.R;if(!R)return null;const A=R.account||{},cash=+((A.cash&&A.cash.availableToTrade)||0),inv=+((A.investments&&A.investments.currentValue)||0),tot=cash+inv;
- const pos=(R.positions||[]).map(p=>({t:p.t,n:p.name||p.t,val:+p.val||(+p.q*+p.px)||0,pnl:p.pnl!=null?+p.pnl:null,bot:+p.bq>0})).sort((a,b)=>b.val-a.val);
- const dias=(R.days||[]).slice(-30).map(d=>({d:d.d,v:d.v,cash:d.cash,inv:d.inv,bot:d.be})).reverse();
- const ord=(R.orders||[]).filter(o=>o&&o.ts&&Date.now()-Date.parse(o.ts)<30*864e5).map(o=>({ts:o.ts,lado:/VENTA|sell/i.test(o.side||"")?"Venta":"Compra",act:o.name||o.sym||o.t||"",eur:o.eur,estado:o.estado||"",err:o.err||""}));
- const cfg=R.cfg||{},met=[cfg.metodo,...(cfg.extra||[])].filter(Boolean).map(nom),am=R.am&&R.am.k?nom(R.am.k):null,r0=(R.reports||[])[0];
- return{tot,cash,inv,pos,dias,ord,met,am,pausa:R.paused?(R.paused.motivo||R.paused.why||"freno"):null,ultima:r0?{ts:r0.ts,t:r0.titulo||r0.tipo,estado:r0.estado}:null,ganado:R.ledger&&R.ledger.real}}
+function datosReal(){return null}
 function datosCripto(){const M=MMo();if(!M)return null;const X=M.bvX||{},out=[];
  for(const ex of ["bitvavo","okx"]){const o=X[ex]||{},R=o.R;if(!R){out.push({ex,err:o.err||"sin datos"});continue}const pos=Object.entries(R.pos||{}).map(([m,p])=>({m:p.sym||m.split("-")[0],q:p.q,cost:p.cost,val:p.q!=null&&p.last!=null?p.q*p.last:null,src:p.src||""}));
   const eq=Array.isArray(R.eq)&&R.eq.length?R.eq[R.eq.length-1]:null;out.push({ex,cash:R.cash,valor:eq?eq[1]:null,aportado:eq?eq[2]:R.start,pos,paused:!!(R.paused||R.parado),trades:R.st&&R.st.trades})}
@@ -5218,15 +4695,7 @@ const eu0=x=>x==null||!isFinite(+x)?"—":Math.round(+x).toLocaleString("es-ES")
 // último valor de una serie [[fecha, valor], …] en el día d y en el anterior con datos
 function cierreDe(S2,d){let hoyV=null,antV=null,antD=null;for(const [t,v] of S2){const k=t.length<=10?t:dk(Date.parse(t));if(k===d)hoyV=v;else if(k<d){antV=v;antD=k}}return{hoyV,antV,antD}}
 function parteDe(d){const P={real:[],cripto:[],lab:[],err:[],ok:[],mal:[]},hoyEs=d===dk(Date.now()),ev=todo().filter(e=>dk(e.t)===d);
- /* 💶 real */
- try{const R=window.__RLs&&window.__RLs.R;if(R){const c=cierreDe((R.days||[]).map(x=>[x.d,x.v]),d);
-   if(c.hoyV!=null){const dif=c.antV!=null?c.hoyV-c.antV:null,fl=((R.ledger&&R.ledger.hist)||[]).filter(x=>x&&x.ts&&dk(Date.parse(x.ts))===d&&/ingreso|retirada|aport|deposit|withdraw/i.test(x.tipo||""));
-    P.real.push(`Tu cartera vale <b>${eu(c.hoyV)}</b>`+(dif!=null?` · <b class="${dif>=0?"if-bien":"if-mal"}">${sg(dif)}</b> (${pc(c.antV?dif/c.antV*100:null)}) desde el ${fdia(c.antD).toLowerCase()}`:"")+(fl.length?" · incluye un ingreso o retirada":"")+".")}
-   const O=(R.orders||[]).filter(o=>o&&o.ts&&dk(Date.parse(o.ts))===d);for(const o of O.slice(0,6)){const v=/VENTA|sell/i.test(o.side||"");P.real.push(`${v?"🔴 Vendió":"🟢 Compró"} ${esc(o.name||o.sym||o.t||"")} por ${eu(o.eur)}${o.err?` · <span class="if-mal">⚠️ ${esc(o.err)}</span>`:""}.`)}
-   if(O.length>6)P.real.push(`…y ${O.length-6} órdenes más.`);if(!O.length&&c.hoyV!=null)P.real.push("No ha comprado ni vendido nada.");
-   for(const h of R.metHist||[])if(h&&h.d&&h.d.slice(0,10)===d)P.real.push(`🔄 Pasa a seguir «${esc(h.nombre||nom(h.metodo))}».`);
-   if(hoyEs&&R.paused)P.real.push(`<span class="if-mal">⏸️ Está en pausa: ${esc(R.paused.motivo||R.paused.why||"freno")}.</span>`);
-   if(hoyEs&&R.am&&R.am.k)P.real.push(`📈 Acompañante de Acciones/Mixtos: «${esc(nom(R.am.k))}».`)}}catch(e){globalThis.__errC&&__errC(e,"informes:parte")}
+
  /* 🪙 cripto */
  try{const M=MMo(),X=(M&&M.bvX)||{};for(const ex of ["bitvavo","okx"]){const R=(X[ex]||{}).R;if(!R||!Array.isArray(R.eq))continue;const c=cierreDe(R.eq.map(x=>[x[0],x[1]]),d),N=ex==="okx"?"OKX":"Bitvavo";if(c.hoyV==null)continue;
    const dif=c.antV!=null?c.hoyV-c.antV:null,ops=ev.filter(e=>e.src==="cripto"&&new RegExp(N,"i").test(e.txt)&&/COMPRA|VENTA/.test(e.txt));
@@ -5262,7 +4731,8 @@ function graf(tit,series,{barras=false,fmt=eu0,dias=90,rel=true}={}){const lim=d
  const ult=S2.map(s=>{const a=s.p[0],b=s.p[s.p.length-1];return`<span style="color:${s.c}">●</span> ${esc(s.n)}: <b>${fmt(+b[1])}</b>${!barras&&rel&&s.p.length>1?` <span class="${+b[1]>=+a[1]?"if-bien":"if-mal"}">(${pc((+b[1]-+a[1])/Math.abs(+a[1]||1)*100)})</span>`:""}`}).join(" · ");
  return caja(tit,`<svg viewBox="0 0 ${W} ${H}" class="if-g" role="img" aria-label="${esc(tit)}">${g}<text x="${x0}" y="${H-4}" class="if-gt">${fdia(xs[0])}</text><text x="${W-x0}" y="${H-4}" text-anchor="end" class="if-gt">${fdia(xs[xs.length-1])}</text><text x="${W-x0}" y="${y0-2}" text-anchor="end" class="if-gt">${fmt(mx)}</text></svg><div class="if-d" style="margin-top:4px">${ult}</div>`)}
 function vGraf(){let h="";
- try{const M=MMo(),X=(M&&M.bvX)||{},ser=[];for(const [ex,c] of [["bitvavo","#2563eb"],["okx","#a855f7"]]){const R=(X[ex]||{}).R;if(R&&Array.isArray(R.eq)){const m=new Map();for(const x of R.eq)m.set(dk(Date.parse(x[0])),x[1]);ser.push({n:ex==="okx"?"OKX":"Bitvavo",c,p:[...m.entries()]})}}h+=graf("🪙 Valor de la cripto (90 días)",ser)}catch(e){globalThis.__errC&&__errC(e,"informes")}
+ /* v1.0 · 📈 las mismas gráficas que en 💶 Real: con rangos (día → todo), tocar para ver cada punto y pantalla completa */
+ h+='<div data-cbg="bv:bitvavo"></div><div data-cbg="bv:okx"></div><div data-cbg="hl"></div>';
  try{h+=graf("⚠️ Errores por día",[{n:"Errores",c:"var(--stop)",p:datosDias().map(r=>[r.d,r.err])}],{barras:true,fmt:x=>Math.round(x)+"",dias:30})}catch(e){globalThis.__errC&&__errC(e,"informes")}
  return h}
 const VIS={parte:vParte,graf:vGraf,gen:vGen,real:vReal,cripto:vCripto,lab:vLab,err:vErr,dia:vDia};
@@ -5346,7 +4816,7 @@ try{if(typeof AbortSignal!=="undefined"&&!AbortSignal.timeout)AbortSignal.timeou
 /* v385 · 🤖 ASISTENTE DE LA APP con varios proveedores de IA gratuitos (cada clave se guarda solo en este móvil).
    Sabe TODO de la app (conocimiento del proyecto + ayuda + estado en directo) y puede LANZAR tareas de la nube
    (rondas del laboratorio, prueba histórica, ideas de la IA, exámenes de cripto…) tras pulsar tú el botón. Nunca toca dinero ni código.
-   Tu cartera real (importes) solo se le envía si marcas la casilla. Nunca pide claves. */
+   Tu dinero de cripto (importes) solo se le envía si marcas la casilla. Nunca pide claves. */
 (function(){
  const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));let H=[],SINLEER=0;
  const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){globalThis.__errC&&__errC(e)}},del:k=>{try{localStorage.removeItem(k)}catch(e){globalThis.__errC&&__errC(e)}}};
@@ -5505,7 +4975,7 @@ ${estado(conReal)}
 </script>
 <script id="bienvenida">
 /* v394 · 🔑 PUESTA EN MARCHA (onboarding): la primera vez, tras la clave de entrada, pide el permiso de GitHub y las claves
-   (Trading 212 obligatoria; Telegram, Bitvavo y OKX opcionales) y las guarda como «secrets» de ESTE repositorio
+   (Bitvavo, OKX y Telegram) y las guarda como «secrets» de ESTE repositorio
    (cada web en el suyo: el repositorio sale de la propia dirección). Nadie tiene que entrar en GitHub → Settings → Secrets. */
 (function(){"use strict";if(!/^https?:$/.test(location.protocol)||window.__RUNNER)return;
  const $=s=>document.querySelector(s),LS={g(k){try{return localStorage.getItem(k)}catch(e){return null}},s(k,v){try{localStorage.setItem(k,v)}catch(e){globalThis.__errC&&__errC(e)}}};
@@ -5541,9 +5011,6 @@ ${estado(conReal)}
    <div class="bx"><b>Esto lo hace el dueño de la cuenta de GitHub${ri?" ("+esc(ri.o)+")":""}</b>, una vez:<ol><li>Abre el enlace (ya viene casi todo rellenado).</li><li>En <b>«Repository access»</b> elige <b>«Only select repositories»</b> y marca <b>${esc(ri?ri.r:"este repositorio")}</b>.</li><li>Abajo, pulsa <b>«Generate token»</b> y copia el texto que empieza por <code>github_pat_</code>.</li><li>Pégalo aquí.</li></ol>
    <div class="bt" style="margin-top:8px"><a class="b" href="${esc(u)}" target="_blank" rel="noopener">Abrir GitHub ↗</a><button data-nobusy data-x="copia">Copiar el enlace (para enviarlo)</button></div></div>
    ${campo("ob_tok","Token de GitHub","github_pat_…")}<p class="m">Se guarda cifrado con tu clave en este móvil. Solo sirve para ESTE repositorio.</p>`;bt=`<button data-nobusy data-x="ant">Atrás</button><button data-nobusy class="pri" data-x="sig">Comprobar y seguir</button>`}
-  else if(p==="t212"){h+=`<h2>💶 Trading 212 <span class="m">(obligatorio)</span></h2><p>En la app de Trading 212: <b>Ajustes → API (Beta) → Generar clave</b>. Marca permisos de <b>leer cuenta, cartera, órdenes y operar</b>. Pon la clave y el secreto aquí.</p>
-   ${campo("ob_tk","Clave API (API key)","pega la clave",s.T212_KEY===true)}${campo("ob_ts","Secreto (API secret)","pega el secreto",s.T212_SECRET===true)}
-   <p class="m">Cuenta de dinero real («Invest»). Nunca se escriben en ningún sitio público: van cifradas a los secretos de GitHub.</p>`;bt=`<button data-nobusy data-x="ant">Atrás</button><button data-nobusy class="pri" data-x="sig">Seguir</button>`}
   else if(p==="tg"){h+=`<h2>📲 Avisos por Telegram <span class="m">(recomendado)</span></h2><p>Para enterarte al momento de cada compra y venta.</p><ol class="m"><li>En Telegram busca <b>@BotFather</b> → <code>/newbot</code> → elige un nombre. Te da un <b>token</b>.</li><li>Abre tu bot nuevo y escríbele <code>/start</code>.</li><li>Busca <b>@userinfobot</b>, escríbele y te dice tu <b>Id</b> (un número): ese es el chat.</li></ol>
    ${campo("ob_gt","Token del bot","123456:ABC…",s.TELEGRAM_TOKEN===true)}${campo("ob_gc","Tu número de chat (Id)","p. ej. 123456789",s.TELEGRAM_CHAT===true,"text")}`;bt=`<button data-nobusy data-x="ant">Atrás</button><button data-nobusy data-x="salta">Saltar</button><button data-nobusy class="pri" data-x="sig">Seguir</button>`}
   else if(p==="cripto"){h+=`<h2>🪙 Criptos <span class="m">(opcional)</span></h2><p>Si no las pones, la parte de criptos <b>no opera</b> y te avisará de que faltan. Puedes ponerlas más tarde desde aquí mismo.</p>
@@ -5566,14 +5033,14 @@ ${estado(conReal)}
     const r=await fetch(b+"actions/secrets/public-key",{headers:H,cache:"no-store"});if(r.status===401)return st("GitHub no acepta ese token (¿copiado entero? ¿caducado?).");if(r.status===403||r.status===404)return st("El token no tiene acceso a "+ri.r+" o le falta «Secrets: Read and write». Repasa los pasos 2 y 3.");if(!r.ok)return st("GitHub respondió HTTP "+r.status+". Prueba otra vez.");
     await c.setTok(t,pw0());D.ob_tok=""}catch(e){return st("No se pudo comprobar: "+(e.message||e))}}
   
-  if(p==="t212"&&!!D.ob_tk!==!!D.ob_ts&&secs().T212_SECRET!==true)return st("Pon la clave Y el secreto.");
+  
   if(p==="tg"&&!!D.ob_gt!==!!D.ob_gc&&!(secs().TELEGRAM_TOKEN&&secs().TELEGRAM_CHAT))return st("Pon el token y el número de chat (o pulsa Saltar).");
   if(p==="tg"&&D.ob_gc&&!/^-?\d{4,}$/.test(D.ob_gc))return st("El número de chat son solo cifras (p. ej. 123456789).");
   paso++;pinta()}
  async function guarda(){guardaCampos();const c=C(),ri=RI(),R=window.__realOnb;if(!c||!ri)return st("Abre la app desde su dirección de GitHub Pages.");
   if(!c.tok()){try{await c.unlock(pw0())}catch(e){globalThis.__errC&&__errC(e)}if(!c.tok())return st("Falta el permiso de GitHub (token). Vuelve atrás.")}
   if(!R)return st("La app aún está cargando. Espera unos segundos y vuelve a pulsar.");
-  const real=false,lim=0;   /* v1.0 · 🪙 CriptoBot: sin cartera de Trading 212 que activar */
+  const real=false,lim=0;
   const S=[["REAL_VIEW_PASS",pw0()]],M={ob_gt:"TELEGRAM_TOKEN",ob_gc:"TELEGRAM_CHAT",ob_bk:"BITVAVO_KEY",ob_bs:"BITVAVO_SECRET",ob_ok:"OKX_KEY",ob_os:"OKX_SECRET",ob_op:"OKX_PASSPHRASE"};
   for(const k in M)if(D[k])S.push([M[k],D[k]]);if(secs().REAL_VIEW_PASS===true)S.shift();
   const patch=real?{on:1,env:"live",aceptoReal:1,limite:Math.round(lim),modo:D.ob_md==="auto"?"auto":"confirmar"}:{};
@@ -5641,6 +5108,132 @@ ${estado(conReal)}
  function arranca(){interruptor();pasa();obs.observe(document.body,{childList:true,subtree:true})}
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",arranca);else arranca()})();
 </script>
+<style id="graficas-css">
+/* v1.0 · 📈 GRÁFICAS DE CRIPTOBOT: Bitvavo, OKX e Hyperliquid con rangos (día, semana, mes, 3 meses, año, todo), tocar para ver cada punto y pantalla completa */
+.cbg{margin:10px 0 4px;border-radius:14px;background:linear-gradient(180deg,rgba(34,197,94,.06),transparent 60%);border:1px solid rgba(128,128,128,.16);padding:10px 10px 6px;position:relative}
+.cbg-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.cbg-t{font-size:13px;font-weight:650;color:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cbg-v{font-size:12px;color:var(--muted,#8a99ad);margin-top:1px}.cbg-v b.up{color:#16a34a}.cbg-v b.dn{color:#dc2626}
+.cbg button{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-color:transparent;background:transparent!important;box-shadow:none!important;min-height:0!important;height:auto;color:inherit!important}
+.cbg .cbg-r button{color:var(--muted,#8a99ad)!important}.cbg .cbg-r button.on{background:#22c55e!important;color:#04130a!important}.cbg .cbg-k button{background:rgba(128,128,128,.12)!important}.cbg .cbg-k button.on{background:rgba(34,197,94,.25)!important}
+.cbg .cbg-fs{flex:none;border:1px solid rgba(128,128,128,.3);border-radius:10px;width:34px;height:30px;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1}
+.cbg-r{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin:2px 0 6px}.cbg-r::-webkit-scrollbar{display:none}
+.cbg .cbg-r button{flex:1 0 auto;min-width:40px;text-align:center;border:1px solid rgba(128,128,128,.25);color:var(--muted,#8a99ad);border-radius:999px;padding:5px 8px;font-size:12px;font-weight:650}
+.cbg .cbg-r button.on{background:#22c55e;border-color:#22c55e;color:#04130a}
+.cbg .cbg-r button:disabled{opacity:.3;cursor:default}
+.cbg-k{display:flex;gap:4px;margin:0 0 6px}.cbg .cbg-k button{background:rgba(128,128,128,.12);border-radius:8px;padding:5px 12px;font-size:12px}.cbg .cbg-k button.on{background:rgba(34,197,94,.25);font-weight:650}
+.cbg-c{position:relative;height:210px}
+.cbg-tip{position:absolute;top:6px;left:8px;pointer-events:none;background:rgba(10,16,24,.88);color:#e8eef6;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:6px 9px;font-size:12px;line-height:1.35;z-index:3;display:none;max-width:70%}
+.cbg-tip b{font-size:14px}
+.cbg-l{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted,#8a99ad);margin-top:4px}.cbg-l i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px}
+.cbg-vacio{height:120px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted,#8a99ad);font-size:13px;padding:0 12px}
+#cbg-full{position:fixed;inset:0;z-index:2147482000;background:var(--bg,#0b1118);display:flex;flex-direction:column;padding:calc(10px + env(safe-area-inset-top,0px)) 12px calc(10px + env(safe-area-inset-bottom,0px))}
+#cbg-full .cbg{flex:1;min-height:0;display:flex;flex-direction:column;margin:0;border:none;background:none;padding:0}
+#cbg-full .cbg-c{flex:1;height:auto;min-height:0}
+#cbg-full .cbg-t{font-size:16px}
+</style>
+<script id="graficas">
+/* v1.0 · 📈 GRÁFICAS DE CRIPTOBOT
+   · Bitvavo y OKX: lo que vale tu cuenta (un punto cada 30 min los últimos 30 días y uno por día antes) y, si añades o retiras dinero, una marca 💰
+     (para que un ingreso no parezca ganancia). El % del rango se calcula sin contar esos ingresos/retiradas.
+   · Hyperliquid: el historial oficial de tu cuenta en Hyperliquid (valor y ganancia sin contar ingresos), leído en directo.
+   · Rangos: día, semana, mes, 3 meses, año y todo. Toca o pasa el dedo para ver cada punto. ⤢ = pantalla completa. */
+(function(){"use strict";
+ const RG=[["1D","Día",864e5],["1S","Semana",7*864e5],["1M","Mes",30*864e5],["3M","3 meses",91*864e5],["1A","Año",365*864e5],["T","Todo",Infinity]];
+ const LS={g:(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}},s:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){globalThis.__errC&&__errC(e)}}};
+ const eur=v=>(v<0?"−":"")+Math.abs(v).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €",usd=v=>(v<0?"−":"")+"$"+Math.abs(v).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2});
+ const pc=x=>(x>0?"+":x<0?"−":"")+Math.abs(x).toFixed(2).replace(".",",")+" %";
+ const fh=(ms,larga)=>new Date(ms).toLocaleString("es-ES",larga?{weekday:"short",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}:{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+ /* ---------- datos ---------- */
+ const HLP={};   /* historial de Hyperliquid por cartera: {t, val:[[ms,v]], pnl:[[ms,v]]} */
+ async function hlPortfolio(w){const c=HLP[w];if(c&&Date.now()-c.t<5*60e3)return c;
+  const r=await fetch("https://api.hyperliquid.xyz/info",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"portfolio",user:w})});if(!r.ok)throw new Error("HTTP "+r.status);
+  const j=await r.json(),m=new Map(Array.isArray(j)?j:[]),val=new Map(),pnl=new Map();
+  /* se juntan todos los periodos: el de «todo» tiene puntos espaciados y el del día, muy juntos */
+  /* el valor es absoluto (se puede juntar tal cual); la ganancia de cada periodo empieza en su propio cero: se encaja sobre la de «todo» */
+  const A=((m.get("allTime")||{}).pnlHistory||[]).map(x=>[+x[0],+x[1]]).filter(x=>Number.isFinite(x[1])).sort((a,b)=>a[0]-b[0]);
+  const en=t=>{if(!A.length)return 0;if(t<=A[0][0])return A[0][1];for(let i=1;i<A.length;i++)if(A[i][0]>=t){const a=A[i-1],b=A[i],f=(t-a[0])/((b[0]-a[0])||1);return a[1]+(b[1]-a[1])*f}return A[A.length-1][1]};
+  for(const [t,v] of A)pnl.set(t,v);
+  for(const k of ["allTime","month","week","day"]){const o=m.get(k);if(!o)continue;for(const [t,v] of o.accountValueHistory||[])if(Number.isFinite(+v))val.set(+t,+v);
+   if(k!=="allTime"){const W=(o.pnlHistory||[]).map(x=>[+x[0],+x[1]]).filter(x=>Number.isFinite(x[1])).sort((a,b)=>a[0]-b[0]);if(W.length){const off=en(W[0][0])-W[0][1];for(const [t,v] of W)pnl.set(t,v+off)}}}
+  const so=M=>[...M.entries()].sort((a,b)=>a[0]-b[0]);const out={t:Date.now(),val:so(val),pnl:so(pnl)};HLP[w]=out;return out}
+ function datosBv(ex){const R=((typeof MM!=="undefined"&&MM.bvX)||{})[ex]&&MM.bvX[ex].R;if(!R)return{vacio:"🔒 Desbloquea con tu clave para ver la gráfica."};
+  const cv=(R.curva||[]).filter(x=>x&&+x[1]>0).map(x=>[+x[0],+x[1]]).sort((a,b)=>a[0]-b[0]);
+  if(cv.length<2)return{vacio:"La gráfica se dibuja con un punto cada 30 minutos: en un rato verás la línea."};
+  /* ingresos y retiradas: cuando cambia lo aportado (R.eq guarda [hora, valor, aportado]) */
+  const mov=[];let ant=null;for(const x of R.eq||[]){const t=Date.parse(x[0]),a=+x[2];if(!Number.isFinite(t)||!(a>0))continue;if(ant!=null&&Math.abs(a-ant)>=1)mov.push([t,a-ant]);ant=a}
+  return{fmt:eur,series:[{n:"Lo que vale tu cuenta",c:"#22c55e",p:cv,area:1}],mov}}
+ async function datosHl(modo){const R=((typeof MM!=="undefined"&&MM.hlX)||{}).R,w=R&&R.w;if(!w)return{vacio:"🔒 Desbloquea con tu clave para ver la gráfica de Hyperliquid."};
+  let P;try{P=await hlPortfolio(w)}catch(e){return{vacio:"No he podido leer el historial de Hyperliquid ahora. Lo vuelvo a intentar en un momento."}}
+  const p=modo==="pnl"?P.pnl:P.val;if(p.length<2)return{vacio:"Hyperliquid aún no tiene historial de tu cuenta."};
+  return{fmt:usd,series:[{n:modo==="pnl"?"Ganancia (sin contar ingresos)":"Lo que vale tu cuenta",c:modo==="pnl"?"#38bdf8":"#22c55e",p,area:1,cero:modo==="pnl"}],modos:[["val","Valor"],["pnl","Ganancia"]],modo}}
+ /* ---------- dibujo ---------- */
+ const VIVAS=new Map();   /* clave → {nodo, chart, …}: si la pantalla se redibuja, se reutiliza la misma gráfica (no parpadea ni pierde el rango) */
+ function rangoDe(k){return LS.g("cbgR:"+k,"1M")}
+ function cambioEn(serie,mov,from,to){const p=serie.filter(x=>x[0]>=from&&x[0]<=to);if(p.length<2)return null;const a=p[0],b=p[p.length-1],m=(mov||[]).filter(x=>x[0]>a[0]&&x[0]<=b[0]).reduce((s,x)=>s+x[1],0),d=b[1]-a[1]-m;return{d,pc:a[1]?d/a[1]*100:null}}
+ function construye(box,cfg,full){
+  box.innerHTML=`<div class="cbg-h"><div style="min-width:0"><div class="cbg-t">${cfg.titulo}</div><div class="cbg-v"></div></div><button class="cbg-fs" type="button" data-nobusy title="Pantalla completa" aria-label="${full?"Cerrar":"Pantalla completa"}">${full?"✕":"⤢"}</button></div><div class="cbg-k"></div><div class="cbg-r">${RG.map(([k,n])=>`<button type="button" data-nobusy data-r="${k}">${k==="T"?"Todo":k}</button>`).join("")}</div><div class="cbg-c"><div class="cbg-tip"></div></div><div class="cbg-l"></div>`;
+  const st={cfg,full,box,chart:null,ser:[],datos:null,modo:LS.g("cbgM:"+cfg.k,"val"),r:rangoDe(cfg.k)};
+  box.querySelector(".cbg-fs").onclick=()=>full?cierra():abreFull(cfg);
+  box.querySelector(".cbg-r").onclick=e=>{const b=e.target.closest("button[data-r]");if(!b||b.disabled)return;st.r=b.dataset.r;LS.s("cbgR:"+cfg.k,st.r);aplicaRango(st)};
+  box.querySelector(".cbg-k").onclick=e=>{const b=e.target.closest("button[data-m]");if(!b)return;st.modo=b.dataset.m;LS.s("cbgM:"+cfg.k,st.modo);carga(st,true)};
+  carga(st,true);return st}
+ async function carga(st,forzar){let D;try{D=await st.cfg.datos(st.modo)}catch(e){globalThis.__errC&&__errC(e);D={vacio:"No he podido dibujar la gráfica."}}
+  const sig=JSON.stringify([D.vacio||"",(D.series||[]).map(s=>[s.p.length,s.p.length&&s.p[s.p.length-1]]),st.modo]);if(!forzar&&sig===st.sig)return;st.sig=sig;st.datos=D;
+  const c=st.box.querySelector(".cbg-c"),k=st.box.querySelector(".cbg-k");
+  k.innerHTML=(D.modos||[]).map(([m,n])=>`<button type="button" data-nobusy data-m="${m}" class="${m===st.modo?"on":""}">${n}</button>`).join("");k.style.display=D.modos?"":"none";
+  if(D.vacio){if(st.chart){try{st.chart.remove()}catch(e){globalThis.__errC&&__errC(e)}st.chart=null}c.innerHTML=`<div class="cbg-vacio">${D.vacio}</div>`;st.box.querySelector(".cbg-v").textContent="";st.box.querySelector(".cbg-l").innerHTML="";st.box.querySelector(".cbg-r").style.display="none";return}
+  st.box.querySelector(".cbg-r").style.display="";
+  const ok=typeof lwLoad==="function"?await lwLoad():false;if(!ok||!window.LightweightCharts){c.innerHTML=svgSimple(D);return}
+  if(!st.chart){c.innerHTML='<div class="cbg-tip"></div>';const L=window.LightweightCharts,cs=getComputedStyle(document.documentElement),mut=(cs.getPropertyValue("--muted")||"").trim()||"#8a99ad";
+   st.chart=L.createChart(c,{autoSize:true,layout:{background:{type:"solid",color:"transparent"},textColor:mut,fontFamily:"system-ui,-apple-system,Segoe UI,Roboto,sans-serif",fontSize:11,attributionLogo:false},
+    grid:{vertLines:{visible:false},horzLines:{color:"rgba(128,128,128,.12)"}},rightPriceScale:{borderVisible:false,scaleMargins:{top:.12,bottom:.08}},
+    timeScale:{borderVisible:false,timeVisible:true,secondsVisible:false,fixLeftEdge:true,fixRightEdge:true},crosshair:{mode:0,vertLine:{color:"rgba(128,128,128,.55)",labelVisible:false},horzLine:{visible:false,labelVisible:false}},
+    handleScroll:{mouseWheel:false,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:false,pinch:true,axisPressedMouseMove:false},
+    localization:{locale:"es-ES",priceFormatter:v=>D.fmt?D.fmt(v).replace(/,00(?= €|$)/,""):String(v),timeFormatter:t=>fh(t*1000)}});
+   st.chart.subscribeCrosshairMove(p=>tip(st,p))}
+  for(const s of st.ser)try{st.chart.removeSeries(s)}catch(e){globalThis.__errC&&__errC(e)}st.ser=[];
+  for(const s of D.series){const up=s.p[s.p.length-1][1]>=s.p[0][1],col=s.cero?s.c:up?s.c:"#ef4444";
+   const se=s.area?st.chart.addAreaSeries({lineColor:col,lineWidth:2,topColor:col+"55",bottomColor:col+"05",priceLineVisible:false,lastValueVisible:true,crosshairMarkerRadius:5,priceFormat:{type:"custom",formatter:v=>D.fmt(v)}}):st.chart.addLineSeries({color:s.c,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false});
+   const m=new Map();for(const [t,v] of s.p)m.set(Math.floor(t/1000),v);se.setData([...m.entries()].sort((a,b)=>a[0]-b[0]).map(([time,value])=>({time,value})));
+   if(s.cero)se.createPriceLine({price:0,color:"rgba(128,128,128,.6)",lineStyle:2,lineWidth:1,title:""});
+   if(D.mov&&D.mov.length&&st.ser.length===0){const t0=s.p[0][0],t1=s.p[s.p.length-1][0];se.setMarkers(D.mov.filter(x=>x[0]>=t0&&x[0]<=t1).map(x=>({time:Math.floor(x[0]/1000),position:x[1]>0?"belowBar":"aboveBar",color:x[1]>0?"#f59e0b":"#a855f7",shape:x[1]>0?"arrowUp":"arrowDown",text:"💰 "+(x[1]>0?"+":"−")+Math.round(Math.abs(x[1]))+" €"})).sort((a,b)=>a.time-b.time))}
+   st.ser.push(se)}
+  st.box.querySelector(".cbg-l").innerHTML=D.mov&&D.mov.length?'<span><i style="background:#f59e0b"></i>💰 ingreso · <i style="background:#a855f7"></i>retirada (no cuentan como ganancia)</span>':"";
+  aplicaRango(st)}
+ function aplicaRango(st){const D=st.datos;if(!D||!D.series||!st.chart)return;const p=D.series[0].p,t1=p[p.length-1][0],t0=p[0][0],dur=t1-t0;
+  /* los rangos más largos que la historia se apagan (salvo «Todo») */
+  st.box.querySelectorAll(".cbg-r button").forEach(b=>{const r=RG.find(x=>x[0]===b.dataset.r);b.disabled=r[2]!==Infinity&&r[2]>dur*1.6&&r[2]>864e5;b.classList.toggle("on",b.dataset.r===st.r)});
+  let r=RG.find(x=>x[0]===st.r)||RG[2];if(r[2]!==Infinity&&r[2]>dur*1.6&&r[2]>864e5){r=RG[5]}
+  const from=r[2]===Infinity?t0:Math.max(t0,t1-r[2]);
+  try{st.chart.timeScale().setVisibleRange({from:Math.floor(from/1000),to:Math.floor(t1/1000)})}catch(e){try{st.chart.timeScale().fitContent()}catch(_){globalThis.__errC&&__errC(_)}}
+  const c=cambioEn(p,D.mov,from,t1),v=st.box.querySelector(".cbg-v");
+  v.innerHTML=`${D.fmt(p[p.length-1][1])}${c?` · <b class="${c.d>=0?"up":"dn"}">${c.d>=0?"+":"−"}${D.fmt(Math.abs(c.d))}${c.pc!=null&&D.series[0].cero!==true?" ("+pc(c.pc)+")":""}</b> ${r[2]===Infinity?"desde el principio":"en "+({"1D":"el último día","1S":"la última semana","1M":"el último mes","3M":"3 meses","1A":"el último año"}[r[0]])}`:""}`}
+ function tip(st,p){const t=st.box.querySelector(".cbg-tip");if(!t)return;if(!p||!p.time||!p.point||!st.ser.length){t.style.display="none";return}
+  const d=p.seriesData.get(st.ser[0]);if(!d||d.value==null){t.style.display="none";return}const D=st.datos,ms=p.time*1000,s0=D.series[0].p,ini=s0[0];
+  t.innerHTML=`<div style="opacity:.75">${fh(ms,true)}</div><b>${D.fmt(d.value)}</b>`;t.style.display="block";
+  const w=st.box.querySelector(".cbg-c").clientWidth;t.style.left=(p.point.x>w/2?8:Math.max(8,w-t.offsetWidth-8))+"px"}
+ function svgSimple(D){const p=D.series[0].p,W=320,H=150,v=p.map(x=>x[1]),lo=Math.min(...v),hi=Math.max(...v),y=x=>H-6-(x-lo)/((hi-lo)||1)*(H-12);return`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%"><polyline fill="none" stroke="#22c55e" stroke-width="2" vector-effect="non-scaling-stroke" points="${p.map((x,i)=>(i/(p.length-1)*W).toFixed(1)+","+y(x[1]).toFixed(1)).join(" ")}"/></svg>`}
+ /* ---------- pantalla completa ---------- */
+ let FULL=null;
+ function abreFull(cfg){cierra();const d=document.createElement("div");d.id="cbg-full";d.innerHTML='<div class="cbg"></div>';document.body.appendChild(d);document.documentElement.style.overflow="hidden";
+  FULL=construye(d.querySelector(".cbg"),cfg,true);try{history.pushState({cbg:1},"")}catch(e){globalThis.__errC&&__errC(e)}}
+ function cierra(){const d=document.getElementById("cbg-full");if(!d)return;try{FULL&&FULL.chart&&FULL.chart.remove()}catch(e){globalThis.__errC&&__errC(e)}FULL=null;d.remove();document.documentElement.style.overflow=""}
+ addEventListener("popstate",()=>{if(document.getElementById("cbg-full"))cierra()});
+ addEventListener("keydown",e=>{if(e.key==="Escape")cierra()});
+ /* ---------- montaje: cualquier <div data-cbg="bv:bitvavo|bv:okx|hl"> se convierte en gráfica ---------- */
+ const CFG={"bv:bitvavo":{k:"bv:bitvavo",titulo:"📈 Tu cuenta de Bitvavo",datos:()=>datosBv("bitvavo")},"bv:okx":{k:"bv:okx",titulo:"📈 Tu cuenta de OKX",datos:()=>datosBv("okx")},"hl":{k:"hl",titulo:"📈 Tu cuenta de Hyperliquid",datos:m=>datosHl(m)}};
+ function monta(){for(const el of document.querySelectorAll("[data-cbg]")){const k=el.dataset.cbg,cfg=CFG[k];if(!cfg||el.__cbg)continue;el.__cbg=1;
+   const sitio=k+"@"+((el.closest(".tab")||{}).id||"");   /* la misma gráfica puede estar en 💶 Real y en 📋 Informes: una por sitio */
+   const v=VIVAS.get(sitio);if(v&&v.box&&!el.contains(v.box)){el.appendChild(v.box);carga(v,false);continue}
+   const box=document.createElement("div");box.className="cbg";el.appendChild(box);VIVAS.set(sitio,construye(box,cfg,false))}}
+ new MutationObserver(()=>monta()).observe(document.documentElement,{childList:true,subtree:true});monta();
+ /* datos nuevos (el bot publica cada 15 min; Hyperliquid, cada 5 min): se actualizan sin perder el rango */
+ setInterval(()=>{for(const st of VIVAS.values())if(st.box&&st.box.isConnected)carga(st,false);if(FULL)carga(FULL,false)},60000);
+ window.cbGraf={CFG,VIVAS,cambioEn,datosBv,abreFull,cierra};
+})();
+</script>
+
 <script id="criptobot">
 /* v1.0 · 🪙 CRIPTOBOT (24/11/2026): la app pasa a ser SOLO de cripto. Trading 212 y los laboratorios de ETF, Acciones y Mixtos ya no existen
    (sus procesos se han borrado). La pestaña de cripto pasa a llamarse «💶 Real» y es la que se abre al entrar. */

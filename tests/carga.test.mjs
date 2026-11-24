@@ -21,7 +21,6 @@ test("carga · esqueletos: skel(n) da n líneas (entre 2 y 8) y SKN una cifra en
 test("carga · ya no queda ningún «Cargando…» suelto: todo usa el esqueleto común", () => {
   assert.ok(!/>Cargando…</.test(HTML) && !/"Cargando…"/.test(HTML) && !/Cargando historial…/.test(HTML) && !/Cargando el examen/.test(HTML));
   assert.match(HTML, /<div id="cargabar"/);
-  assert.match(declaracion("draw0").txt, /RL\.loading\|\|!RL\.at\?skel\(4\)/, "Real: esqueleto (no «Todavía no hay datos») antes de la primera lectura");
 });
 
 test("Hyperliquid · mientras llega el saldo en vivo, esqueleto; a los 5 s sin respuesta, la cifra guardada", () => {
