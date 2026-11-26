@@ -29,7 +29,7 @@ test("informe: Hyperliquid con su total de probadas (no «null») y en dólares"
 });
 test("Tortugas: el flujo da tiempo para leer todas las velas en una vuelta", () => {
   const B = readFileSync(new URL("../runner/bitvavo.mjs", import.meta.url), "utf8"), Y = readFileSync(new URL("../.github/workflows/meme.yml", import.meta.url), "utf8");
-  assert.match(B, /TORT_SEG_S \* 1e3/); assert.match(B, /TORT_TOPE_S \* 1e3/);
+  assert.match(B, /TORT_SEG_S \* 1e3/); assert.match(B, /Date\.now\(\) - tTort > TORT_TOPE_S \* 1e3/);
   assert.match(Y, /TORT_SEG=50 TORT_TOPE=110 timeout 200 node runner\/bitvavo\.mjs/);
 });
 test("reloj: flujo y guion presentes", () => {
