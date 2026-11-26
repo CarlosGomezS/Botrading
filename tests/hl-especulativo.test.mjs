@@ -37,3 +37,9 @@ test("app: botón del modo especulativo y se guarda como sí/no", async () => {
   const H = (await import("node:fs")).readFileSync(new URL("../index.html", import.meta.url), "utf8");
   assert.match(H, /ch\("esp","true","🎲 Sí"/); assert.match(H, /key==="esp"\?v==="true"/);
 });
+test("app: el laboratorio enseña los 3 del modo especulativo (Hyperliquid) con la misma elección que el bot", async () => {
+  const H = (await import("node:fs")).readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(H, /🎲 Modo especulativo \(Hyperliquid\)/);
+  assert.match(H, /\+x\.b\.ret>0\.08&&\+x\.b\.n>=40&&\+x\.b\.pf>=1\.3&&\+x\.b\.dd<0\.3/);
+  assert.match(H, /Hay un método aprobado en el podio: el dinero real sigue a ese/);
+});
