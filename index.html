@@ -1,12 +1,12 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><script id="errores">
 /* v1.0 · ⚠️ RECOGEDOR DE ERRORES de la app: todo lo que falla (errores sin capturar, promesas rechazadas, console.error y los «catch» que antes
    se callaban) se apunta aquí, sin repetir (×n), y se guarda en ESTE móvil (últimos 300). Se ve en 📋 Informes › Errores y va en el informe descargable. */
-(function(){var K="errlog1",M=300,L=[];try{L=JSON.parse(localStorage.getItem(K)||"[]")||[];if(!Array.isArray(L))L=[]}catch(e){L=[]}
+(function(){var K="errlog1",M=300,L=[],VB="485";try{L=JSON.parse(localStorage.getItem(K)||"[]")||[];if(!Array.isArray(L))L=[];L=L.filter(function(x){return x&&x.vb===VB})}catch(e){L=[]}   /* v1.0 · #485 · al cambiar de versión se olvidan los errores de la anterior (ya arreglados): antes seguían saliendo 24 h */
  var pend=0,guarda=function(){if(pend)return;pend=setTimeout(function(){pend=0;try{localStorage.setItem(K,JSON.stringify(L.slice(0,M)))}catch(e){}},2000)};
  var donde=function(st){var ls=String(st||"").split("\n");for(var i=0;i<ls.length;i++){var x=ls[i].trim();if(/__errC|id=.errores/.test(x))continue;var m=x.match(/([\w.-]+\.(?:html|js|mjs)):(\d+)(?::(\d+))?/);if(m)return m[1]+":"+m[2]+(m[3]?":"+m[3]:"")}return""};
  globalThis.__errC=function(e,src){try{var msg=String((e&&(e.message||e.reason))||e||"?").replace(/\s+/g," ").slice(0,300),lu=donde(e&&e.stack)||(e&&e.lu)||"",tipo=src||"capturado",id=tipo+"|"+msg+"|"+lu,t=Date.now(),x=null,i=0;
   for(;i<L.length;i++)if(L[i].id===id){x=L[i];break}
-  if(x){x.n=(x.n||1)+1;x.t=t;if(i>0){L.splice(i,1);L.unshift(x)}}else{L.unshift({id:id,t:t,t0:t,n:1,src:tipo,msg:msg,lu:lu});if(L.length>M)L.length=M}guarda()}catch(_){}};
+  if(x){x.n=(x.n||1)+1;x.t=t;if(i>0){L.splice(i,1);L.unshift(x)}}else{L.unshift({id:id,t:t,t0:t,n:1,src:tipo,msg:msg,lu:lu,vb:VB});if(L.length>M)L.length=M}guarda()}catch(_){}};
  window.__errLista=function(){return L};window.__errBorra=function(){L.length=0;try{localStorage.removeItem(K)}catch(e){}};
  addEventListener("error",function(ev){try{var tg=ev&&ev.target;if(tg&&tg!==window&&tg.tagName){__errC({message:"no carga "+tg.tagName.toLowerCase()+" "+String(tg.src||tg.href||"").slice(0,120)},"recurso");return}__errC(ev&&ev.error?ev.error:{message:ev&&ev.message,lu:(ev&&ev.filename?String(ev.filename).split("/").pop():"")+":"+(ev&&ev.lineno)},"sin capturar")}catch(_){}},true);
  addEventListener("unhandledrejection",function(ev){__errC(ev&&ev.reason,"promesa")});
@@ -641,7 +641,7 @@ function SKN(big){return '<span class="sk'+(big?" big":"")+'" aria-label="Cargan
  setTimeout(function(){clearInterval(mira);window.__quitaSplash&&__quitaSplash()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>CriptoBot<span class="tag vtag" title="Versión estable v1.0 «Ancla» · compilación 484 · martes 24 de noviembre de 2026">✦ v1.0 «Ancla» <small>#484</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>CriptoBot<span class="tag vtag" title="Versión estable v1.0 «Ancla» · compilación 484 · martes 24 de noviembre de 2026">✦ v1.0 «Ancla» <small>#485</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>

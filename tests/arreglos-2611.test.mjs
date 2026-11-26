@@ -37,3 +37,7 @@ test("reloj: flujo y guion presentes", () => {
   const R = readFileSync(new URL("../runner/reloj.sh", import.meta.url), "utf8");
   assert.match(R, /lanza meme\.yml/); assert.match(R, /vigia\.sh/);
 });
+test("errores: al cambiar de versión se olvidan los de la anterior (no salen 24 h errores ya arreglados)", () => {
+  assert.match(H, /L=L\.filter\(function\(x\)\{return x&&x\.vb===VB\}\)/);
+  assert.match(H, /lu:lu,vb:VB\}\)/);
+});
