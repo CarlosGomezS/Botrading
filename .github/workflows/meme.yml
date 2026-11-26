@@ -71,7 +71,7 @@ jobs:
           # 2) el vigilante (lanza lo que GitHub se haya saltado) y avisa de arranques fallidos
           ( AVISA_ARRANQUES=1 timeout 90 bash runner/vigia.sh > /tmp/vigia.log 2>&1; grep "⚠️" /tmp/vigia.log || true ) &
           # 3) una vuelta de Bitvavo/OKX
-          if timeout 100 node runner/bitvavo.mjs > /tmp/m-bv.log 2>&1; then :; else echo "⚠️ la vuelta de cripto ha fallado"; fi; cat /tmp/m-bv.log
+          if TORT_SEG=50 TORT_TOPE=110 timeout 200 node runner/bitvavo.mjs > /tmp/m-bv.log 2>&1; then :; else echo "⚠️ la vuelta de cripto ha fallado"; fi; cat /tmp/m-bv.log
           # si la ronda de Hyperliquid sigue en marcha, se ESPERA a que termine (si no, GitHub la mataría a mitad de abrir o poner stops)
           if [ -n "$hlP" ]; then wait "$hlP" 2>/dev/null || true; fi
           wait 2>/dev/null || true

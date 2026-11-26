@@ -174,7 +174,7 @@ export function compactaCurva(cv, ahora, dias = 30, max = 5 * 365) {
 export function desvioTort(eq, cv, now) {
   if (!Array.isArray(eq) || eq.length < 2 || !Array.isArray(cv) || cv.length < 2) return null;
   const t0 = +now - 30 * 864e5, E = eq.filter((x) => Date.parse(x[0]) >= t0); if (E.length < 2) return null;
-  let idx = 1; for (let i = 1; i < E.length; i++) { const [, v0, s0] = E[i - 1], [, v1, s1] = E[i], fl = (+s1 || 0) - (+s0 || 0); if (v0 > 0) { const r = (v1 - fl) / v0; if (isFinite(r) && r > 0) idx *= r; } }
+  let idx = 1; for (let i = 1; i < E.length; i++) { const [, v0, s0] = E[i - 1], [, v1, s1] = E[i], fl = (+s1 || 0) - (+s0 || 0); if (v0 > 0) { const r = (v1 - fl) / v0; if (isFinite(r) && r > 0.7 && r < 1.3) idx *= r; } }   /* v1.0 · un salto de más de un 30 % entre dos puntos es dinero que entra o sale sin apuntar (un traspaso o una lectura rota), no una ganancia o pérdida: se ignora (daba «-98 %» falsos) */
   const a = Date.parse(E[0][0]), b = Date.parse(E[E.length - 1][0]), at = (t) => { let v = null; for (const x of cv) { if (x[0] <= t) v = x[1]; else break; } return v; }, c0 = at(a), c1 = at(b);
   if (!(c0 > 0) || !(c1 > 0)) return null;
   return { dias: Math.round((b - a) / 864e5), real: +((idx - 1) * 100).toFixed(2), sim: +((c1 / c0 - 1) * 100).toFixed(2) };

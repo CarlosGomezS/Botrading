@@ -6,6 +6,7 @@
 // de reglas distintas con los costes reales; cada regla se puntúa con su PEOR mitad (días antiguos y recientes por separado).
 // El terminal adopta la mejor solo si gana en las dos mitades; si ninguna gana, opera en «modo prueba» (compras a la mitad).
 import * as CU from "./cuant.mjs";
+const TORT_SEG_S = Math.min(120, Math.max(15, +process.env.TORT_SEG || 15)), TORT_TOPE_S = Math.min(200, Math.max(35, +process.env.TORT_TOPE || 35));   // v1.0 · tiempo para leer velas de las Tortugas
 import { execSync } from "node:child_process";
 import { writeFileSync, readFileSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
@@ -598,7 +599,9 @@ async function main() {
   if (!S.tortELat || now - S.tortELat >= 30 * 60e3) try { const EL = await leer("examen-largo.json", "examen-largo"); S.tortELat = now.getTime(); if (EL && EL.tortugas) S.tortP = Object.fromEntries(["bitvavo", "okx"].map((ex) => { const T = EL.tortugas[ex] || {}; return [ex, Object.fromEntries(["bajo", "medio", "alto"].map((rk) => [rk, (T.perfiles && T.perfiles[rk] && T.perfiles[rk].P) || (rk === "medio" ? T.P : null) || null]))]; })); } catch (e) {}
   // v320 · 🌍 TODAS las criptos líquidas (hasta 150 por exchange): las velas se piden POR TANDAS (unas 25 por minuto) y al terminar se cambian las señales
   S.tortJob = S.tortJob || {};
-  for (const ex of ["bitvavo", "okx"]) { const T0 = S.tort[ex], PS = (S.tortP && S.tortP[ex]) || { medio: null }, clave = JSON.stringify(PS); if (Date.now() - t0 > 35e3) break;
+  // v1.0 · ⏱️ (26/11/2026) el bot ya va a UNA vuelta cada 15 min: con 15 s por exchange las ~150 criptos de las Tortugas no se terminaban
+  //   nunca de leer («sin velas diarias todavía» y no compraba). En el flujo se da más tiempo (TORT_SEG por exchange, TORT_TOPE en total).
+  for (const ex of ["bitvavo", "okx"]) { const T0 = S.tort[ex], PS = (S.tortP && S.tortP[ex]) || { medio: null }, clave = JSON.stringify(PS); if (Date.now() - t0 > TORT_TOPE_S * 1e3) break;
     let J = S.tortJob[ex]; const toca = !(T0 && T0.dia === hoyT && now - T0.t < 6 * 3600e3 && T0.clave === clave);
     if (!J && !toca) continue;
     try { const TT = await import("./tortugas.mjs");
@@ -606,7 +609,7 @@ async function main() {
         if (ex === "bitvavo") lista = TT.universo(tick).map(([m, x]) => ({ m, vq: x.vq })); else if (tickOkxReal) lista = TT.universo(tickOkxReal).map(([m, x]) => ({ m, par: x.par, k: x.k, vq: x.vq }));
         if (!lista.length) continue; const Ps = Object.fromEntries(Object.entries(PS).map(([rk, P]) => [rk, TT.conP(P)]));
         J = S.tortJob[ex] = { t0: now.getTime(), clave, lista, i: 0, Ps, dias: Math.max(90, ...Object.values(Ps).map((P) => Math.max(P.ent + 30, (P.filtro ? P.mFil : 0) + 30))), per: Object.fromEntries(Object.keys(Ps).map((rk) => [rk, { P: Ps[rk], sen: {} }])) }; }
-      const fin = Date.now() + 15e3; while (J.i < J.lista.length && Date.now() < fin) { const { m, par, k, vq } = J.lista[J.i++]; try { const d = await TT.diarias(ex, m, J.dias, par, k || 1); for (const rk of Object.keys(J.Ps)) { const x = TT.senal(d, J.Ps[rk]); if (x && x.entra && !(vq >= TT.UNI_ENTRA)) { x.entra = false; x.pocaLiq = 1; }   /* v456 · con menos de 50.000 €/día solo se vigila para SALIR */ if (x) J.per[rk].sen[m] = x; } } catch (e) {} }
+      const fin = Date.now() + TORT_SEG_S * 1e3; while (J.i < J.lista.length && Date.now() < fin) { const { m, par, k, vq } = J.lista[J.i++]; try { const d = await TT.diarias(ex, m, J.dias, par, k || 1); for (const rk of Object.keys(J.Ps)) { const x = TT.senal(d, J.Ps[rk]); if (x && x.entra && !(vq >= TT.UNI_ENTRA)) { x.entra = false; x.pocaLiq = 1; }   /* v456 · con menos de 50.000 €/día solo se vigila para SALIR */ if (x) J.per[rk].sen[m] = x; } } catch (e) {} }
       if (J.i >= J.lista.length) { delete S.tortJob[ex]; const per = J.per, M = per.medio || Object.values(per)[0];
         if (M && Object.keys(M.sen).length >= 5) { S.tort[ex] = { t: now.getTime(), dia: hoyT, clave, sen: M.sen, P: M.P, perfiles: per };
           console.log(`🐢 Tortugas ${ex}: ${Object.keys(M.sen).length} criptos vigiladas · ` + Object.entries(per).map(([rk, x]) => { const en = Object.entries(x.sen).filter(([, y]) => y.entra).map(([mm]) => mm.split("-")[0]); return `${TT.perfil(rk).nombre}: ${en.length} con señal de entrada`; }).join(" · ")); } } }   /* v478 · registro público: solo cuántas, nunca cuáles */
