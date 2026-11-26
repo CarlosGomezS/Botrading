@@ -323,7 +323,7 @@ async function ronda0() { PUESTOS.length = 0;
   const lc = await leeCtl(), prevCtl = prev && prev.ctl && ["on", "pausa", "parado"].includes(prev.ctl.estado) ? validaCtl({}, prev.ctl) : null;
   const CTL = lc.ok ? lc.ctl : prevCtl ? { ...prevCtl, estado: prevCtl.estado === "on" ? "pausa" : prevCtl.estado } : { ...CTL0, estado: "pausa" };
   if (!lc.ok) { log(`Hyperliquid real: ${lc.motivo}. Por seguridad NO abro nada esta hora; lo abierto sigue con su stop y su tiempo.`); if (!prev || !prev.ctlNoLeido) await aviso(`⚠️ Hyperliquid: ${lc.motivo}. Mientras tanto no abro operaciones nuevas (lo abierto sigue con su stop). Si sigue así, vuelve a guardar los ajustes desde la app.`); }
-  const M0 = await (deps.metodo || metodo)(CTL.puesto, CTL.esp === true).catch(() => null); const h = M0 && M0.x && M0.x.g ? M0.x.g.h : 16;
+  const M0 = await (deps.metodo || metodo)(CTL.puesto, CTL.esp === true).catch((e) => { log("No he podido leer el método del laboratorio: " + String((e && e.message) || e).slice(0, 80)); return null; }); const h = M0 && M0.x && M0.x.g ? M0.x.g.h : 16;
   // v456 · cada posición recuerda SU método (duración y stop): si el método cambia, las abiertas siguen con sus reglas. Las que no lo tienen
   //   apuntado (abiertas antes de esta versión) son del método en uso.
   const pm = (prev && prev.pm) || {};
