@@ -147,10 +147,10 @@ async function datosVivos(U) {
 
 // ---------- el método del podio ----------
 // v435 · ⚙️ AJUSTES (rama hl-ctl, públicos: solo porcentajes y opciones, nunca importes)
-export const CTL0 = { estado: "on", uso: 100, plazas: 0, freno: 0.5, puesto: 1 };
+export const CTL0 = { estado: "on", uso: 100, plazas: 0, freno: 0.5, puesto: 1, esp: false };
 export function validaCtl(c, prev = CTL0) { const o = { ...CTL0, ...(prev || {}) }; c = c || {};
   if (["on", "pausa", "parado"].includes(c.estado)) o.estado = c.estado; if ([25, 50, 75, 100].includes(+c.uso)) o.uso = +c.uso;
-  if ([0, 1, 2, 3, 4, 5].includes(+c.plazas)) o.plazas = +c.plazas; if ([0.25, 0.35, 0.5].includes(+c.freno)) o.freno = +c.freno; if ([1, 2, 3].includes(+c.puesto)) o.puesto = +c.puesto; return o; }
+  if ([0, 1, 2, 3, 4, 5].includes(+c.plazas)) o.plazas = +c.plazas; if ([0.25, 0.35, 0.5].includes(+c.freno)) o.freno = +c.freno; if ([1, 2, 3].includes(+c.puesto)) o.puesto = +c.puesto; if (typeof c.esp === "boolean") o.esp = c.esp; o.esp = o.esp === true; return o; }   /* v1.0 · 🎲 esp = modo especulativo */
 // v460 · 🔒 FALLA CERRADO: si no se pueden leer TUS ajustes, se devuelve ok:false (nunca los de fábrica). Quien llama decide: no abrir nada.
 // v461 · solo valen unos ajustes COMPLETOS y dentro de rango (nada se rellena con los de fábrica)
 export const ctlCompleto = (j) => !!j && typeof j === "object" && ["on", "pausa", "parado"].includes(j.estado) && [25, 50, 75, 100].includes(+j.uso) && [0, 1, 2, 3, 4, 5].includes(+j.plazas) && [0.25, 0.35, 0.5].includes(+j.freno) && [1, 2, 3].includes(+j.puesto);
@@ -172,12 +172,21 @@ export function listaReal(aprobadas) {
   const A = (Array.isArray(aprobadas) ? aprobadas : []).filter(cuarentenaOk), reales = A.filter((z) => z.cuar.ok === true);
   return reales.length ? A.filter((z) => !z.cuar.provisional || z.cuar.ok === true) : A;
 }
-async function metodo(puesto = 1) {
+// v1.0 · 🎲 MODO ESPECULATIVO (26/11/2026, pedido expresamente por el usuario: «todo SUPER agresivo»): mientras NINGÚN método haya pasado la
+//   cuarentena, en vez de no operar se siguen a la vez los 3 mejores «casi aprobados» del laboratorio (ideas distintas), los que en la parte
+//   OCULTA del examen ganaron con bastantes operaciones. No han superado la prueba contra la suerte: es más arriesgado. Siguen todos los frenos.
+export const ESP_N = 3;
+export function eligeEspeculativos(casi, n = ESP_N) {
+  const L = (Array.isArray(casi) ? casi : []).filter((x) => x && x.g && x.n && x.a && x.b && +x.a.ret > 0 && +x.b.ret > 0.08 && +x.b.n >= 40 && +x.b.pf >= 1.3 && +x.b.dd < 0.3)
+    .sort((p, q) => q.b.ret - p.b.ret), out = [], ideas = new Set();
+  for (const x of L) { const idea = String(x.n).split(" + ")[0]; if (ideas.has(idea) || out.some((y) => JSON.stringify(y.g) === JSON.stringify(x.g))) continue; ideas.add(idea); out.push({ ...x, k: "esp:" + JSON.stringify(x.g), esp: 1 }); if (out.length >= n) break; }
+  return out; }
+async function metodo(puesto = 1, esp = false) {
   const get = async (rama, arch) => { const r = await F(`https://raw.githubusercontent.com/${REPO}/${rama}/${arch}?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) }); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); };
   // v456 · 🧊 solo métodos que han pasado la CUARENTENA de 21 días en ficticio (o el que ya estaba en uso, exento); en el orden del podio
-  const L = await get("caza-lab", "caza-lab.json"), lista = listaReal(L.aprobadas), x = lista[puesto - 1] || lista[0]; if (!x) return null;
-  let IA = []; try { const RX = await import("./ia-receta.mjs"), j = await get("ia-lab", "ia-lab.json"), FNk = Object.keys(FILTROS); IA = ((j && j.cripto && j.cripto.recetas) || []).map((r) => RX.validaReceta(r, FNk)).filter(Boolean); x.RX = RX; } catch (e) {}
-  return { x, IA, U: L.criptos || [] };
+  const L = await get("caza-lab", "caza-lab.json"), lista = listaReal(L.aprobadas), xs = !lista.length && esp ? eligeEspeculativos(L.casi) : null, x = xs ? xs[0] : lista[puesto - 1] || lista[0]; if (!x) return null;
+  let IA = []; try { const RX = await import("./ia-receta.mjs"), j = await get("ia-lab", "ia-lab.json"), FNk = Object.keys(FILTROS); IA = ((j && j.cripto && j.cripto.recetas) || []).map((r) => RX.validaReceta(r, FNk)).filter(Boolean); x.RX = RX; if (xs) for (const y of xs) y.RX = RX; } catch (e) {}
+  return { x, xs, IA, U: L.criptos || [] };
 }
 // construye la señal de una pieza (a o b) del método: receta de la IA por su id, o señal clásica por su posición en la lista (se comprueba con el nombre)
 function pieza(S0, IA, RX, idx, iaId) {
@@ -255,7 +264,14 @@ async function cierraUna(p, I, mids, PK, holgura = SLIP) { try { const lado = +p
     if (r.ok && !(r.sz >= pide * 0.999)) return { ok: false, parcial: true, px: r.px, sz: r.sz, err: `solo se ha cerrado una parte (${Math.round((r.sz / pide) * 100)} %); el resto sigue abierto con su stop y se reintenta en la próxima ronda` };
     return r; } catch (e) { return { ok: false, err: String(e.message).slice(0, 80) }; } }
 // v460 · señales de la última vela cerrada para el método (separado para poder probar el resto sin datos de mercado)
-async function senalesVivas(M0, idx) { const g = M0.x.g, D = await datosVivos(M0.U.filter((c) => idx.has(c)));
+async function senalesVivas(M0, idx) {
+  // v1.0 · 🎲 con varios métodos (modo especulativo): los datos se leen UNA vez; cada señal lleva las reglas (duración y stop) de su método; si una cripto
+  //   la piden dos métodos, manda el primero. Un método que no se reconoce se salta (sin aviso) mientras otro sí funcione.
+  if (M0.xs && M0.xs.length) { const D = await datosVivos(M0.U.filter((c) => idx.has(c))), quiere = [], vistos = new Set(); let err = null, ok = 0;
+    for (const x of M0.xs) { const r = await senalesUno({ ...M0, x }, D); if (r.err) { err = err || r; continue; } ok++; for (const q of r.quiere) if (!vistos.has(q.c)) { vistos.add(q.c); quiere.push({ ...q, g: x.g, k: x.k }); } }
+    return ok ? { quiere } : err || { err: "Ningún método especulativo disponible." }; }
+  return senalesUno(M0, await datosVivos(M0.U.filter((c) => idx.has(c)))); }
+async function senalesUno(M0, D) { const g = M0.x.g;
   if (!D.M.BTC) return { err: "Sin datos de BTC; no abro nada esta hora." };
   const S0 = senales(D), A = pieza(S0, M0.IA, M0.x.RX, g.a, g.ia), B = g.b != null ? pieza(S0, M0.IA, M0.x.RX, g.b, g.iab) : null, nomEsperado = `${A && A.nom}${B ? " + confirma " + B.nom : ""}`;
   if (!A || (g.b != null && !B) || !String(M0.x.n).startsWith(nomEsperado)) return { err: "El método del podio no coincide con las señales de este programa; no abro nada (aviso enviado).", avisar: "⚠️ Hyperliquid: no reconozco el método n.º 1 del podio; esta hora no abro nada." };
@@ -307,7 +323,7 @@ async function ronda0() { PUESTOS.length = 0;
   const lc = await leeCtl(), prevCtl = prev && prev.ctl && ["on", "pausa", "parado"].includes(prev.ctl.estado) ? validaCtl({}, prev.ctl) : null;
   const CTL = lc.ok ? lc.ctl : prevCtl ? { ...prevCtl, estado: prevCtl.estado === "on" ? "pausa" : prevCtl.estado } : { ...CTL0, estado: "pausa" };
   if (!lc.ok) { log(`Hyperliquid real: ${lc.motivo}. Por seguridad NO abro nada esta hora; lo abierto sigue con su stop y su tiempo.`); if (!prev || !prev.ctlNoLeido) await aviso(`⚠️ Hyperliquid: ${lc.motivo}. Mientras tanto no abro operaciones nuevas (lo abierto sigue con su stop). Si sigue así, vuelve a guardar los ajustes desde la app.`); }
-  const M0 = await (deps.metodo || metodo)(CTL.puesto).catch(() => null); const h = M0 && M0.x && M0.x.g ? M0.x.g.h : 16;
+  const M0 = await (deps.metodo || metodo)(CTL.puesto, CTL.esp === true).catch(() => null); const h = M0 && M0.x && M0.x.g ? M0.x.g.h : 16;
   // v456 · cada posición recuerda SU método (duración y stop): si el método cambia, las abiertas siguen con sus reglas. Las que no lo tienen
   //   apuntado (abiertas antes de esta versión) son del método en uso.
   const pm = (prev && prev.pm) || {};
@@ -379,7 +395,7 @@ async function ronda0() { PUESTOS.length = 0;
   const hechos = [], estado = { enfria: Object.keys(enfria).length ? enfria : undefined, porIdent: Object.keys(porIdent).length ? porIdent : undefined, intentos, ajenasPos: Object.keys(ajenasPos).length ? ajenasPos : undefined, agenteHasta, slip: Array.isArray(prev && prev.slip) ? prev.slip.slice(-300) : [], misStops: Array.isArray(prev && prev.misStops) ? prev.misStops : undefined, reconciliar: recon || undefined, netoMal: netoMal ? 1 : undefined, w: yo, ctl: lc.ok ? CTL : prevCtl || CTL, ctlNoLeido: lc.ok ? undefined : 1, t: new Date().toISOString(), eq, neto, ledDiag: ledOk ? ledDiag(led, yo) : undefined, metodo: M0 && M0.x ? M0.x.n : null, ops: [], pm };
   { const nuevas = Object.keys(ajenasPos).filter((c) => !ajenasPrev[c]); if (Object.keys(ajenasPos).length) log(`Posiciones que el bot no tiene apuntadas: ${Object.keys(ajenasPos).length} (no las toco).`);
     if (nuevas.length) await aviso(`ℹ️ Hyperliquid: hay ${nuevas.length === 1 ? "una posición" : nuevas.length + " posiciones"} en la cuenta que el bot no ha abierto (${nuevas.join(", ")}). No ${nuevas.length === 1 ? "la" : "las"} toco: ni stop ni cierre por tiempo, y ocupa${nuevas.length === 1 ? "" : "n"} plaza. Si es del bot, vuelve a guardar los ajustes de Hyperliquid en la app y la gestionará.`); }
-  log(`Hyperliquid real: ${pos.length} posiciones abiertas · ${CTL.estado === "on" ? "activo" : CTL.estado === "pausa" ? "en pausa (no abre nuevas)" : "parado (cierra todo)"} · método ${M0 && M0.x ? "n.º " + CTL.puesto + " del podio" : "no disponible"}`);
+  log(`Hyperliquid real: ${pos.length} posiciones abiertas · ${CTL.estado === "on" ? "activo" : CTL.estado === "pausa" ? "en pausa (no abre nuevas)" : "parado (cierra todo)"} · método ${M0 && M0.x ? (M0.xs ? "🎲 especulativo (" + M0.xs.length + " casi aprobados a la vez)" : "n.º " + CTL.puesto + " del podio") : CTL.esp ? "🎲 especulativo: ningún casi aprobado sirve ahora" : "no disponible"}`);
 
   // 1) freno: la cuenta ha caído por debajo de lo ingresado menos el freno → cerrar todo y no abrir
   // v465 · 🧯 FRENO ENCLAVADO: una vez salta, se queda echado aunque la cuenta se recupere; solo se rearma cuando TÚ vuelves a guardar los ajustes de Hyperliquid en la app
@@ -440,11 +456,12 @@ async function ronda0() { PUESTOS.length = 0;
         let antes = null; if (quiere.length && libres > 0) { try { antes = ((await info({ type: "frontendOpenOrders", user: yo })) || []).map((o) => ({ c: o.coin, oid: o.oid })); } catch (e) { antes = null; }
           if (!antes) { log("No he podido leer las órdenes abiertas antes de abrir: esta hora no abro nada."); quiere.length = 0; }
           else { const tI = Date.now(); for (const q of quiere.filter((q) => !pos.some((p) => p.coin === q.c) || estado.ops.some((o) => o.c === q.c && o.x === "cierra")).slice(0, Math.max(0, libres) + 3)) {   /* v1.0 · R6-6 · se filtra ANTES de cortar: antes, las señales de criptos ya abiertas ocupaban el corte y una nueva se mandaba sin intención apuntada */   /* v1.0 · G-4.1 · también la que se cerró esta hora y se reabre */ const I = idx.get(q.c), mid = +mids[q.c], szE = I && mid > 0 ? tamOk((Math.min(uso / plazas, eq) * 0.98) / mid, I.szd) : 0;   /* v479 · el tamaño que mandará (misma cuenta que al abrir) */
-            estado.intentos.push({ c: q.c, dir: q.dir, t: tI, sz: szE || undefined, g: { h: g.h, sl: g.sl || 0, k: M0.x.k }, antes: antes.filter((o) => o.c === q.c).map((o) => o.oid) }); } } }
+            const gq = q.g || g; estado.intentos.push({ c: q.c, dir: q.dir, t: tI, sz: szE || undefined, g: { h: gq.h, sl: gq.sl || 0, k: q.k || M0.x.k }, antes: antes.filter((o) => o.c === q.c).map((o) => o.oid) }); } } }
         if (quiere.length && libres > 0 && !(await guarda({ ...estado, preApertura: 1 }))) { log("No he podido guardar el estado antes de abrir: esta hora no abro nada."); await aviso("⚠️ Hyperliquid: no he podido guardar el estado antes de abrir operaciones; esta hora no abro nada."); quiere.length = 0; }
         const enviadas = new Set(), marcaDudosa = (c) => { for (const i of estado.intentos) if (i.c === c && i.t >= ahoraR) i.dudosa = 1; }; let usadas = 0; for (const q of quiere) { if (usadas >= libres) break; if (pos.some((p) => p.coin === q.c) && !estado.ops.some((o) => o.c === q.c && o.x === "cierra")) continue;
           if (!(estado.intentos || []).some((i) => i.c === q.c && i.t >= ahoraR)) { log("Una señal sin intención guardada antes de abrir: no se manda (nunca se abre nada que luego no se pueda reconocer)."); continue; }   // v1.0 · R6-6
           try {
+          const g = q.g || M0.x.g, kq = q.k || M0.x.k;   /* v1.0 · 🎲 las reglas del método que dio ESTA señal */
           const I = idx.get(q.c), mid = +mids[q.c]; if (!I || !(mid > 0)) continue;
           if (q.px0 > 0 && (q.dir > 0 ? mid > q.px0 * (1 + PERSIGUE_MAX) : mid < q.px0 * (1 - PERSIGUE_MAX))) { log(`Una señal ya se ha movido más de un ${PERSIGUE_MAX * 100} % desde el cierre de la vela: no la persigo.`); continue; }   // v1.0 · G-4.2
           const notional = Math.min(uso / plazas, eq) * 0.98, sz = tamOk(notional / mid, I.szd); if (sz * mid < 10.2) continue;
@@ -452,7 +469,7 @@ async function ronda0() { PUESTOS.length = 0;
           const expo = pos.filter((p) => !estado.ops.some((o) => o.c === p.coin && o.x === "cierra")).reduce((a, p) => a + Math.abs(+p.szi) * (+mids[p.coin] || +p.entryPx || 0), 0) + estado.ops.filter((o) => o.x === "abre").reduce((a, o) => a + (o.v || 0), 0);
           if (expo + sz * mid > Math.min(uso, eq)) { log("Tope de exposición: con esta orden se pasaría del dinero que se usa; no la abro."); continue; }
           enviadas.add(q.c); const r = await mandar(orden(I.a, q.dir > 0, precioOk(mid * (q.dir > 0 ? 1 + SLIP_ABRE : 1 - SLIP_ABRE), I.szd), sz, false), PK);
-          if (r.ok) { pm[q.c] = { h: g.h, sl: g.sl || 0, k: M0.x.k, t0: Date.now() }; propias.set(q.c, new Set((antes || []).filter((o) => o.c === q.c).map((o) => o.oid))); estado.intentos = estado.intentos.filter((i) => i.c !== q.c); anotaSlip("abre", q.dir > 0, mid, r.px); if (q.px0 > 0) anotaSlip("señal", q.dir > 0, q.px0, r.px); }   // v477 · ⏱️ y cuánto se ha movido el precio desde el cierre de la vela de la señal (el laboratorio entra a ese precio)
+          if (r.ok) { pm[q.c] = { h: g.h, sl: g.sl || 0, k: kq, t0: Date.now() }; propias.set(q.c, new Set((antes || []).filter((o) => o.c === q.c).map((o) => o.oid))); estado.intentos = estado.intentos.filter((i) => i.c !== q.c); anotaSlip("abre", q.dir > 0, mid, r.px); if (q.px0 > 0) anotaSlip("señal", q.dir > 0, q.px0, r.px); }   // v477 · ⏱️ y cuánto se ha movido el precio desde el cierre de la vela de la señal (el laboratorio entra a ese precio)
           // v459 · 🛡️ una posición NUNCA se queda sin su stop: si no se puede poner, se reintenta al momento y, si vuelve a fallar, se cierra ya
           if (r.ok) { const dS = g.sl > 0 ? g.sl : STOP_EMERG; let okS = false; for (let z = 0; z < 2 && !okS; z++) { try { okS = await ponStop(I.a, q.dir, r.px, r.sz, I.szd, PK, dS); } catch (e) { okS = false; } if (!okS) await deps.espera(2500); }
             if (!okS) { const mid2 = +((await info({ type: "allMids" }).catch(() => ({})))[q.c]) || r.px, rc = await cierraUna({ coin: q.c, szi: q.dir * r.sz, entryPx: r.px }, I, { [q.c]: mid2 }, PK);

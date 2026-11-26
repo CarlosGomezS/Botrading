@@ -3294,7 +3294,7 @@ function bvExchanges(f){const cur=bvModo(),X=MM.bvX||{},b=(k,ex,n)=>{const R=(X[
  const bt=(k,ex,n)=>hl?bb(k,ex,n).replace(' on"','"'):bb(k,ex,n);
  return`<div class="mt-chs" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:8px">${bt("ia","bitvavo","🇪🇺 Bitvavo")}${bt("okx","okx","🟦 OKX")}<button class="mt-ch${hl?" on":""}" data-bvhl="1" data-nobusy><b>💧 Hyperliquid</b><span>${H&&H.eq!=null?(hlEspera((MM.hlX||{}).R)?SKN():"$"+(+H.eq).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})):nk?"🔑":ent?(MM.bvAt?"—":SKN()):"🔒"}</span>${H&&H.eq!=null||(ent&&!nk&&!MM.bvAt)?"":`<small>${nk?"faltan las claves":ent?"sin datos todavía":"desbloquea para ver"}</small>`}</button></div>`}
 /* v435 · ⚙️ AJUSTES DE HYPERLIQUID (se guardan lanzando un flujo, como los de Bitvavo y OKX) */
-function hlCtl(){return Object.assign({estado:"on",uso:100,plazas:0,freno:0.5,puesto:1},MM.hlCtl||{})}
+function hlCtl(){return Object.assign({estado:"on",uso:100,plazas:0,freno:0.5,puesto:1,esp:false},MM.hlCtl||{})}
 function hlAjustes(abierto){const k=hlCtl(),ch=(key,v,n,d)=>`<button class="mt-ch${String(k[key])===String(v)?" on":""}" data-hlset="${key}:${v}" data-nobusy style="text-align:center"><b>${n}</b>${d?`<small>${d}</small>`:""}</button>`,R=(MM.hlX||{}).R,V=MM.hlV,eq=V&&V.eq!=null?V.eq:R&&R.eq;
  const cab=eq!=null?Math.max(0,Math.min(k.plazas||5,Math.floor(eq*k.uso/100/11))):null;
  return`<details class="rd"${abierto?" open":""}><summary><span>⚙️ Ajustes de Hyperliquid</span></summary><div style="padding:8px 0">
@@ -3308,8 +3308,10 @@ function hlAjustes(abierto){const k=hlCtl(),ch=(key,v,n,d)=>`<button class="mt-c
   <div class="mt-chs" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:8px">${ch("freno",0.25,"−25 %","prudente")}${ch("freno",0.35,"−35 %")}${ch("freno",0.5,"−50 %","como el método")}</div>
   <div class="mt-dim" style="margin-bottom:4px">🏆 Método que sigue: <b>n.º ${k.puesto} del podio</b> del laboratorio de Hyperliquid</div>
   <div class="mt-chs" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:8px">${[1,2,3].map(v=>ch("puesto",v,"🏆 n.º "+v)).join("")}</div>
+  <div class="mt-dim" style="margin-bottom:4px">🎲 Modo especulativo: mientras ningún método esté aprobado, sigue a la vez a los <b>3 mejores «casi aprobados»</b> (ganaron en la parte oculta del examen, pero no han pasado la prueba contra la suerte). Opera más y arriesga más.</div>
+  <div class="mt-chs" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:8px">${ch("esp","true","🎲 Sí","opera más")}${ch("esp","false","🛡️ No","solo aprobados")}</div>
   <div class="mt-dim">Sin apalancamiento: entre todas las posiciones nunca usa más de lo elegido. Los cambios valen desde la siguiente hora en punto («Parar» cierra al momento).</div></div></details>`}
-document.addEventListener("click",async e=>{const b=e.target.closest&&e.target.closest("[data-hlset]");if(!b)return;const [key,v]=b.dataset.hlset.split(":"),val=key==="estado"?v:+v;
+document.addEventListener("click",async e=>{const b=e.target.closest&&e.target.closest("[data-hlset]");if(!b)return;const [key,v]=b.dataset.hlset.split(":"),val=key==="estado"?v:key==="esp"?v==="true":+v;
  if(key==="estado"&&v==="parado"&&!confirm("¿Parar Hyperliquid? Cerrará ahora todas las posiciones abiertas (al precio de mercado) y no abrirá más hasta que pulses ▶️ Activo."))return;
  const c=window.__CLOUD;if(c&&c.tok&&!c.tok()&&window.abrirNube)await window.abrirNube();if(!c||!c.tok||!c.tok()){alert("Para cambiar esto desbloquea primero con tu clave en ⚙️ Ajustes.");return}
  try{const r=c.ri(),w=await fetch(`https://api.github.com/repos/${r.o}/${r.r}/actions/workflows/hl-ctl.yml/dispatches`,{method:"POST",headers:{Authorization:"Bearer "+c.tok(),Accept:"application/vnd.github+json","Content-Type":"application/json"},body:JSON.stringify({ref:"main",inputs:{cambio:JSON.stringify({[key]:val})}})});
