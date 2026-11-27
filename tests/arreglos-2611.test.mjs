@@ -41,3 +41,10 @@ test("errores: al cambiar de versión se olvidan los de la anterior (no salen 24
   assert.match(H, /L=L\.filter\(function\(x\)\{return x&&x\.vb===VB\}\)/);
   assert.match(H, /lu:lu,vb:VB\}\)/);
 });
+test("terminal en «💶 Real»: lee los diarios cifrados y la vuelta apunta TODO (no solo Telegram)", () => {
+  assert.match(H, /<div id="cb-term"><\/div>\n<\/section>/);
+  assert.match(H, /<script id="terminal-cb">/);
+  assert.match(H, /\["terminal-cripto-tg",""\],\["terminal-cripto",""\]/);
+  const Y = readFileSync(new URL("../.github/workflows/meme.yml", import.meta.url), "utf8");
+  assert.match(Y, /DIARIO_SOLO_TG: "0"/);
+});

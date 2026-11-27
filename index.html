@@ -681,6 +681,7 @@ function SKN(big){return '<span class="sk'+(big?" big":"")+'" aria-label="Cargan
 </section>
 <section class="tab" id="t-memes">
 <div id="mm-body"><div class="p"><div class="skw" aria-busy="true" aria-label="Cargando"><span class="sk"></span><span class="sk"></span><span class="sk"></span><span class="sk"></span></div></div></div>
+<div id="cb-term"></div>
 </section>
 <section class="tab" id="t-ajustes">
 <div class="p" id="tgdev-p"><h2>📤 Telegram en este dispositivo</h2><div class="m">Para mandar a tu bot de Telegram cualquier informe o archivo de la app (cada botón de descarga te deja elegir «📤 Enviar a mi Telegram»). Se guarda solo en este dispositivo.</div>
@@ -5270,4 +5271,30 @@ ${estado(conReal)}
    if(nueva&&yo&&nueva>yo){let ya=0;try{ya=+sessionStorage.getItem("autoV")||0}catch(e){globalThis.__errC&&__errC(e)}if(ya>=nueva)return;try{sessionStorage.setItem("autoV",String(nueva))}catch(e){globalThis.__errC&&__errC(e)}
     const u=new URL(location.href);u.searchParams.set("v",String(nueva));location.replace(u.toString())}}catch(e){globalThis.__errC&&__errC(e)}finally{mirando=false}}
  setTimeout(mira,4000);setInterval(mira,180000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(mira,800)})})();</script>
+<script id="terminal-cb">
+/* v1.0 · 🖥️ TERMINAL (26/11/2026): en «💶 Real», todo lo que hace el bot en cada vuelta (qué mira, qué señales ve, qué casi hace, qué compra o
+   vende), sacado de sus diarios CIFRADOS (solo se ven con tu clave). Se refresca solo cada 2 min mientras la pantalla está abierta. */
+(function(){try{
+ const R=[["terminal-cripto-tg",""],["terminal-cripto",""],["terminal-cazalab","🧠 Lab · "]],F=[["todo","Todo",null],["real","💶 Real",/Real \(|COMPRA|VENTA|💶|Conexión|vende|compra/i],["tort","🐢 Tortugas",/Tortuga|🐢/],["hl","🎲 Hyperliquid",/Hyperliquid|Señales esta hora|LARGO|CORTO|Cierra/],["tg","📤 Avisos",/^📤/],["lab","🧠 Lab",/^🧠/]];
+ let L=[],t0=0,f="todo",err="",cargando=0;
+ const esc=x=>String(x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])),hh=t=>new Date(t).toLocaleString("es-ES",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+ const col=x=>/❌|⚠️|🚨|error|no he podido|falla/i.test(x)?"#ff8a80":/🟢|COMPRA|Abre|✅|📈/.test(x)?"#7ee787":/🔴|VENTA|vende|Cierra|📉/.test(x)?"#ffb86c":/^📤/.test(x)?"#8ab4ff":/casi|🟡|Señales/i.test(x)?"#e3d27a":"#c9d1d9";
+ function pinta(){const el=document.getElementById("cb-term");if(!el)return;const re=(F.find(z=>z[0]===f)||[])[2],V=L.filter(z=>!re||re.test(z[1])).slice(-200).reverse();
+  const ab=el.querySelector("details")?el.querySelector("details").open:true;
+  el.innerHTML=`<details class="rd" ${ab?"open":""} style="margin:12px 10px 90px"><summary><span>🖥️ Terminal · qué está haciendo el bot</span></summary><div class="rb">
+   <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${F.map(z=>`<button type="button" data-tf="${z[0]}" data-nobusy style="all:unset;cursor:pointer;padding:4px 10px;border-radius:999px;font-size:12px;border:1px solid var(--line,#ccc);${z[0]===f?"background:var(--acc,#2d6cdf);color:#fff;border-color:transparent":""}">${z[1]}</button>`).join("")}</div>
+   <div style="background:#0d1117;color:#c9d1d9;border-radius:10px;padding:10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;max-height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-word">${
+    err?`<div style="color:#ff8a80">${esc(err)}</div>`:!V.length?`<div style="color:#8b949e">${cargando?"Leyendo el diario…":"Sin líneas todavía."}</div>`:V.map(z=>`<div><span style="color:#6e7681">${hh(z[0])}</span> <span style="color:${col(z[1])}">${esc(z[1])}</span></div>`).join("")}</div>
+   <div class="m" style="margin-top:6px;font-size:12px">Lo más nuevo arriba · ${L.length?"última línea "+hh(L[L.length-1][0]):""} · se actualiza solo cada 2 min.</div></div></details>`}
+ async function carga(forzar){if(cargando)return;if(!forzar&&Date.now()-t0<120e3)return;const pw=(typeof pwGet==="function"&&pwGet())||"";
+  if(!pw){err="🔒 Desbloquea con tu clave en ⚙️ Ajustes para ver el terminal (los diarios van cifrados).";pinta();return}
+  if(typeof memeGet!=="function"||typeof decrypt!=="function")return;cargando=1;t0=Date.now();pinta();const out=[];
+  await Promise.all(R.map(async([rama,pre])=>{try{const j=await memeGet(rama,"terminal.json");if(!j||j.nada||!j.enc)return;const d=JSON.parse(await decrypt(j,pw));for(const [t,x] of (d&&d.l)||[])out.push([t,(/^📤/.test(x)?"":pre)+x])}catch(e){globalThis.__errC&&__errC(e,"terminal:"+rama)}}));
+  const vis=new Set();L=out.sort((a,b)=>a[0]-b[0]).filter(z=>{const k=z[0]+"|"+z[1];if(vis.has(k))return false;vis.add(k);return true});err="";cargando=0;pinta()}
+ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-tf]");if(!b)return;f=b.dataset.tf;pinta()});
+ const visible=()=>{const s=document.getElementById("t-memes");return s&&s.offsetParent!==null};
+ setInterval(()=>{try{if(visible())carga()}catch(e){globalThis.__errC&&__errC(e,"terminal")}},15e3);setTimeout(()=>{try{pinta();if(visible())carga(true)}catch(e){globalThis.__errC&&__errC(e,"terminal")}},3000);
+ window.__terminalCB={carga,lineas:()=>L};
+}catch(e){globalThis.__errC&&__errC(e,"terminal")}})();
+</script>
 </body></html>

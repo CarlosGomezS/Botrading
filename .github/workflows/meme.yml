@@ -48,7 +48,7 @@ jobs:
         env:
           DIARIO_LOG: /tmp/diario.jsonl
           NODE_OPTIONS: --import ${{ github.workspace }}/runner/diario-captura.mjs
-          DIARIO_SOLO_TG: "1"
+          DIARIO_SOLO_TG: "0"   # v1.0 · 🖥️ todo lo que hace la vuelta va al terminal de la app (cifrado)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REAL_VIEW_PASS: ${{ secrets.REAL_VIEW_PASS }}
           REAL_VIEW_PASS_OLD: ${{ secrets.REAL_VIEW_PASS_OLD }}
