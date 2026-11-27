@@ -1,7 +1,7 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><script id="errores">
 /* v1.0 · ⚠️ RECOGEDOR DE ERRORES de la app: todo lo que falla (errores sin capturar, promesas rechazadas, console.error y los «catch» que antes
    se callaban) se apunta aquí, sin repetir (×n), y se guarda en ESTE móvil (últimos 300). Se ve en 📋 Informes › Errores y va en el informe descargable. */
-(function(){var K="errlog1",M=300,L=[],VB="485";try{L=JSON.parse(localStorage.getItem(K)||"[]")||[];if(!Array.isArray(L))L=[];L=L.filter(function(x){return x&&x.vb===VB})}catch(e){L=[]}   /* v1.0 · #485 · al cambiar de versión se olvidan los errores de la anterior (ya arreglados): antes seguían saliendo 24 h */
+(function(){var K="errlog1",M=300,L=[],VB="486";try{L=JSON.parse(localStorage.getItem(K)||"[]")||[];if(!Array.isArray(L))L=[];L=L.filter(function(x){return x&&x.vb===VB})}catch(e){L=[]}   /* v1.0 · #485 · al cambiar de versión se olvidan los errores de la anterior (ya arreglados): antes seguían saliendo 24 h */
  var pend=0,guarda=function(){if(pend)return;pend=setTimeout(function(){pend=0;try{localStorage.setItem(K,JSON.stringify(L.slice(0,M)))}catch(e){}},2000)};
  var donde=function(st){var ls=String(st||"").split("\n");for(var i=0;i<ls.length;i++){var x=ls[i].trim();if(/__errC|id=.errores/.test(x))continue;var m=x.match(/([\w.-]+\.(?:html|js|mjs)):(\d+)(?::(\d+))?/);if(m)return m[1]+":"+m[2]+(m[3]?":"+m[3]:"")}return""};
  globalThis.__errC=function(e,src){try{var msg=String((e&&(e.message||e.reason))||e||"?").replace(/\s+/g," ").slice(0,300),lu=donde(e&&e.stack)||(e&&e.lu)||"",tipo=src||"capturado",id=tipo+"|"+msg+"|"+lu,t=Date.now(),x=null,i=0;
@@ -641,7 +641,7 @@ function SKN(big){return '<span class="sk'+(big?" big":"")+'" aria-label="Cargan
  setTimeout(function(){clearInterval(mira);window.__quitaSplash&&__quitaSplash()},12000);
 })();
 </script></div><div class="w">
-<header class="top"><div class="brand"><h1>CriptoBot<span class="tag vtag" title="Versión estable v1.0 «Ancla» · compilación 484 · martes 24 de noviembre de 2026">✦ v1.0 «Ancla» <small>#485</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
+<header class="top"><div class="brand"><h1>CriptoBot<span class="tag vtag" title="Versión estable v1.0 «Ancla» · compilación 484 · martes 24 de noviembre de 2026">✦ v1.0 «Ancla» <small>#486</small></span><button id="salirB" type="button" data-nobusy title="Cerrar sesión" aria-label="Cerrar sesión">🔒</button></h1></div><button id="simpleB" type="button" data-nobusy aria-pressed="true">👓 Ver todo</button></header>
 <section class="tab" id="t-hoy">
 <div class="p hero"><h2>Cartera ficticia · <span class="capT">500 €</span> por método</h2><div id="sel-hoy"></div><div class="big" id="eq">—</div><div id="pl"></div><div class="m" id="bench"></div></div>
 <div class="p"><h2>🏆 Qué método va ganando</h2><div id="hoy-rank"></div></div>
@@ -3316,7 +3316,7 @@ function hlAjustes(abierto){const k=hlCtl(),ch=(key,v,n,d)=>`<button class="mt-c
   <div class="mt-dim" style="margin-bottom:4px">🎲 Modo especulativo: mientras ningún método esté aprobado, sigue a la vez a los <b>3 mejores «casi aprobados»</b> (ganaron en la parte oculta del examen, pero no han pasado la prueba contra la suerte). Opera más y arriesga más.</div>
   <div class="mt-chs" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:8px">${ch("esp","true","🎲 Sí","opera más")}${ch("esp","false","🛡️ No","solo aprobados")}</div>
   <div class="mt-dim">Sin apalancamiento: entre todas las posiciones nunca usa más de lo elegido. Los cambios valen desde la siguiente hora en punto («Parar» cierra al momento).</div></div></details>`}
-document.addEventListener("click",async e=>{const b=e.target.closest&&e.target.closest("[data-hlset]");if(!b)return;const [key,v]=b.dataset.hlset.split(":"),val=key==="estado"?v:key==="esp"?v==="true":+v;
+document.addEventListener("click",async e=>{const b=e.target.closest&&e.target.closest("[data-hlset]");if(!b)return;const [key,v]=b.dataset.hlset.split(":"),val=key==="estado"?v:key==="esp"||key==="recarga"?v==="true":+v;
  if(key==="estado"&&v==="parado"&&!confirm("¿Parar Hyperliquid? Cerrará ahora todas las posiciones abiertas (al precio de mercado) y no abrirá más hasta que pulses ▶️ Activo."))return;
  const c=window.__CLOUD;if(c&&c.tok&&!c.tok()&&window.abrirNube)await window.abrirNube();if(!c||!c.tok||!c.tok()){alert("Para cambiar esto desbloquea primero con tu clave en ⚙️ Ajustes.");return}
  try{const r=c.ri(),w=await fetch(`https://api.github.com/repos/${r.o}/${r.r}/actions/workflows/hl-ctl.yml/dispatches`,{method:"POST",headers:{Authorization:"Bearer "+c.tok(),Accept:"application/vnd.github+json","Content-Type":"application/json"},body:JSON.stringify({ref:"main",inputs:{cambio:JSON.stringify({[key]:val})}})});
@@ -5297,4 +5297,176 @@ ${estado(conReal)}
  window.__terminalCB={carga,lineas:()=>L};
 }catch(e){globalThis.__errC&&__errC(e,"terminal")}})();
 </script>
+<style id="hx-css">
+/* v1.0 · 💧 CRIPTOBOT · SOLO HYPERLIQUID (27/11/2026): 4 pantallas nuevas y sencillas. Lo antiguo queda oculto. */
+.hx{padding:12px 12px 96px;max-width:720px;margin:0 auto;font-family:var(--fb,system-ui)}
+.hx h2{font:800 20px/1.2 var(--fd,system-ui);margin:4px 2px 12px}
+.hx-card{background:var(--panel,#fff);border:1px solid var(--line,#ddd);border-radius:16px;padding:14px;margin-bottom:12px}
+.hx-big{font:800 34px/1.1 var(--fd,system-ui);letter-spacing:-.5px}
+.hx-mut{color:var(--muted,#667);font-size:13px}
+.hx-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hx-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.hx-kpi{background:var(--bg,#f3f4f2);border-radius:12px;padding:8px 10px}
+.hx-kpi b{display:block;font-size:16px;margin-top:2px}
+.hx-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:800}
+.hx-on{background:var(--gobg,#e3f3e8);color:var(--go,#147a3e)}.hx-off{background:var(--stopbg,#fbe5e3);color:var(--stop,#b3261e)}.hx-wait{background:var(--waitbg,#fbf0d9);color:var(--wait,#9a6400)}
+.hx-pos{border-left:5px solid var(--go,#147a3e)}.hx-pos.c{border-left-color:var(--stop,#b3261e)}
+.hx-coin{font:800 22px/1 var(--fd,system-ui)}
+.hx-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;margin-top:10px;font-size:14px}
+.hx-grid span{color:var(--muted,#667);font-size:12px;display:block}
+.hx-up{color:var(--go,#147a3e)}.hx-dn{color:var(--stop,#b3261e)}
+.hx-seg{display:flex;gap:6px;margin-bottom:12px}
+.hx-seg button{all:unset;cursor:pointer;flex:1;text-align:center;padding:8px 6px;border-radius:12px;font-weight:700;font-size:14px;background:var(--panel,#fff);border:1px solid var(--line,#ddd)}
+.hx-seg button.on{background:var(--acc,#0f6b5c);color:var(--accink,#fff);border-color:transparent}
+.hx-log{background:#0d1117;color:#c9d1d9;border-radius:14px;padding:10px;font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;max-height:70vh;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.hx-log .t{color:#6e7681}
+.hx-med{font-size:26px;line-height:1}
+.hx-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.hx-chip{background:var(--bg,#f3f4f2);border-radius:999px;padding:3px 9px;font-size:12px}
+.hx-list>div{display:flex;justify-content:space-between;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line,#eee);font-size:14px}
+.hx-list>div:last-child{border-bottom:0}
+.hx-ok{font-size:14px;padding:8px 2px;border-bottom:1px solid var(--line,#eee);display:flex;gap:8px}
+.hx-ok:last-child{border-bottom:0}
+.hx-btn{all:unset;cursor:pointer;display:inline-block;padding:9px 14px;border-radius:12px;background:var(--acc,#0f6b5c);color:var(--accink,#fff);font-weight:800;font-size:14px}
+.hx input{width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--line,#ccc);font-size:14px;margin:4px 0 8px;background:var(--panel,#fff);color:inherit}
+.hx-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--go,#147a3e);margin-right:6px;animation:hxp 1.6s infinite}
+@keyframes hxp{50%{opacity:.3}}
+#nav.hx-nav button{flex:1}
+#iaBtn,#iaP{display:none!important}   /* v1.0 · 💧 fuera el asistente: la app es solo Hyperliquid */
+</style>
+<script id="hl-app">
+/* v1.0 · 💧 APP SOLO DE HYPERLIQUID (27/11/2026, pedido del usuario: «deja SOLO Hyperliquid, todo lo demás quítalo»)
+   💧 Real: tu cuenta EN VIVO (cada 5 s): valor, ganado, libre y cada posición (largo/corto, entrada, precio ahora, stop, cuándo cierra, método).
+   🤖 Laboratorio: podio de 3 y los 10 siguientes.   📋 Informes: lo que hace el bot (por qué decide), errores y estado (claves, procesos).
+   ⚙️ Ajustes: solo Hyperliquid (y Telegram). */
+(function(){try{
+ const $=s=>document.querySelector(s),esc=x=>String(x==null?"":x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+ const usd=(x,d=2)=>x==null||!isFinite(x)?"—":(x<0?"−":"")+"$"+Math.abs(+x).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
+ const sg=(x,d=2)=>x==null||!isFinite(x)?"—":(x>0?"+":x<0?"−":"")+"$"+Math.abs(+x).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
+ const pc=(x,d=1)=>x==null||!isFinite(x)?"—":(x>0?"+":x<0?"−":"")+Math.abs(x).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d})+" %";
+ const px=x=>{x=+x;if(!isFinite(x)||!x)return"—";const d=x>=1000?1:x>=100?2:x>=1?3:x>=0.01?5:7;return"$"+x.toLocaleString("es-ES",{minimumFractionDigits:Math.min(d,2),maximumFractionDigits:d})};
+ const cl=x=>x>0?"hx-up":x<0?"hx-dn":"";
+ const hhmm=t=>new Date(t).toLocaleString("es-ES",{weekday:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+ const hace=t=>{if(!t)return"—";const m=Math.round((Date.now()-t)/60000);return m<1?"ahora":m<60?"hace "+m+" min":m<1440?"hace "+Math.round(m/60)+" h":"hace "+Math.round(m/1440)+" d"};
+ const falta=t=>{const m=Math.round((t-Date.now())/60000);if(m<=0)return"ya";return m<60?"en "+m+" min":m<2880?"en "+Math.round(m/60)+" h":"en "+Math.round(m/1440)+" d"};
+ const X=window.__HX={R:null,Rt:null,ctl:null,live:null,lab:null,log:[],seg:"act",err:null};
+ const ctl=()=>Object.assign({estado:"on",uso:100,plazas:0,freno:0.5,puesto:1,esp:false,recarga:true},(typeof MM!=="undefined"&&MM.hlCtl)||X.ctl||{});
+ const pw=()=>(typeof pwGet==="function"&&pwGet())||"";
+ const nomM=n=>String(n||"").split(" · ")[0].replace(/\{[^}]*\}?/g,"").replace(/🤖\s*IA\s*/g,"🤖 ").replace(/\s*\+\s*confirma\s*/g," + ").replace(/\s+/g," ").replace(/\s*\+\s*$/,"").trim().slice(0,80);
+ /* ---------- menú: solo 4 pantallas ---------- */
+ const TABS=[["hxreal","💧","Real"],["hxlab","🤖","Laboratorio"],["hxinf","📋","Informes"],["hxaj","⚙️","Ajustes"]];
+ function monta(){const nav=document.getElementById("nav");if(!nav)return;
+  for(const [t] of TABS)if(!document.getElementById("t-"+t)){const s=document.createElement("section");s.className="tab";s.id="t-"+t;s.innerHTML='<div class="hx" id="hx-'+t+'"></div>';{const ref=document.getElementById("t-memes");(ref&&ref.parentNode||document.body).appendChild(s)}}
+  if(nav.dataset.hx!=="1"||nav.querySelectorAll("button").length!==4){nav.dataset.hx="1";nav.classList.add("hx-nav");nav.innerHTML=TABS.map(([t,i,n])=>'<button data-nobusy data-t="'+t+'"><span>'+i+'</span>'+n+'</button>').join("");
+   nav.querySelectorAll("button").forEach(b=>b.onclick=()=>ir(b.dataset.t))}}
+ function ir(t){try{localStorage.setItem("hxtab",t)}catch(e){globalThis.__errC&&__errC(e)}document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x.id==="t-"+t));document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));try{scrollTo(0,0)}catch(e){globalThis.__errC&&__errC(e)}pinta(t,1)}
+ const vis=t=>{const s=document.getElementById("t-"+t);return!!(s&&s.classList.contains("on"))};
+ /* ---------- datos ---------- */
+ async function hlI(b){const r=await fetch("https://api.hyperliquid.xyz/info",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});if(!r.ok)throw new Error("Hyperliquid HTTP "+r.status);return r.json()}
+ async function cargaBot(f){if(!f&&X.R&&X.Rt&&Date.now()-X.Rt<60e3)return;   /* sin datos aún (p. ej. antes de entrar con la clave), se reintenta en cada ciclo */X.Rt=Date.now();
+  try{const c=await memeGet("hl-ctl","ctl.json");if(c&&!c.nada){X.ctl=c;if(typeof MM!=="undefined"&&!(MM.hlCtlT&&Date.now()<MM.hlCtlT))MM.hlCtl=c}}catch(e){globalThis.__errC&&__errC(e,"hx:ctl")}
+  try{const j=await memeGet("hl-real","hl-real.json");X.Rj=j&&!j.nada?j:null;if(X.Rj&&X.Rj.enc){if(!pw()){X.err="sinclave"}else{X.R=JSON.parse(await decrypt(X.Rj,pw()));X.err=null;if(typeof MM!=="undefined"){MM.hlX={t:X.Rj.t,R:X.R,err:null}}}}}catch(e){X.err="clave";globalThis.__errC&&__errC(e,"hx:estado")}}
+ async function vivo(){const w=X.R&&X.R.w;if(!w)return;const L=X.live&&X.live.w===w?X.live:{w};
+  try{const [st,mids,oo]=await Promise.all([hlI({type:"clearinghouseState",user:w}),hlI({type:"allMids"}),hlI({type:"frontendOpenOrders",user:w})]);
+   L.eq=+st.marginSummary.accountValue||0;L.libre=+st.withdrawable||0;L.mids=mids||{};L.stops={};for(const o of oo||[])if(o.isTrigger&&+o.triggerPx>0)L.stops[o.coin]=+o.triggerPx;
+   L.pos=(st.assetPositions||[]).map(x=>x.position).filter(p=>+p.szi!==0).map(p=>({c:p.coin,lado:+p.szi>0?1:-1,sz:Math.abs(+p.szi),ent:+p.entryPx,v:+p.positionValue,pnl:+p.unrealizedPnl}));L.t=Date.now();L.err=null;
+   if(!L.lt||Date.now()-L.lt>60e3){const [led,fi]=await Promise.all([hlI({type:"userNonFundingLedgerUpdates",user:w,startTime:0}),hlI({type:"userFills",user:w})]);if(typeof hlNeto==="function")L.neto=hlNeto(led,w);
+    const ci={};for(const z of fi||[]){if(!/^Close/.test(z.dir))continue;const k=z.coin+"|"+Math.floor(z.time/60000),o=ci[k]||(ci[k]={c:z.coin,t:+z.time,pnl:0,lado:/Long/.test(z.dir)?1:-1});o.pnl+=(+z.closedPnl||0)-(+z.fee||0)}L.cierres=Object.values(ci).sort((a,b)=>b.t-a.t).slice(0,15);L.lt=Date.now()}
+   X.live=L}catch(e){L.err=String(e.message||e);X.live=L}}
+ async function cargaLab(f){if(!f&&X.labT&&Date.now()-X.labT<300e3)return;X.labT=Date.now();try{const j=await memeGet("caza-lab","caza-lab.json");if(j&&!j.nada)X.lab=j}catch(e){globalThis.__errC&&__errC(e,"hx:lab")}}
+ async function cargaLog(f){if(!pw())return;if(!f&&X.log.length&&X.logT&&Date.now()-X.logT<120e3)return;X.logT=Date.now();const out=[];
+  await Promise.all([["terminal-cripto-tg",""],["terminal-cazalab","🧠 "]].map(async([r,pre])=>{try{const j=await memeGet(r,"terminal.json");if(!j||j.nada||!j.enc)return;const d=JSON.parse(await decrypt(j,pw()));for(const [t,x] of (d&&d.l)||[])out.push([t,(/^📤|^🧠/.test(x)?"":pre)+x])}catch(e){globalThis.__errC&&__errC(e,"hx:diario")}}));
+  const v=new Set();X.log=out.filter(z=>!/Bitvavo|OKX|okx|bitvavo|Tortuga|🐢|Trading 212|memecoin|Memes/i.test(z[1])).sort((a,b)=>a[0]-b[0]).filter(z=>{const k=z[0]+z[1];if(v.has(k))return false;v.add(k);return true})}
+ async function cargaRuns(f){if(!f&&X.runT&&Date.now()-X.runT<120e3)return;X.runT=Date.now();try{const c=window.__CLOUD,r=c&&c.ri?c.ri():null,o=r?r.o:"CarlosGomezS",rr=r?r.r:"Botrading",h={Accept:"application/vnd.github+json"};try{if(c&&c.tok&&c.tok())h.Authorization="Bearer "+c.tok()}catch(e){globalThis.__errC&&__errC(e)}
+  const x=await fetch(`https://api.github.com/repos/${o}/${rr}/actions/runs?per_page=60`,{headers:h,cache:"no-store"});if(!x.ok)return;X.runs=(await x.json()).workflow_runs||[]}catch(e){globalThis.__errC&&__errC(e)}}
+ /* ---------- 💧 REAL ---------- */
+ function real(){const R=X.R,L=X.live,k=ctl(),el=$("#hx-hxreal");if(!el)return;
+  if(!R){el.innerHTML='<h2>💧 Hyperliquid</h2><div class="hx-card hx-mut">'+(X.err==="sinclave"?"🔒 Entra con tu clave para ver tu cuenta.":X.err==="clave"?"No puedo abrir los datos con tu clave.":"Cargando tu cuenta…")+'</div>';return}
+  const eq=L&&L.eq!=null?L.eq:R.eq,neto=L&&L.neto!=null?L.neto:R.neto,gan=eq!=null&&neto?eq-neto:null,pos=L&&L.pos?L.pos:(R.pos||[]).map(p=>({c:p.c,lado:p.lado,v:p.v,pnl:p.pnl,ent:p.entrada})),mids=(L&&L.mids)||{},stops=(L&&L.stops)||{};
+  const est=k.estado==="on"?'<span class="hx-pill hx-on">● Activo</span>':k.estado==="pausa"?'<span class="hx-pill hx-wait">⏸ En pausa</span>':'<span class="hx-pill hx-off">■ Parado</span>';
+  const met=R.metodo||"",modo=/especulativo/i.test(met)||k.esp?"🎲 3 métodos a la vez":"🏆 método n.º "+k.puesto;
+  let h='<div class="hx-card"><div class="hx-row"><div class="hx-mut">'+(L&&L.t&&!L.err?'<span class="hx-dot"></span>En vivo':"Último dato del bot "+hace(Date.parse(X.Rj&&X.Rj.t)))+'</div>'+est+'</div>'+
+   '<div class="hx-big" style="margin-top:6px">'+usd(eq)+'</div><div class="hx-mut">Valor de tu cuenta de Hyperliquid</div>'+
+   '<div class="hx-kpis"><div class="hx-kpi"><span class="hx-mut">Ganado</span><b class="'+cl(gan)+'">'+sg(gan)+'</b><span class="hx-mut">'+(gan!=null&&neto?pc(gan/neto*100):"")+'</span></div>'+
+   '<div class="hx-kpi"><span class="hx-mut">Invertido ahora</span><b>'+usd(pos.reduce((a,p)=>a+Math.abs(+p.v||0),0))+'</b><span class="hx-mut">'+pos.length+' de '+(R.plazas||k.plazas||5)+' huecos</span></div>'+
+   '<div class="hx-kpi"><span class="hx-mut">Libre</span><b>'+usd(L&&L.libre!=null?L.libre:null)+'</b><span class="hx-mut">'+(k.recarga!==false?"se recarga":"en espera")+'</span></div></div>'+
+   '<div class="hx-mut" style="margin-top:10px">'+modo+' · mira cada hora en punto</div></div>';
+  h+='<h2 style="font-size:17px">Posiciones abiertas ('+pos.length+')</h2>';
+  if(!pos.length)h+='<div class="hx-card hx-mut">Ahora no hay nada abierto. El bot revisa las señales cada hora en punto.</div>';
+  for(const p of pos){const q=(R.pos||[]).find(z=>z.c===p.c)||{},now=+mids[p.c]||null,ent=+p.ent||+q.entrada||null,pct=now&&ent?p.lado*(now/ent-1)*100:null,st=stops[p.c]||null,dS=st&&now?Math.abs(st/now-1)*100:null,fin=q.desde&&q.h?+q.desde+q.h*3600e3:null;
+   const mx=X.lab?[...(X.lab.aprobadas||[]),...(X.lab.casi||[])].find(z=>q.k&&("esp:"+JSON.stringify(z.g))===q.k||z.k===q.k):null;
+   h+='<div class="hx-card hx-pos'+(p.lado<0?" c":"")+'"><div class="hx-row"><div><span class="hx-coin">'+esc(p.c)+'</span> <span class="hx-pill '+(p.lado>0?"hx-on":"hx-off")+'">'+(p.lado>0?"📈 LARGO":"📉 CORTO")+'</span></div>'+
+    '<div style="text-align:right"><b class="'+cl(p.pnl)+'" style="font-size:18px">'+sg(p.pnl)+'</b><div class="'+cl(pct)+'" style="font-size:13px;font-weight:700">'+pc(pct,2)+'</div></div></div>'+
+    '<div class="hx-grid"><div><span>Entró a</span>'+px(ent)+'</div><div><span>Precio ahora</span><b>'+px(now)+'</b></div>'+
+    '<div><span>Invertido</span>'+usd(Math.abs(+p.v||0))+'</div><div><span>Stop (corta pérdidas)</span>'+(st?px(st)+' <small class="hx-mut">'+(dS!=null?"a "+dS.toFixed(1).replace(".",",")+" %":"")+'</small>':"—")+'</div>'+
+    '<div><span>Cierra</span>'+(fin?hhmm(fin)+' <small class="hx-mut">('+falta(fin)+')</small>':"a su hora")+'</div><div><span>Método</span>'+(mx?esc(nomM(mx.n)):q.k?"🎲 especulativo":"—")+'</div></div></div>'}
+  if(L&&L.err)h+='<div class="hx-mut" style="margin:0 4px 10px">⚠️ Sin conexión con Hyperliquid ahora mismo ('+esc(L.err)+'): se reintenta solo.</div>';
+  h+='<div class="hx-card"><div class="hx-mut" style="margin-bottom:6px">Evolución de la cuenta</div><div data-cbg="hl"></div></div>';
+  const ci=(L&&L.cierres)||R.cierres||[];if(ci.length)h+='<h2 style="font-size:17px">Últimas cerradas</h2><div class="hx-card hx-list">'+ci.slice(0,10).map(z=>'<div><span>'+(z.lado>0?"📈":"📉")+' <b>'+esc(z.c)+'</b> <small class="hx-mut">'+hhmm(z.t)+'</small></span><b class="'+cl(z.pnl)+'">'+sg(z.pnl)+'</b></div>').join("")+'</div>';
+  const keep=el.querySelector("[data-cbg]");el.innerHTML=h;if(keep&&keep.childNodes.length){const nn=el.querySelector("[data-cbg]");if(nn)nn.replaceWith(keep)}}
+ /* ---------- 🤖 LABORATORIO ---------- */
+ const elige=(L,n,fuera)=>{const out=[],ideas=new Set();for(const x of L){const idea=String(x.n).split(" + ")[0];if(fuera.has(x.n)||ideas.has(idea))continue;ideas.add(idea);out.push(x);if(out.length>=n)break}return out};
+ function lab(){const el=$("#hx-hxlab");if(!el)return;const c=X.lab;if(!c){el.innerHTML='<h2>🤖 Laboratorio</h2><div class="hx-card hx-mut">Cargando el laboratorio…</div>';return}
+  const ok=x=>x&&x.g&&x.n&&x.a&&x.b,apr=(c.aprobadas||[]).filter(ok),casi=[...(c.casi||[]),...(c.mejoresCasi||[])].filter(ok).filter((x,i,a)=>a.findIndex(y=>y.n===x.n)===i);
+  const espOk=x=>+x.a.ret>0&&+x.b.ret>0.08&&+x.b.n>=40&&+x.b.pf>=1.3&&+x.b.dd<0.3,k=ctl();
+  let pod,tipo;if(apr.length){pod=apr.slice(0,3);tipo="apr"}else{pod=elige(casi.filter(espOk).sort((p,q)=>q.b.ret-p.b.ret),3,new Set());tipo="esp"}
+  const fuera=new Set(pod.map(x=>x.n)),sig=[...apr.slice(3),...casi].filter(x=>!fuera.has(x.n)).sort((p,q)=>(+q.b.ret)-(+p.b.ret)).filter((x,i,a)=>a.findIndex(y=>y.n===x.n)===i).slice(0,10);
+  const sigue=j=>tipo==="apr"?j===k.puesto-1:k.esp;
+  let h='<h2>🤖 Laboratorio Hyperliquid</h2><div class="hx-mut" style="margin:-6px 2px 12px">'+(+(c.totalVistas||c.n||0)).toLocaleString("es-ES")+' métodos probados · '+(c.criptos||[]).length+' monedas · actualizado '+hace(Date.parse(c.t||c.fecha||0))+'</div>';
+  h+='<div class="hx-card"><div class="hx-row"><b>🏆 Podio</b><span class="hx-pill '+(tipo==="apr"?"hx-on":"hx-wait")+'">'+(tipo==="apr"?"aprobados":"🎲 casi aprobados")+'</span></div>'+(tipo==="esp"?'<div class="hx-mut" style="margin-top:4px">Ninguno ha superado aún la prueba contra la suerte. Estos 3 ganaron en su historia y en el examen oculto'+(k.esp?" y tu dinero los sigue a la vez":"")+'. En cuanto uno apruebe del todo, pasa a seguir a ese.</div>':"")+'</div>';
+  pod.forEach((x,j)=>{h+='<div class="hx-card"><div class="hx-row"><div style="display:flex;gap:10px;align-items:center"><span class="hx-med">'+["🥇","🥈","🥉"][j]+'</span><b>'+esc(nomM(x.n))+'</b></div>'+(sigue(j)?'<span class="hx-pill hx-on">💰 tu dinero</span>':"")+'</div>'+
+   '<div class="hx-grid"><div><span>Examen oculto</span><b class="'+cl(x.b.ret)+'">'+pc(x.b.ret*100)+'</b></div><div><span>Historia</span><b class="'+cl(x.a.ret)+'">'+pc(x.a.ret*100,0)+'</b></div>'+
+   '<div><span>Operaciones (examen)</span>'+x.b.n+'</div><div><span>Peor caída</span>'+pc(-x.b.dd*100,0)+'</div><div><span>Dura cada una</span>'+x.g.h+' h</div><div><span>Stop</span>'+(x.g.sl?pc(-x.g.sl*100,0):"de emergencia")+'</div></div></div>'});
+  if(!pod.length)h+='<div class="hx-card hx-mut">Todavía no hay candidatos.</div>';
+  if(sig.length)h+='<h2 style="font-size:17px">Los 10 siguientes</h2><div class="hx-card hx-list">'+sig.map((x,j)=>'<div><span><b>'+(j+4)+'.</b> '+esc(nomM(x.n))+'</span><span style="white-space:nowrap"><b class="'+cl(x.b.ret)+'">'+pc(x.b.ret*100)+'</b> <small class="hx-mut">'+x.b.n+' op.</small></span></div>').join("")+'</div><div class="hx-mut" style="margin:0 4px">% = lo que ganó en el examen oculto (datos que nunca vio).</div>';
+  el.innerHTML=h}
+ /* ---------- 📋 INFORMES ---------- */
+ const colL=x=>/❌|🚨|error|no he podido|falla/i.test(x)?"#ff8a80":/Abre|➕|intento abrir|📈|📉/.test(x)?"#7ee787":/Cierra|cerrad|stop/i.test(x)?"#ffb86c":/^📤/.test(x)?"#8ab4ff":/Señal|señal/.test(x)?"#e3d27a":/^🧠/.test(x)?"#b4a7ff":"#c9d1d9";
+ function informes(){const el=$("#hx-hxinf");if(!el)return;const s=X.seg;
+  let h='<h2>📋 Informes</h2><div class="hx-seg">'+[["act","📜 Qué hace"],["err","❌ Errores"],["ok","✅ Estado"]].map(([k,n])=>'<button data-nobusy data-hxseg="'+k+'" class="'+(s===k?"on":"")+'">'+n+'</button>').join("")+'</div>';
+  if(!pw()){el.innerHTML=h+'<div class="hx-card hx-mut">🔒 Entra con tu clave para ver los informes (van cifrados).</div>';return}
+  if(s==="act"){const V=X.log.slice(-250).reverse();h+='<div class="hx-mut" style="margin:0 2px 6px">Todo lo que mira y decide el bot, lo más nuevo arriba. Se actualiza solo.</div><div class="hx-log">'+(V.length?V.map(z=>'<div><span class="t">'+new Date(z[0]).toLocaleString("es-ES",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})+'</span> <span style="color:'+colL(z[1])+'">'+esc(z[1])+'</span></div>').join(""):'<span class="t">Leyendo el diario…</span>')+'</div>'}
+  else if(s==="err"){const E=[];try{for(const x of (window.__errLista?__errLista():[]))if(!/fonts\.googleapis|Failed to fetch/i.test(x.msg||""))E.push([x.t||Date.now(),"📱 App: "+(x.msg||"")+(x.n>1?" (×"+x.n+")":"")])}catch(e){globalThis.__errC&&__errC(e)}
+   for(const z of X.log)if(/❌|🚨|⚠️|error|no he podido|falla/i.test(z[1])&&Date.now()-z[0]<3*864e5)E.push([z[0],"🤖 "+z[1]]);
+   for(const r of X.runs||[])if(r.conclusion==="failure"||r.conclusion==="startup_failure")E.push([Date.parse(r.updated_at),"⚙️ Proceso «"+(r.name||"")+"» ha fallado"]);
+   E.sort((a,b)=>b[0]-a[0]);h+=E.length?'<div class="hx-card hx-list">'+E.slice(0,60).map(z=>'<div style="display:block"><small class="hx-mut">'+hhmm(z[0])+'</small><br>'+esc(z[1])+'</div>').join("")+'</div>':'<div class="hx-card" style="text-align:center;padding:24px"><div style="font-size:40px">✅</div><b>Sin errores</b><div class="hx-mut">en los últimos 3 días</div></div>'}
+  else{const R=X.R||{},L=X.live,c=window.__CLOUD,sec=(c&&c.sec)||{},run=wf=>(X.runs||[]).find(r=>(r.path||"").endsWith("/"+wf)),edad=r=>r?(Date.now()-Date.parse(r.created_at))/60000:null;
+   const it=(ok,t,d)=>'<div class="hx-ok"><span>'+(ok===true?"✅":ok===false?"❌":"⚪")+'</span><div><b>'+t+'</b><div class="hx-mut">'+d+'</div></div></div>';
+   const tR=Date.parse(X.Rj&&X.Rj.t),aR=tR?(Date.now()-tR)/60000:null,rl=run("reloj.yml"),mv=run("meme.yml"),lb=X.lab&&Date.parse(X.lab.t||0),d=R.agenteHasta?Math.floor((R.agenteHasta-Date.now())/864e5):null,k=ctl();
+   h+='<div class="hx-card">'+it(aR!=null?aR<80:null,"Bot de Hyperliquid","Última ronda "+hace(tR))+it(rl?edad(rl)<15&&rl.conclusion!=="failure":null,"Reloj (cron-job.org)","Último aviso "+(rl?hace(Date.parse(rl.created_at)):"—"))+
+    it(mv?edad(mv)<40:null,"Vuelta del bot","Última "+(mv?hace(Date.parse(mv.created_at)):"—")+(mv&&mv.conclusion==="failure"?" · falló":""))+it(lb?(Date.now()-lb)<14*3600e3:null,"Laboratorio","Actualizado "+hace(lb))+
+    it(L?!L.err:null,"Conexión con Hyperliquid",L&&!L.err?"Leyendo tu cuenta en vivo":"Sin respuesta ahora mismo")+it(d==null?null:d>7,"Clave del bot (agente)",d==null?"—":d<=0?"¡Caducada! Créala de nuevo":"Vale "+d+" días más")+
+    it(k.estado==="on","Estado",k.estado==="on"?"Activo · puede abrir operaciones":k.estado==="pausa"?"En pausa":"Parado")+'</div>';
+   const ks=[["HL_WALLET","Dirección de tu cartera"],["HL_AGENT_KEY","Clave del agente"],["TELEGRAM_TOKEN","Telegram (bot)"],["TELEGRAM_CHAT","Telegram (chat)"],["REAL_VIEW_PASS","Clave de cifrado"]];
+   h+='<div class="hx-card"><b>🔑 Claves guardadas</b>'+ks.map(([n,t])=>it(sec[n]===true?true:sec[n]===false?false:null,t,sec[n]===true?"Puesta":sec[n]===false?"Falta":"Desbloquea para comprobarlo")).join("")+'</div>'}
+  el.innerHTML=h}
+ /* ---------- ⚙️ AJUSTES ---------- */
+ function ajustes(){const el=$("#hx-hxaj");if(!el)return;if(el.contains(document.activeElement)&&document.activeElement.tagName==="INPUT")return;const k=ctl(),c=window.__CLOUD,sec=(c&&c.sec)||{};
+  let h='<h2>⚙️ Ajustes</h2>';try{h+=typeof hlAjustes==="function"?hlAjustes(true):""}catch(e){globalThis.__errC&&__errC(e,"hx:aj")}
+  const ch=(v,n,d)=>'<button class="mt-ch'+(String(k.recarga!==false)===v?" on":"")+'" data-hlset="recarga:'+v+'" data-nobusy style="text-align:center"><b>'+n+'</b><small>'+d+'</small></button>';
+  h+='<div class="hx-card"><b>💧 Dinero libre</b><div class="hx-mut" style="margin:4px 0 8px">Si metes más dinero y los huecos están llenos, el bot recarga las posiciones que han quedado pequeñas (hasta su parte). Si no, espera a la siguiente señal.</div><div class="mt-chs" style="grid-template-columns:repeat(2,minmax(0,1fr))">'+ch("true","➕ Recargar","no se queda parado")+ch("false","⏳ Esperar","a la siguiente señal")+'</div></div>';
+  const ks=[["HL_WALLET","💧 Dirección de tu cartera (0x…)"],["HL_AGENT_KEY","🔑 Clave privada del AGENTE (app.hyperliquid.xyz/API). Nunca la de tu cartera"],["TELEGRAM_TOKEN","📲 Telegram: token del bot"],["TELEGRAM_CHAT","📲 Telegram: tu chat"]];
+  h+='<div class="hx-card"><b>🔑 Claves</b><div class="hx-mut" style="margin:4px 0 8px">Se guardan cifradas en GitHub. Aquí nunca se ven: solo ✔ puesta / ✖ falta. Deja en blanco lo que no quieras cambiar.</div>'+ks.map(([n,t])=>'<div style="font-size:14px">'+(sec[n]===true?"✔ ":sec[n]===false?"✖ ":"· ")+t+'</div><input type="password" autocomplete="off" data-hxk="'+n+'" placeholder="'+(sec[n]===true?"puesta · escribe para cambiarla":"pégala aquí")+'">').join("")+
+   '<button class="hx-btn" data-nobusy id="hx-savek">💾 Guardar claves</button> <span class="hx-mut" id="hx-savek-st"></span></div>';
+  h+='<div class="hx-card hx-mut">CriptoBot · solo Hyperliquid · v1.0 «Ancla» #486</div>';el.innerHTML=h}
+ document.addEventListener("click",async e=>{const b=e.target.closest&&e.target.closest("#hx-savek");if(!b)return;e.preventDefault();const st=$("#hx-savek-st"),c=window.__CLOUD;
+  if(c&&c.tok&&!c.tok()&&window.abrirNube)await window.abrirNube();if(!c||!c.tok||!c.tok()){st.textContent="Primero entra con tu clave.";return}
+  const ri=c.ri(),ok=[],ko=[];b.style.opacity=.5;for(const i of document.querySelectorAll("[data-hxk]")){const v=i.value.trim();if(!v)continue;const n=i.dataset.hxk;
+   if(n==="HL_WALLET"&&!/^0x[0-9a-fA-F]{40}$/.test(v.replace(/\s+/g,""))){ko.push("la dirección no parece válida (0x + 40 caracteres)");continue}
+   try{await c.secret(ri,n,v);i.value="";ok.push(n)}catch(x){ko.push(n+": "+(x&&x.message||x))}}
+  try{await c.secList(true)}catch(x){globalThis.__errC&&__errC(x)}b.style.opacity=1;st.textContent=(ok.length?"✔ Guardadas: "+ok.length:"")+(ko.length?" · ✖ "+ko.join("; "):"")+(!ok.length&&!ko.length?"No has escrito ninguna.":"")},true);
+ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-hxseg]");if(b){X.seg=b.dataset.hxseg;informes();if(X.seg!=="ok")cargaLog(true);else cargaRuns(true).then(informes)}
+  if(e.target.closest&&e.target.closest("[data-hlset]"))setTimeout(()=>{try{ajustes();real()}catch(x){globalThis.__errC&&__errC(x)}},400)});
+ /* ---------- ciclo ---------- */
+ function pinta(t,f){try{if(t==="hxreal")real();else if(t==="hxlab")lab();else if(t==="hxinf")informes();else if(t==="hxaj")ajustes()}catch(e){globalThis.__errC&&__errC(e,"hx:"+t)}
+  if(f){if(t==="hxreal")cargaBot().then(()=>vivo()).then(()=>{cargaLab();real()});if(t==="hxlab")cargaLab().then(lab);if(t==="hxinf")Promise.all([cargaBot(),cargaLog(),cargaRuns(),cargaLab()]).then(informes);if(t==="hxaj"){try{window.__CLOUD&&window.__CLOUD.secList&&window.__CLOUD.secList().then(ajustes)}catch(e){globalThis.__errC&&__errC(e)}}}}
+ const act=()=>{for(const [t] of TABS)if(vis(t))return t;return null};
+ setInterval(async()=>{try{const t=act();if(document.hidden||!t)return;if(t==="hxreal"){await cargaBot();await vivo();real()}else if(t==="hxinf"){await Promise.all([cargaLog(),cargaRuns()]);informes()}else if(t==="hxlab"){await cargaLab();lab()}}catch(e){globalThis.__errC&&__errC(e,"hx")}},5000);
+ function arranca(){monta();let t="hxreal";try{const s=localStorage.getItem("hxtab");if(s&&TABS.some(z=>z[0]===s))t=s}catch(e){globalThis.__errC&&__errC(e)}ir(t)}
+ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(arranca,50));else setTimeout(arranca,50);
+ setTimeout(()=>{try{monta();if(!act())ir("hxreal")}catch(e){globalThis.__errC&&__errC(e)}},3000);
+ window.__HXir=ir;
+}catch(e){globalThis.__errC&&__errC(e,"hl-app")}})();
+</script>
+
 </body></html>

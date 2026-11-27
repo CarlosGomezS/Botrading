@@ -48,6 +48,9 @@ export const tamOk = (sz, szd) => Math.floor(sz * 10 ** szd + 1e-9) / 10 ** szd;
 function orden(a, compra, px, sz, reduce) { return { a, b: compra, p: aTexto(px), s: aTexto(sz), r: !!reduce, t: { limit: { tif: "Ioc" } } }; }
 // v441 · 🛡️ STOP DE EMERGENCIA guardado en Hyperliquid (funciona aunque el bot esté caído): orden de cierre a mercado si el precio va un 25 % en contra
 export const STOP_EMERG = 0.25;
+// v1.0 · 📜 lo que decide el bot, con criptos y motivos, va SOLO al diario cifrado de la app (DIARIO_LOG), nunca al registro público de GitHub
+import { appendFileSync as _apD } from "node:fs";
+export function privado(txt) { if (deps.privado) return deps.privado(txt); const F0 = process.env.DIARIO_LOG; if (!F0) return; try { _apD(F0, JSON.stringify([Date.now(), "💧 " + String(txt).slice(0, 400)]) + "\n"); } catch (e) {} }
 export function ordenStop(a, lado, entrada, sz, szd, dist = STOP_EMERG) { const tp = entrada * (lado > 0 ? 1 - dist : 1 + dist), lim = tp * (lado > 0 ? 0.9 : 1.1);
   return { a, b: lado < 0, p: aTexto(precioOk(lim, szd)), s: aTexto(sz), r: true, t: { trigger: { isMarket: true, triggerPx: aTexto(precioOk(tp, szd)), tpsl: "sl" } } }; }
 // v1.0 · H-001 · el saldo tiene que llegar BIEN (un número ≥ 0). Si falta o es raro, no se toma como 0 € (eso echaría el freno y cerraría todo):
@@ -147,10 +150,10 @@ async function datosVivos(U) {
 
 // ---------- el método del podio ----------
 // v435 · ⚙️ AJUSTES (rama hl-ctl, públicos: solo porcentajes y opciones, nunca importes)
-export const CTL0 = { estado: "on", uso: 100, plazas: 0, freno: 0.5, puesto: 1, esp: false };
+export const CTL0 = { estado: "on", uso: 100, plazas: 0, freno: 0.5, puesto: 1, esp: false, recarga: true };
 export function validaCtl(c, prev = CTL0) { const o = { ...CTL0, ...(prev || {}) }; c = c || {};
   if (["on", "pausa", "parado"].includes(c.estado)) o.estado = c.estado; if ([25, 50, 75, 100].includes(+c.uso)) o.uso = +c.uso;
-  if ([0, 1, 2, 3, 4, 5].includes(+c.plazas)) o.plazas = +c.plazas; if ([0.25, 0.35, 0.5].includes(+c.freno)) o.freno = +c.freno; if ([1, 2, 3].includes(+c.puesto)) o.puesto = +c.puesto; if (typeof c.esp === "boolean") o.esp = c.esp; o.esp = o.esp === true; return o; }   /* v1.0 · 🎲 esp = modo especulativo */
+  if ([0, 1, 2, 3, 4, 5].includes(+c.plazas)) o.plazas = +c.plazas; if ([0.25, 0.35, 0.5].includes(+c.freno)) o.freno = +c.freno; if ([1, 2, 3].includes(+c.puesto)) o.puesto = +c.puesto; if (typeof c.esp === "boolean") o.esp = c.esp; o.esp = o.esp === true; if (typeof c.recarga === "boolean") o.recarga = c.recarga; o.recarga = o.recarga !== false; return o; }   /* v1.0 · 🎲 esp = modo especulativo */
 // v460 · 🔒 FALLA CERRADO: si no se pueden leer TUS ajustes, se devuelve ok:false (nunca los de fábrica). Quien llama decide: no abrir nada.
 // v461 · solo valen unos ajustes COMPLETOS y dentro de rango (nada se rellena con los de fábrica)
 export const ctlCompleto = (j) => !!j && typeof j === "object" && ["on", "pausa", "parado"].includes(j.estado) && [25, 50, 75, 100].includes(+j.uso) && [0, 1, 2, 3, 4, 5].includes(+j.plazas) && [0.25, 0.35, 0.5].includes(+j.freno) && [1, 2, 3].includes(+j.puesto);
@@ -451,6 +454,9 @@ async function ronda0() { PUESTOS.length = 0;
         for (let z = quiere.length - 1; z >= 0; z--) if (enfria[quiere[z].c]) quiere.splice(z, 1);   // ni se vuelve a entrar en esa cripto hasta su hora
         estado.plazas = plazas; estado.senales = quiere.length;
         log(`Señales esta hora: ${quiere.length} · plazas ${plazas} · libres ${Math.max(0, libres)}`);
+        { const nom = (q) => { const k = String(q.k || (M0.x && M0.x.k) || ""), x = (M0.xs || [M0.x]).find((y) => y && y.k === k) || M0.x; return x && x.n ? String(x.n).split(" · ")[0].slice(0, 60) : "método"; };
+          if (!quiere.length) privado(`Hora revisada: ningún método da señal · ${pos.length} posiciones abiertas`);
+          let lib = Math.max(0, libres); for (const q of quiere) { const ya = pos.some((p) => p.coin === q.c), mot = ya ? "ya la tengo abierta" : lib > 0 ? "intento abrirla" : "no hay hueco libre (todas las plazas ocupadas)"; if (!ya && lib > 0) lib--; privado(`Señal ${q.dir > 0 ? "LARGO" : "CORTO"} en ${q.c} · ${nom(q)} → ${mot}`); } }
         // v465 · antes de abrir, el estado se guarda (y se comprueba que se ha guardado): si no se puede, no se abre nada (no habría memoria de lo abierto)
         // v478 · antes de abrir: qué stops hay ya (para saber después cuáles pone el bot) y las intenciones de esta hora. Sin esa lectura no se abre.
         let antes = null; if (quiere.length && libres > 0) { try { antes = ((await info({ type: "frontendOpenOrders", user: yo })) || []).map((o) => ({ c: o.coin, oid: o.oid })); } catch (e) { antes = null; }
@@ -484,6 +490,26 @@ async function ronda0() { PUESTOS.length = 0;
           } catch (e) { marcaDudosa(q.c); hechos.push(`⚠️ ${q.c}: error al abrir (${String(e.message).slice(0, 60)}); en la próxima ronda se revisa lo que haya en la cuenta`); break; }   // v460 · resultado dudoso: no se sigue abriendo esta hora
         }
         estado.intentos = estado.intentos.filter((i) => i.t < ahoraR || enviadas.has(i.c));   /* v478 · solo quedan las que se llegaron a mandar sin respuesta clara */
+        // v1.0 · 💧 RECARGA (27/11/2026, pedido del usuario: «si meto más dinero tiene que meterlo en lo que tiene, para que no se quede parado»):
+        //   si hay dinero libre y una posición del bot ha quedado PEQUEÑA respecto a lo que hoy le toca (menos del 70 % de su parte), se le añade
+        //   hasta su parte, en el mismo sentido. Solo si: es del bot, no se ha tocado esta hora, le queda más de 1/4 de su duración y no va perdiendo
+        //   más de la mitad de lo que hay hasta su stop. Se guarda el estado ANTES de mandar. Su stop se rehace del tamaño nuevo más abajo (revisión de stops).
+        if (CTL.recarga !== false && CTL.estado === "on" && plazas > 0 && !(estado.intentos || []).some((i) => i.dudosa)) {
+          const obj = Math.min(uso / plazas, eq) * 0.98;
+          let libre = Math.min(uso, eq) - pos.filter((p) => !estado.ops.some((o) => o.c === p.coin && o.x === "cierra")).reduce((a, p) => a + Math.abs(+p.szi) * (+mids[p.coin] || +p.entryPx || 0), 0) - estado.ops.filter((o) => o.x === "abre" || o.x === "recarga").reduce((a, o) => a + (o.v || 0), 0);
+          let guardado = null;
+          for (const p of pos) { const m = pm[p.coin], I = idx.get(p.coin), mid = +mids[p.coin]; if (!m || !I || !(mid > 0) || ajenasPos[p.coin] || porIdentificar.has(p.coin) || estado.ops.some((o) => o.c === p.coin)) continue;
+            const lado = +p.szi > 0 ? 1 : -1, nocional = Math.abs(+p.szi) * mid, quedaH = ((+m.t0 || 0) + (+m.h || 0) * H - Date.now()) / H, dist = m.sl > 0 ? m.sl : STOP_EMERG, va = lado * (mid / (+p.entryPx || mid) - 1);
+            if (nocional >= obj * 0.7 || !(+m.t0 > 0)) continue;   // sin su hora de apertura no se sabe cuánto le queda: no se toca
+            if (!(quedaH > (+m.h || 0) * 0.25)) { privado(`${p.coin}: hay dinero libre pero le quedan pocas horas (${Math.max(0, Math.round(quedaH))} h): no la recargo`); continue; }
+            if (va < -dist / 2) { privado(`${p.coin}: hay dinero libre pero va perdiendo un ${(-va * 100).toFixed(1)} %: no la recargo`); continue; }
+            const add = Math.min(obj - nocional, libre * 0.98), sz = tamOk(add / mid, I.szd); if (!(sz * mid >= 10.2)) { if (libre < 10.2) break; continue; }
+            if (guardado === null) guardado = await guarda({ ...estado, preApertura: 1 }); if (!guardado) { log("No he podido guardar el estado antes de recargar: esta hora no recargo."); break; }
+            privado(`${p.coin}: es pequeña (${D2(nocional)} $ de ${D2(obj)} $) y hay dinero libre → la recargo con ${D2(sz * mid)} $`);
+            let r; try { r = await mandar(orden(I.a, lado > 0, precioOk(mid * (lado > 0 ? 1 + SLIP_ABRE : 1 - SLIP_ABRE), I.szd), sz, false), PK); } catch (e) { r = { ok: false, err: String(e.message).slice(0, 60) }; }
+            if (r.ok) { libre -= r.sz * r.px; estado.ops.push({ t: Date.now(), c: p.coin, x: "recarga", lado, px: r.px, v: r.sz * r.px }); hechos.push(`➕ Recarga ${lado > 0 ? "LARGO" : "CORTO"} en ${p.coin} · +${D2(r.sz * r.px)} $ a ${r.px} (su stop se ajusta al tamaño nuevo)`); }
+            else if (r.rechazo) hechos.push(`⚠️ No he podido recargar ${p.coin}: ${r.err}`);
+            else { hechos.push(`⚠️ ${p.coin}: Hyperliquid no ha confirmado la recarga; la revisa la próxima ronda (su stop se ajusta a lo que haya)`); break; } } }
       }
   }
   // v441 · 🛡️ revisión de stops: cada posición abierta debe tener su stop de emergencia; las órdenes que ya no tengan posición se cancelan
@@ -549,7 +575,7 @@ async function ronda0() { PUESTOS.length = 0;
       let v = null; try { v = await vivas(); if (v.length) { await exchange({ type: "cancel", cancels: v }, PK).catch(() => {}); await deps.espera(2000); v = await vivas(); } } catch (e) { v = null; }
       if (v === null) { log("No he podido comprobar que las órdenes canceladas ya no están."); hechos.push("⚠️ No he podido comprobar que se cancelaron las órdenes viejas: lo reviso en la próxima ronda"); }
       else if (v.length) { hechos.push(`🚨 ${v.length} orden${v.length === 1 ? "" : "es"} que debía${v.length === 1 ? "" : "n"} cancelarse sigue${v.length === 1 ? "" : "n"} viva${v.length === 1 ? "" : "s"} (posible stop duplicado)`); await aviso(`🚨 Hyperliquid: ${v.length} orden${v.length === 1 ? "" : "es"} vieja${v.length === 1 ? "" : "s"} no se ha${v.length === 1 ? "" : "n"} podido cancelar (posible stop duplicado). Revísalo en app.hyperliquid.xyz → Open Orders.`); } } } catch (e) { log("Revisión de stops: " + String(e.message).slice(0, 60)); hechos.push("⚠️ No he podido revisar los stops esta hora"); await aviso("⚠️ Hyperliquid: esta hora NO he podido revisar los stops (" + String(e.message).slice(0, 60) + "). Lo reintento en la próxima; si se repite, mira app.hyperliquid.xyz → Open Orders."); }
-  const st2 = await info({ type: "clearinghouseState", user: yo }).catch(() => null); if (st2) { estado.eq = +st2.marginSummary.accountValue || eq; estado.pos = (st2.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0).map((p) => ({ c: p.coin, lado: +p.szi > 0 ? 1 : -1, v: +p.positionValue, pnl: +p.unrealizedPnl, entrada: +p.entryPx, desde: (pm[p.coin] && pm[p.coin].t0) || abierta(p.coin), h: pm[p.coin] && pm[p.coin].h ? pm[p.coin].h : undefined })); }   // v471 · cada posición lleva SU duración (para que la app muestre bien cuándo cierra)
+  const st2 = await info({ type: "clearinghouseState", user: yo }).catch(() => null); if (st2) { estado.eq = +st2.marginSummary.accountValue || eq; estado.pos = (st2.assetPositions || []).map((x) => x.position).filter((p) => +p.szi !== 0).map((p) => ({ c: p.coin, lado: +p.szi > 0 ? 1 : -1, v: +p.positionValue, pnl: +p.unrealizedPnl, entrada: +p.entryPx, desde: (pm[p.coin] && pm[p.coin].t0) || abierta(p.coin), h: pm[p.coin] && pm[p.coin].h ? pm[p.coin].h : undefined, k: (pm[p.coin] && pm[p.coin].k) || undefined, sl: pm[p.coin] && pm[p.coin].sl > 0 ? pm[p.coin].sl : undefined })); }   // v471 · cada posición lleva SU duración (para que la app muestre bien cuándo cierra)
   try { const f2 = await info({ type: "userFills", user: yo }); const cie = {}, ab0 = {}; for (const z of (f2 || []).slice().sort((a, b) => a.time - b.time)) { if (/^Open/.test(z.dir)) { if (!(z.coin in ab0) || ab0["_c" + z.coin]) ab0[z.coin] = +z.time; delete ab0["_c" + z.coin]; continue; } if (!/^Close/.test(z.dir)) continue; ab0["_c" + z.coin] = 1; const k = z.coin + "|" + Math.floor(z.time / 60000); const o = cie[k] || (cie[k] = { t: +z.time, t0: ab0[z.coin] || null, c: z.coin, lado: /Long/.test(z.dir) ? 1 : -1, pnl: 0, v: 0 }); o.pnl += (+z.closedPnl || 0) - (+z.fee || 0); o.v += (+z.sz || 0) * (+z.px || 0); }
     estado.cierres = Object.values(cie).sort((a, b) => b.t - a.t).slice(0, 80); estado.ganado = estado.cierres.reduce((a, x) => a + x.pnl, 0); } catch (e) {}
   estado.h = h; estado.plazas = estado.plazas != null ? estado.plazas : Math.max(0, Math.min(CTL.plazas || 5, Math.floor(eq * CTL.uso / 100 / MIN_ORDEN)));

@@ -35,7 +35,7 @@ test("cada posición abierta guarda la duración y el stop del método que dio S
 });
 test("app: botón del modo especulativo y se guarda como sí/no", async () => {
   const H = (await import("node:fs")).readFileSync(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(H, /ch\("esp","true","🎲 Sí"/); assert.match(H, /key==="esp"\?v==="true"/);
+  assert.match(H, /ch\("esp","true","🎲 Sí"/); assert.match(H, /key==="esp"\|\|key==="recarga"\?v==="true"/);
 });
 test("app: el laboratorio enseña los 3 del modo especulativo (Hyperliquid) con la misma elección que el bot", async () => {
   const H = (await import("node:fs")).readFileSync(new URL("../index.html", import.meta.url), "utf8");

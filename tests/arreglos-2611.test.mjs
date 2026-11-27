@@ -27,11 +27,7 @@ test("informe: Hyperliquid con su total de probadas (no «null») y en dólares"
   assert.match(H, /out\.hl=\{n:C\.cl\.totalVistas\|\|C\.cl\.n\|\|0,/);
   assert.match(H, /x\.ex==="hyperliquid"&&x\.valor!=null\?"\$"/);
 });
-test("Tortugas: el flujo da tiempo para leer todas las velas en una vuelta", () => {
-  const B = readFileSync(new URL("../runner/bitvavo.mjs", import.meta.url), "utf8"), Y = readFileSync(new URL("../.github/workflows/meme.yml", import.meta.url), "utf8");
-  assert.match(B, /TORT_SEG_S \* 1e3/); assert.match(B, /Date\.now\(\) - tTort > TORT_TOPE_S \* 1e3/);
-  assert.match(Y, /TORT_SEG=50 TORT_TOPE=110 timeout 200 node runner\/bitvavo\.mjs/);
-});
+
 test("reloj: flujo y guion presentes", () => {
   assert.ok(existsSync(new URL("../.github/workflows/reloj.yml", import.meta.url)));
   const R = readFileSync(new URL("../runner/reloj.sh", import.meta.url), "utf8");

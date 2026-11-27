@@ -10,17 +10,16 @@ busy() { local wf=$1; for s in in_progress queued pending waiting requested; do 
 # v1.0 · 🪙 CriptoBot: sin Trading 212 ni laboratorio de ETF (antes: puntos 1-4: revisión de la cartera real, precios de la noche, laboratorio y valor en directo)
 
 # 5) v420 · exámenes y ayudante IA: GitHub a veces se salta sus horarios; si llevan demasiado sin hacerse, se lanzan aquí
-for par in "examen-largo.yml:1560" "ia-lab.yml:420" "caza-lab.yml:420"; do   # v1.0 · 🪶 límites acordes a los horarios nuevos (1 al día / cada 6 h) wf=${par%%:*}; lim=${par##*:}
+for par in "ia-lab.yml:420" "caza-lab.yml:420"; do   # v1.0 · 💧 solo Hyperliquid (27/11/2026): fuera el examen de las Tortugas   # v1.0 · 🪶 límites acordes a los horarios nuevos (1 al día / cada 6 h) wf=${par%%:*}; lim=${par##*:}
   t=$(gh api "$R/actions/workflows/$wf/runs?per_page=1" --jq '.workflow_runs[0].created_at' 2>/dev/null || echo "")
   if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "$wf · última hace $age min"
     if [ "$age" -ge "$lim" ] && ! busy "$wf"; then gh api -X POST "$R/actions/workflows/$wf/dispatches" -f ref=main >/dev/null 2>&1 && echo "⚠️ $wf llevaba $age min sin hacerse: lanzado."; fi; fi
 done
 
-# 6) v441 · el bot de cripto de cada minuto (Bitvavo, OKX y la ronda de Hyperliquid): si lleva > 6 min sin publicar y no hay tramo vivo, se relanza
-t=$(gh api "$R/contents/bitvavo.json?ref=bitvavo" -H "Accept: application/vnd.github.raw" 2>/dev/null | python3 -c "import json,sys;j=json.load(sys.stdin);print((j.get('meta') or {}).get('t') or j.get('t') or '')" 2>/dev/null || echo "")
-if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "Cripto · última vuelta hace $age min"
-  if [ "$age" -ge 40 ] && ! busy meme.yml; then   # v1.0 · 🪶 ahora va cada 15 min
-    gh api -X POST "$R/actions/workflows/meme.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ El bot de cripto estaba parado: relanzado."; fi; fi
+# 6) v1.0 · 💧 la vuelta del bot (Hyperliquid): si la última vuelta empezó hace más de 40 min y no hay otra en marcha, se relanza
+t=$(gh api "$R/actions/workflows/meme.yml/runs?per_page=1" --jq '.workflow_runs[0].created_at' 2>/dev/null || echo "")
+if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "Bot · última vuelta hace $age min"
+  if [ "$age" -ge 40 ] && ! busy meme.yml; then gh api -X POST "$R/actions/workflows/meme.yml/dispatches" -f ref=main >/dev/null && echo "⚠️ El bot estaba parado: relanzado."; fi; fi
 # 7) v441 · 💧 Hyperliquid: si su última ronda tiene más de 70 min (y está configurado), se lanza una ahora
 t=$(gh api "$R/contents/hl-real.json?ref=hl-real" -H "Accept: application/vnd.github.raw" 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin).get('t') or '')" 2>/dev/null || echo "")
 if [ -n "$t" ]; then age=$(( ( $(date +%s) - $(date -d "$t" +%s) ) / 60 )); echo "Hyperliquid · última ronda hace $age min"

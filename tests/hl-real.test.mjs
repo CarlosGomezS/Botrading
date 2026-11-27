@@ -613,7 +613,7 @@ test("G4-1.1 · «Parar» desde la app con la ronda de la hora ya hecha: CIERRA 
 });
 
 test("G5-1.2 · tras saltar un stop, esa cripto y su plaza ESPERAN hasta su hora de fin (como en el laboratorio); las demás, normal", async () => {
-  const W = mundo({ pos: [{ c: "BTC", szi: 0.1, edadH: 2 }], ctl: { estado: "on", uso: 100, plazas: 2, freno: 0.35, puesto: 1 }, quiere: [] }); conecta(W);
+  const W = mundo({ pos: [{ c: "BTC", szi: 0.1, edadH: 2 }], ctl: { estado: "on", uso: 100, plazas: 2, freno: 0.35, puesto: 1, recarga: false }, quiere: [] }); conecta(W);
   await silencio(() => HL.ronda());   // ronda normal con BTC abierta (su método dura 168 h)
   delete W.pos.BTC;   // salta su stop en Hyperliquid
   W.quiere = [{ c: "BTC", dir: 1 }, { c: "ETH", dir: 1 }, { c: "SOL", dir: 1 }]; await otraHora(W);

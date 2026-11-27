@@ -44,9 +44,5 @@ test("R6-10 · sin poder descifrar, el bot no opera y al guardar conserva el «p
   assert.deepEqual(separa({ a: 1 }).priv, { cuentas: {} });
 });
 
-test("R6-10 · la app manda el capital cifrado y el flujo tiene la contraseña para abrirlo", () => {
-  const idx = readFileSync(path.join(ROOT, "index.html"), "utf8"), y = readFileSync(path.join(ROOT, ".github/workflows/cripto-ctl.yml"), "utf8");
-  assert.match(idx, /inputs:\{cambio:JSON\.stringify\(await bvCambioCifrado\(cambio\)\)\}/);
-  assert.match(idx, /o\.enc=await encrypt\(JSON\.stringify\(priv\),pw\)/);
-  assert.match(y, /REAL_VIEW_PASS: \$\{\{ secrets\.REAL_VIEW_PASS \}\}/);
-});
+// v1.0 · 💧 (27/11/2026) la app es solo de Hyperliquid: el flujo cripto-ctl.yml (Bitvavo/OKX) ya no existe
+
